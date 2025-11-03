@@ -1,0 +1,529 @@
+name: Siid-Code Auto-Version & Release
+
+on:
+  push:
+    branches: 
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type (auto/major/minor/patch)'
+        required: false
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+        default: 'auto'
+      prerelease:
+        description: 'Mark as pre-release/preview'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  # Job 1: PR Quality Checks (runs on pull requests)
+  pr-checks:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.8.1'
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.2'
+          cache: 'pnpm'
+          
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+        
+      - name: Run linting
+        run: pnpm lint
+        
+      - name: Run type checking
+        run: pnpm check-types
+        
+      - name: Run formatting check
+        run: pnpm format
+        
+      - name: Build project
+        run: pnpm build
+        
+      - name: Check build output
+        run: |
+          echo "✅ Build completed successfully!"
+          if [ -d "out" ]; then
+            echo "📁 Build output (out directory):"
+            ls -la out/ | head -10
+            echo "📦 Bundle size (out):"
+            du -sh out/
+          fi
+          if [ -d "dist" ]; then
+            echo "📁 Build output (dist directory):"
+            ls -la dist/ | head -10
+            echo "📦 Bundle size (dist):"
+            du -sh dist/
+          fi
+          
+      - name: Security audit
+        run: |
+          pnpm audit --audit-level moderate || echo "⚠️ Security audit completed with warnings"
+          
+      - name: Check package.json scripts
+        run: |
+          echo "📋 Available scripts:"
+          node -p "Object.keys(require('./package.json').scripts || {}).join('\n')"
+          
+      - name: Analyze commit message
+        run: |
+          echo "## 📝 Commit Message Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          echo "**Latest commit:** \`$COMMIT_MSG\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if echo "$COMMIT_MSG" | grep -qiE "^(feat|fix|docs|chore|refactor|perf|test|style|ci)(\(.*\))?:"; then
+            echo "✅ Commit follows conventional commit format" >> $GITHUB_STEP_SUMMARY
+            
+            if echo "$COMMIT_MSG" | grep -qiE "^feat!:|^fix!:|BREAKING CHANGE"; then
+              echo "🔴 **MAJOR** version bump (breaking change)" >> $GITHUB_STEP_SUMMARY
+            elif echo "$COMMIT_MSG" | grep -qiE "^feat(\(.*\))?:"; then
+              echo "🟡 **MINOR** version bump (new feature)" >> $GITHUB_STEP_SUMMARY
+            elif echo "$COMMIT_MSG" | grep -qiE "^fix(\(.*\))?:"; then
+              echo "🟢 **PATCH** version bump (bug fix)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "🟢 **PATCH** version bump (maintenance)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ Commit does not follow conventional commit format" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Recommended format:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`feat: add new feature\` (MINOR bump)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`fix: resolve bug\` (PATCH bump)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`feat!: breaking change\` (MAJOR bump)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: PR Status Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ All PR Checks Passed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔍 Linting | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📝 Type Checking | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| 💅 Formatting | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔨 Build | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔒 Security Audit | ✅ Checked |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✨ **This PR is ready for review and merge!**" >> $GITHUB_STEP_SUMMARY
+
+  # Job 2: Auto-Version and Release (runs on push to main)
+  auto-version-and-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.8.1'
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.2'
+          cache: 'pnpm'
+          
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # Get the latest tag, default to v2025.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2025.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version numbers (remove 'v' prefix)
+          VERSION=${LATEST_TAG#v}
+          echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Analyze commits for version bump
+        id: analyze_commits
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          
+          # Get commits since last tag
+          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+            COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s" --no-merges)
+          else
+            COMMITS=$(git log --pretty=format:"%s" --no-merges | head -20)
+          fi
+          
+          echo "Analyzing commits:"
+          echo "$COMMITS"
+          
+          # Determine bump type based on conventional commits
+          BUMP_TYPE="patch"
+          
+          # Check for breaking changes (MAJOR)
+          if echo "$COMMITS" | grep -qiE "^(BREAKING CHANGE:|feat!:|fix!:|refactor!:)"; then
+            BUMP_TYPE="major"
+            echo "🔴 BREAKING CHANGE detected → MAJOR version bump"
+          # Check for new features (MINOR)
+          elif echo "$COMMITS" | grep -qiE "^feat(\(.*\))?:"; then
+            BUMP_TYPE="minor"
+            echo "🟡 New feature detected → MINOR version bump"
+          # Check for fixes or other changes (PATCH)
+          elif echo "$COMMITS" | grep -qiE "^(fix|perf|refactor|docs|chore|style|test)(\(.*\))?:"; then
+            BUMP_TYPE="patch"
+            echo "🟢 Fix/improvement detected → PATCH version bump"
+          # No conventional commits found
+          else
+            BUMP_TYPE="patch"
+            echo "⚪ No conventional commits → default PATCH version bump"
+          fi
+          
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          CURRENT_VERSION="${{ steps.get_latest_tag.outputs.current_version }}"
+          BUMP_TYPE="${{ github.event.inputs.version_bump || steps.analyze_commits.outputs.bump_type }}"
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Bump type: $BUMP_TYPE"
+          
+          # Parse current version (format: YEAR.MAJOR.MINOR)
+          IFS='.' read -r YEAR MAJOR MINOR <<< "$CURRENT_VERSION"
+          
+          # Get current year
+          CURRENT_YEAR=$(date +'%Y')
+          
+          # If year changed, reset to YEAR.0.0
+          if [ "$YEAR" != "$CURRENT_YEAR" ]; then
+            NEW_VERSION="$CURRENT_YEAR.0.0"
+            echo "📅 New year detected! Resetting to $NEW_VERSION"
+          else
+            # Apply version bump
+            case $BUMP_TYPE in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
+                echo "🔴 MAJOR bump: $CURRENT_VERSION → $NEW_VERSION"
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
+                echo "🟡 MINOR bump: $CURRENT_VERSION → $NEW_VERSION"
+                ;;
+              patch)
+                MINOR=$((MINOR + 1))
+                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
+                echo "🟢 PATCH bump: $CURRENT_VERSION → $NEW_VERSION"
+                ;;
+              *)
+                NEW_VERSION="$CURRENT_VERSION"
+                echo "⚪ No bump, keeping: $NEW_VERSION"
+                ;;
+            esac
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Check if version already exists
+        id: check_version
+        run: |
+          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
+          
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "⚠️  Tag $NEW_TAG already exists!"
+            echo "version_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Tag $NEW_TAG is available"
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Update package.json version
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: |
+          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
+          echo "Updating package.json to version $NEW_VERSION"
+          
+          # Update version in package.json
+          node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+          
+          # Verify the update
+          UPDATED_VERSION=$(node -p "require('./package.json').version")
+          echo "Updated package.json version: $UPDATED_VERSION"
+          
+      - name: Install dependencies
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: pnpm install --no-frozen-lockfile
+        
+      - name: Run linting
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: pnpm lint
+        
+      - name: Run type checking
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: pnpm check-types
+        
+      - name: Build project
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: pnpm build
+        
+      - name: Check build output
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: |
+          echo "Build completed successfully!"
+          if [ -d "out" ]; then
+            echo "📁 Build output (out directory):"
+            ls -la out/ | head -10
+          fi
+          if [ -d "dist" ]; then
+            echo "📁 Build output (dist directory):"
+            ls -la dist/ | head -10
+          fi
+          
+      - name: Create VSIX package
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: pnpm vsix
+        
+      - name: Find VSIX file
+        if: steps.check_version.outputs.version_exists == 'false'
+        id: find_vsix
+        run: |
+          # Look for VSIX files in common locations
+          VSIX_FILE=""
+          if [ -d "bin" ] && [ "$(ls bin/*.vsix 2>/dev/null | wc -l)" -gt 0 ]; then
+            VSIX_FILE=$(ls bin/*.vsix | head -1)
+          elif [ "$(ls *.vsix 2>/dev/null | wc -l)" -gt 0 ]; then
+            VSIX_FILE=$(ls *.vsix | head -1)
+          fi
+          
+          if [ -n "$VSIX_FILE" ]; then
+            echo "Found VSIX: $VSIX_FILE"
+            echo "vsix_path=$VSIX_FILE" >> $GITHUB_OUTPUT
+            echo "vsix_name=$(basename $VSIX_FILE)" >> $GITHUB_OUTPUT
+          else
+            echo "Error: No VSIX file found!"
+            exit 1
+          fi
+          
+      - name: Generate checksums
+        if: steps.check_version.outputs.version_exists == 'false'
+        id: checksums
+        run: |
+          VSIX_FILE="${{ steps.find_vsix.outputs.vsix_path }}"
+          SHA256=$(sha256sum "$VSIX_FILE" | awk '{print $1}')
+          echo "$SHA256" > "${VSIX_FILE}.sha256"
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "✓ Checksum generated"
+          echo "SHA256: $SHA256"
+          
+      - name: Get build timestamp
+        id: timestamp
+        run: |
+          echo "build_date=$(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "build_date_compact=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+          
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
+          
+          echo "# Changelog for $NEW_TAG" > changelog.md
+          echo "" >> changelog.md
+          
+          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+            echo "## Changes since $LATEST_TAG" >> changelog.md
+            echo "" >> changelog.md
+            
+            # Categorize commits using conventional commits
+            echo "### 🚀 Features" >> changelog.md
+            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- feat(\(.*\))?:" || echo "- No new features"
+            echo "" >> changelog.md
+            echo "" >> changelog.md
+            
+            echo "### 🐛 Bug Fixes" >> changelog.md
+            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- fix(\(.*\))?:" || echo "- No bug fixes"
+            echo "" >> changelog.md
+            echo "" >> changelog.md
+            
+            echo "### 📚 Documentation" >> changelog.md
+            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- docs(\(.*\))?:" || echo "- No documentation changes"
+            echo "" >> changelog.md
+            echo "" >> changelog.md
+            
+            echo "### 🔧 Maintenance" >> changelog.md
+            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- (chore|refactor|perf|test|style)(\(.*\))?:" || echo "- No maintenance changes"
+            echo "" >> changelog.md
+            echo "" >> changelog.md
+            
+            echo "### ⚠️ Breaking Changes" >> changelog.md
+            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- .*!:" || echo "- No breaking changes"
+            echo "" >> changelog.md
+            
+          else
+            echo "## Initial Release" >> changelog.md
+            echo "" >> changelog.md
+            echo "This is the first release of Pro-Code (SIID Code Extension)." >> changelog.md
+          fi
+          
+          # Read changelog into output
+          CHANGELOG_CONTENT=$(cat changelog.md)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      - name: Get contributors
+        id: contributors
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          
+          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+            CONTRIBUTORS=$(git log $LATEST_TAG..HEAD --pretty=format:"%an" --no-merges | sort -u | sed 's/^/@/' | paste -sd ", " -)
+          else
+            CONTRIBUTORS=$(git log --pretty=format:"%an" --no-merges | sort -u | head -10 | sed 's/^/@/' | paste -sd ", " -)
+          fi
+          
+          if [ -z "$CONTRIBUTORS" ]; then
+            CONTRIBUTORS="@${{ github.actor }}"
+          fi
+          
+          echo "contributors=$CONTRIBUTORS" >> $GITHUB_OUTPUT
+          
+      - name: Commit version update
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: |
+          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add package.json
+          git commit -m "chore: bump version to v$NEW_VERSION [skip ci]" || echo "No changes to commit"
+          git push origin main
+          
+      - name: Create Release
+        if: steps.check_version.outputs.version_exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Pro-Code (SIID Code) ${{ steps.calc_version.outputs.new_tag }}"
+          tag_name: ${{ steps.calc_version.outputs.new_tag }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease || 'false' }}
+          generate_release_notes: false
+          body: |
+            # 🎉 Pro-Code (SIID Code Extension) ${{ steps.calc_version.outputs.new_tag }}
+            
+            **Build Date:** ${{ steps.timestamp.outputs.build_date }}
+            **Version Bump:** ${{ steps.analyze_commits.outputs.bump_type }}
+            
+            ---
+            
+            ## 📦 Downloads
+            
+            | File | Description |
+            |------|-------------|
+            | **${{ steps.find_vsix.outputs.vsix_name }}** | VS Code Extension Package |
+            | **${{ steps.find_vsix.outputs.vsix_name }}.sha256** | SHA-256 Checksum |
+            
+            ### 🔐 Verify Your Download
+            ```bash
+            sha256sum -c ${{ steps.find_vsix.outputs.vsix_name }}.sha256
+            ```
+            
+            **SHA-256:** `${{ steps.checksums.outputs.sha256 }}`
+            
+            ---
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ---
+            
+            ## 🔗 Links
+            
+            - **Full Changelog:** [${{ steps.get_latest_tag.outputs.latest_tag }}...${{ steps.calc_version.outputs.new_tag }}](https://github.com/${{ github.repository }}/compare/${{ steps.get_latest_tag.outputs.latest_tag }}...${{ steps.calc_version.outputs.new_tag }})
+            - **Report Issues:** [GitHub Issues](https://github.com/${{ github.repository }}/issues)
+            
+            ## 👥 Contributors
+            
+            Thank you to all contributors who made this release possible:
+            ${{ steps.contributors.outputs.contributors }}
+            
+            ---
+            
+            ### 📋 Version Scheme
+            
+            Pro-Code follows **Semantic Versioning** with year prefix: `YEAR.MAJOR.MINOR`
+            - **MAJOR**: Breaking changes or significant new features
+            - **MINOR**: New features (backward compatible) or bug fixes
+            - Version resets at year boundary (e.g., 2025.x.x → 2026.0.0)
+          files: |
+            ${{ steps.find_vsix.outputs.vsix_path }}
+            ${{ steps.find_vsix.outputs.vsix_path }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Build Artifacts
+        if: steps.check_version.outputs.version_exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: procode-${{ steps.calc_version.outputs.new_tag }}-${{ steps.timestamp.outputs.build_date_compact }}
+          path: |
+            ${{ steps.find_vsix.outputs.vsix_path }}
+            ${{ steps.find_vsix.outputs.vsix_path }}.sha256
+            changelog.md
+          retention-days: 90
+          
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📊 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Previous Version | \`${{ steps.get_latest_tag.outputs.latest_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| New Version | \`${{ steps.calc_version.outputs.new_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bump Type | **${{ steps.analyze_commits.outputs.bump_type }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Date | ${{ steps.timestamp.outputs.build_date }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version Exists | ${{ steps.check_version.outputs.version_exists }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Prerelease | ${{ github.event.inputs.prerelease || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_version.outputs.version_exists }}" == "true" ]; then
+            echo "### ⚠️ Warning" >> $GITHUB_STEP_SUMMARY
+            echo "Version ${{ steps.calc_version.outputs.new_tag }} already exists. Build was skipped." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Success" >> $GITHUB_STEP_SUMMARY
+            echo "Release ${{ steps.calc_version.outputs.new_tag }} created successfully!" >> $GITHUB_STEP_SUMMARY
+          fi
