@@ -1,4 +1,4 @@
-name: Pro-Code Auto-Version & Release
+name: Siid-Code Auto-Version & Release
 
 on:
   push:
@@ -395,7 +395,7 @@ jobs:
           else
             echo "## Initial Release" >> changelog.md
             echo "" >> changelog.md
-            echo "This is the first release of Pro-Code (SIID Code Extension)." >> changelog.md
+            echo "This is the first release of SIID Code Extension." >> changelog.md
           fi
           
           # Read changelog into output
@@ -425,13 +425,13 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: "Pro-Code (SIID Code) ${{ steps.calc_version.outputs.new_tag }}"
+          name: "SIID Code Extension ${{ steps.calc_version.outputs.new_tag }}"
           tag_name: ${{ steps.calc_version.outputs.new_tag }}
           draft: false
           prerelease: ${{ github.event.inputs.prerelease || 'false' }}
           generate_release_notes: false
           body: |
-            # 🎉 Pro-Code (SIID Code Extension) ${{ steps.calc_version.outputs.new_tag }}
+            # 🎉 SIID Code Extension ${{ steps.calc_version.outputs.new_tag }}
             
             **Build Date:** ${{ steps.timestamp.outputs.build_date }}
             **Version Bump:** ${{ steps.analyze_commits.outputs.bump_type }}
@@ -472,7 +472,7 @@ jobs:
             
             ### 📋 Version Scheme
             
-            Pro-Code follows **Semantic Versioning** with year prefix: `YEAR.MAJOR.MINOR`
+            Siid-Code follows **Semantic Versioning** with year prefix: `YEAR.MAJOR.MINOR`
             - **MAJOR**: Breaking changes or significant new features
             - **MINOR**: New features (backward compatible) or bug fixes
             - Version resets at year boundary (e.g., 2025.x.x → 2026.0.0)
