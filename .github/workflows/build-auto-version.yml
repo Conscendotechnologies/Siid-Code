@@ -1,4 +1,4 @@
-name: Siid-Code Auto-Version & Release
+name: Pro-Code Auto-Version & Release
 
 on:
   push:
@@ -421,18 +421,6 @@ jobs:
           
           echo "contributors=$CONTRIBUTORS" >> $GITHUB_OUTPUT
           
-      - name: Commit version update
-        if: steps.check_version.outputs.version_exists == 'false'
-        run: |
-          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add package.json
-          git commit -m "chore: bump version to v$NEW_VERSION [skip ci]" || echo "No changes to commit"
-          git push origin main
-          
       - name: Create Release
         if: steps.check_version.outputs.version_exists == 'false'
         uses: softprops/action-gh-release@v1
@@ -488,6 +476,10 @@ jobs:
             - **MAJOR**: Breaking changes or significant new features
             - **MINOR**: New features (backward compatible) or bug fixes
             - Version resets at year boundary (e.g., 2025.x.x → 2026.0.0)
+            
+            ---
+            
+            **Note:** Package version updated to `${{ steps.calc_version.outputs.new_version }}` in package.json
           files: |
             ${{ steps.find_vsix.outputs.vsix_path }}
             ${{ steps.find_vsix.outputs.vsix_path }}.sha256
@@ -526,4 +518,7 @@ jobs:
           else
             echo "### ✅ Success" >> $GITHUB_STEP_SUMMARY
             echo "Release ${{ steps.calc_version.outputs.new_tag }} created successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note:** Package.json was updated to version \`${{ steps.calc_version.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "The version update is included in the tagged release but not committed back to main." >> $GITHUB_STEP_SUMMARY
           fi
