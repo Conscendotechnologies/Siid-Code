@@ -38,6 +38,10 @@
 
 ---
 
+## Creation of XML: (! IMPORTANT)
+
+- After creation of apex class immediatly create it's XML file too WITHOUT ASKING.
+
 ## Language Fundamentals
 
 ### Syntax Overview
@@ -2322,9 +2326,10 @@ After creation of all required apex classes and LWC components then first do dry
 Replace <classname.cls> with the actual classes.
 
 - If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
+- After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
   `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls>`
-- Replace <classname.cls> with the all objects that are created comma separated.
+- Replace <classname.cls> with the all classes that are created comma separated.
+- Before Going for LWC first dry-run and deploy Apex Classes.(!IMPORTANT)
 
 ## Quick Reference: Common Patterns
 

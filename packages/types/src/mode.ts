@@ -163,16 +163,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		description: "Write, modify, refactor, and deploy code. Always create an XML file when creating an Apex class.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions:
-			"\n\nFor Salesforce projects, use the following deployment commands:\n\n" +
-			"• Deploy Apex Class:\n" +
-			"  sf project deploy start --source-dir force-app/main/default/classes/MyApexClass.cls --wait 10\n\n" +
-			"• Deploy Lightning Web Component (LWC):\n" +
-			"  sf project deploy start --source-dir force-app/main/default/lwc/myLwcComponent --wait 10\n\n" +
-			"• Deploy Apex Trigger:\n" +
-			"  sf project deploy start --source-dir force-app/main/default/triggers/MyTrigger.trigger --wait 10\n\n" +
-			"You can also deploy multiple components together:\n" +
-			"  sf project deploy start --source-dir force-app/main/default/classes --source-dir force-app/main/default/lwc --source-dir force-app/main/default/triggers --wait 10\n\n" +
-			"This ensures all Apex classes, LWC components, and triggers are deployed to your Salesforce org efficiently.",
+			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects.",
 	},
 	{
 		slug: "orchestrator",
