@@ -232,6 +232,29 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				this.emit(RooCodeEventName.TaskCompleted, task.taskId, tokenUsage, toolUsage, { isSubtask: isSubtask })
 				this.taskMap.delete(task.taskId)
 
+				// Send OS notification when task completes
+				if (!isSubtask) {
+					try {
+						// Try to get a human-friendly title from history if available
+						const { historyItem } = await provider.getTaskWithId(task.taskId)
+						const taskText =
+							historyItem?.task && typeof historyItem.task === "string" ? historyItem.task : task.taskId
+						const title = taskText?.slice?.(0, 200) || String(taskText)
+						await provider.postMessageToWebview({
+							type: "notification",
+							title,
+							text: "Your task has been completed successfully!",
+						})
+					} catch (err) {
+						// Fallback to generic notification if history cannot be retrieved
+						await provider.postMessageToWebview({
+							type: "notification",
+							title: "Task Completed",
+							text: "Your task has been completed successfully!",
+						})
+					}
+				}
+
 				await this.fileLog(
 					`[${new Date().toISOString()}] taskCompleted -> ${task.taskId} | ${JSON.stringify(tokenUsage, null, 2)} | ${JSON.stringify(toolUsage, null, 2)}\n`,
 				)

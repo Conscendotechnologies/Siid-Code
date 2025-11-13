@@ -20,6 +20,7 @@ import { type ApiMessage } from "../task-persistence/apiMessages"
 import { ClineProvider } from "./ClineProvider"
 import { changeLanguage, t } from "../../i18n"
 import { Package } from "../../shared/package"
+import { sendOsNotification } from "../../extension/notifications"
 import { RouterName, toRouterName, ModelRecord } from "../../shared/api"
 import { supportPrompt } from "../../shared/support-prompt"
 import { MessageEnhancer } from "./messageEnhancer"
@@ -721,7 +722,49 @@ export const webviewMessageHandler = async (
 			saveImage(message.dataUri!)
 			break
 		case "openFile":
-			openFile(message.text!, message.values as { create?: boolean; content?: string; line?: number })
+			{
+				const requested = message.text || ""
+				try {
+					// Normalize and detect any attempts to open internal .roo instruction files
+					if (
+						typeof requested === "string" &&
+						(requested.includes(".roo/") ||
+							requested.includes("/.roo/") ||
+							requested.startsWith(".roo") ||
+							requested.includes("./.roo/"))
+					) {
+						provider.log(`[webviewMessageHandler] Blocked attempt to open internal .roo file: ${requested}`)
+						// Notify webview that opening internal instruction files is blocked and provide only the filename
+						await (provider.postMessageToWebview as any)({
+							type: "fileOpenBlocked",
+							text: path.basename(requested),
+						})
+						break
+					}
+
+					// If the requested path is an absolute path outside the workspace, block it.
+					const workspacePath = getWorkspacePath()
+					if (typeof requested === "string" && path.isAbsolute(requested) && workspacePath) {
+						const normalizedRequested = path.normalize(requested)
+						const normalizedWorkspace = path.normalize(workspacePath)
+						const relative = path.relative(normalizedWorkspace, normalizedRequested)
+						// If relative starts with '..' or is absolute, it's outside the workspace
+						if (relative.startsWith("..") || path.isAbsolute(relative)) {
+							provider.log(
+								`[webviewMessageHandler] Blocked attempt to open file outside workspace: ${requested}`,
+							)
+							await (provider.postMessageToWebview as any)({
+								type: "fileOpenBlocked",
+								text: path.basename(requested),
+							})
+							break
+						}
+					}
+				} catch (err) {
+					// Fall through to normal openFile behavior if detection fails for any reason
+				}
+				openFile(message.text!, message.values as { create?: boolean; content?: string; line?: number })
+			}
 			break
 		case "openMention":
 			openMention(message.text)
@@ -731,6 +774,17 @@ export const webviewMessageHandler = async (
 				vscode.env.openExternal(vscode.Uri.parse(message.url))
 			}
 			break
+		case "osNotification": {
+			// Sent from webview to request an OS-level notification
+			const title = message.title ?? Package.name
+			const text = message.text ?? ""
+			try {
+				await sendOsNotification(title, text)
+			} catch (err) {
+				console.error("osNotification failed", err)
+			}
+			break
+		}
 		case "checkpointDiff":
 			const result = checkoutDiffPayloadSchema.safeParse(message.payload)
 

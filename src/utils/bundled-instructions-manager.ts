@@ -604,7 +604,8 @@ export class BundledInstructionsManager {
 				})
 
 			// informational checkpoint removed
-			return results
+			// Sanitize returned items so callers (UI/webview) don't receive internal paths.
+			return results.map((inst) => ({ ...inst, filePath: path.basename(inst.filePath) }))
 		} catch (error) {
 			return []
 		}
@@ -618,12 +619,14 @@ export class BundledInstructionsManager {
 			const index = await this.getInstructionIndex()
 			if (!index) return []
 
+			// Return sanitized copies so UI doesn't see internal storage paths.
 			return index.instructions
 				.filter((instruction) => instruction.mode === mode)
 				.sort((a, b) => {
 					const priorityOrder = { high: 3, medium: 2, low: 1 }
 					return priorityOrder[b.priority] - priorityOrder[a.priority]
 				})
+				.map((inst) => ({ ...inst, filePath: path.basename(inst.filePath) }))
 		} catch (error) {
 			console.error(`Failed to get instructions for mode ${mode}:`, error)
 			return []

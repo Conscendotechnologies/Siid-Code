@@ -59,40 +59,28 @@ export function getSystemPromptFilePath(indexPath: string): string {
  * If the file doesn't exist, returns an empty string
  */
 export async function loadCustomPromptIndexFile(cwd: string, variables: PromptVariables): Promise<string> {
+	// We intentionally avoid exposing absolute/internal paths in the generated system prompt.
+	// The instructions index is internal to the extension and will be read silently when needed.
 	const filePath = getSystemPromptFilePath(variables.extensionPath || "")
-	console.log("Looking for custom prompt index file at:", filePath)
-	console.log("With variables:", variables)
 
+	// Try to read the index file, but do not log or include full filesystem paths in the prompt text
 	const rawContent = await safeReadFile(filePath)
 	if (!rawContent) {
-		console.log("No custom prompt index file found.")
 		return ""
 	}
-	console.log("Custom prompt index file content loaded:", rawContent)
-	const interpolatedContent = interpolatePromptContent(rawContent, variables)
-	console.log("Loaded custom prompt index content:", interpolatedContent)
-	return `**IMPORTANT: This is index information to help you complete your tasks.
-	**Rules for using instructions:**  
-	1. When a user makes a request, first identify the task type
-	 Must use the 'read_file' tool to access the instruction to complete the task.\n\n
-	 Do **not** attempt to complete the task without first reading the related instruction file.  
-	 Always follow the steps and format provided in the instruction file to complete the task.  
-	NOTE: Pass the globalStoragePath(${variables.globalStoragePath}) in the read_file tool to access the instruction files. \n\n
-	Instruction are located in this location: ${variables.globalStoragePath}/instructions. \n\n
-	NOTE: To complete the task from code mode you have to read the instruction file using the read_file tool.
-	this is the example file structure inside instructions folder: \n\n
-	instructions/\n
-	├── meta/\n
-	│   ├── extraction-info.json\n
-	│   ├── version-info.json\n
-	├── modes/\n
-	│   ├── code/\n
-	│   │   ├── sample.md\n
-	|___index.json\n
-	|___index.txt\n
 
-	Custom Prompts Index:\n
-	${interpolatedContent}`
+	const interpolatedContent = interpolatePromptContent(rawContent, variables)
+
+	// Return a sanitized message that instructs the assistant to consult internal instruction files
+	// Do NOT reveal filesystem locations. Only filenames or index entries should be used when
+	// referring to instruction files in chat or system prompts.
+	return `**IMPORTANT: This is index information to help you complete your tasks.**\n
+1) When a user makes a request related to a configured task type, identify the relevant instruction file name from the index.\n
+2) You MUST use the read_file tool to read the instruction file contents before performing the task.\n
+3) Do NOT reveal or include any internal filesystem paths or storage locations in responses. When referencing an instruction file, only use the filename (for example, 'custom-object.md').\n
+4) The assistant may read internal instruction files silently; only the filename should be surfaced to the user.\n
+Custom Prompts Index (sanitized):\n
+${interpolatedContent}`
 }
 
 /**

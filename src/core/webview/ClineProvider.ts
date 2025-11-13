@@ -81,6 +81,7 @@ import { Task, TaskOptions } from "../task/Task"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
+import { sendOsNotification } from "../../extension/notifications"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -297,6 +298,49 @@ export class ClineProvider
 			}
 
 			task.emit(RooCodeEventName.TaskUnfocused)
+
+			// Send an OS notification that a task finished (best-effort).
+			// Send an OS notification that a task finished
+			try {
+				const { historyItem } = await this.getTaskWithId(task.taskId)
+				const taskText =
+					historyItem?.task && typeof historyItem.task === "string" ? historyItem.task : task.taskId
+
+				// Prepare notification content
+				let notificationTitle = t("common:info.task_completed") || "Task completed"
+				let notificationText = taskText.slice?.(0, 200) || String(taskText)
+
+				// Always send a VS Code notification if the view is not visible
+				if (!this.view?.visible) {
+					sendOsNotification(notificationTitle, notificationText)
+				}
+
+				// Post notification to webview (it will receive a suppressInWebview hint
+				// when workspace config `notifications.useOs` is enabled).
+				await this.postMessageToWebview({
+					type: "notification",
+					title: notificationTitle,
+					text: notificationText,
+				})
+			} catch (err) {
+				try {
+					// Fallback notification with minimal info
+					const title = "Task completed"
+					const text = task.taskId
+
+					if (!this.view?.visible) {
+						sendOsNotification(title, text)
+					}
+
+					await this.postMessageToWebview({
+						type: "notification",
+						title: title,
+						text: text,
+					})
+				} catch (e) {
+					console.error("Failed to send OS notification", e)
+				}
+			}
 
 			// Make sure no reference kept, once promises end it will be
 			// garbage collected.
@@ -765,7 +809,33 @@ export class ClineProvider
 	}
 
 	public async postMessageToWebview(message: ExtensionMessage) {
-		await this.view?.webview.postMessage(message)
+		try {
+			// If this is a notification message, attach a hint so the webview can
+			// suppress or delay showing an in-webview toast when the extension
+			// already produced an OS-level notification. This avoids duplicate
+			// popups when `siid-code.notifications.useOs` is enabled.
+			if (message && (message as any).type === "notification") {
+				const useOs = vscode.workspace.getConfiguration(Package.name).get<boolean>("notifications.useOs", false)
+
+				// Clone the message so we don't mutate the caller's object
+				const msg = { ...(message as any) }
+
+				if (useOs) {
+					// Indicate to the webview it should suppress immediate toast and
+					// optionally delay showing it (default 2000ms). The webview will
+					// decide whether/how to display the delayed toast.
+					msg.suppressInWebview = true
+					msg.delayMs = 2000
+				}
+
+				await this.view?.webview.postMessage(msg as ExtensionMessage)
+				return
+			}
+
+			await this.view?.webview.postMessage(message)
+		} catch (err) {
+			console.error("postMessageToWebview failed", err)
+		}
 	}
 
 	private async getHMRHtmlContent(webview: vscode.Webview): Promise<string> {

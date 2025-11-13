@@ -186,6 +186,7 @@ export interface WebviewMessage {
 		| "profileThresholds"
 		| "setHistoryPreviewCollapsed"
 		| "openExternal"
+		| "osNotification"
 		| "filterMarketplaceItems"
 		| "marketplaceButtonClicked"
 		| "installMarketplaceItem"
@@ -214,6 +215,7 @@ export interface WebviewMessage {
 		| "deployResult"
 		| "executeCommand"
 	text?: string
+	title?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"
 	disabled?: boolean
