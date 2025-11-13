@@ -435,7 +435,7 @@ ORCHESTRATOR DELEGATION RULES:
 // Helper function to get instructions by mode slug
 export function getInstructionsBySlug(slug) {
 	switch (slug) {
-		case "salesforce_agent":
+		case "salesforce-agent":
 			return SALESFORCE_AGENT_INSTRUCTIONS
 		case "code":
 			return SALESFORCE_LWC_INSTRUCTIONS

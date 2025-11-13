@@ -1067,6 +1067,49 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 						</div>
 					</>
 
+					{/* API Configuration section - only for custom modes */}
+					{findModeBySlug(visualMode, customModes) && (
+						<div className="mb-4">
+							<div className="flex justify-between items-center mb-1">
+								<div className="font-bold">API Configuration</div>
+							</div>
+							<div className="text-sm text-vscode-descriptionForeground mb-2">
+								Link this mode to a specific API configuration. Leave empty to use the current
+								configuration.
+							</div>
+							<Select
+								value={(() => {
+									const customMode = findModeBySlug(visualMode, customModes)
+									return customMode?.apiConfigId || ""
+								})()}
+								onValueChange={(value) => {
+									console.log("Custom mode API config changed:", value)
+									console.log("Current custom mode:", findModeBySlug(visualMode, customModes))
+									const customMode = findModeBySlug(visualMode, customModes)
+									if (customMode) {
+										updateCustomMode(visualMode, {
+											...customMode,
+											apiConfigId: value || undefined,
+											source: customMode.source || "global",
+										})
+									}
+								}}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select API configuration (optional)" />
+								</SelectTrigger>
+								<SelectContent>
+									{listApiConfigMeta
+										?.filter((config) => config.name)
+										.map((config) => (
+											<SelectItem key={config.id} value={config.id}>
+												{config.name}
+											</SelectItem>
+										))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
+
 					{/* Role definition for both built-in and custom modes */}
 					<div className="mb-2">
 						<div className="flex justify-between items-center mb-1">

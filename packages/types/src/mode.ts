@@ -70,6 +70,8 @@ export const modeConfigSchema = z.object({
 	customInstructions: z.string().optional(),
 	groups: groupEntryArraySchema,
 	source: z.enum(["global", "project"]).optional(),
+	apiConfigId: z.string().optional(),
+	freeApiConfigId: z.string().optional(),
 })
 
 export type ModeConfig = z.infer<typeof modeConfigSchema>
@@ -142,7 +144,7 @@ function getCustomInstructionsForMode(slug: string): string {
 
 export const DEFAULT_MODES: readonly ModeConfig[] = [
 	{
-		slug: "Salesforce_Agent",
+		slug: "salesforce-agent",
 		name: "💻 Salesforce Agent",
 		roleDefinition:
 			"You are a SIID-Code, a comprehensive Salesforce Agent with expert knowledge across all Salesforce domains including Administration, Development, Declarative Tools, Data Management, Integrations, Reports & Dashboards, Platform Features, and Deployment.",
@@ -152,9 +154,11 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 			"Answer and generate solutions strictly related to Salesforce. Politely refuse anything outside Salesforce scope.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: getCustomInstructionsForMode("salesforce_agent"),
+		freeApiConfigId: "salesforce-agent-free", // Free: DeepSeek R1 ($0)
+		apiConfigId: "salesforce-agent-paid", // Paid: Claude 3.5 Sonnet ($3/$15)
 	},
 	{
-		slug: "Code",
+		slug: "code",
 		name: "Code",
 		roleDefinition:
 			"You are a SIID-Code, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.",
@@ -164,6 +168,8 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions:
 			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects.",
+		freeApiConfigId: "code-free", // Free: Cerebras Qwen 3 ($0, 2000 tok/s)
+		apiConfigId: "code-paid", // Paid: Claude 3.5 Sonnet via OpenRouter ($3/$15)
 	},
 	{
 		slug: "orchestrator",
@@ -177,5 +183,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}
         `,
+		freeApiConfigId: "orchestrator-free", // Free: Same as Code mode
+		apiConfigId: "orchestrator-paid", // Paid: Same as Code mode
 	},
 ] as const

@@ -38,5 +38,6 @@
 	"settings.customStoragePath.description": "Custom storage path. Leave empty to use the default location. Supports absolute paths (e.g. 'D:\\ProCodeStorage')",
 	"settings.enableCodeActions.description": "Enable SIID Code quick fixes",
 	"settings.autoImportSettingsPath.description": "Path to a ProCode configuration file to automatically import on extension startup. Supports absolute paths and paths relative to the home directory (e.g. '~/Documents/Pro-code-settings.json'). Leave empty to disable auto-import.",
-	"settings.useAgentRules.description": "Enable loading of AGENTS.md files for agent-specific rules (see https://agent-rules.org/)"
+	"settings.useAgentRules.description": "Enable loading of AGENTS.md files for agent-specific rules (see https://agent-rules.org/)",
+	"settings.useFreeModels.description": "Use free models ($0 cost) instead of paid models for all modes. Free models include OpenRouter models with :free suffix and Cerebras free tier. Note: Free models typically have lower rate limits."
 }
