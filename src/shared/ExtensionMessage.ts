@@ -124,7 +124,9 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "loginSuccess"
 		| "firebaseLogout"
+		| "notification"
 	text?: string
+	title?: string
 	payload?: any // Add a generic payload for now, can refine later
 	action?:
 		| "chatButtonClicked"
