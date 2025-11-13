@@ -5,6 +5,7 @@ import * as fs from "fs/promises"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
 import * as yaml from "yaml"
+import { logger } from "../../utils/logging"
 
 import {
 	type Language,
@@ -362,6 +363,17 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowUpdateTodoList":
 			await updateGlobalState("alwaysAllowUpdateTodoList", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "useFreeModels":
+			await updateGlobalState("useFreeModels", message.bool)
+			// Update API keys when toggling free/paid models
+			await provider.providerSettingsManager.updateApiKeysFromFirebase()
+
+			// FIX: Re-activate the current mode's config to match free/paid preference
+			const currentMode = getGlobalState("mode") ?? defaultModeSlug
+			await provider.handleModeSwitch(currentMode)
+
 			await provider.postStateToWebview()
 			break
 		case "askResponse":
@@ -1526,7 +1538,13 @@ export const webviewMessageHandler = async (
 			break
 		case "upsertApiConfiguration":
 			if (message.text && message.apiConfiguration) {
+				logger.info(`[webviewMessageHandler] Handling upsertApiConfiguration for profile: ${message.text}`)
 				await provider.upsertProviderProfile(message.text, message.apiConfiguration)
+				logger.info(`[webviewMessageHandler] upsertApiConfiguration completed for profile: ${message.text}`)
+			} else {
+				logger.warn(
+					`[webviewMessageHandler] upsertApiConfiguration called with invalid message: text=${message.text}, apiConfiguration=${!!message.apiConfiguration}`,
+				)
 			}
 			break
 		case "renameApiConfiguration":

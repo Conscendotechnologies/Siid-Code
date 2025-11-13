@@ -148,6 +148,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setMaxDiagnosticMessages: (value: number) => void
 	includeTaskHistoryInEnhance?: boolean
 	setIncludeTaskHistoryInEnhance: (value: boolean) => void
+	useFreeModels?: boolean
+	setUseFreeModels: (value: boolean) => void
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -255,11 +257,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [showLogin, setShowLogin] = useState(false)
 	const [theme, setTheme] = useState<any>(undefined)
 
-	console.log("ExtensionStateContext - Initial state:")
-	console.log("  didHydrateState:", didHydrateState)
-	console.log("  showWelcome:", showWelcome)
-	console.log("  showLogin:", showLogin)
-	console.log("  cloudIsAuthenticated:", state.cloudIsAuthenticated)
 	const [filePaths, setFilePaths] = useState<string[]>([])
 	const [openedTabs, setOpenedTabs] = useState<Array<{ label: string; isActive: boolean; path?: string }>>([])
 	const [commands, setCommands] = useState<Command[]>([])
@@ -274,6 +271,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		global: {},
 	})
 	const [includeTaskHistoryInEnhance, setIncludeTaskHistoryInEnhance] = useState(false)
+	const [useFreeModels, setUseFreeModels] = useState(false)
 
 	const setListApiConfigMeta = useCallback(
 		(value: ProviderSettingsEntry[]) => setState((prevState) => ({ ...prevState, listApiConfigMeta: value })),
@@ -302,20 +300,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					const hasApiConfig = checkExistKey(newState.apiConfiguration)
 					const isAuthenticated = newState.cloudIsAuthenticated
 
-					console.log("ExtensionStateContext - state message received:")
-					console.log("  hasApiConfig:", hasApiConfig)
-					console.log("  isAuthenticated:", isAuthenticated)
-					console.log("  apiConfiguration:", newState.apiConfiguration)
-					console.log("  cloudIsAuthenticated:", newState.cloudIsAuthenticated)
-
 					// Show login if not authenticated and no API config
 					// Show welcome if authenticated but no API config
 					// Show neither if has API config (go to main app)
 					const shouldShowLogin = !isAuthenticated && !hasApiConfig
 					const shouldShowWelcome = isAuthenticated && !hasApiConfig
-
-					console.log("  shouldShowLogin:", shouldShowLogin)
-					console.log("  shouldShowWelcome:", shouldShowWelcome)
 
 					setShowLogin(shouldShowLogin)
 					setShowWelcome(shouldShowWelcome)
@@ -331,6 +320,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					// Update includeTaskHistoryInEnhance if present in state message
 					if ((newState as any).includeTaskHistoryInEnhance !== undefined) {
 						setIncludeTaskHistoryInEnhance((newState as any).includeTaskHistoryInEnhance)
+					}
+					// Update useFreeModels if present in state message
+					if ((newState as any).useFreeModels !== undefined) {
+						setUseFreeModels((newState as any).useFreeModels)
 					}
 					// Handle marketplace data if present in state message
 					if (newState.marketplaceItems !== undefined) {
@@ -583,6 +576,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		},
 		includeTaskHistoryInEnhance,
 		setIncludeTaskHistoryInEnhance,
+		useFreeModels,
+		setUseFreeModels: (value) => {
+			setUseFreeModels(value)
+			vscode.postMessage({ type: "useFreeModels", bool: value })
+		},
 	}
 
 	return <ExtensionStateContext.Provider value={contextValue}>{children}</ExtensionStateContext.Provider>
@@ -594,12 +592,6 @@ export const useExtensionState = () => {
 	if (context === undefined) {
 		throw new Error("useExtensionState must be used within an ExtensionStateContextProvider")
 	}
-
-	console.log("useExtensionState called - returning context:")
-	console.log("  didHydrateState:", context.didHydrateState)
-	console.log("  showWelcome:", context.showWelcome)
-	console.log("  showLogin:", context.showLogin)
-	console.log("  cloudIsAuthenticated:", context.cloudIsAuthenticated)
 
 	return context
 }

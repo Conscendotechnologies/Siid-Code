@@ -59,8 +59,6 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 }
 
 const App = () => {
-	console.log("🚀 App component is loading...")
-
 	const {
 		didHydrateState,
 		showWelcome,
@@ -72,8 +70,6 @@ const App = () => {
 		renderContext,
 		mdmCompliant,
 	} = useExtensionState()
-
-	console.log("🚀 App component - useExtensionState called")
 
 	// Create a persistent state manager
 
@@ -228,9 +224,6 @@ const App = () => {
 
 	// Do not conditionally load ChatView, it's expensive and there's state we
 	// don't want to lose (user input, disableInput, askResponse promise, etc.)
-	console.log("App render - showWelcome:", showWelcome)
-	console.log("App render - showLogin:", showLogin)
-	console.log("App render - didHydrateState:", didHydrateState)
 
 	return showLogin ? (
 		<LoginView />
@@ -289,7 +282,6 @@ const App = () => {
 const queryClient = new QueryClient()
 
 const AppWithProviders = () => {
-	console.log("🚀 AppWithProviders component is loading...")
 	return (
 		<ErrorBoundary>
 			<ExtensionStateContextProvider>

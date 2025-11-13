@@ -6,18 +6,18 @@
 @delimiter=|
 @notes=Fields are pipe-delimited; consumers should split on '|' then split last field on commas for keyword tokens.
 
-Salesforce_Agent-use-safeWriteJson-1758892247964|Salesforce_Agent|high|developement|modes/Salesforce_Agent/use-safeWriteJson.md|JSON File Writing Must Be Atomic|Salesforce_Agent,use-safeWriteJson,test,pr
-Salesforce_Agent-custom-object-1758892247966|Salesforce_Agent|high|developement|modes/Salesforce_Agent/custom-object.md|Salesforce Object Creation|object, create ,salesforce, create-xml
-Salesforce_Agent-custom-field-1758892247945|Salesforce_Agent|high|developement|modes/Salesforce_Agent/custom-field.md|Salesforce Field Creation|field, create ,salesforce,custom field, create-xml
-Salesforce_Agent-role-create-1758892246967|Salesforce_Agent|high|developement|modes/Salesforce_Agent/role-creation.md|Salesforce Role Creation|role, create , update, parent role, child role, hierarchy, salesforce, create-xml
-Salesforce_Agent-profile-1758892247967|Salesforce_Agent|high|developement|modes/Salesforce_Agent/profile.md|Salesforce Profile Creation|profile, create, clone ,salesforce, create-xml
-Salesforce_Agent-object-permissions-1758892247969|Salesforce_Agent|high|developement|modes/Salesforce_Agent/object-permissions.md|Salesforce Object Permissions Management|assign,object, permissions, salesforce, create-xml
-Salesforce_Agent-field-permissions-1758892247970|Salesforce_Agent|high|developement|modes/Salesforce_Agent/field-permissions.md|Salesforce Field Permissions Management|assign, field, permissions, salesforce, create-xml
-Salesforce_Agent-path-creation-1758892247972|Salesforce_Agent|high|developement|modes/Salesforce_Agent/path-creation.md|Salesforce Path Creation Management|path, picklist values, fields, record types, object, salesforce, create-xml
-Salesforce_Agent-assignment-rules-1758892247973|Salesforce_Agent|high|developement|modes/Salesforce_Agent/assignment-rules.md|Salesforce Assignment Rules Management|assignment, rules, salesforce, create-xml, case, leads
-Salesforce_Agent-validation-rules-1758892247975|Salesforce_Agent|high|developement|modes/Salesforce_Agent/validation-rules.md|Salesforce Validation Rules Management|validation, rules, salesforce, create-xml, formula
-code-lwc-guide-1758892248130|lwc-guide|high|developement|modes/code/lwc-guide.md|Lightning Web Components Guide Rules|lwc,lightning,components,js,html,salesforce,guide,rules,best-practices
-code-apex-guide-1758892248133|apex-guide|high|developement|modes/code/apex-guide.md|Apex Guide Rules and Best Practices|apex,classes,triggers,salesforce,guide,rules,best-practices,soql
+salesforce-agent-use-safeWriteJson-1758892247964|salesforce-agent|high|developement|modes/salesforce-agent/use-safeWriteJson.md|JSON File Writing Must Be Atomic|salesforce-agent,use-safeWriteJson,test,pr
+salesforce-agent-custom-object-1758892247966|salesforce-agent|high|developement|modes/salesforce-agent/custom-object.md|Salesforce Object Creation|object, create ,salesforce, create-xml
+salesforce-agent-custom-field-1758892247945|salesforce-agent|high|developement|modes/salesforce-agent/custom-field.md|Salesforce Field Creation|field, create ,salesforce,custom field, create-xml
+salesforce-agent-role-create-1758892246967|salesforce-agent|high|developement|modes/salesforce-agent/role-creation.md|Salesforce Role Creation|role, create , update, parent role, child role, hierarchy, salesforce, create-xml
+salesforce-agent-profile-1758892247967|salesforce-agent|high|developement|modes/salesforce-agent/profile.md|Salesforce Profile Creation|profile, create, clone ,salesforce, create-xml
+salesforce-agent-object-permissions-1758892247969|salesforce-agent|high|developement|modes/salesforce-agent/object-permissions.md|Salesforce Object Permissions Management|assign,object, permissions, salesforce, create-xml
+salesforce-agent-field-permissions-1758892247970|salesforce-agent|high|developement|modes/salesforce-agent/field-permissions.md|Salesforce Field Permissions Management|assign, field, permissions, salesforce, create-xml
+salesforce-agent-path-creation-1758892247972|salesforce-agent|high|developement|modes/salesforce-agent/path-creation.md|Salesforce Path Creation Management|path, picklist values, fields, record types, object, salesforce, create-xml
+salesforce-agent-assignment-rules-1758892247973|salesforce-agent|high|developement|modes/salesforce-agent/assignment-rules.md|Salesforce Assignment Rules Management|assignment, rules, salesforce, create-xml, case, leads
+salesforce-agent-validation-rules-1758892247975|salesforce-agent|high|developement|modes/salesforce-agent/validation-rules.md|Salesforce Validation Rules Management|validation, rules, salesforce, create-xml, formula
+code-lwc-guide-1758892248130|code|high|developement|modes/code/lwc-guide.md|Lightning Web Components Guide Rules|lwc,lightning,components,js,html,salesforce,guide,rules,best-practices
+code-apex-guide-1758892248133|code|high|developement|modes/code/apex-guide.md|Apex Guide Rules and Best Practices|apex,classes,triggers,salesforce,guide,rules,best-practices,soql
 docs-extractor-1_extraction_workflow-1758892247968|docs-extractor|high|testing|modes/docs-extractor/1_extraction_workflow.xml|Analyze and extract comprehensive details for documentation team|docs-extractor,1_extraction_workflow,test,error,architecture,design,pattern,workflow,integration,issue,pr,xml
 docs-extractor-2_documentation_patterns-1758892247971|docs-extractor|high|debugging|modes/docs-extractor/2_documentation_patterns.xml|docs-extractor instructions for 2_documentation_patterns|docs-extractor,2_documentation_patterns,debug,error,architecture,pattern,typescript,integration,issue,pr,xml
 docs-extractor-3_analysis_techniques-1758892247974|docs-extractor|high|testing|modes/docs-extractor/3_analysis_techniques.xml|Search for UI component files|docs-extractor,3_analysis_techniques,test,error,design,pattern,typescript,react,workflow,integration,pr,xml
