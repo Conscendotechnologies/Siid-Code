@@ -163,7 +163,8 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		description: "Write, modify, refactor, and deploy code. Always create an XML file when creating an Apex class.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions:
-			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects.",
+			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
+			getCustomInstructionsForMode("code"),
 	},
 	{
 		slug: "orchestrator",
