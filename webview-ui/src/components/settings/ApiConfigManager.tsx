@@ -12,6 +12,7 @@ interface ApiConfigManagerProps {
 	currentApiConfigName?: string
 	listApiConfigMeta?: ProviderSettingsEntry[]
 	organizationAllowList?: OrganizationAllowList
+	useFreeModels?: boolean
 	onSelectConfig: (configName: string) => void
 	onDeleteConfig: (configName: string) => void
 	onRenameConfig: (oldName: string, newName: string) => void
@@ -22,6 +23,7 @@ const ApiConfigManager = ({
 	currentApiConfigName = "",
 	listApiConfigMeta = [],
 	organizationAllowList,
+	useFreeModels = false,
 	onSelectConfig,
 	onDeleteConfig,
 	onRenameConfig,
@@ -170,7 +172,14 @@ const ApiConfigManager = ({
 		onDeleteConfig(currentApiConfigName)
 	}
 
-	const isOnlyProfile = listApiConfigMeta?.length === 1
+	// Filter configs based on useFreeModels setting
+	// Free configs end with '-free', paid configs don't
+	const filteredConfigs = listApiConfigMeta.filter((config) => {
+		const isFreeConfig = config.id.endsWith("-free")
+		return useFreeModels ? isFreeConfig : !isFreeConfig
+	})
+
+	const isOnlyProfile = filteredConfigs?.length === 1
 
 	return (
 		<div className="flex flex-col gap-1">
@@ -229,7 +238,7 @@ const ApiConfigManager = ({
 						<SearchableSelect
 							value={currentApiConfigName}
 							onValueChange={handleSelectConfig}
-							options={listApiConfigMeta.map((config) => {
+							options={filteredConfigs.map((config) => {
 								const valid = isProfileValid(config)
 								return {
 									value: config.name,

@@ -81,6 +81,7 @@ import { Task, TaskOptions } from "../task/Task"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
+import { logger } from "../../utils/logging"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -706,7 +707,22 @@ export class ClineProvider
 			await this.updateGlobalState("mode", historyItem.mode)
 
 			// Load the saved API config for the restored mode if it exists
-			const savedConfigId = await this.providerSettingsManager.getModeConfigId(historyItem.mode)
+			// First check if the mode definition specifies a direct API config ID
+			const modeConfig = getModeBySlug(historyItem.mode, customModes)
+			console.log(`[ClineProvider] Restoring mode ${historyItem.mode}, modeConfig:`, modeConfig)
+
+			let savedConfigId: string | undefined
+
+			if (modeConfig?.apiConfigId) {
+				// Mode has a direct API config reference
+				savedConfigId = modeConfig.apiConfigId
+				console.log(`[ClineProvider] Using mode-defined API config ID: ${savedConfigId}`)
+			} else {
+				// Fall back to the existing ProviderSettingsManager lookup
+				savedConfigId = await this.providerSettingsManager.getModeConfigId(historyItem.mode)
+				console.log(`[ClineProvider] Using ProviderSettingsManager config ID: ${savedConfigId}`)
+			}
+
 			const listApiConfig = await this.providerSettingsManager.listConfig()
 
 			// Update listApiConfigMeta first to ensure UI has latest data
@@ -958,6 +974,8 @@ export class ClineProvider
 	 * @param newMode The mode to switch to
 	 */
 	public async handleModeSwitch(newMode: Mode) {
+		console.log(`[ClineProvider] Switching to mode: ${newMode}`)
+		logger.info(`Switching to mode: ${newMode}`)
 		const cline = this.getCurrentCline()
 
 		if (cline) {
@@ -993,27 +1011,88 @@ export class ClineProvider
 		await this.updateGlobalState("mode", newMode)
 
 		// Load the saved API config for the new mode if it exists
-		const savedConfigId = await this.providerSettingsManager.getModeConfigId(newMode)
+		// First check if the mode definition specifies a direct API config ID
+		const customModes = await this.customModesManager.getCustomModes()
+		const modeConfig = getModeBySlug(newMode, customModes)
+
+		logger.info(`ClineProvider.handleModeSwitch: newMode=${newMode}, modeConfig=${JSON.stringify(modeConfig)}`)
+		console.log(`[ClineProvider] Mode config:`, modeConfig)
+
+		let savedConfigId: string | undefined
+
+		if (modeConfig?.apiConfigId) {
+			// Mode has a direct API config reference
+			savedConfigId = modeConfig.apiConfigId
+			logger.info(`ClineProvider.handleModeSwitch: using modeConfig.apiConfigId=${savedConfigId}`)
+			console.log(`[ClineProvider] Using mode-defined API config ID: ${savedConfigId}`)
+
+			// Check if we need to swap between free and paid configs based on useFreeModels setting
+			const useFreeModels = this.getGlobalState("useFreeModels")
+			logger.info(
+				`ClineProvider.handleModeSwitch: useFreeModels=${useFreeModels}, original savedConfigId=${savedConfigId}`,
+			)
+
+			if (useFreeModels !== undefined) {
+				// Swap between free and paid configs
+				if (useFreeModels && savedConfigId.endsWith("-paid")) {
+					// User wants free models, but config is paid - swap to free
+					savedConfigId = savedConfigId.replace("-paid", "-free")
+					logger.info(`ClineProvider.handleModeSwitch: swapped to free config: ${savedConfigId}`)
+					console.log(`[ClineProvider] Swapped to free config: ${savedConfigId}`)
+				} else if (!useFreeModels && savedConfigId.endsWith("-free")) {
+					// User wants paid models, but config is free - swap to paid
+					savedConfigId = savedConfigId.replace("-free", "-paid")
+					logger.info(`ClineProvider.handleModeSwitch: swapped to paid config: ${savedConfigId}`)
+					console.log(`[ClineProvider] Swapped to paid config: ${savedConfigId}`)
+				}
+			}
+		} else {
+			// Fall back to the existing ProviderSettingsManager lookup
+			savedConfigId = await this.providerSettingsManager.getModeConfigId(newMode)
+			logger.info(
+				`ClineProvider.handleModeSwitch: using ProviderSettingsManager.getModeConfigId=${savedConfigId}`,
+			)
+			console.log(`[ClineProvider] Using ProviderSettingsManager config ID: ${savedConfigId}`)
+		}
+
 		const listApiConfig = await this.providerSettingsManager.listConfig()
 
 		// Update listApiConfigMeta first to ensure UI has latest data
-		await this.updateGlobalState("listApiConfigMeta", listApiConfig)
+		await this.updateGlobalState("listApiConfigMeta", listApiConfig) // If this mode has a saved config, use it.
+		console.log(`listApiConfigMeta: ${JSON.stringify(listApiConfig)}`)
+		console.log(`savedConfigId: ${savedConfigId}`)
 
-		// If this mode has a saved config, use it.
 		if (savedConfigId) {
 			const profile = listApiConfig.find(({ id }) => id === savedConfigId)
 
+			logger.info(
+				`ClineProvider.handleModeSwitch: savedConfigId=${savedConfigId}, found profile=${JSON.stringify(profile)}`,
+			)
+			console.log(`[ClineProvider] Found profile for config ID ${savedConfigId}:`, profile)
+
 			if (profile?.name) {
+				logger.info(`ClineProvider.handleModeSwitch: activating profile ${profile.name}`)
+				console.log(`[ClineProvider] Activating profile: ${profile.name}`)
 				await this.activateProviderProfile({ name: profile.name })
+			} else {
+				logger.info(`ClineProvider.handleModeSwitch: no profile found for configId ${savedConfigId}`)
+				console.log(`[ClineProvider] No profile found for config ID: ${savedConfigId}`)
 			}
 		} else {
 			// If no saved config for this mode, save current config as default.
 			const currentApiConfigName = this.getGlobalState("currentApiConfigName")
 
+			logger.info(
+				`ClineProvider.handleModeSwitch: no savedConfigId, currentApiConfigName=${currentApiConfigName}`,
+			)
+
 			if (currentApiConfigName) {
 				const config = listApiConfig.find((c) => c.name === currentApiConfigName)
 
 				if (config?.id) {
+					logger.info(
+						`ClineProvider.handleModeSwitch: saving current config ${config.id} for mode ${newMode}`,
+					)
 					await this.providerSettingsManager.setModeConfig(newMode, config.id)
 				}
 			}
@@ -1041,6 +1120,9 @@ export class ClineProvider
 		providerSettings: ProviderSettings,
 		activate: boolean = true,
 	): Promise<string | undefined> {
+		logger.info(
+			`[upsertProviderProfile] Starting upsert for profile: ${name}, provider: ${providerSettings.apiProvider}, activate: ${activate}`,
+		)
 		try {
 			// TODO: Do we need to be calling `activateProfile`? It's not
 			// clear to me what the source of truth should be; in some cases
@@ -1048,6 +1130,7 @@ export class ClineProvider
 			// we rely on the `ProviderSettingsManager`'s data store. It might
 			// be simpler to unify these two.
 			const id = await this.providerSettingsManager.saveConfig(name, providerSettings)
+			logger.info(`[upsertProviderProfile] Saved config with id: ${id}`)
 
 			if (activate) {
 				const { mode } = await this.getState()
@@ -1068,6 +1151,7 @@ export class ClineProvider
 					this.providerSettingsManager.setModeConfig(mode, id),
 					this.contextProxy.setProviderSettings(providerSettings),
 				])
+				logger.info(`[upsertProviderProfile] Activated profile for mode: ${mode}`)
 
 				// Change the provider for the current task.
 				// TODO: We should rename `buildApiHandler` for clarity (e.g. `getProviderClient`).
@@ -1075,14 +1159,18 @@ export class ClineProvider
 
 				if (task) {
 					task.api = buildApiHandler(providerSettings)
+					logger.info(`[upsertProviderProfile] Updated API handler for current task`)
 				}
 			} else {
 				await this.updateGlobalState("listApiConfigMeta", await this.providerSettingsManager.listConfig())
+				logger.info(`[upsertProviderProfile] Updated listApiConfigMeta without activation`)
 			}
 
 			await this.postStateToWebview()
+			logger.info(`[upsertProviderProfile] Posted state to webview, returning id: ${id}`)
 			return id
 		} catch (error) {
+			logger.error(`[upsertProviderProfile] Error upserting profile ${name}:`, error)
 			this.log(
 				`Error create new api configuration: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
 			)
@@ -1609,6 +1697,7 @@ export class ClineProvider
 			historyPreviewCollapsed,
 			cloudUserInfo,
 			cloudIsAuthenticated,
+			firebaseIsAuthenticated,
 			sharingEnabled,
 			organizationAllowList,
 			organizationSettingsVersion,
@@ -1623,6 +1712,7 @@ export class ClineProvider
 			includeDiagnosticMessages,
 			maxDiagnosticMessages,
 			includeTaskHistoryInEnhance,
+			useFreeModels,
 		} = await this.getState()
 
 		const telemetryKey = process.env.POSTHOG_API_KEY
@@ -1722,6 +1812,7 @@ export class ClineProvider
 			historyPreviewCollapsed: historyPreviewCollapsed ?? false,
 			cloudUserInfo,
 			cloudIsAuthenticated: cloudIsAuthenticated ?? false,
+			firebaseIsAuthenticated: firebaseIsAuthenticated ?? false,
 			sharingEnabled: sharingEnabled ?? false,
 			organizationAllowList,
 			organizationSettingsVersion,
@@ -1749,6 +1840,7 @@ export class ClineProvider
 			includeDiagnosticMessages: includeDiagnosticMessages ?? true,
 			maxDiagnosticMessages: maxDiagnosticMessages ?? 50,
 			includeTaskHistoryInEnhance: includeTaskHistoryInEnhance ?? false,
+			useFreeModels: useFreeModels ?? false,
 		}
 	}
 
@@ -1823,6 +1915,18 @@ export class ClineProvider
 		} catch (error) {
 			console.error(
 				`[getState] failed to get organization settings version: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+
+		let firebaseIsAuthenticated: boolean = false
+
+		try {
+			const result = await vscode.commands.executeCommand("firebase-authentication-v1.isAuthenticated")
+			firebaseIsAuthenticated = !!result
+			console.log(`[getState] Firebase auth check result:`, { result, firebaseIsAuthenticated })
+		} catch (error) {
+			console.error(
+				`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
 
@@ -1908,6 +2012,7 @@ export class ClineProvider
 			historyPreviewCollapsed: stateValues.historyPreviewCollapsed ?? false,
 			cloudUserInfo,
 			cloudIsAuthenticated,
+			firebaseIsAuthenticated,
 			sharingEnabled,
 			organizationAllowList,
 			organizationSettingsVersion,
@@ -1936,6 +2041,7 @@ export class ClineProvider
 			maxDiagnosticMessages: stateValues.maxDiagnosticMessages ?? 50,
 			// Add includeTaskHistoryInEnhance setting
 			includeTaskHistoryInEnhance: stateValues.includeTaskHistoryInEnhance ?? false,
+			useFreeModels: stateValues.useFreeModels,
 		}
 	}
 
@@ -1957,6 +2063,7 @@ export class ClineProvider
 
 	// @deprecated - Use `ContextProxy#setValue` instead.
 	private async updateGlobalState<K extends keyof GlobalState>(key: K, value: GlobalState[K]) {
+		logger.info(`[updateGlobalState] Updating key: ${key} with value: ${JSON.stringify(value)}`)
 		await this.contextProxy.setValue(key, value)
 	}
 

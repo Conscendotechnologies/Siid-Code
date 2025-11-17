@@ -438,7 +438,7 @@ The conversation flows naturally through phases because each mode hands control 
  */
 export function getInstructionsBySlug(slug) {
 	switch (slug) {
-		case "salesforce_agent":
+		case "salesforce-agent":
 			return SALESFORCE_AGENT_INSTRUCTIONS + SALESFORCE_AGENT_RETURN_PROTOCOL
 		case "code":
 			return SALESFORCE_CODE_INSTRUCTIONS + SALESFORCE_CODE_RETURN_PROTOCOL

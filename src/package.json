@@ -382,6 +382,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "%settings.useAgentRules.description%"
+				},
+				"siid-code.useFreeModels": {
+					"type": "boolean",
+					"default": false,
+					"description": "%settings.useFreeModels.description%"
 				}
 			}
 		}
