@@ -1,35 +1,23 @@
 import { useCallback, useState } from "react"
-import knuthShuffle from "knuth-shuffle-seeded"
 import { Trans } from "react-i18next"
 import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 
-import type { ProviderSettings } from "@siid-code/types"
-
 import { useExtensionState } from "@src/context/ExtensionStateContext"
-import { validateApiConfiguration } from "@src/utils/validate"
 import { vscode } from "@src/utils/vscode"
 import { useAppTranslation } from "@src/i18n/TranslationContext"
-import { getRequestyAuthUrl, getOpenRouterAuthUrl } from "@src/oauth/urls"
 
-import ApiOptions from "../settings/ApiOptions"
 import { Tab, TabContent } from "../common/Tab"
 
 import RooHero from "./RooHero"
 
 const WelcomeView = () => {
-	const { showWelcome, setShowWelcome, uriScheme, machineId } = useExtensionState()
+	const { setShowWelcome } = useExtensionState()
 	const { t } = useAppTranslation()
-	const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
+	const [errorMessage] = useState<string | undefined>(undefined)
 
 	const handleSubmit = useCallback(() => {
 		setShowWelcome(false)
 	}, [setShowWelcome])
-
-	// Using a lazy initializer so it reads once at mount
-	const [imagesBaseUri] = useState(() => {
-		const w = window as any
-		return w.IMAGES_BASE_URI || ""
-	})
 
 	return (
 		<Tab>
