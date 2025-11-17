@@ -944,12 +944,23 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			return true
 		})
 
-		const viewportStart = Math.max(0, newVisibleMessages.length - 100)
-		newVisibleMessages
+		// Hide older api_req_started messages when there are newer ones
+		// Only show the most recent api_req_started to prevent multiple "Thinking" spinners
+		const lastApiReqStartedTs = newVisibleMessages
+			.slice()
+			.reverse()
+			.find((m: ClineMessage) => m.say === "api_req_started")?.ts
+
+		const filteredMessages = newVisibleMessages.filter((message: ClineMessage) =>
+			message.say === "api_req_started" ? message.ts === lastApiReqStartedTs : true,
+		)
+
+		const viewportStart = Math.max(0, filteredMessages.length - 100)
+		filteredMessages
 			.slice(viewportStart)
 			.forEach((msg: ClineMessage) => everVisibleMessagesTsRef.current.set(msg.ts, true))
 
-		return newVisibleMessages
+		return filteredMessages
 	}, [modifiedMessages])
 
 	useEffect(() => {

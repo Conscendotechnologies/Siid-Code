@@ -24,6 +24,7 @@ import ErrorBoundary from "./components/ErrorBoundary"
 import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonInteractiveClick"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { STANDARD_TOOLTIP_DELAY } from "./components/ui/standard-tooltip"
+import { requestNotificationPermission, showNotification } from "./utils/notifications"
 
 type Tab = "settings" | "history" | "mcp" | "modes" | "chat"
 
@@ -121,9 +122,38 @@ const App = () => {
 
 	const [currentSection, setCurrentSection] = useState<string | undefined>(undefined)
 
+	const handleNotification = useCallback(
+		(title: string, text: string) => {
+			// Always show OS notification when tab is not visible
+			if (!document.hasFocus() || tab !== "chat") {
+				showNotification(title, {
+					body: text,
+					requireInteraction: true, // Keep notification until user dismisses it
+					silent: false, // Play a sound
+				})
+			}
+		},
+		[tab],
+	)
+
 	const onMessage = useCallback(
 		(e: MessageEvent) => {
 			const message: ExtensionMessage = e.data
+
+			// Handle notification message
+			if (message.type === "notification" && message.title && message.text) {
+				const { title, text } = message
+				const suppress = (message as any).suppressInWebview
+				const delayMs = (message as any).delayMs || 0
+
+				if (suppress) {
+					// When the extension indicates OS notifications are being used,
+					// delay the in-webview toast slightly to avoid duplicate popups.
+					setTimeout(() => handleNotification(title, text), delayMs)
+				} else {
+					handleNotification(title, text)
+				}
+			}
 
 			if (message.type === "action" && message.action) {
 				// Handle switchTab action with tab parameter
@@ -170,7 +200,7 @@ const App = () => {
 				vscode.postMessage({ type: "storeLoginDetails", loginData: message.loginData } as any)
 			}
 		},
-		[switchTab],
+		[switchTab, handleNotification],
 	)
 
 	useEvent("message", onMessage)
@@ -189,7 +219,11 @@ const App = () => {
 	}, [telemetrySetting, telemetryKey, machineId, didHydrateState])
 
 	// Tell the extension that we are ready to receive messages.
-	useEffect(() => vscode.postMessage({ type: "webviewDidLaunch" }), [])
+	// Request notification permission when app launches
+	useEffect(() => {
+		vscode.postMessage({ type: "webviewDidLaunch" })
+		requestNotificationPermission() // Request permission for notifications
+	}, [])
 
 	// Initialize source map support for better error reporting
 	useEffect(() => {
