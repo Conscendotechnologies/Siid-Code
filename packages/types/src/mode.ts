@@ -153,7 +153,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		description:
 			"Answer and generate solutions strictly related to Salesforce. Politely refuse anything outside Salesforce scope.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
-		customInstructions: getCustomInstructionsForMode("salesforce_agent"),
+		customInstructions: getCustomInstructionsForMode("salesforce-agent"),
 		freeApiConfigId: "salesforce-agent-free", // Free: DeepSeek R1 ($0)
 		apiConfigId: "salesforce-agent-paid", // Paid: Claude 3.5 Sonnet ($3/$15)
 	},
@@ -167,8 +167,8 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		description: "Write, modify, refactor, and deploy code. Always create an XML file when creating an Apex class.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions:
-      "\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
-        getCustomInstructionsForMode("code"),
+			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
+			getCustomInstructionsForMode("code"),
 		freeApiConfigId: "code-free", // Free: Cerebras Qwen 3 ($0, 2000 tok/s)
 		apiConfigId: "code-paid", // Paid: Claude 3.5 Sonnet via OpenRouter ($3/$15)
 	},
@@ -176,15 +176,15 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		slug: "orchestrator",
 		name: "🪃 Orchestrator",
 		roleDefinition:
-			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (Salesforce_Agent for admin/config, Code for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
+			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (salesforce-agent for admin/config, code for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
 		whenToUse:
-			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to Salesforce_Agent mode for admin/config work, Code mode for development work, or both for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
-		description: "Analyze requests and coordinate work across Salesforce_Agent and Code modes",
+			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to salesforce-agent mode for admin/config work, code mode for development work, or both for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
+		description: "Analyze requests and coordinate work across salesforce-agent and code modes",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}
         `,
-		freeApiConfigId: "orchestrator-free", // Free: Same as Code mode
-		apiConfigId: "orchestrator-paid", // Paid: Same as Code mode
+		freeApiConfigId: "orchestrator-free", // Free: Same as code mode
+		apiConfigId: "orchestrator-paid", // Paid: Same as code mode
 	},
 ] as const
