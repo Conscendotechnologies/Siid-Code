@@ -213,15 +213,22 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		}
 
 		try {
-			// Post loginSuccess message to webview when Firebase login is successful
-			await visibleProvider.postMessageToWebview({
-				type: "loginSuccess",
-				loginData: {
-					userInfo: loginData?.userInfo || null,
-				},
-			})
+			outputChannel.appendLine("Firebase login event received - user is now authenticated")
 
-			outputChannel.appendLine("Firebase login successful - posted loginSuccess message to webview")
+			// Update API keys from Firebase after successful login
+			await visibleProvider.providerSettingsManager.updateApiKeysFromFirebase()
+
+			// Post a custom message to webview indicating login success
+			// This bypasses the Firebase command check which may have timing issues
+			await visibleProvider.postMessageToWebview({
+				type: "state",
+				state: {
+					...(await visibleProvider.getStateToPostToWebview()),
+					firebaseIsAuthenticated: true, // Override to ensure we show as authenticated
+				},
+			} as any)
+
+			outputChannel.appendLine("Firebase login successful - updated API keys and refreshed state")
 			vscode.window.showInformationMessage("Firebase login successful!")
 		} catch (error) {
 			outputChannel.appendLine(`Error handling Firebase login: ${error}`)
@@ -238,12 +245,20 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		}
 
 		try {
-			// Post a message to webview to handle logout
-			await visibleProvider.postMessageToWebview({
-				type: "firebaseLogout",
-			})
+			outputChannel.appendLine("Firebase logout event received - user is now logged out")
 
-			outputChannel.appendLine("Firebase logout - posted logout message to webview")
+			// Post a custom message to webview indicating logout
+			// This bypasses the Firebase command check which may have timing issues
+			await visibleProvider.postMessageToWebview({
+				type: "state",
+				state: {
+					...(await visibleProvider.getStateToPostToWebview()),
+					firebaseIsAuthenticated: false, // Override to ensure we show as logged out
+				},
+			} as any)
+
+			outputChannel.appendLine("Firebase logout - refreshed state")
+			vscode.window.showInformationMessage("You have been logged out")
 		} catch (error) {
 			outputChannel.appendLine(`Error handling Firebase logout: ${error}`)
 			vscode.window.showErrorMessage(

@@ -54,6 +54,7 @@ export interface ExtensionStateContextType extends ExtensionState {
 	marketplaceItems?: any[]
 	marketplaceInstalledMetadata?: MarketplaceInstalledMetadata
 	profileThresholds: Record<string, number>
+	setShowWelcome: (value: boolean) => void
 	setProfileThresholds: (value: Record<string, number>) => void
 	setApiConfiguration: (config: ProviderSettings) => void
 	setCustomInstructions: (value?: string) => void
@@ -231,6 +232,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		historyPreviewCollapsed: false, // Initialize the new state (default to expanded)
 		cloudUserInfo: null,
 		cloudIsAuthenticated: false,
+		firebaseIsAuthenticated: false,
 		sharingEnabled: false,
 		organizationAllowList: ORGANIZATION_ALLOW_ALL,
 		organizationSettingsVersion: -1,
@@ -298,13 +300,20 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					setState((prevState) => mergeExtensionState(prevState, newState))
 
 					const hasApiConfig = checkExistKey(newState.apiConfiguration)
-					const isAuthenticated = newState.cloudIsAuthenticated
+					const isAuthenticated = newState.firebaseIsAuthenticated
 
 					// Show login if not authenticated and no API config
 					// Show welcome if authenticated but no API config
 					// Show neither if has API config (go to main app)
-					const shouldShowLogin = !isAuthenticated && !hasApiConfig
-					const shouldShowWelcome = isAuthenticated && !hasApiConfig
+					const shouldShowLogin = !isAuthenticated
+					const shouldShowWelcome = isAuthenticated
+
+					console.log("🔍 Auth State Update:", {
+						firebaseIsAuthenticated: isAuthenticated,
+						hasApiConfig,
+						shouldShowLogin,
+						shouldShowWelcome,
+					})
 
 					setShowLogin(shouldShowLogin)
 					setShowWelcome(shouldShowWelcome)
@@ -391,23 +400,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					}
 					break
 				}
-				case "loginSuccess": {
-					// Handle successful login (including Firebase authentication)
-					setShowLogin(false)
-					setShowWelcome(true)
-					setState((prevState) => ({
-						...prevState,
-					}))
-					break
-				}
-				case "firebaseLogout": {
-					// Handle Firebase logout
-					setShowLogin(true)
-					setState((prevState) => ({
-						...prevState,
-					}))
-					break
-				}
 			}
 		},
 		[setListApiConfigMeta],
@@ -422,26 +414,12 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 
 	useEffect(() => {
 		vscode.postMessage({ type: "webviewDidLaunch" })
-		// Check Firebase authentication status on app initialization
-		vscode.postMessage({
-			type: "executeCommand",
-			commands: ["firebase-authentication-v1.isAuthenticated"],
-		} as any)
-
-		const handleAuthMessage = (event: MessageEvent) => {
-			const message = event.data
-			if (
-				message &&
-				message.type === "commandResult" &&
-				message.command === "firebase-authentication-v1.isAuthenticated"
-			) {
-				const isAuthenticated = !!message.result
-				setShowLogin(!isAuthenticated)
-				window.removeEventListener("message", handleAuthMessage)
-			}
-		}
-		window.addEventListener("message", handleAuthMessage)
 	}, [])
+
+	// 👇 ADD THIS NEW useEffect HERE
+	useEffect(() => {
+		console.log("State updated - showLogin:", showLogin, "showWelcome:", showWelcome)
+	}, [showLogin, showWelcome])
 
 	const contextValue: ExtensionStateContextType = {
 		...state,
@@ -467,6 +445,9 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		profileThresholds: state.profileThresholds ?? {},
 		alwaysAllowFollowupQuestions,
 		followupAutoApproveTimeoutMs,
+		setShowWelcome(value: boolean) {
+			setShowWelcome(value)
+		},
 		setExperimentEnabled: (id, enabled) =>
 			setState((prevState) => ({ ...prevState, experiments: { ...prevState.experiments, [id]: enabled } })),
 		setApiConfiguration,

@@ -1697,6 +1697,7 @@ export class ClineProvider
 			historyPreviewCollapsed,
 			cloudUserInfo,
 			cloudIsAuthenticated,
+			firebaseIsAuthenticated,
 			sharingEnabled,
 			organizationAllowList,
 			organizationSettingsVersion,
@@ -1811,6 +1812,7 @@ export class ClineProvider
 			historyPreviewCollapsed: historyPreviewCollapsed ?? false,
 			cloudUserInfo,
 			cloudIsAuthenticated: cloudIsAuthenticated ?? false,
+			firebaseIsAuthenticated: firebaseIsAuthenticated ?? false,
 			sharingEnabled: sharingEnabled ?? false,
 			organizationAllowList,
 			organizationSettingsVersion,
@@ -1916,6 +1918,18 @@ export class ClineProvider
 			)
 		}
 
+		let firebaseIsAuthenticated: boolean = false
+
+		try {
+			const result = await vscode.commands.executeCommand("firebase-authentication-v1.isAuthenticated")
+			firebaseIsAuthenticated = !!result
+			console.log(`[getState] Firebase auth check result:`, { result, firebaseIsAuthenticated })
+		} catch (error) {
+			console.error(
+				`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+
 		// Return the same structure as before
 		return {
 			apiConfiguration: providerSettings,
@@ -1998,6 +2012,7 @@ export class ClineProvider
 			historyPreviewCollapsed: stateValues.historyPreviewCollapsed ?? false,
 			cloudUserInfo,
 			cloudIsAuthenticated,
+			firebaseIsAuthenticated,
 			sharingEnabled,
 			organizationAllowList,
 			organizationSettingsVersion,
