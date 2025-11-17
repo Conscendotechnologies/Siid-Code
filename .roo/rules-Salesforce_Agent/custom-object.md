@@ -112,3 +112,61 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 - When the session starts:
   -Immediately initialize the workflow.
   -Begin the object creation process without asking what the user wants.
+
+## Complete Example
+
+Scenario: Creating a "Test" Custom Object
+When creating a custom object named "Test", follow these steps:
+
+- Step 1: Folder Structure
+  Create the following directory structure:
+  force-app/main/default/
+  ├── objects/
+  │ └── Test**c/
+  │ └── Test**c.object-meta.xml
+  └── tabs/
+  └── Test\_\_c.tab-meta.xml
+
+- Step 2: Object XML File
+  File: objects/Test**c/Test**c.object-meta.xml
+  xml<?xml version="1.0" encoding="UTF-8"?>
+  <CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+  <deploymentStatus>Deployed</deploymentStatus>
+  <enableActivities>true</enableActivities>
+  <enableFeeds>true</enableFeeds>
+  <enableHistory>true</enableHistory>
+  <enableReports>true</enableReports>
+  <label>Test</label>
+  <pluralLabel>Tests</pluralLabel>
+  <nameField>
+  <label>Test Name</label>
+  <type>Text</type>
+  </nameField>
+  <sharingModel>ReadWrite</sharingModel>
+  </CustomObject>
+
+- Step 3: Tab XML File
+  File: tabs/Test\_\_c.tab-meta.xml
+  xml<?xml version="1.0" encoding="UTF-8"?>
+  <CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+  <customObject>true</customObject>
+  <motif>Custom53: Bell</motif>
+  </CustomTab>
+
+- Step 4: Dry Run and Deployment
+
+For Objects:
+bash# Dry run
+sf project deploy start --dry-run --source-dir force-app/main/default/objects/Test\_\_c
+
+# Actual deployment (after successful dry run)
+
+sf project deploy start --source-dir force-app/main/default/objects/Test\_\_c
+
+For Tabs:
+bash# Dry run
+sf project deploy start --dry-run --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
+
+# Actual deployment (after successful dry run)
+
+sf project deploy start --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
