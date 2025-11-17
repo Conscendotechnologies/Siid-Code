@@ -215,6 +215,9 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		try {
 			outputChannel.appendLine("Firebase login event received - user is now authenticated")
 
+			// Update the cached Firebase auth state
+			visibleProvider.setFirebaseAuthState(true)
+
 			// Update API keys from Firebase after successful login
 			await visibleProvider.providerSettingsManager.updateApiKeysFromFirebase()
 
@@ -246,6 +249,9 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 
 		try {
 			outputChannel.appendLine("Firebase logout event received - user is now logged out")
+
+			// Update the cached Firebase auth state
+			visibleProvider.setFirebaseAuthState(false)
 
 			// Post a custom message to webview indicating logout
 			// This bypasses the Firebase command check which may have timing issues

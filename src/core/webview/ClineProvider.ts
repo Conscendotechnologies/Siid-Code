@@ -111,6 +111,7 @@ export class ClineProvider
 	protected mcpHub?: McpHub // Change from private to protected
 	private marketplaceManager: MarketplaceManager
 	private mdmService?: MdmService
+	private cachedFirebaseAuthState?: boolean // Cache for Firebase authentication state
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
@@ -1525,6 +1526,15 @@ export class ClineProvider
 	}
 
 	/**
+	 * Update the cached Firebase authentication state
+	 * This should be called when login/logout events occur
+	 */
+	public setFirebaseAuthState(isAuthenticated: boolean) {
+		console.log(`[ClineProvider] Setting Firebase auth state cache to:`, isAuthenticated)
+		this.cachedFirebaseAuthState = isAuthenticated
+	}
+
+	/**
 	 * Fetches marketplace data on demand to avoid blocking main state updates
 	 */
 	async fetchMarketplaceData() {
@@ -1918,16 +1928,26 @@ export class ClineProvider
 			)
 		}
 
-		let firebaseIsAuthenticated: boolean = false
+		// Use cached Firebase auth state if available to avoid unnecessary checks
+		// The cache is updated when login/logout happens
+		let firebaseIsAuthenticated: boolean = this.cachedFirebaseAuthState ?? false
 
-		try {
-			const result = await vscode.commands.executeCommand("firebase-authentication-v1.isAuthenticated")
-			firebaseIsAuthenticated = !!result
-			console.log(`[getState] Firebase auth check result:`, { result, firebaseIsAuthenticated })
-		} catch (error) {
-			console.error(
-				`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
-			)
+		// Only check Firebase auth if we don't have a cached value
+		if (this.cachedFirebaseAuthState === undefined) {
+			try {
+				const result = await vscode.commands.executeCommand("firebase-authentication-v1.isAuthenticated")
+				firebaseIsAuthenticated = !!result
+				this.cachedFirebaseAuthState = firebaseIsAuthenticated
+				console.log(`[getState] Firebase auth check result:`, { result, firebaseIsAuthenticated })
+			} catch (error) {
+				console.error(
+					`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
+				)
+				// Keep the cached value or default to false
+				firebaseIsAuthenticated = this.cachedFirebaseAuthState ?? false
+			}
+		} else {
+			console.log(`[getState] Using cached Firebase auth state:`, firebaseIsAuthenticated)
 		}
 
 		// Return the same structure as before
