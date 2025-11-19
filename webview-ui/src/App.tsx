@@ -14,7 +14,6 @@ import { ExtensionStateContextProvider, useExtensionState } from "./context/Exte
 import ChatView, { ChatViewRef } from "./components/chat/ChatView"
 import HistoryView from "./components/history/HistoryView"
 import SettingsView, { SettingsViewRef } from "./components/settings/SettingsView"
-import WelcomeView from "./components/welcome/WelcomeView"
 import LoginView from "./components/welcome/LoginView"
 import McpView from "./components/mcp/McpView"
 import ModesView from "./components/modes/ModesView"
@@ -61,7 +60,6 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 const App = () => {
 	const {
 		didHydrateState,
-		showWelcome,
 		showLogin,
 		shouldShowAnnouncement,
 		telemetrySetting,
@@ -227,8 +225,6 @@ const App = () => {
 
 	return showLogin ? (
 		<LoginView />
-	) : showWelcome ? (
-		<WelcomeView />
 	) : (
 		<>
 			{tab === "modes" && <ModesView onDone={() => switchTab("chat")} />}
