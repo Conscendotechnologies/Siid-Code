@@ -302,8 +302,8 @@ export class ProviderSettingsManager {
 			// - freeApiKey: API key for free tier models (rate-limited, $0 cost)
 			// - paidApiKey: API key for paid tier models (higher rate limits, costs money)
 			return {
-				freeApiKey: "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", // e.g., "sk-or-v1-free-tier-abc123..."
-				paidApiKey: "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", // e.g., "sk-or-v1-paid-tier-xyz789..."
+				freeApiKey: "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", // e.g., "sk-or-v1-free-tier-abc123..."
+				paidApiKey: "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", // e.g., "sk-or-v1-paid-tier-xyz789..."
 			}
 		} catch (error) {
 			logger.error(`[ProviderSettingsManager] Failed to fetch API keys from Firebase: ${error}`)
