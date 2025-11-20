@@ -6,6 +6,7 @@ import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 
 import { ClineSayTool } from "../../shared/ExtensionMessage"
 import { getReadablePath } from "../../utils/path"
+import { calculateDiffStats } from "../../utils/diffStats"
 import { Task } from "../task/Task"
 import { ToolUse, RemoveClosingTag, AskApproval, HandleError, PushToolResult } from "../../shared/tools"
 import { formatResponse } from "../prompts/responses"
@@ -278,11 +279,17 @@ Original error: ${errorMessage}`
 				const changeCount = opResult.diffItems?.length || 0
 				const changeText = changeCount === 1 ? "1 change" : `${changeCount} changes`
 
+				// Calculate diff statistics
+				const combinedDiff = opResult.diffItems?.map((item) => item.content).join("\n\n") || ""
+				const diffStats = calculateDiffStats(combinedDiff)
+
 				return {
 					path: readablePath,
 					changeCount,
 					key: `${readablePath} (${changeText})`,
 					content: opResult.path, // Full relative path
+					linesAdded: diffStats.linesAdded,
+					linesRemoved: diffStats.linesRemoved,
 					diffs: opResult.diffItems?.map((item) => ({
 						content: item.content,
 						startLine: item.startLine,
@@ -492,10 +499,14 @@ ${errorDetails ? `\nTechnical details:\n${errorDetails}\n` : ""}
 
 						// For single file operations, we need to send a complete message to stop the spinner
 						if (operationsToApprove.length === 1) {
+							const diffContents = diffItems.map((item) => item.content).join("\n\n")
+							const diffStats = calculateDiffStats(diffContents)
 							const sharedMessageProps: ClineSayTool = {
 								tool: "appliedDiff",
 								path: getReadablePath(cline.cwd, relPath),
-								diff: diffItems.map((item) => item.content).join("\n\n"),
+								diff: diffContents,
+								linesAdded: diffStats.linesAdded,
+								linesRemoved: diffStats.linesRemoved,
 							}
 							// Send a complete message (partial: false) to update the UI and stop the spinner
 							await cline.ask("tool", JSON.stringify(sharedMessageProps), false).catch(() => {})
@@ -529,10 +540,23 @@ ${errorDetails ? `\nTechnical details:\n${errorDetails}\n` : ""}
 				let didApprove = true
 				if (operationsToApprove.length === 1) {
 					// Prepare common data for single file operation
+					// Note: diffItems contains the REQUESTED diff format (search/replace or unified),
+					// not necessarily unified diff. For accurate stats, we'll compute a unified diff
+					// from the original and new content after applying the diff.
+					// But for now, we'll use what we have and let the frontend fall back to
+					// the user_feedback_diff message if needed.
 					const diffContents = diffItems.map((item) => item.content).join("\n\n")
+
+					// Calculate stats: if the diff is already in unified format (contains + and - prefixes),
+					// this will work. Otherwise, it will return 0/0 and the frontend will use the
+					// user_feedback_diff message that comes later with the actual unified diff.
+					const diffStats = calculateDiffStats(diffContents)
+
 					const operationMessage = JSON.stringify({
 						...sharedMessageProps,
 						diff: diffContents,
+						linesAdded: diffStats.linesAdded,
+						linesRemoved: diffStats.linesRemoved,
 					} satisfies ClineSayTool)
 
 					let toolProgressStatus
