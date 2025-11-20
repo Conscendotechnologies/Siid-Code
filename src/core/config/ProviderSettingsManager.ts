@@ -301,9 +301,19 @@ export class ProviderSettingsManager {
 			// When Firebase integration is ready, this will fetch:
 			// - freeApiKey: API key for free tier models (rate-limited, $0 cost)
 			// - paidApiKey: API key for paid tier models (higher rate limits, costs money)
+			const freeApiKey = process.env.OPENROUTER_FREE_API_KEY
+			const paidApiKey = process.env.OPENROUTER_PAID_API_KEY
+
+			logger.info("[ProviderSettingsManager] Using API keys", {
+				hasFreeKey: !!freeApiKey,
+				hasPaidKey: !!paidApiKey,
+				freeKeySource: process.env.OPENROUTER_FREE_API_KEY ? "env" : "fallback",
+				paidKeySource: process.env.OPENROUTER_PAID_API_KEY ? "env" : "fallback",
+			})
+
 			return {
-				freeApiKey: process.env.FIREBASE_FREE_API_KEY, // Load from environment variable
-				paidApiKey: process.env.FIREBASE_PAID_API_KEY, // Load from environment variable
+				freeApiKey,
+				paidApiKey,
 			}
 		} catch (error) {
 			logger.error(`[ProviderSettingsManager] Failed to fetch API keys from Firebase: ${error}`)
@@ -363,7 +373,7 @@ export class ProviderSettingsManager {
 				(config) => config.id === this.salesforceAgentPaidId,
 			)
 			if (salesforceAgentPaidConfig && paidApiKey) {
-				salesforceAgentPaidConfig.apiKey = paidApiKey
+				salesforceAgentPaidConfig.openRouterApiKey = paidApiKey
 				isDirty = true
 			}
 

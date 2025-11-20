@@ -1,15 +1,27 @@
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as path from "path"
+import * as fs from "fs"
 
-// Load environment variables from .env file
-try {
-	// Specify path to .env file in the project root directory
-	const envPath = path.join(__dirname, "..", ".env")
-	dotenvx.config({ path: envPath })
-} catch (e) {
-	// Silently handle environment loading errors
-	console.warn("Failed to load environment variables:", e)
+// This will be set in activate
+let envPath: string
+
+// Load environment variables from .env file - moved to activate to access context
+const loadEnv = (context: vscode.ExtensionContext) => {
+	try {
+		if (!envPath) {
+			// For development, extensionPath is src/, so ../.env is workspace root
+			envPath = path.join(context.extensionPath, "dist/.env")
+		}
+
+		console.log("[Extension] Checking .env path:", envPath)
+		console.log("[Extension] .env exists:", fs.existsSync(envPath))
+		dotenvx.config({ path: envPath })
+		console.log("[Extension] OPENROUTER_FREE_API_KEY loaded:", !!process.env.OPENROUTER_FREE_API_KEY)
+	} catch (e) {
+		// Silently handle environment loading errors
+		console.warn("Failed to load environment variables:", e)
+	}
 }
 
 import { CloudService } from "@roo-code/cloud"
@@ -63,6 +75,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel)
 	outputChannel.appendLine(`${Package.name} extension activated - ${JSON.stringify(Package)}`)
 	vscode.window.showInformationMessage("Siid Code activated!")
+
+	// Load environment variables from workspace .env file
+	loadEnv(context)
 
 	// Migrate old settings to new
 	await migrateSettings(context, outputChannel)
