@@ -212,6 +212,16 @@ export const webviewMessageHandler = async (
 
 	switch (message.type) {
 		case "webviewDidLaunch":
+			// Calculate and log time from activation to UI ready
+			const activationStartTime = provider.getValue("activationStartTime")
+			if (activationStartTime) {
+				const timeToReady = Date.now() - activationStartTime
+				provider.log(`🚀 Webview UI ready in ${timeToReady}ms (${(timeToReady / 1000).toFixed(2)}s)`)
+				console.log(`[Performance] Extension activation to UI ready: ${timeToReady}ms`)
+				// Clear the start time after logging to avoid re-logging on subsequent launches
+				await provider.setValue("activationStartTime", undefined)
+			}
+
 			// Load custom modes first
 			const customModes = await provider.customModesManager.getCustomModes()
 			await updateGlobalState("customModes", customModes)
@@ -1592,6 +1602,40 @@ export const webviewMessageHandler = async (
 						`Error load api configuration by ID: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
 					)
 					vscode.window.showErrorMessage(t("common:errors.load_api_config"))
+				}
+			}
+			break
+		case "storeLoginDetails":
+			// Handle storing login details and setting up user API key
+			if (message.loginData?.userInfo) {
+				try {
+					const userInfo = message.loginData.userInfo
+					const userId = userInfo.uid
+					const userEmail = userInfo.email || `user_${userId}`
+
+					logger.info(`[webviewMessageHandler] Processing login for user: ${userId}`)
+
+					// Import the OpenRouter key service
+					const { getOpenRouterKeyService } = await import("../../services/openrouter/api-key-service")
+					const keyService = getOpenRouterKeyService()
+
+					// Setup user API key (fetches provisioning key, creates user key, stores it)
+					const userApiKey = await keyService.setupUserApiKey(userId, userEmail)
+
+					logger.info(`[webviewMessageHandler] Successfully set up API key for user: ${userId}`)
+
+					// Optionally, update the user's API configuration with the new key
+					// This depends on how you want to integrate the key into your system
+					// For now, we'll just log success
+
+					vscode.window.showInformationMessage(
+						`Welcome ${userInfo.displayName || userEmail}! Your account is ready.`,
+					)
+				} catch (error) {
+					logger.error("[webviewMessageHandler] Failed to setup user API key:", error)
+					vscode.window.showErrorMessage(
+						`Failed to setup your account: ${error instanceof Error ? error.message : String(error)}`,
+					)
 				}
 			}
 			break

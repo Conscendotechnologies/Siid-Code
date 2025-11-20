@@ -18,6 +18,7 @@ import {
 import { TelemetryService } from "@siid-code/telemetry"
 
 import { logger } from "../../utils/logging"
+import { perfLog } from "../../utils/performanceLogger"
 
 type GlobalStateKey = keyof GlobalState
 type SecretStateKey = keyof SecretState
@@ -52,15 +53,25 @@ export class ContextProxy {
 	}
 
 	public async initialize() {
+		const initStart = Date.now()
+
+		const globalStateStart = Date.now()
 		for (const key of GLOBAL_STATE_KEYS) {
 			try {
-				// Revert to original assignment
+				const keyStart = Date.now()
+				// Load all keys including pass-through keys into cache during initialization
 				this.stateCache[key] = this.originalContext.globalState.get(key)
+				const keyTime = Date.now() - keyStart
+				if (keyTime > 100) {
+					perfLog(`[ContextProxy] Loading ${key} took ${keyTime}ms`)
+				}
 			} catch (error) {
 				logger.error(`Error loading global ${key}: ${error instanceof Error ? error.message : String(error)}`)
 			}
 		}
+		perfLog(`[ContextProxy] All global state keys loaded in ${Date.now() - globalStateStart}ms`)
 
+		const secretsStart = Date.now()
 		const promises = SECRET_STATE_KEYS.map(async (key) => {
 			try {
 				this.secretCache[key] = await this.originalContext.secrets.get(key)
@@ -70,8 +81,10 @@ export class ContextProxy {
 		})
 
 		await Promise.all(promises)
+		perfLog(`[ContextProxy] All secrets loaded in ${Date.now() - secretsStart}ms`)
 
 		this._isInitialized = true
+		perfLog(`[ContextProxy] Total initialization time: ${Date.now() - initStart}ms`)
 	}
 
 	public get extensionUri() {
@@ -106,11 +119,8 @@ export class ContextProxy {
 	getGlobalState<K extends GlobalStateKey>(key: K): GlobalState[K]
 	getGlobalState<K extends GlobalStateKey>(key: K, defaultValue: GlobalState[K]): GlobalState[K]
 	getGlobalState<K extends GlobalStateKey>(key: K, defaultValue?: GlobalState[K]): GlobalState[K] {
-		if (isPassThroughStateKey(key)) {
-			const value = this.originalContext.globalState.get<GlobalState[K]>(key)
-			return value === undefined || value === null ? defaultValue : value
-		}
-
+		// Always use cache if available (even for pass-through keys)
+		// Cache is populated during initialize() and kept in sync via updateGlobalState()
 		const value = this.stateCache[key]
 		return value !== undefined ? value : defaultValue
 	}

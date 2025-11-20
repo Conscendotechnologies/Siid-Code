@@ -22,6 +22,8 @@ import { IpcServer } from "@siid-code/ipc"
 import { Package } from "../shared/package"
 import { ClineProvider } from "../core/webview/ClineProvider"
 import { openClineInNewTab } from "../activate/registerCommands"
+import { t } from "../i18n"
+import { logout, onFirebaseLogin, onFirebaseLogout } from "../utils/firebaseHelper"
 
 export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	private readonly outputChannel: vscode.OutputChannel
@@ -39,6 +41,20 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 		enableLogging = false,
 	) {
 		super()
+
+		// Make prototype methods enumerable on the instance for better API exposure
+		const proto = Object.getPrototypeOf(this)
+		Object.getOwnPropertyNames(proto).forEach((name) => {
+			const descriptor = Object.getOwnPropertyDescriptor(proto, name)
+			if (descriptor && typeof descriptor.value === "function" && name !== "constructor") {
+				Object.defineProperty(this, name, {
+					value: descriptor.value.bind(this),
+					enumerable: true,
+					configurable: true,
+					writable: true,
+				})
+			}
+		})
 
 		this.outputChannel = outputChannel
 		this.sidebarProvider = provider
@@ -438,5 +454,62 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 		await this.sidebarProvider.activateProviderProfile({ name })
 		return this.getActiveProfile()
+	}
+
+	public async onFirebaseLogin(loginData?: unknown): Promise<void> {
+		try {
+			this.outputChannel.appendLine("Firebase login event received - user is now authenticated")
+
+			// Update the cached Firebase auth state
+			this.sidebarProvider.setFirebaseAuthState(true)
+
+			// Update API keys from Firebase after successful login
+			await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase()
+
+			// Post a custom message to webview indicating login success
+			// This bypasses the Firebase command check which may have timing issues
+			await this.sidebarProvider.postMessageToWebview({
+				type: "state",
+				state: {
+					...(await this.sidebarProvider.getStateToPostToWebview()),
+					firebaseIsAuthenticated: true, // Override to ensure we show as authenticated
+				},
+			} as any)
+
+			this.outputChannel.appendLine("Firebase login successful - updated API keys and refreshed state")
+			vscode.window.showInformationMessage("Firebase login successful!")
+		} catch (error) {
+			this.outputChannel.appendLine(`Error handling Firebase login: ${error}`)
+			vscode.window.showErrorMessage(
+				`Error handling Firebase login: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	}
+
+	public async onFirebaseLogout(): Promise<void> {
+		try {
+			this.outputChannel.appendLine("Firebase logout event received - user is now logged out")
+
+			// Update the cached Firebase auth state
+			this.sidebarProvider.setFirebaseAuthState(false)
+
+			// Post a custom message to webview indicating logout
+			// This bypasses the Firebase command check which may have timing issues
+			await this.sidebarProvider.postMessageToWebview({
+				type: "state",
+				state: {
+					...(await this.sidebarProvider.getStateToPostToWebview()),
+					firebaseIsAuthenticated: false, // Override to ensure we show as logged out
+				},
+			} as any)
+
+			this.outputChannel.appendLine("Firebase logout - refreshed state")
+			vscode.window.showInformationMessage("You have been logged out")
+		} catch (error) {
+			this.outputChannel.appendLine(`Error handling Firebase logout: ${error}`)
+			vscode.window.showErrorMessage(
+				`Error handling Firebase logout: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 }
