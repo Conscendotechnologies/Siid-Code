@@ -1970,21 +1970,17 @@ export class ClineProvider
 		console.log(`[getState] Initial Firebase auth state:`, firebaseIsAuthenticated)
 
 		// Only check Firebase auth if we don't have a cached value
-		if (this.cachedFirebaseAuthState === undefined) {
-			try {
-				// Use Firebase API helper instead of command
-				firebaseIsAuthenticated = await isAuthenticated()
-				this.cachedFirebaseAuthState = firebaseIsAuthenticated
-				console.log(`[getState] Firebase auth check result:`, { firebaseIsAuthenticated })
-			} catch (error) {
-				console.error(
-					`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
-				)
-				// Keep the cached value or default to false
-				firebaseIsAuthenticated = this.cachedFirebaseAuthState ?? false
-			}
-		} else {
-			console.log(`[getState] Using cached Firebase auth state:`, firebaseIsAuthenticated)
+		try {
+			// Use Firebase API helper instead of command
+			firebaseIsAuthenticated = await isAuthenticated()
+			this.cachedFirebaseAuthState = firebaseIsAuthenticated
+			console.log(`[getState] Firebase auth check result:`, { firebaseIsAuthenticated })
+		} catch (error) {
+			console.error(
+				`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
+			)
+			// Keep the cached value or default to false
+			firebaseIsAuthenticated = this.cachedFirebaseAuthState ?? false
 		}
 		const stateResult = {
 			apiConfiguration: providerSettings,

@@ -27,6 +27,7 @@ export async function getFirebaseAPI(): Promise<any | null> {
 	try {
 		// Get the Firebase Service extension
 		const firebaseExt = vscode.extensions.getExtension(FIREBASE_SERVICE_EXTENSION_ID)
+		console.log("[FirebaseHelper] Firebase Service extension found:", firebaseExt)
 
 		if (!firebaseExt) {
 			console.warn("[FirebaseHelper] Firebase Service extension not found")
@@ -35,8 +36,20 @@ export async function getFirebaseAPI(): Promise<any | null> {
 
 		// Activate the extension if not already activated
 		if (!firebaseExt.isActive) {
+			console.log("[FirebaseHelper] Activating Firebase Service extension")
 			await firebaseExt.activate()
+			// Small delay to ensure exports are set
+			await new Promise((resolve) => setTimeout(resolve, 100))
 		}
+
+		// Check if exports are available
+		if (!firebaseExt.exports) {
+			console.error("[FirebaseHelper] Firebase extension exports are undefined")
+			console.log("[FirebaseHelper] Extension packageJSON:", firebaseExt.packageJSON)
+			return null
+		}
+
+		console.log("[FirebaseHelper] exports methods list ", Object.keys(firebaseExt.exports).join(", "))
 
 		// Get the exported API
 		const { firebaseAPI } = firebaseExt.exports
@@ -62,13 +75,16 @@ export async function getFirebaseAPI(): Promise<any | null> {
  * @returns true if authenticated, false otherwise
  */
 export async function isAuthenticated(): Promise<boolean> {
+	console.log("[FirebaseHelper] Checking authentication status")
 	try {
 		const api = await getFirebaseAPI()
 		if (!api) {
 			return false
 		}
+		console.log("[FirebaseHelper] api method list ", Object.keys(api).join(", "))
 
 		const isAuth = await api.isAuthenticated()
+		console.log("[FirebaseHelper] Authentication status:", isAuth)
 		return !!isAuth
 	} catch (error) {
 		console.error("[FirebaseHelper] Failed to check authentication:", error)
