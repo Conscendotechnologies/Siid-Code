@@ -162,29 +162,71 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          # Get the latest tag, default to v2025.0.0 if none exists
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v2025.0.0")
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Latest tag: $LATEST_TAG"
+          echo "🔍 Searching for latest CalVer tag (YEAR.MAJOR.MINOR format)..."
+          
+          # Get all v*.*.* tags
+          ALL_TAGS=$(git tag -l "v*.*.*")
+          
+          # Filter to ONLY CalVer versions (YEAR >= 2000)
+          LATEST_TAG=$(echo "$ALL_TAGS" | while read tag; do
+            if [ -n "$tag" ]; then
+              VERSION=${tag#v}
+              IFS='.' read -r YEAR MAJOR MINOR <<< "$VERSION"
+              # Only include tags where YEAR >= 2000 (CalVer versions)
+              if [ "$YEAR" -eq "$YEAR" ] 2>/dev/null && [ "$YEAR" -ge 2000 ]; then
+                echo "$tag"
+              fi
+            fi
+          done | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
+          
+          # Get current year
+          CURRENT_YEAR=$(date +'%Y')
+          
+          # If no CalVer tag found, start fresh with current year
+          if [ -z "$LATEST_TAG" ]; then
+            echo "⚠️  No CalVer tags found"
+            echo "✨ Starting fresh with v$CURRENT_YEAR.0.0"
+            LATEST_TAG="v$CURRENT_YEAR.0.0"
+            IS_FIRST_RELEASE="true"
+          else
+            echo "✅ Found latest CalVer version: $LATEST_TAG"
+            IS_FIRST_RELEASE="false"
+          fi
           
           # Extract version numbers (remove 'v' prefix)
           VERSION=${LATEST_TAG#v}
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_first_release=$IS_FIRST_RELEASE" >> $GITHUB_OUTPUT
+          echo ""
+          echo "📌 Using version: $LATEST_TAG"
           
       - name: Analyze commits for version bump
         id: analyze_commits
         run: |
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          IS_FIRST_RELEASE="${{ steps.get_latest_tag.outputs.is_first_release }}"
           
-          # Get commits since last tag
-          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
-            COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s" --no-merges)
+          if [ "$IS_FIRST_RELEASE" = "true" ]; then
+            echo "🎉 First CalVer release - analyzing recent commits"
+            COMMITS=$(git log --pretty=format:"%s" --no-merges -20)
           else
-            COMMITS=$(git log --pretty=format:"%s" --no-merges | head -20)
+            echo "📌 Analyzing commits since: $LATEST_TAG"
+            
+            # Check if the tag actually exists in the repository
+            if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+              COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s" --no-merges)
+            else
+              echo "⚠️  Tag $LATEST_TAG does not exist in repository"
+              echo "📝 Analyzing recent commits (last 20)"
+              COMMITS=$(git log --pretty=format:"%s" --no-merges | head -20)
+            fi
           fi
           
-          echo "Analyzing commits:"
+          echo "Commits analyzed:"
           echo "$COMMITS"
+          echo ""
           
           # Determine bump type based on conventional commits
           BUMP_TYPE="patch"
@@ -201,7 +243,6 @@ jobs:
           elif echo "$COMMITS" | grep -qiE "^(fix|perf|refactor|docs|chore|style|test)(\(.*\))?:"; then
             BUMP_TYPE="patch"
             echo "🟢 Fix/improvement detected → PATCH version bump"
-          # No conventional commits found
           else
             BUMP_TYPE="patch"
             echo "⚪ No conventional commits → default PATCH version bump"
@@ -213,45 +254,60 @@ jobs:
         id: calc_version
         run: |
           CURRENT_VERSION="${{ steps.get_latest_tag.outputs.current_version }}"
+          IS_FIRST_RELEASE="${{ steps.get_latest_tag.outputs.is_first_release }}"
           BUMP_TYPE="${{ github.event.inputs.version_bump || steps.analyze_commits.outputs.bump_type }}"
+          PRERELEASE="${{ github.event.inputs.prerelease }}"
           
           echo "Current version: $CURRENT_VERSION"
+          echo "First release: $IS_FIRST_RELEASE"
           echo "Bump type: $BUMP_TYPE"
-          
-          # Parse current version (format: YEAR.MAJOR.MINOR)
-          IFS='.' read -r YEAR MAJOR MINOR <<< "$CURRENT_VERSION"
+          echo "Prerelease: $PRERELEASE"
+          echo ""
           
           # Get current year
           CURRENT_YEAR=$(date +'%Y')
           
-          # If year changed, reset to YEAR.0.0
-          if [ "$YEAR" != "$CURRENT_YEAR" ]; then
+          if [ "$IS_FIRST_RELEASE" = "true" ]; then
+            # This is the first CalVer release
             NEW_VERSION="$CURRENT_YEAR.0.0"
-            echo "📅 New year detected! Resetting to $NEW_VERSION"
+            echo "🎉 First CalVer release: $NEW_VERSION"
           else
-            # Apply version bump
-            case $BUMP_TYPE in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
-                echo "🔴 MAJOR bump: $CURRENT_VERSION → $NEW_VERSION"
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
-                echo "🟡 MINOR bump: $CURRENT_VERSION → $NEW_VERSION"
-                ;;
-              patch)
-                MINOR=$((MINOR + 1))
-                NEW_VERSION="$YEAR.$MAJOR.$MINOR"
-                echo "🟢 PATCH bump: $CURRENT_VERSION → $NEW_VERSION"
-                ;;
-              *)
-                NEW_VERSION="$CURRENT_VERSION"
-                echo "⚪ No bump, keeping: $NEW_VERSION"
-                ;;
-            esac
+            # Parse current version (format: YEAR.MAJOR.MINOR or YEAR.MAJOR.MINOR-alpha.X)
+            # Remove any prerelease suffix first
+            BASE_VERSION="${CURRENT_VERSION%%-*}"
+            IFS='.' read -r YEAR MAJOR MINOR <<< "$BASE_VERSION"
+            
+            # If year changed, reset to YEAR.0.0
+            if [ "$YEAR" != "$CURRENT_YEAR" ]; then
+              NEW_VERSION="$CURRENT_YEAR.0.0"
+              echo "📅 New year detected! Resetting to $NEW_VERSION"
+            else
+              # Apply version bump based on CalVer rules
+              case $BUMP_TYPE in
+                major)
+                  MAJOR=$((MAJOR + 1))
+                  MINOR=0
+                  echo "🔴 MAJOR bump: $CURRENT_VERSION → $CURRENT_YEAR.$MAJOR.$MINOR"
+                  ;;
+                minor)
+                  MINOR=$((MINOR + 1))
+                  echo "🟡 MINOR bump: $CURRENT_VERSION → $CURRENT_YEAR.$MAJOR.$MINOR"
+                  ;;
+                patch|auto)
+                  MINOR=$((MINOR + 1))
+                  echo "🟢 PATCH bump (increments MINOR in CalVer): $CURRENT_VERSION → $CURRENT_YEAR.$MAJOR.$MINOR"
+                  ;;
+              esac
+              
+              # Build version string (with or without prerelease suffix)
+              if [ "$PRERELEASE" = "true" ]; then
+                NEW_VERSION="$CURRENT_YEAR.$MAJOR.$MINOR-alpha.$MINOR"
+                echo "🔵 Prerelease version: $NEW_VERSION"
+              else
+                NEW_VERSION="$CURRENT_YEAR.$MAJOR.$MINOR"
+                echo "✅ Stable version: $NEW_VERSION"
+              fi
+            fi
           fi
           
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
@@ -274,14 +330,49 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         run: |
           NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
-          echo "Updating package.json to version $NEW_VERSION"
+          echo "📝 Updating package.json to version $NEW_VERSION"
           
-          # Update version in package.json
-          node -e "const fs = require('fs'); const pkg = require('./package.json'); pkg.version = '$NEW_VERSION'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+          # Get current package.json version
+          CURRENT_PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "Current package.json version: $CURRENT_PKG_VERSION"
           
-          # Verify the update
-          UPDATED_VERSION=$(node -p "require('./package.json').version")
-          echo "Updated package.json version: $UPDATED_VERSION"
+          # Update version in package.json (only if different)
+          if [ "$CURRENT_PKG_VERSION" != "$NEW_VERSION" ]; then
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = '$NEW_VERSION';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            echo "✅ package.json version updated to: $NEW_VERSION"
+          else
+            echo "ℹ️  package.json already at version $NEW_VERSION, skipping update"
+          fi
+          
+          # Verify the changes
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "✅ Final package.json version: $PACKAGE_VERSION"
+          
+      - name: Commit version bump
+        if: steps.check_version.outputs.version_exists == 'false'
+        run: |
+          NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
+          
+          # Check if there are any changes to commit
+          if git diff --quiet package.json; then
+            echo "ℹ️  No version changes detected, skipping commit"
+          else
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Commit and push
+            git add package.json
+            git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+            git push
+            
+            echo "✅ Version changes committed and pushed to main branch"
+          fi
           
       - name: Install dependencies
         if: steps.check_version.outputs.version_exists == 'false'
@@ -358,61 +449,52 @@ jobs:
         id: changelog
         run: |
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
-          NEW_TAG="${{ steps.calc_version.outputs.new_tag }}"
+          IS_FIRST_RELEASE="${{ steps.get_latest_tag.outputs.is_first_release }}"
           
-          echo "# Changelog for $NEW_TAG" > changelog.md
-          echo "" >> changelog.md
-          
-          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
-            echo "## Changes since $LATEST_TAG" >> changelog.md
-            echo "" >> changelog.md
-            
-            # Categorize commits using conventional commits
-            echo "### 🚀 Features" >> changelog.md
-            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- feat(\(.*\))?:" || echo "- No new features"
-            echo "" >> changelog.md
-            echo "" >> changelog.md
-            
-            echo "### 🐛 Bug Fixes" >> changelog.md
-            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- fix(\(.*\))?:" || echo "- No bug fixes"
-            echo "" >> changelog.md
-            echo "" >> changelog.md
-            
-            echo "### 📚 Documentation" >> changelog.md
-            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- docs(\(.*\))?:" || echo "- No documentation changes"
-            echo "" >> changelog.md
-            echo "" >> changelog.md
-            
-            echo "### 🔧 Maintenance" >> changelog.md
-            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- (chore|refactor|perf|test|style)(\(.*\))?:" || echo "- No maintenance changes"
-            echo "" >> changelog.md
-            echo "" >> changelog.md
-            
-            echo "### ⚠️ Breaking Changes" >> changelog.md
-            git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges | grep -E "^- .*!:" || echo "- No breaking changes"
-            echo "" >> changelog.md
-            
+          if [ "$IS_FIRST_RELEASE" = "true" ]; then
+            echo "🎉 First CalVer release - showing recent commits"
+            COMMITS=$(git log --pretty=format:"- %s by @%an in %h" --no-merges -20)
           else
-            echo "## Initial Release" >> changelog.md
-            echo "" >> changelog.md
-            echo "This is the first release of SIID Code Extension." >> changelog.md
+            echo "📋 Generating changelog from $LATEST_TAG to HEAD"
+            
+            # Check if the tag actually exists in the repository
+            if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+              COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"- %s by @%an in %h" --no-merges)
+            else
+              echo "⚠️  Tag $LATEST_TAG does not exist in repository"
+              echo "📝 Showing recent commits (last 20)"
+              COMMITS=$(git log --pretty=format:"- %s by @%an in %h" --no-merges -20)
+            fi
           fi
           
-          # Read changelog into output
-          CHANGELOG_CONTENT=$(cat changelog.md)
+          # Check if there are any commits
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- No changes since last release"
+          fi
+          
+          # Save to file
+          echo "$COMMITS" > changelog.txt
+          
+          # Read into output
+          CHANGELOG=$(cat changelog.txt)
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
       - name: Get contributors
         id: contributors
         run: |
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          IS_FIRST_RELEASE="${{ steps.get_latest_tag.outputs.is_first_release }}"
           
-          if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
-            CONTRIBUTORS=$(git log $LATEST_TAG..HEAD --pretty=format:"%an" --no-merges | sort -u | sed 's/^/@/' | paste -sd ", " -)
-          else
+          if [ "$IS_FIRST_RELEASE" = "true" ]; then
             CONTRIBUTORS=$(git log --pretty=format:"%an" --no-merges | sort -u | head -10 | sed 's/^/@/' | paste -sd ", " -)
+          else
+            if git rev-parse "$LATEST_TAG" >/dev/null 2>&1; then
+              CONTRIBUTORS=$(git log $LATEST_TAG..HEAD --pretty=format:"%an" --no-merges | sort -u | sed 's/^/@/' | paste -sd ", " -)
+            else
+              CONTRIBUTORS=$(git log --pretty=format:"%an" --no-merges | sort -u | head -10 | sed 's/^/@/' | paste -sd ", " -)
+            fi
           fi
           
           if [ -z "$CONTRIBUTORS" ]; then
@@ -425,61 +507,52 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: "SIID Code Extension ${{ steps.calc_version.outputs.new_tag }}"
+          name: "SIID Code Extension v${{ steps.calc_version.outputs.new_version }}"
           tag_name: ${{ steps.calc_version.outputs.new_tag }}
           draft: false
           prerelease: ${{ github.event.inputs.prerelease || 'false' }}
           generate_release_notes: false
           body: |
-            # 🎉 SIID Code Extension ${{ steps.calc_version.outputs.new_tag }}
+            ## SIID Code Extension Package
             
             **Build Date:** ${{ steps.timestamp.outputs.build_date }}
+            **Version:** v${{ steps.calc_version.outputs.new_version }}
             **Version Bump:** ${{ steps.analyze_commits.outputs.bump_type }}
             
             ---
             
-            ## 📦 Downloads
+            ### 📦 Downloads
             
-            | File | Description |
-            |------|-------------|
-            | **${{ steps.find_vsix.outputs.vsix_name }}** | VS Code Extension Package |
-            | **${{ steps.find_vsix.outputs.vsix_name }}.sha256** | SHA-256 Checksum |
+            | Package | Description |
+            |---------|-------------|
+            | **${{ steps.find_vsix.outputs.vsix_name }}** | VS Code Extension Package (install via Extensions view or `code --install-extension`) |
             
-            ### 🔐 Verify Your Download
-            ```bash
-            sha256sum -c ${{ steps.find_vsix.outputs.vsix_name }}.sha256
-            ```
-            
-            **SHA-256:** `${{ steps.checksums.outputs.sha256 }}`
+            ### 🔐 Checksums
+            Use the .sha256 files to verify your download integrity.
             
             ---
+            
+            ### 📝 What's Changed
             
             ${{ steps.changelog.outputs.changelog }}
             
+            **Full Changelog:** ${{ github.server_url }}/${{ github.repository }}/compare/${{ steps.get_latest_tag.outputs.latest_tag }}...${{ steps.calc_version.outputs.new_tag }}
+            
             ---
             
-            ## 🔗 Links
+            ### 👥 Contributors
             
-            - **Full Changelog:** [${{ steps.get_latest_tag.outputs.latest_tag }}...${{ steps.calc_version.outputs.new_tag }}](https://github.com/${{ github.repository }}/compare/${{ steps.get_latest_tag.outputs.latest_tag }}...${{ steps.calc_version.outputs.new_tag }})
-            - **Report Issues:** [GitHub Issues](https://github.com/${{ github.repository }}/issues)
-            
-            ## 👥 Contributors
-            
-            Thank you to all contributors who made this release possible:
             ${{ steps.contributors.outputs.contributors }}
             
             ---
             
-            ### 📋 Version Scheme
+            ### 📋 Version Information
             
-            Siid-Code follows **Semantic Versioning** with year prefix: `YEAR.MAJOR.MINOR`
+            SIID Code follows **Calendar Versioning (CalVer)**: `YEAR.MAJOR.MINOR`
+            - **YEAR**: Current year (e.g., 2025)
             - **MAJOR**: Breaking changes or significant new features
             - **MINOR**: New features (backward compatible) or bug fixes
             - Version resets at year boundary (e.g., 2025.x.x → 2026.0.0)
-            
-            ---
-            
-            **Note:** Package version updated to `${{ steps.calc_version.outputs.new_version }}` in package.json
           files: |
             ${{ steps.find_vsix.outputs.vsix_path }}
             ${{ steps.find_vsix.outputs.vsix_path }}.sha256
@@ -490,11 +563,10 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: procode-${{ steps.calc_version.outputs.new_tag }}-${{ steps.timestamp.outputs.build_date_compact }}
+          name: siid-code-extension-v${{ steps.calc_version.outputs.new_version }}
           path: |
             ${{ steps.find_vsix.outputs.vsix_path }}
             ${{ steps.find_vsix.outputs.vsix_path }}.sha256
-            changelog.md
           retention-days: 90
           
       - name: Summary
@@ -518,7 +590,4 @@ jobs:
           else
             echo "### ✅ Success" >> $GITHUB_STEP_SUMMARY
             echo "Release ${{ steps.calc_version.outputs.new_tag }} created successfully!" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Note:** Package.json was updated to version \`${{ steps.calc_version.outputs.new_version }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "The version update is included in the tagged release but not committed back to main." >> $GITHUB_STEP_SUMMARY
           fi
