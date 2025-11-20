@@ -48,6 +48,7 @@ import { formatLanguage } from "../../shared/language"
 import { WebviewMessage } from "../../shared/WebviewMessage"
 import { EMBEDDING_MODEL_PROFILES } from "../../shared/embeddingModels"
 import { ProfileValidator } from "../../shared/ProfileValidator"
+import { perfLog } from "../../utils/performanceLogger"
 
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { downloadTask } from "../../integrations/misc/export-markdown"
@@ -82,6 +83,7 @@ import { webviewMessageHandler } from "./webviewMessageHandler"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
 import { logger } from "../../utils/logging"
+import { isAuthenticated } from "../../utils/firebaseHelper"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -128,12 +130,16 @@ export class ClineProvider
 		mdmService?: MdmService,
 		apiInstance?: import("../../extension/api").API,
 	) {
+		const constructorStart = Date.now()
 		super()
 
-		this.log("ClineProvider instantiated")
+		// Don't call this.log() here - it blocks for 7-8 seconds on first call due to output channel initialization
+		console.log("ClineProvider instantiated")
+
 		ClineProvider.activeInstances.add(this)
 
 		this.mdmService = mdmService
+
 		this.updateGlobalState("codebaseIndexModels", EMBEDDING_MODEL_PROFILES)
 
 		// Start configuration loading (which might trigger indexing) in the background.
@@ -151,24 +157,27 @@ export class ClineProvider
 			await this.postStateToWebview()
 		})
 
-		// Initialize MCP Hub through the singleton manager
-		McpServerManager.getInstance(this.context, this)
-			.then((hub) => {
+		// Initialize MCP Hub in the background (deferred to not block activation)
+		Promise.resolve().then(async () => {
+			try {
+				const hub = await McpServerManager.getInstance(this.context, this)
 				this.mcpHub = hub
 				this.mcpHub.registerClient()
-			})
-			.catch((error) => {
-				this.log(`Failed to initialize MCP Hub: ${error}`)
-			})
+			} catch (error) {
+				console.log(`Failed to initialize MCP Hub: ${error}`)
+			}
+		})
 
 		this.marketplaceManager = new MarketplaceManager(this.context, this.customModesManager)
 
 		// Initialize Roo Code Cloud profile sync.
 		this.initializeCloudProfileSync().catch((error) => {
-			this.log(`Failed to initialize cloud profile sync: ${error}`)
+			console.log(`Failed to initialize cloud profile sync: ${error}`)
 		})
 
 		this.api = apiInstance!
+
+		console.log(`⏱️ ClineProvider: Total constructor time ${Date.now() - constructorStart}ms`)
 	}
 
 	/**
@@ -499,7 +508,8 @@ export class ClineProvider
 	}
 
 	async resolveWebviewView(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
-		this.log("Resolving webview view")
+		const resolveStart = Date.now()
+		console.log("Resolving webview view")
 
 		this.view = webviewView
 
@@ -552,10 +562,12 @@ export class ClineProvider
 			localResourceRoots: [this.contextProxy.extensionUri],
 		}
 
+		const htmlGenerationStart = Date.now()
 		webviewView.webview.html =
 			this.contextProxy.extensionMode === vscode.ExtensionMode.Development
 				? await this.getHMRHtmlContent(webviewView.webview)
 				: this.getHtmlContent(webviewView.webview)
+		console.log(`⏱️ Webview HTML generated in ${Date.now() - htmlGenerationStart}ms`)
 
 		// Sets up an event listener to listen for messages passed from the webview view context
 		// and executes code based on the message that is received
@@ -625,7 +637,8 @@ export class ClineProvider
 		// If the extension is starting a new session, clear previous task state.
 		await this.removeClineFromStack()
 
-		this.log("Webview view resolved")
+		console.log(`⏱️ Webview view resolved in ${Date.now() - resolveStart}ms`)
+		console.log("Webview view resolved")
 	}
 
 	public async initClineWithSubTask(parent: Task, task?: string, images?: string[]) {
@@ -808,12 +821,29 @@ export class ClineProvider
 
 		const localServerUrl = `localhost:${localPort}`
 
-		// Check if local dev server is running.
-		try {
-			await axios.get(`http://${localServerUrl}`)
-		} catch (error) {
-			vscode.window.showErrorMessage(t("common:errors.hmr_not_running"))
+		// Quick check if Vite dev server is running with reliable timeout
+		const viteCheckStart = Date.now()
+		let viteIsRunning = false
 
+		try {
+			// Create a timeout promise
+			const timeoutPromise = new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error("Timeout")), 500),
+			)
+
+			// Race between fetch and timeout
+			await Promise.race([fetch(`http://${localServerUrl}`, { method: "HEAD" }), timeoutPromise])
+
+			viteIsRunning = true
+			console.log(`⏱️ Vite dev server check completed in ${Date.now() - viteCheckStart}ms`)
+		} catch (error) {
+			console.log(
+				`⏱️ Vite dev server check failed after ${Date.now() - viteCheckStart}ms - using production build`,
+			)
+		}
+
+		// If dev server not running, fall back to production build
+		if (!viteIsRunning) {
 			return this.getHtmlContent(webview)
 		}
 
@@ -1861,8 +1891,10 @@ export class ClineProvider
 	 */
 
 	async getState() {
+		const getStateStart = Date.now()
 		const stateValues = this.contextProxy.getValues()
 		const customModes = await this.customModesManager.getCustomModes()
+		perfLog(`[Performance] getState: contextProxy.getValues + customModes took ${Date.now() - getStateStart}ms`)
 
 		// Determine apiProvider with the same logic as before.
 		const apiProvider: ProviderName = stateValues.apiProvider ? stateValues.apiProvider : "anthropic"
@@ -1877,6 +1909,7 @@ export class ClineProvider
 
 		let organizationAllowList = ORGANIZATION_ALLOW_ALL
 
+		const cloudStart = Date.now()
 		try {
 			organizationAllowList = await CloudService.instance.getAllowList()
 		} catch (error) {
@@ -1884,6 +1917,7 @@ export class ClineProvider
 				`[getState] failed to get organization allow list: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
+		perfLog(`[Performance] getState: getAllowList took ${Date.now() - cloudStart}ms`)
 
 		let cloudUserInfo: CloudUserInfo | null = null
 
@@ -1907,6 +1941,7 @@ export class ClineProvider
 
 		let sharingEnabled: boolean = false
 
+		const sharingStart = Date.now()
 		try {
 			sharingEnabled = await CloudService.instance.canShareTask()
 		} catch (error) {
@@ -1914,6 +1949,7 @@ export class ClineProvider
 				`[getState] failed to get sharing enabled state: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
+		perfLog(`[Performance] getState: canShareTask took ${Date.now() - sharingStart}ms`)
 
 		let organizationSettingsVersion: number = -1
 
@@ -1931,14 +1967,15 @@ export class ClineProvider
 		// Use cached Firebase auth state if available to avoid unnecessary checks
 		// The cache is updated when login/logout happens
 		let firebaseIsAuthenticated: boolean = this.cachedFirebaseAuthState ?? false
+		console.log(`[getState] Initial Firebase auth state:`, firebaseIsAuthenticated)
 
 		// Only check Firebase auth if we don't have a cached value
 		if (this.cachedFirebaseAuthState === undefined) {
 			try {
-				const result = await vscode.commands.executeCommand("firebase-authentication-v1.isAuthenticated")
-				firebaseIsAuthenticated = !!result
+				// Use Firebase API helper instead of command
+				firebaseIsAuthenticated = await isAuthenticated()
 				this.cachedFirebaseAuthState = firebaseIsAuthenticated
-				console.log(`[getState] Firebase auth check result:`, { result, firebaseIsAuthenticated })
+				console.log(`[getState] Firebase auth check result:`, { firebaseIsAuthenticated })
 			} catch (error) {
 				console.error(
 					`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
@@ -1949,9 +1986,7 @@ export class ClineProvider
 		} else {
 			console.log(`[getState] Using cached Firebase auth state:`, firebaseIsAuthenticated)
 		}
-
-		// Return the same structure as before
-		return {
+		const stateResult = {
 			apiConfiguration: providerSettings,
 			lastShownAnnouncementId: stateValues.lastShownAnnouncementId,
 			customInstructions: stateValues.customInstructions,
@@ -2063,6 +2098,9 @@ export class ClineProvider
 			includeTaskHistoryInEnhance: stateValues.includeTaskHistoryInEnhance ?? false,
 			useFreeModels: stateValues.useFreeModels,
 		}
+
+		perfLog(`[Performance] getState: TOTAL time ${Date.now() - getStateStart}ms`)
+		return stateResult
 	}
 
 	async updateTaskHistory(item: HistoryItem): Promise<HistoryItem[]> {
@@ -2126,6 +2164,10 @@ export class ClineProvider
 		if (answer !== t("common:answers.yes")) {
 			return
 		}
+
+		// Clear Firebase auth cache
+		this.cachedFirebaseAuthState = undefined
+		console.log(`[resetState] Cleared Firebase auth cache`)
 
 		await this.contextProxy.resetAllState()
 		await this.providerSettingsManager.resetAllConfigs()

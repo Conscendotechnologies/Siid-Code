@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName%",
 	"description": "%extension.description%",
 	"publisher": "ConscendoTechInc",
-	"version": "1.0.0",
+	"version": "2025.0.9",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -387,6 +387,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "%settings.useFreeModels.description%"
+				},
+				"siid-code.enablePerformanceLogs": {
+					"type": "boolean",
+					"default": false,
+					"description": "%settings.enablePerformanceLogs.description%"
 				}
 			}
 		}

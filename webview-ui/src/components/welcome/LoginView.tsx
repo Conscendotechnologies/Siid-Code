@@ -8,15 +8,13 @@ import { Tab, TabContent } from "../common/Tab"
 import RooHero from "./RooHero"
 
 const LoginView = () => {
-	console.log("🚀 LoginView component is rendering!")
-
 	// const { t } = useAppTranslation() // Commented out as not used yet
 
 	const handleLogin = useCallback(() => {
 		// Execute firebase authentication command
 		vscode.postMessage({
 			type: "executeCommand",
-			commands: ["firebase-authentication-v1.signIn"],
+			commands: ["firebase-service.signIn"],
 		} as any)
 	}, [])
 

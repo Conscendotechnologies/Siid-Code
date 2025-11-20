@@ -55,6 +55,9 @@ let extensionContext: vscode.ExtensionContext
 // This method is called when your extension is activated.
 // Your extension is activated the very first time the command is executed.
 export async function activate(context: vscode.ExtensionContext) {
+	// Record activation start time at the very beginning for accurate performance tracking
+	const activationStartTime = Date.now()
+
 	extensionContext = context
 	outputChannel = vscode.window.createOutputChannel(Package.outputChannel)
 	context.subscriptions.push(outputChannel)
@@ -77,7 +80,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	const cloudLogger = createDualLogger(createOutputChannelLogger(outputChannel))
 
 	// Initialize Roo Code Cloud service.
+	const cloudServiceStart = Date.now()
 	const cloudService = await CloudService.createInstance(context, cloudLogger)
+	outputChannel.appendLine(`⏱️ CloudService initialized in ${Date.now() - cloudServiceStart}ms`)
 
 	try {
 		if (cloudService.telemetryClient) {
@@ -86,18 +91,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	} catch (error) {
 		outputChannel.appendLine(
 			`[CloudService] Failed to register TelemetryClient: ${error instanceof Error ? error.message : String(error)}`,
-		)
-	}
-
-	// Initialize bundled instructions manager
-	try {
-		vscode.window.showInformationMessage("Initializing bundled instructions...")
-		const bundledInstructionsManager = new BundledInstructionsManager(context)
-		await bundledInstructionsManager.initializeBundledInstructions()
-		outputChannel.appendLine("[BundledInstructionsManager] Successfully initialized bundled instructions")
-	} catch (error) {
-		outputChannel.appendLine(
-			`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
 		)
 	}
 
@@ -113,7 +106,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(cloudService)
 
 	// Initialize MDM service
+	const mdmServiceStart = Date.now()
 	const mdmService = await MdmService.createInstance(cloudLogger)
+	outputChannel.appendLine(`⏱️ MDM Service initialized in ${Date.now() - mdmServiceStart}ms`)
 
 	// Initialize i18n for internationalization support
 	initializeI18n(context.globalState.get("language") ?? formatLanguage(vscode.env.language))
@@ -131,33 +126,49 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const contextProxy = await ContextProxy.getInstance(context)
 
-	// Initialize code index managers for all workspace folders
-	const codeIndexManagers: CodeIndexManager[] = []
-	if (vscode.workspace.workspaceFolders) {
-		for (const folder of vscode.workspace.workspaceFolders) {
-			const manager = CodeIndexManager.getInstance(context, folder.uri.fsPath)
-			if (manager) {
-				codeIndexManagers.push(manager)
-				try {
-					await manager.initialize(contextProxy)
-				} catch (error) {
-					outputChannel.appendLine(
-						`[CodeIndexManager] Error during background CodeIndexManager configuration/indexing for ${folder.uri.fsPath}: ${error.message || error}`,
-					)
+	// Store activation start time for performance tracking (recorded at function start)
+	await contextProxy.setValue("activationStartTime", activationStartTime)
+
+	// Initialize code index managers in background (non-blocking)
+	// This was taking ~7.8 seconds and blocking UI load
+	Promise.resolve().then(async () => {
+		const codeIndexStart = Date.now()
+		const codeIndexManagers: CodeIndexManager[] = []
+		if (vscode.workspace.workspaceFolders) {
+			for (const folder of vscode.workspace.workspaceFolders) {
+				const manager = CodeIndexManager.getInstance(context, folder.uri.fsPath)
+				if (manager) {
+					codeIndexManagers.push(manager)
+					try {
+						await manager.initialize(contextProxy)
+					} catch (error) {
+						outputChannel.appendLine(
+							`[CodeIndexManager] Error during background CodeIndexManager configuration/indexing for ${folder.uri.fsPath}: ${error.message || error}`,
+						)
+					}
+					context.subscriptions.push(manager)
 				}
-				context.subscriptions.push(manager)
 			}
 		}
-	}
+		if (codeIndexManagers.length > 0) {
+			outputChannel.appendLine(
+				`⏱️ [CodeIndexManager] Initialized in background in ${Date.now() - codeIndexStart}ms`,
+			)
+		}
+	})
 
+	const providerStart = Date.now()
 	const provider = new ClineProvider(context, outputChannel, "sidebar", contextProxy, mdmService)
+	outputChannel.appendLine(`⏱️ ClineProvider instantiated in ${Date.now() - providerStart}ms`)
 	TelemetryService.instance.setProvider(provider)
 
+	const webviewRegistrationStart = Date.now()
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClineProvider.sideBarId, provider, {
 			webviewOptions: { retainContextWhenHidden: true },
 		}),
 	)
+	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
 
 	// Auto-import configuration if specified in settings
 	try {
@@ -173,6 +184,23 @@ export async function activate(context: vscode.ExtensionContext) {
 	}
 
 	registerCommands({ context, outputChannel, provider })
+
+	// Initialize bundled instructions manager in background (non-blocking)
+	// This was taking ~10 seconds and blocking UI load
+	const bundledInstructionsStart = Date.now()
+	Promise.resolve().then(async () => {
+		try {
+			const bundledInstructionsManager = new BundledInstructionsManager(context)
+			await bundledInstructionsManager.initializeBundledInstructions()
+			outputChannel.appendLine(
+				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledInstructionsStart}ms`,
+			)
+		} catch (error) {
+			outputChannel.appendLine(
+				`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	})
 
 	// Create status bar item for chat access
 	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)

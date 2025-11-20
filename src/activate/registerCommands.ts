@@ -205,7 +205,7 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 
 		visibleProvider.postMessageToWebview({ type: "acceptInput" })
 	},
-	onFirebaseLogin: async (loginData?: any) => {
+	onFirebaseLogin: async (loginData?: unknown) => {
 		const visibleProvider = getVisibleProviderOrLog(outputChannel)
 
 		if (!visibleProvider) {

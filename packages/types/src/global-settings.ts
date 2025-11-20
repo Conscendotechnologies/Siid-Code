@@ -150,6 +150,12 @@ export const globalSettingsSchema = z.object({
 	lastModeImportPath: z.string().optional(),
 
 	/**
+	 * Timestamp when the extension was activated, used for performance tracking
+	 * @internal
+	 */
+	activationStartTime: z.number().optional(),
+
+	/**
 	 * Use free models (OpenRouter :free, Cerebras free tier) instead of paid models
 	 * When true, modes will use their freeApiConfigId instead of apiConfigId
 	 * Changes apply to new tasks only, not mid-task
