@@ -272,6 +272,7 @@ const App = () => {
 				isHidden={tab !== "chat"}
 				showAnnouncement={showAnnouncement}
 				hideAnnouncement={() => setShowAnnouncement(false)}
+				onSwitchTab={switchTab}
 			/>
 			<MemoizedHumanRelayDialog
 				isOpen={humanRelayDialogState.isOpen}

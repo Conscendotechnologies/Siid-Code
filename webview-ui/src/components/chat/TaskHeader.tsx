@@ -297,7 +297,11 @@ const TaskHeader = ({
 					</>
 				)}
 			</div>
-			<TodoListDisplay todos={todos ?? (task as any)?.tool?.todos ?? []} />
+			{hasTodos && (
+				<div className="sticky top-0 z-10 bg-vscode-input-background border-b border-vscode-panel-border">
+					<TodoListDisplay todos={todos ?? (task as any)?.tool?.todos ?? []} />
+				</div>
+			)}
 		</div>
 	)
 }

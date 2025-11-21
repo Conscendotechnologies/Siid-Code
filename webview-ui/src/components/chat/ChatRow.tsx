@@ -26,7 +26,6 @@ import { Button } from "@src/components/ui"
 import ChatTextArea from "./ChatTextArea"
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 
-import UpdateTodoListToolBlock from "./UpdateTodoListToolBlock"
 import CodeAccordian from "../common/CodeAccordian"
 import CodeBlock from "../common/CodeBlock"
 import MarkdownBlock from "../common/MarkdownBlock"
@@ -60,7 +59,6 @@ interface ChatRowProps {
 	onBatchFileResponse?: (response: { [key: string]: boolean }) => void
 	onFollowUpUnmount?: () => void
 	isFollowUpAnswered?: boolean
-	editable?: boolean
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -113,7 +111,6 @@ export const ChatRowContent = ({
 	onFollowUpUnmount,
 	onBatchFileResponse,
 	isFollowUpAnswered,
-	editable,
 }: ChatRowContentProps) => {
 	const { t } = useTranslation()
 	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode } = useExtensionState()
@@ -577,21 +574,6 @@ export const ChatRowContent = ({
 					</div>
 				)
 			}
-			case "updateTodoList" as any: {
-				const todos = (tool as any).todos || []
-				return (
-					<UpdateTodoListToolBlock
-						todos={todos}
-						content={(tool as any).content}
-						onChange={(updatedTodos) => {
-							if (typeof vscode !== "undefined" && vscode?.postMessage) {
-								vscode.postMessage({ type: "updateTodoList", payload: { todos: updatedTodos } })
-							}
-						}}
-						editable={editable && isLast}
-					/>
-				)
-			}
 			case "newFileCreated": {
 				// For new file creation show create badge and total added lines
 				const content = (tool as any).content as string | undefined
@@ -665,46 +647,22 @@ export const ChatRowContent = ({
 					<>
 						<div style={headerStyle}></div>
 						<div style={{ margin: "2px 0 2px 0", display: "flex", alignItems: "center", gap: "6px" }}>
-							{(tool.tool as string) === "readFile" && (
-								<span
-									style={{
-										fontSize: "11px",
-										color: "var(--vscode-descriptionForeground)",
-										fontFamily: "monospace",
-										border: "1px solid var(--vscode-sideBar-border)",
-										borderRadius: "3px",
-										padding: "2px 6px",
-										background: "var(--vscode-sideBar-background)",
-										display: "inline-block",
-									}}>
-									Read:{" "}
-									{tool.path
-										? tool.path.split(/[\\/]/).pop()
-										: removeLeadingNonAlphanumeric(tool.path ?? "")}
-								</span>
-							)}
-							{(tool.tool as string) === "newFileCreated" && (
-								<span
-									style={{
-										fontSize: "11px",
-										color: "var(--vscode-descriptionForeground)",
-										fontFamily: "monospace",
-										border: "1px solid var(--vscode-sideBar-border)",
-										borderRadius: "3px",
-										padding: "2px 6px",
-										background: "var(--vscode-sideBar-background)",
-										cursor: "pointer",
-										display: "inline-block",
-									}}
-									onClick={() => vscode.postMessage({ type: "openFile", text: tool.path })}>
-									Create:{" "}
-									{tool.isOutsideWorkspace
-										? tool.path
-											? tool.path.split(/[\\/]/).pop()
-											: removeLeadingNonAlphanumeric(tool.path ?? "")
-										: removeLeadingNonAlphanumeric(tool.path ?? "")}
-								</span>
-							)}
+							<span
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									border: "1px solid var(--vscode-sideBar-border)",
+									borderRadius: "3px",
+									padding: "2px 6px",
+									background: "var(--vscode-sideBar-background)",
+									display: "inline-block",
+								}}>
+								Read:{" "}
+								{tool.path
+									? tool.path.split(/[\\/]/).pop()
+									: removeLeadingNonAlphanumeric(tool.path ?? "")}
+							</span>
 							{tool.reason}
 						</div>
 					</>
@@ -1293,8 +1251,6 @@ export const ChatRowContent = ({
 					const { results = [] } = parsed?.content || {}
 
 					return <CodebaseSearchResultsDisplay results={results} />
-				case "user_edit_todos":
-					return <UpdateTodoListToolBlock userEdited onChange={() => {}} />
 				default:
 					return (
 						<>
