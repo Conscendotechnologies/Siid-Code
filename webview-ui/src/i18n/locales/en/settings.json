@@ -470,12 +470,12 @@
 	"notifications": {
 		"sound": {
 			"label": "Enable sound effects",
-			"description": "When enabled, Pro will play sound effects for notifications and events.",
+			"description": "When enabled, SIID will play sound effects for notifications and events.",
 			"volumeLabel": "Volume"
 		},
 		"tts": {
 			"label": "Enable text-to-speech",
-			"description": "When enabled, Pro will read aloud its responses using text-to-speech.",
+			"description": "When enabled, SIID will read aloud its responses using text-to-speech.",
 			"speedLabel": "Speed"
 		}
 	},

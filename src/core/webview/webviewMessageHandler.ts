@@ -727,7 +727,65 @@ export const webviewMessageHandler = async (
 			saveImage(message.dataUri!)
 			break
 		case "openFile":
-			openFile(message.text!, message.values as { create?: boolean; content?: string; line?: number })
+			{
+				const requested = message.text || ""
+
+				try {
+					// Normalize and detect any attempts to open internal .roo instruction files
+
+					if (
+						typeof requested === "string" &&
+						(requested.includes(".roo/") ||
+							requested.includes("/.roo/") ||
+							requested.startsWith(".roo") ||
+							requested.includes("./.roo/"))
+					) {
+						provider.log(`[webviewMessageHandler] Blocked attempt to open internal .roo file: ${requested}`)
+
+						// Notify webview that opening internal instruction files is blocked and provide only the filename
+
+						await (provider.postMessageToWebview as any)({
+							type: "fileOpenBlocked",
+
+							text: path.basename(requested),
+						})
+
+						break
+					}
+
+					// If the requested path is an absolute path outside the workspace, block it.
+
+					const workspacePath = getWorkspacePath()
+
+					if (typeof requested === "string" && path.isAbsolute(requested) && workspacePath) {
+						const normalizedRequested = path.normalize(requested)
+
+						const normalizedWorkspace = path.normalize(workspacePath)
+
+						const relative = path.relative(normalizedWorkspace, normalizedRequested)
+
+						// If relative starts with '..' or is absolute, it's outside the workspace
+
+						if (relative.startsWith("..") || path.isAbsolute(relative)) {
+							provider.log(
+								`[webviewMessageHandler] Blocked attempt to open file outside workspace: ${requested}`,
+							)
+
+							await (provider.postMessageToWebview as any)({
+								type: "fileOpenBlocked",
+
+								text: path.basename(requested),
+							})
+
+							break
+						}
+					}
+				} catch (err) {
+					// Fall through to normal openFile behavior if detection fails for any reason
+				}
+
+				openFile(message.text!, message.values as { create?: boolean; content?: string; line?: number })
+			}
 			break
 		case "openMention":
 			openMention(message.text)
@@ -959,6 +1017,11 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("soundEnabled", soundEnabled)
 			await provider.postStateToWebview()
 			break
+		case "notificationsEnabled":
+			const notificationsEnabled = message.bool ?? true
+			await updateGlobalState("notificationsEnabled", notificationsEnabled)
+			await provider.postStateToWebview()
+			break
 		case "soundVolume":
 			const soundVolume = message.value ?? 0.5
 			await updateGlobalState("soundVolume", soundVolume)
@@ -986,6 +1049,22 @@ export const webviewMessageHandler = async (
 			break
 		case "stopTts":
 			stopTts()
+			break
+		case "showOsNotification":
+			if (message.text) {
+				// Only show VS Code notification when the window is NOT focused.
+				// This prevents spamming the user with notifications while they are
+				// actively using the editor.
+				try {
+					if (!vscode.window.state.focused) {
+						vscode.window.showInformationMessage(message.text)
+					}
+				} catch (err) {
+					// If for some reason we cannot determine focus state, fall back to
+					// showing the message to avoid silently dropping important alerts.
+					vscode.window.showInformationMessage(message.text)
+				}
+			}
 			break
 		case "diffEnabled":
 			const diffEnabled = message.bool ?? true

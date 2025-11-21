@@ -124,7 +124,9 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "loginSuccess"
 		| "firebaseLogout"
+		| "showOsNotification"
 	text?: string
+	title?: string
 	payload?: any // Add a generic payload for now, can refine later
 	action?:
 		| "chatButtonClicked"
@@ -238,6 +240,7 @@ export type ExtensionState = Pick<
 	// | "enableCheckpoints" // Optional in GlobalSettings, required here.
 	| "ttsEnabled"
 	| "ttsSpeed"
+	| "notificationsEnabled"
 	| "soundEnabled"
 	| "soundVolume"
 	// | "maxOpenTabsContext" // Optional in GlobalSettings, required here.
@@ -367,6 +370,8 @@ export interface ClineSayTool {
 	endLine?: number
 	lineNumber?: number
 	query?: string
+	linesAdded?: number // Number of lines added in the diff
+	linesRemoved?: number // Number of lines removed in the diff
 	batchFiles?: Array<{
 		path: string
 		lineSnippet: string
@@ -379,6 +384,8 @@ export interface ClineSayTool {
 		changeCount: number
 		key: string
 		content: string
+		linesAdded?: number // Number of lines added in this specific diff
+		linesRemoved?: number // Number of lines removed in this specific diff
 		diffs?: Array<{
 			content: string
 			startLine?: number

@@ -238,6 +238,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	checkpointService?: RepoPerTaskCheckpointService
 	checkpointServiceInitializing = false
 
+	// Task title for notifications
+	taskTitle: string = "Task"
+
 	// Streaming
 	isWaitingForFirstChunk = false
 	isStreaming = false
@@ -884,6 +887,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					// More performant than an entire `postStateToWebview`.
 					this.updateClineMessage(lastMessage)
+					try {
+						const provider = this.providerRef.deref()
+						const notificationsEnabled = provider?.contextProxy.getValue("notificationsEnabled")
+						if (notificationsEnabled === true && type === "completion_result") {
+							await provider?.postMessageToWebview({
+								type: "showOsNotification",
+								title: this.taskTitle,
+								text: text ?? "Task completed.",
+							} as any)
+						}
+					} catch {}
 				} else {
 					// This is a new and complete message, so add it like normal.
 					const sayTs = Date.now()
@@ -893,6 +907,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					}
 
 					await this.addToClineMessages({ ts: sayTs, type: "say", say: type, text, images, contextCondense })
+					try {
+						const provider = this.providerRef.deref()
+						const notificationsEnabled = provider?.contextProxy.getValue("notificationsEnabled")
+						if (notificationsEnabled === true && type === "completion_result") {
+							await provider?.postMessageToWebview({
+								type: "showOsNotification",
+								title: this.taskTitle,
+								text: text ?? "Task completed.",
+							} as any)
+						}
+					} catch {}
 				}
 			}
 		} else {
@@ -916,6 +941,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				checkpoint,
 				contextCondense,
 			})
+			try {
+				const provider = this.providerRef.deref()
+				const notificationsEnabled = provider?.contextProxy.getValue("notificationsEnabled")
+				if (notificationsEnabled === true && type === "completion_result") {
+					await provider?.postMessageToWebview({
+						type: "showOsNotification",
+						title: this.taskTitle,
+						text: text ?? "Task completed.",
+					} as any)
+				}
+			} catch {}
 		}
 	}
 
@@ -941,6 +977,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.clineMessages = []
 		this.apiConversationHistory = []
 		await this.providerRef.deref()?.postStateToWebview()
+
+		// Store task title for notifications - take first line or first 50 chars
+		if (task) {
+			const firstLine = task.split("\n")[0]
+			this.taskTitle = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine
+		}
 
 		await this.say("text", task, images)
 		this.isInitialized = true
@@ -2095,7 +2137,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					)
 					await delay(1000)
 				}
-
 				await this.say(
 					"api_req_retry_delayed",
 					`${errorMsg}\n\nRetry attempt ${retryAttempt + 1}\nRetrying now...`,

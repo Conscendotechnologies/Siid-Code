@@ -6,12 +6,20 @@ import { useAppTranslation } from "@src/i18n/TranslationContext"
 import { useTaskSearch } from "./useTaskSearch"
 import TaskItem from "./TaskItem"
 
-const HistoryPreview = () => {
+interface HistoryPreviewProps {
+	onSwitchTab?: (tab: "history") => void
+}
+
+const HistoryPreview = ({ onSwitchTab }: HistoryPreviewProps) => {
 	const { tasks } = useTaskSearch()
 	const { t } = useAppTranslation()
 
 	const handleViewAllHistory = () => {
-		vscode.postMessage({ type: "switchTab", tab: "history" })
+		if (onSwitchTab) {
+			onSwitchTab("history")
+		} else {
+			vscode.postMessage({ type: "switchTab", tab: "history" })
+		}
 	}
 
 	return (

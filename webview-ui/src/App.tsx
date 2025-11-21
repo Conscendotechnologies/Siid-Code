@@ -67,6 +67,7 @@ const App = () => {
 		machineId,
 		renderContext,
 		mdmCompliant,
+		notificationsEnabled,
 	} = useExtensionState()
 
 	// Create a persistent state manager
@@ -137,6 +138,39 @@ const App = () => {
 				}
 			}
 
+			// OS notification from extension
+			if (message.type === "showOsNotification" && message.text) {
+				// Respect user setting from webview state. Only show an OS
+				// notification when notifications are enabled AND the webview
+				// document does NOT have focus (i.e. the user is likely not
+				// actively in the IDE/webview). This prevents notifications
+				// while the user is actively using VS Code.
+				try {
+					const userAbsent = typeof document !== "undefined" && !document.hasFocus()
+					if (notificationsEnabled && userAbsent) {
+						const showNotification = () => {
+							try {
+								new Notification(message.title || "Roo Code", { body: message.text })
+							} catch (err) {
+								console.warn("Notification failed:", err)
+							}
+						}
+						if (typeof Notification !== "undefined") {
+							if (Notification.permission === "granted") {
+								showNotification()
+							} else if (Notification.permission !== "denied") {
+								Notification.requestPermission().then((permission) => {
+									if (permission === "granted") showNotification()
+								})
+							}
+						}
+					}
+				} catch (err) {
+					// If anything goes wrong reading document focus, avoid showing a notification
+					console.warn("Could not determine document focus for notification gating:", err)
+				}
+			}
+
 			if (message.type === "showHumanRelayDialog" && message.requestId && message.promptText) {
 				const { requestId, promptText } = message
 				setHumanRelayDialogState({ isOpen: true, requestId, promptText })
@@ -164,7 +198,7 @@ const App = () => {
 				vscode.postMessage({ type: "storeLoginDetails", loginData: message.loginData } as any)
 			}
 		},
-		[switchTab],
+		[switchTab, notificationsEnabled],
 	)
 
 	useEvent("message", onMessage)
@@ -238,6 +272,7 @@ const App = () => {
 				isHidden={tab !== "chat"}
 				showAnnouncement={showAnnouncement}
 				hideAnnouncement={() => setShowAnnouncement(false)}
+				onSwitchTab={switchTab}
 			/>
 			<MemoizedHumanRelayDialog
 				isOpen={humanRelayDialogState.isOpen}
