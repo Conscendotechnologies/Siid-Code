@@ -3,6 +3,7 @@ import fs from "fs/promises"
 import path from "path"
 
 import { getReadablePath } from "../../utils/path"
+import { calculateDiffStats } from "../../utils/diffStats"
 import { Task } from "../task/Task"
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag } from "../../shared/tools"
 import { formatResponse } from "../prompts/responses"
@@ -143,6 +144,8 @@ export async function insertContentTool(
 			content: approvalContent,
 			lineNumber: lineNumber,
 			isProtected: isWriteProtected,
+			linesAdded: diff ? calculateDiffStats(diff).linesAdded : content.split("\n").length,
+			linesRemoved: diff ? calculateDiffStats(diff).linesRemoved : 0,
 		} satisfies ClineSayTool)
 
 		// Show diff view if focus disruption prevention is disabled

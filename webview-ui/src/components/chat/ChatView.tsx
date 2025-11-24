@@ -58,6 +58,7 @@ export interface ChatViewProps {
 	isHidden: boolean
 	showAnnouncement: boolean
 	hideAnnouncement: () => void
+	onSwitchTab?: (tab: "settings" | "history" | "mcp" | "modes" | "chat") => void
 }
 
 export interface ChatViewRef {
@@ -68,7 +69,10 @@ export const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
-const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = ({ isHidden }, ref) => {
+const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = (
+	{ isHidden, onSwitchTab },
+	ref,
+) => {
 	const isMountedRef = useRef(true)
 	const [audioBaseUri] = useState(() => {
 		const w = window as any
@@ -106,6 +110,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		customModes,
 		hasSystemPromptOverride,
 		historyPreviewCollapsed, // Added historyPreviewCollapsed
+		notificationsEnabled,
 		soundEnabled,
 		soundVolume,
 	} = useExtensionState()
@@ -240,6 +245,19 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		vscode.postMessage({ type: "playTts", text })
 	}
 
+	// Only notify (play notification sounds) when notifications are enabled and
+	// the webview is not visible to the user (i.e. user is outside the IDE or
+	// the webview is not focused). We consider either the webview being hidden
+	// (prop `isHidden`) or the document not having focus as "user absent".
+	const shouldNotify = useCallback(() => {
+		try {
+			return !!notificationsEnabled && (isHidden || !document.hasFocus())
+		} catch (_) {
+			// In some environments document may be undefined; default to not notifying
+			return false
+		}
+	}, [notificationsEnabled, isHidden])
+
 	useDeepCompareEffect(() => {
 		// if last message is an ask, show user ask UI
 		// if user finished a task, then start a new task with a new conversation history since in this moment that the extension is waiting for user response, the user could close the extension and the conversation history would be lost.
@@ -269,7 +287,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 						case "followup":
 							if (!isPartial) {
-								playSound("notification")
+								if (shouldNotify()) playSound("notification")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("followup")
@@ -283,7 +301,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 						case "tool":
 							if (!isAutoApproved(lastMessage) && !isPartial) {
-								playSound("notification")
+								if (shouldNotify()) playSound("notification")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("tool")
@@ -318,7 +336,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 						case "browser_action_launch":
 							if (!isAutoApproved(lastMessage) && !isPartial) {
-								playSound("notification")
+								if (shouldNotify()) playSound("notification")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("browser_action_launch")
@@ -328,7 +346,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 						case "command":
 							if (!isAutoApproved(lastMessage) && !isPartial) {
-								playSound("notification")
+								if (shouldNotify()) playSound("notification")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("command")
@@ -345,7 +363,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 						case "use_mcp_server":
 							if (!isAutoApproved(lastMessage) && !isPartial) {
-								playSound("notification")
+								if (shouldNotify()) playSound("notification")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("use_mcp_server")
@@ -356,7 +374,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						case "completion_result":
 							// extension waiting for feedback. but we can just present a new task button
 							if (!isPartial) {
-								playSound("celebration")
+								if (shouldNotify()) playSound("celebration")
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("completion_result")
@@ -422,6 +440,98 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			setSecondaryButtonText(undefined)
 		}
 	}, [messages.length])
+
+	// Also try to discover created file names from incoming cline messages
+	useEffect(() => {
+		// Look for Create/Edit style messages and optional +N / -M counts.
+		const filenameRegex = /(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)/gi
+		const plusRegex = /\+(\d+)/g
+		const minusRegex = /-(\d+)/g
+		const discovered: { path: string; additions?: number; deletions?: number; status?: string }[] = []
+		try {
+			for (const msg of messages) {
+				const txt = (msg as any).text || ""
+				let m: RegExpExecArray | null
+				while ((m = filenameRegex.exec(txt)) !== null) {
+					const p = m[1]
+					if (!p) continue
+					// Find additions/deletions nearby in the same text
+					let add: number | undefined
+					let del: number | undefined
+					const plusMatch = txt.match(plusRegex)
+					if (plusMatch && plusMatch.length > 0) {
+						// take the first +N
+						const r = /\+(\d+)/.exec(plusMatch[0])
+						if (r) add = Number(r[1])
+					}
+					const minusMatch = txt.match(minusRegex)
+					if (minusMatch && minusMatch.length > 0) {
+						const r = /-(\d+)/.exec(minusMatch[0])
+						if (r) del = Number(r[1])
+					}
+					const status =
+						txt.toLowerCase().includes("create") || txt.toLowerCase().includes("created")
+							? "created"
+							: "modified"
+					if (!discovered.some((d) => d.path === p))
+						discovered.push({ path: p, additions: add, deletions: del, status })
+				}
+			}
+			if (discovered.length > 0) {
+				setFileChanges((prev) => {
+					const next = [...prev]
+					for (const d of discovered) {
+						if (!next.some((f) => f.path === d.path)) {
+							next.push({
+								path: d.path,
+								additions: d.additions,
+								deletions: d.deletions,
+								status: d.status as any,
+							})
+							// debug
+							console.debug(
+								"Discovered file change:",
+								d.path,
+								"+",
+								d.additions ?? 0,
+								"-",
+								d.deletions ?? 0,
+							)
+						}
+					}
+					return next
+				})
+			}
+		} catch (_e) {
+			// ignore
+		}
+
+		// Fallback: scan rendered DOM text for Create/Edit markers if none found in messages
+		try {
+			if (discovered.length === 0) {
+				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
+				const domMatch = bodyText.match(
+					/(?:Create|Created|Edit|Edited):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
+				)
+				if (domMatch && domMatch[1]) {
+					const p = domMatch[1]
+					const add = domMatch[2] ? Number(domMatch[2]) : undefined
+					const del = domMatch[3] ? Number(domMatch[3]) : undefined
+					setFileChanges((prev) =>
+						prev.some((f) => f.path === p)
+							? prev
+							: [
+									...prev,
+									{ path: p, additions: add, deletions: del, status: add ? "created" : "modified" },
+								],
+					)
+					console.debug("Discovered file change from DOM:", p, "+", add ?? 0, "-", del ?? 0)
+				}
+			}
+		} catch (_e) {
+			// ignore
+		}
+	}, [messages])
 
 	useEffect(() => {
 		setExpandedRows({})
@@ -891,6 +1001,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		const startIndex = Math.max(0, currentMessageCount - 500)
 		const recentMessages = modifiedMessages.slice(startIndex)
 
+		// Find if there's a completion_result or if there are multiple api_req_started messages
+		const lastCompletionResult = findLast(modifiedMessages, (msg) => msg.say === "completion_result")
+		const apiReqStartedMessages = modifiedMessages.filter((msg) => msg.say === "api_req_started")
+		const hasMultipleThinking = apiReqStartedMessages.length > 1
+		const latestApiReqStarted = apiReqStartedMessages.at(-1)
+
 		const newVisibleMessages = recentMessages.filter((message: ClineMessage) => {
 			if (everVisibleMessagesTsRef.current.has(message.ts)) {
 				const alwaysHiddenOnceProcessedAsk: ClineAsk[] = [
@@ -908,6 +1024,33 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				if (message.say && alwaysHiddenOnceProcessedSay.includes(message.say)) return false
 				if (message.say === "text" && (message.text ?? "") === "" && (message.images?.length ?? 0) === 0) {
 					return false
+				}
+				// Hide previous api_req_started messages if there are multiple thinking messages
+				if (
+					message.say === "api_req_started" &&
+					hasMultipleThinking &&
+					message.ts !== latestApiReqStarted?.ts
+				) {
+					return false
+				}
+				// Hide api_req_started when task is completed
+				if (message.say === "api_req_started" && lastCompletionResult) {
+					return false
+				}
+				// Hide text messages that come between thinking/ask messages (informational boxes)
+				if (message.say === "text") {
+					// Hide truncated "thinking" boxes that begin with ellipsis (e.g. "... First, the user...")
+					if ((message.text || "").trim().startsWith("...")) {
+						return false
+					}
+					const nextMsg = recentMessages[recentMessages.indexOf(message) + 1]
+					const prevMsg = recentMessages[recentMessages.indexOf(message) - 1]
+					if (
+						(prevMsg?.say === "api_req_started" || prevMsg?.type === "ask") &&
+						(nextMsg?.type === "ask" || nextMsg?.say === "api_req_started" || !nextMsg)
+					) {
+						return false
+					}
 				}
 				return true
 			}
@@ -937,9 +1080,35 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					break
 				case "text":
 					if ((message.text ?? "") === "" && (message.images?.length ?? 0) === 0) return false
+					// Hide text messages that come between thinking/ask messages (informational boxes)
+					{
+						// Hide truncated "thinking" boxes that begin with ellipsis
+						if ((message.text || "").trim().startsWith("...")) {
+							return false
+						}
+						const messageIndex = modifiedMessages.indexOf(message)
+						const nextMsg = modifiedMessages[messageIndex + 1]
+						const prevMsg = modifiedMessages[messageIndex - 1]
+						if (
+							(prevMsg?.say === "api_req_started" || prevMsg?.type === "ask") &&
+							(nextMsg?.type === "ask" || nextMsg?.say === "api_req_started" || !nextMsg)
+						) {
+							return false
+						}
+					}
 					break
 				case "mcp_server_request_started":
 					return false
+				case "api_req_started":
+					// Hide previous api_req_started messages if there are multiple thinking messages
+					if (hasMultipleThinking && message.ts !== latestApiReqStarted?.ts) {
+						return false
+					}
+					// Hide api_req_started when task is completed
+					if (lastCompletionResult) {
+						return false
+					}
+					break
 			}
 			return true
 		})
@@ -1516,6 +1685,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					isExpanded={expandedRows[messageOrGroup.ts] || false}
 					onToggleExpand={toggleRowExpansion} // This was already stabilized
 					lastModifiedMessage={modifiedMessages.at(-1)} // Original direct access
+					followingMessages={modifiedMessages.slice(modifiedMessages.indexOf(messageOrGroup) + 1)} // Pass messages after this one
 					isLast={index === groupedMessages.length - 1} // Original direct access
 					onHeightChange={handleRowHeightChange}
 					isStreaming={isStreaming}
@@ -1523,24 +1693,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					onBatchFileResponse={handleBatchFileResponse}
 					onFollowUpUnmount={handleFollowUpUnmount}
 					isFollowUpAnswered={messageOrGroup.ts === currentFollowUpTs}
-					editable={
-						messageOrGroup.type === "ask" &&
-						messageOrGroup.ask === "tool" &&
-						(() => {
-							let tool: any = {}
-							try {
-								tool = JSON.parse(messageOrGroup.text || "{}")
-							} catch (_) {
-								if (messageOrGroup.text?.includes("updateTodoList")) {
-									tool = { tool: "updateTodoList" }
-								}
-							}
-							if (tool.tool === "updateTodoList" && alwaysAllowUpdateTodoList) {
-								return false
-							}
-							return tool.tool === "updateTodoList" && enableButtons && !!primaryButtonText
-						})()
-					}
 				/>
 			)
 		},
@@ -1555,9 +1707,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			handleBatchFileResponse,
 			handleFollowUpUnmount,
 			currentFollowUpTs,
-			alwaysAllowUpdateTodoList,
-			enableButtons,
-			primaryButtonText,
 		],
 	)
 
@@ -1756,23 +1905,185 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const [__fileCreated, setFileCreated] = useState(false)
 	const [__deploying, setDeploying] = useState(false)
 
-	// Listen for file creation and task completion events
+	// Keep track of files that were created/edited by the assistant. This will
+	// be displayed above the chat input box when populated.
+	type FileChange = {
+		path: string
+		additions?: number
+		deletions?: number
+		status?: "modified" | "created" | "deleted"
+	}
+
+	const [fileChanges, setFileChanges] = useState<FileChange[]>([])
+
+	// Listen for file creation and task completion events (and a few common
+	// payload shapes that the extension might send describing files changed).
 	useEffect(() => {
 		function handleVSCodeMessage(event: MessageEvent) {
-			const { type } = event.data
+			const payload = event.data || {}
+			const { type } = payload
+			// Helpful debug in devtools to inspect incoming messages
+			console.debug("ChatView incoming message:", payload)
+
+			// helper: normalize various file shapes into FileChange objects
+			const normalizeFile = (f: any): FileChange | null => {
+				if (!f) return null
+				// plain string
+				if (typeof f === "string") return { path: f }
+
+				// common shapes
+				if (typeof f.path === "string" && f.path)
+					return { path: f.path, additions: f.additions, deletions: f.deletions, status: f.status }
+				if (typeof f.filePath === "string" && f.filePath) return { path: f.filePath }
+				if (typeof f.fileName === "string" && f.fileName) return { path: f.fileName }
+
+				// other possible keys we've seen in payloads
+				if (typeof f.name === "string" && f.name) return { path: f.name }
+				if (typeof f.filename === "string" && f.filename) return { path: f.filename }
+				if (typeof f.file === "string" && f.file) return { path: f.file }
+				if (typeof f.displayName === "string" && f.displayName) return { path: f.displayName }
+
+				// nested shapes: { file: { path: '...' } }
+				if (f.file && typeof f.file === "object") {
+					if (typeof f.file.path === "string") return { path: f.file.path }
+					if (typeof f.file.fileName === "string") return { path: f.file.fileName }
+				}
+
+				return null
+			}
+
+			const mergeFilesArray = (filesArr: any[]) => {
+				const normalized = filesArr.map(normalizeFile).filter((x): x is FileChange => x !== null)
+				console.debug("ChatView normalized files:", normalized)
+				const missing = filesArr.length - normalized.length
+				if (missing > 0) console.warn(`ChatView: ${missing} file entries could not be normalized`, filesArr)
+				if (normalized.length === 0) return
+				setFileChanges((prev) => {
+					const next = [...prev]
+					for (const nf of normalized) {
+						if (!nf.path) {
+							console.warn("ChatView: skipping file with undefined path", nf)
+							continue
+						}
+						if (!next.some((p) => p.path === nf.path)) next.push(nf)
+					}
+					return next
+				})
+			}
+
+			// If extension supplied explicit files payload, merge it.
+			if (Array.isArray(payload.files) && payload.files.length > 0) {
+				console.debug("ChatView files payload (merged):", payload.files)
+				mergeFilesArray(payload.files)
+			}
+
+			// Handle common event types that may include single or multiple files
 			if (type === "newFileCreated" || type === "taskCompleted") {
 				setFileCreated(true)
-				setDeploying(false) // <-- ADD THIS LINE
+				setDeploying(false)
+
+				// If payload.files present it was already merged above; otherwise check other fields
+				if (Array.isArray(payload.files) && payload.files.length > 0) return
+
+				// filePath/fileName might be an array or string
+				if (Array.isArray(payload.filePath) && payload.filePath.length) {
+					mergeFilesArray(payload.filePath)
+					return
+				}
+				if (Array.isArray(payload.fileName) && payload.fileName.length) {
+					mergeFilesArray(payload.fileName)
+					return
+				}
+
+				const candidatePath = payload.path || payload.filePath || payload.fileName
+				if (typeof candidatePath === "string") {
+					setFileChanges((prev) =>
+						prev.some((f) => f.path === candidatePath)
+							? prev
+							: [...prev, { path: candidatePath, status: "created" }],
+					)
+					return
+				}
+
+				// Try to extract any filenames from payload.text (could contain multiple lines)
+				if (typeof payload.text === "string") {
+					// allow multi-dot filenames like Foo.cls-meta.xml
+					const regex =
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+					let m: RegExpExecArray | null
+					const found: string[] = []
+					while ((m = regex.exec(payload.text)) !== null) {
+						if (m[1]) found.push(m[1])
+					}
+					if (found.length > 0) {
+						mergeFilesArray(found)
+						return
+					}
+				}
 			}
+
 			if (type === "deployResult") {
 				setDeploying(false)
 			}
+
+			// Single file created message containing a path or array of paths
+			if (type === "fileCreated") {
+				if (Array.isArray(payload.path) && payload.path.length) {
+					mergeFilesArray(payload.path)
+					setFileCreated(true)
+					return
+				}
+				const p = payload.path || payload.filePath || payload.fileName
+				if (typeof p === "string") {
+					setFileCreated(true)
+					setFileChanges((prev) =>
+						prev.some((f) => f.path === p) ? prev : [...prev, { path: p, status: "created" }],
+					)
+					return
+				}
+			}
+
+			// Generic fallback: if payload.text contains human readable markers, extract all matches
+			if (typeof payload.text === "string") {
+				const regexAll =
+					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+				let mm: RegExpExecArray | null
+				const discovered: string[] = []
+				while ((mm = regexAll.exec(payload.text)) !== null) {
+					if (mm[1]) discovered.push(mm[1])
+				}
+				if (discovered.length > 0) mergeFilesArray(discovered)
+			}
+
+			// DOM fallback: scan rendered text and merge any Create/Edit file tokens we find.
+			try {
+				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
+				if (bodyText && bodyText.length > 0) {
+					const domRegex =
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+					let d: RegExpExecArray | null
+					const domFound: string[] = []
+					while ((d = domRegex.exec(bodyText)) !== null) {
+						if (d[1]) domFound.push(d[1])
+					}
+					if (domFound.length > 0) mergeFilesArray(domFound)
+				}
+			} catch (_e) {
+				// ignore DOM access errors
+			}
 		}
+
 		window.addEventListener("message", handleVSCodeMessage)
 		return () => window.removeEventListener("message", handleVSCodeMessage)
 	}, [])
 
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText || isStreaming
+
+	// Collapsible state for the file list shown above the chat box
+	const [fileListCollapsed, setFileListCollapsed] = useState(false)
+	const filesLabel = `${fileChanges.length} file${fileChanges.length === 1 ? "" : "s"} changed`
+
+	// Note: translateOrFallback removed — UI only shows panel when there are file changes
 
 	return (
 		<div
@@ -1827,7 +2138,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 						<RooHero />
 						{/* Show the task history preview if expanded and tasks exist */}
-						{taskHistory.length > 0 && isExpanded && <HistoryPreview />}
+						{taskHistory.length > 0 && isExpanded && <HistoryPreview onSwitchTab={onSwitchTab} />}
 					</div>
 				</div>
 			)}
@@ -1968,6 +2279,68 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					setMessageQueue((prev) => prev.map((msg, i) => (i === index ? { ...msg, text: newText } : msg)))
 				}}
 			/>
+			{fileChanges.length > 0 && (
+				<div className="flex-initial px-3.5 mb-2">
+					{/* Header: only show when there are file changes. Shows count and chevron; no Clear button. */}
+					<div
+						className="flex items-center gap-2 text-sm text-vscode-descriptionForeground cursor-pointer"
+						onClick={() => setFileListCollapsed((s) => !s)}>
+						<span className="font-medium text-xs">{filesLabel}</span>
+						<div className="ml-auto flex items-center gap-2">
+							<span
+								className={`codicon ${fileListCollapsed ? "codicon-chevron-right" : "codicon-chevron-down"}`}
+							/>
+						</div>
+					</div>
+
+					{/* Expanded section (shows filenames) */}
+					{!fileListCollapsed && (
+						<div className="mt-1 max-h-40 overflow-auto text-sm bg-vscode-editorHoverWidget-background p-2 rounded">
+							{fileChanges
+								.filter((f) => !!f?.path)
+								.map((f) => (
+									<div key={f.path} className="flex items-center gap-2 text-xs truncate py-0.5">
+										<span className="codicon codicon-file" />
+										<button
+											onClick={() => {
+												try {
+													if (!f.path) {
+														console.warn(
+															"ChatView: attempt to open file with undefined path",
+															f,
+														)
+														return
+													}
+													if (
+														typeof vscode !== "undefined" &&
+														typeof (vscode as any).postMessage === "function"
+													) {
+														;(vscode as any).postMessage({ type: "openFile", path: f.path })
+													} else if (
+														typeof window !== "undefined" &&
+														typeof window.postMessage === "function"
+													) {
+														// Fallback - post to window (useful in tests/devtools)
+														window.postMessage({ type: "openFile", path: f.path }, "*")
+													} else {
+														console.error(
+															"Cannot post openFile message: no postMessage available",
+															f.path,
+														)
+													}
+												} catch (err) {
+													console.error("Failed to send openFile message", err, f.path)
+												}
+											}}
+											className="truncate text-left text-xs text-vscode-editor-foreground hover:underline">
+											{f.path}
+										</button>
+									</div>
+								))}
+						</div>
+					)}
+				</div>
+			)}
 			<ChatTextArea
 				ref={textAreaRef}
 				inputValue={inputValue}

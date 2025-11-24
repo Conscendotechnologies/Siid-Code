@@ -9,14 +9,18 @@ import { Section } from "./Section"
 import { Slider } from "../ui"
 
 type NotificationSettingsProps = HTMLAttributes<HTMLDivElement> & {
+	notificationsEnabled?: boolean
 	ttsEnabled?: boolean
 	ttsSpeed?: number
 	soundEnabled?: boolean
 	soundVolume?: number
-	setCachedStateField: SetCachedStateField<"ttsEnabled" | "ttsSpeed" | "soundEnabled" | "soundVolume">
+	setCachedStateField: SetCachedStateField<
+		"notificationsEnabled" | "ttsEnabled" | "ttsSpeed" | "soundEnabled" | "soundVolume"
+	>
 }
 
 export const NotificationSettings = ({
+	notificationsEnabled,
 	ttsEnabled,
 	ttsSpeed,
 	soundEnabled,
@@ -37,9 +41,22 @@ export const NotificationSettings = ({
 			<Section>
 				<div>
 					<VSCodeCheckbox
+						checked={notificationsEnabled}
+						onChange={(e: any) => setCachedStateField("notificationsEnabled", e.target.checked)}
+						data-testid="notifications-enabled-checkbox">
+						<span className="font-medium">{t("Enable Notifications")}</span>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1">
+						{t("When enabled, SIID will send task completion notifications.")}
+					</div>
+				</div>
+
+				<div>
+					<VSCodeCheckbox
 						checked={ttsEnabled}
 						onChange={(e: any) => setCachedStateField("ttsEnabled", e.target.checked)}
-						data-testid="tts-enabled-checkbox">
+						data-testid="tts-enabled-checkbox"
+						disabled={!notificationsEnabled}>
 						<span className="font-medium">{t("settings:notifications.tts.label")}</span>
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm mt-1">
@@ -47,7 +64,7 @@ export const NotificationSettings = ({
 					</div>
 				</div>
 
-				{ttsEnabled && (
+				{ttsEnabled && notificationsEnabled && (
 					<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
 						<div>
 							<label className="block font-medium mb-1">
@@ -72,7 +89,8 @@ export const NotificationSettings = ({
 					<VSCodeCheckbox
 						checked={soundEnabled}
 						onChange={(e: any) => setCachedStateField("soundEnabled", e.target.checked)}
-						data-testid="sound-enabled-checkbox">
+						data-testid="sound-enabled-checkbox"
+						disabled={!notificationsEnabled}>
 						<span className="font-medium">{t("settings:notifications.sound.label")}</span>
 					</VSCodeCheckbox>
 					<div className="text-vscode-descriptionForeground text-sm mt-1">
@@ -80,7 +98,7 @@ export const NotificationSettings = ({
 					</div>
 				</div>
 
-				{soundEnabled && (
+				{soundEnabled && notificationsEnabled && (
 					<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
 						<div>
 							<label className="block font-medium mb-1">
