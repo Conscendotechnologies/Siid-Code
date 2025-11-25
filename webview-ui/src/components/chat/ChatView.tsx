@@ -2077,10 +2077,16 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return () => window.removeEventListener("message", handleVSCodeMessage)
 	}, [])
 
+	// Reset file changes when switching to a different task/chat
+	useEffect(() => {
+		// task?.ts changes when switching chats/tasks; clear fileChanges for new chat
+		setFileChanges([])
+	}, [task?.ts])
+
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText || isStreaming
 
-	// Collapsible state for the file list shown above the chat box
-	const [fileListCollapsed, setFileListCollapsed] = useState(false)
+	// Collapsible state for the file list shown above the chat box (default: collapsed)
+	const [fileListCollapsed, setFileListCollapsed] = useState(true)
 	const filesLabel = `${fileChanges.length} file${fileChanges.length === 1 ? "" : "s"} changed`
 
 	// Note: translateOrFallback removed — UI only shows panel when there are file changes
@@ -2283,9 +2289,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				<div className="flex-initial px-3.5 mb-2">
 					{/* Header: only show when there are file changes. Shows count and chevron; no Clear button. */}
 					<div
-						className="flex items-center gap-2 text-sm text-vscode-descriptionForeground cursor-pointer"
+						className="flex items-center gap-2 text-sm cursor-pointer"
 						onClick={() => setFileListCollapsed((s) => !s)}>
-						<span className="font-medium text-xs">{filesLabel}</span>
+						<span className="font-bold text-xs text-vscode-editor-foreground">{filesLabel}</span>
 						<div className="ml-auto flex items-center gap-2">
 							<span
 								className={`codicon ${fileListCollapsed ? "codicon-chevron-right" : "codicon-chevron-down"}`}
@@ -2311,17 +2317,32 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 														)
 														return
 													}
+
+													// Determine if path looks absolute (POSIX or Windows drive)
+													const looksAbsolute =
+														f.path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(f.path)
+
+													// If not absolute and not already prefixed with ./ or .\, prefix with ./
+													const pathToSend = looksAbsolute
+														? f.path
+														: f.path.startsWith("./") || f.path.startsWith(".\\")
+															? f.path
+															: "./" + f.path
+
 													if (
 														typeof vscode !== "undefined" &&
 														typeof (vscode as any).postMessage === "function"
 													) {
-														;(vscode as any).postMessage({ type: "openFile", path: f.path })
+														;(vscode as any).postMessage({
+															type: "openFile",
+															path: pathToSend,
+														})
 													} else if (
 														typeof window !== "undefined" &&
 														typeof window.postMessage === "function"
 													) {
 														// Fallback - post to window (useful in tests/devtools)
-														window.postMessage({ type: "openFile", path: f.path }, "*")
+														window.postMessage({ type: "openFile", path: pathToSend }, "*")
 													} else {
 														console.error(
 															"Cannot post openFile message: no postMessage available",
@@ -2335,6 +2356,38 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 											className="truncate text-left text-xs text-vscode-editor-foreground hover:underline">
 											{f.path}
 										</button>
+
+										{/* Show additions/deletions only when non-zero values are provided */}
+										{((f.additions !== undefined && f.additions !== 0) ||
+											(f.deletions !== undefined && f.deletions !== 0)) && (
+											<>
+												{f.additions !== undefined && f.additions !== 0 && (
+													<span
+														style={{
+															fontSize: "11px",
+															color: "var(--vscode-charts-green)",
+															fontFamily: "monospace",
+															fontWeight: "bold",
+															marginLeft: 8,
+														}}>
+														+{f.additions}
+													</span>
+												)}
+
+												{f.deletions !== undefined && f.deletions !== 0 && (
+													<span
+														style={{
+															fontSize: "11px",
+															color: "var(--vscode-errorForeground)",
+															fontFamily: "monospace",
+															fontWeight: "bold",
+															marginLeft: 4,
+														}}>
+														-{f.deletions}
+													</span>
+												)}
+											</>
+										)}
 									</div>
 								))}
 						</div>

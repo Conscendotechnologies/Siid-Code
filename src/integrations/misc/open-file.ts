@@ -63,6 +63,28 @@ export async function openFile(filePath: string, options: OpenFileOptions = {}) 
 			}
 		}
 
+		// If we couldn't stat any of the attemptPaths, try a workspace-wide glob search
+		// when the request is a simple workspace-relative filename (e.g., "./Foo.cls").
+		if (!fileStat && workspaceRoot && typeof filePath === "string" && filePath.startsWith("./")) {
+			const relativePart = filePath.slice(2)
+			// Only perform glob search for single-segment filenames (no slashes)
+			if (!relativePart.includes("/") && !relativePart.includes("\\")) {
+				try {
+					const matches = await vscode.workspace.findFiles(`**/${relativePart}`, undefined, 20)
+					if (matches && matches.length > 0) {
+						successfulUri = matches[0]
+						try {
+							fileStat = await vscode.workspace.fs.stat(successfulUri)
+						} catch (_e) {
+							// ignore
+						}
+					}
+				} catch (err) {
+					// ignore search errors
+				}
+			}
+		}
+
 		let uriToProcess: vscode.Uri
 
 		if (fileStat && successfulUri) {
