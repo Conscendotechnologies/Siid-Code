@@ -9,6 +9,7 @@ import { AskApproval, HandleError, PushToolResult, RemoveClosingTag, ToolUse } f
 import { formatResponse } from "../prompts/responses"
 import { ClineSayTool } from "../../shared/ExtensionMessage"
 import { getReadablePath } from "../../utils/path"
+import { calculateDiffStats } from "../../utils/diffStats"
 import { fileExistsAtPath } from "../../utils/fs"
 import { RecordSource } from "../context-tracking/FileContextTrackerTypes"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
@@ -214,6 +215,8 @@ export async function searchAndReplaceTool(
 			...sharedMessageProps,
 			diff,
 			isProtected: isWriteProtected,
+			linesAdded: calculateDiffStats(diff).linesAdded,
+			linesRemoved: calculateDiffStats(diff).linesRemoved,
 		} satisfies ClineSayTool)
 
 		// Show diff view if focus disruption prevention is disabled
