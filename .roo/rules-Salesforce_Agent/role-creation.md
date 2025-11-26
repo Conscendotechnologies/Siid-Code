@@ -8,9 +8,13 @@ This mode assists the AI model in creating and managing Salesforce roles by gene
 
 # Strict Rules for Salesforce Role Creation
 
-## Check Existing Role
+## Check Existing Role(Important!!)
 
-- Before creating a new role, check if the role already exists in the roles directory.
+- Before creating a new role, retrieve all existing roles from the Salesforce org.
+- **Use the <retrieve_sf_metadata> tool with metadata_type "Role" to get all roles**
+- This will retrieve all roles from the Salesforce org and save them to your local project directory.
+- **Note:** Ensure you are connected to a default org.
+- Check the retrieved roles to see if the user's requested role already exists.
 - If the role already exists:
     - Inform the user that the role is already present.
     - Ask: "Do you want to update this role or create a different role?"
@@ -18,9 +22,18 @@ This mode assists the AI model in creating and managing Salesforce roles by gene
 
 ## Fetch Existing Roles (When Needed)
 
-- If the user wants to create a role as a **parent** or **child** of an existing role, first fetch the existing role metadata:
+- If the user wants to create a role as a **parent** or **child** of an existing role, first fetch the existing role metadata using the retrieve_sf_metadata tool:
+
+```xml
+<retrieve_sf_metadata>
+<metadata_type>Role</metadata_type>
+<metadata_name>RoleDeveloperName</metadata_name>
+</retrieve_sf_metadata>
+```
+
+- Replace `RoleDeveloperName` with the actual role developer name (e.g., CEO, Sales_Manager).
+- **Alternative CLI command (if tool is unavailable):**
   `sf project retrieve start --metadata Role:<RoleDeveloperName>`
-- Replace `<RoleDeveloperName>` with the actual role developer name (e.g., CEO, Sales_Manager).
 
 ## File and Folder Creation
 
@@ -106,7 +119,13 @@ This mode assists the AI model in creating and managing Salesforce roles by gene
     ### Scenario 3: Creating a Parent Role (with Child)
     - If creating a role that will be the **parent of an existing role**:
         - First, create the new parent role.
-        - Then, fetch the existing child role: `sf project retrieve start --metadata Role:<ChildRoleDeveloperName>`
+        - Then, fetch the existing child role using retrieve_sf_metadata:
+        ```xml
+        <retrieve_sf_metadata>
+        <metadata_type>Role</metadata_type>
+        <metadata_name>ChildRoleDeveloperName</metadata_name>
+        </retrieve_sf_metadata>
+        ```
         - Update the child role XML to include the `<parentRole>` tag pointing to the new parent: `<parentRole>Parent_Role_Developer_Name</parentRole>`
         - Deploy both the new parent role and the updated child role.
     - **Deployment Commands:**
@@ -117,8 +136,13 @@ This mode assists the AI model in creating and managing Salesforce roles by gene
     ### Scenario 4: Creating a Middle Role (Both Parent and Child)
     - If creating a role that is **both a child of one role AND a parent of another role**:
         - First, create the new role with the `<parentRole>` tag pointing to its parent: `<parentRole>Parent_Role_Developer_Name</parentRole>`
-        - Then, fetch the role that will be its child:
-        `sf project retrieve start --metadata Role:<ChildRoleDeveloperName>`
+        - Then, fetch the role that will be its child using retrieve_sf_metadata:
+        ```xml
+        <retrieve_sf_metadata>
+        <metadata_type>Role</metadata_type>
+        <metadata_name>ChildRoleDeveloperName</metadata_name>
+        </retrieve_sf_metadata>
+        ```
         - Update the child role XML to set the new role as its parent by adding or modifying the `<parentRole>` tag: `<parentRole>New_Middle_Role_Developer_Name</parentRole>`
         - Deploy all affected roles in the correct order:
         1. Deploy the new middle role first

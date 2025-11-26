@@ -25,23 +25,44 @@ This mode assists the AI model in creating Salesforce Paths by generating the ne
 ## Retrieve Object Metadata (MANDATORY FIRST STEP)
 
 - **CRITICAL: Before proceeding with path creation, you MUST retrieve the object metadata.**
-- Execute this command to fetch the complete object information:
-    ```bash
-    sf project retrieve start --metadata CustomObject:<ObjectName>
-    ```
-- **WAIT for command completion before proceeding to next step.**
-- This will retrieve:
-    - The complete object metadata file
-    - Record type information (if any)
-    - All fields including picklist fields
-    - Picklist values for each field
-- The metadata file will be located at: `force-app/main/default/objects/<ObjectName>/<ObjectName>.object-meta.xml`
+- **Use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" to retrieve all objects**
+- This will retrieve the complete object metadata structure including all subfolders and files.
+
+**Understanding the Object Folder Structure (CRITICAL):**
+
+The retrieved object metadata is organized in subfolders, NOT in a single XML file:
+
+```
+force-app/main/default/objects/<ObjectName>/
+├── <ObjectName>.object-meta.xml         (Main object definition - NOT ALL METADATA)
+├── fields/                              (All field definitions)
+│   ├── <FieldName1>.field-meta.xml
+│   ├── <FieldName2>.field-meta.xml
+│   └── <Mic_Color__c>.field-meta.xml
+├── recordTypes/                         (All record type definitions)
+│   ├── <RecordType1>.recordType-meta.xml
+│   └── <RecordType2>.recordType-meta.xml
+├── listViews/                           (All list view definitions)
+│   └── <ListView1>.listView-meta.xml
+├── validationRules/                     (All validation rules)
+│   └── <Rule1>.validationRule-meta.xml
+└── ... (other subfolders)
+```
+
+**IMPORTANT:**
+
+- The main `<ObjectName>.object-meta.xml` file contains basic object settings only
+- Fields are in the `fields/` subfolder
+- Record types are in the `recordTypes/` subfolder
+- Each component has its own separate XML file
 
 ## Parse Object Metadata and Extract Record Types (MANDATORY SECOND STEP)
 
-- **After retrieval completes, read and parse the object metadata XML file.**
-- Look for the `<recordTypes>` section in the XML.
-- Extract all record type names from `<fullName>` tags within each `<recordTypes>` block.
+- **After retrieval completes, read and parse the object metadata.**
+- **IMPORTANT: Record types are stored in separate files, NOT in the main object XML file.**
+- **Location of record type files:** `force-app/main/default/objects/<ObjectName>/recordTypes/`
+- Each record type has its own file: `<RecordTypeDeveloperName>.recordType-meta.xml`
+- Read each record type file in the recordTypes folder to extract all record type names from `<fullName>` tags.
 
 **Example of Record Type in Metadata XML:**
 
@@ -93,10 +114,10 @@ This mode assists the AI model in creating Salesforce Paths by generating the ne
 ## Verify Picklist Field (MANDATORY FOURTH STEP)
 
 - **After record type is selected, verify the picklist field exists in the metadata.**
-- Look for the field in the object metadata XML file.
+- **IMPORTANT: Fields are stored in separate files, NOT in the main object XML file.**
+- **Location of field files:** `force-app/main/default/objects/<ObjectName>/fields/`
 - The field should be in: `force-app/main/default/objects/<ObjectName>/fields/<FieldName>.field-meta.xml`
-- Or within the main object XML under `<fields>` section.
-- **Verify the field type is picklist:**
+- **Read the field XML file to verify the field type is picklist:**
     - Look for `<type>Picklist</type>` tag
 - **If the field doesn't exist or is not a picklist:**
     - Inform the user immediately
@@ -108,11 +129,7 @@ This mode assists the AI model in creating Salesforce Paths by generating the ne
 **🛑 CRITICAL STOP POINT - EXISTING PATH CHECK:**
 
 - **CRITICAL: Before creating a new path, check if a path already exists for the selected record type.**
-- Execute this command to retrieve existing paths:
-    ```bash
-    sf project retrieve start --metadata PathAssistant
-    ```
-- **WAIT for command completion before proceeding.**
+- **Use the <retrieve_sf_metadata> tool with metadata_type "PathAssistant" to retrieve all existing paths**
 - Check if a path exists for the object/field/record type combination.
 - **If an existing path is found:**
     - **STOP IMMEDIATELY - DO NOT PROCEED WITH PATH CREATION**
@@ -146,6 +163,7 @@ This mode assists the AI model in creating Salesforce Paths by generating the ne
 ## Fetch Picklist Values (MANDATORY SIXTH STEP)
 
 - **Extract all picklist values from the specified field from the already retrieved metadata.**
+- **Read the field file:** `force-app/main/default/objects/<ObjectName>/fields/<FieldName>.field-meta.xml`
 - The picklist values are in the field metadata under `<valueSet>` → `<valueSetDefinition>` → `<value>` tags.
 - **Example of picklist values in metadata:**
 
@@ -415,11 +433,7 @@ FileName = CleanObjectName + "_" + CleanFieldName + ".pathAssistant-meta.xml"
 3. **If user says YES:**
     - Ask: "Which stage/picklist value would you like to add fields to?"
     - Ask: "Which fields should be displayed? (Up to 5 fields)"
-    - Execute retrieve command to verify fields exist:
-        ```bash
-        sf project retrieve start --metadata CustomObject:<ObjectName>
-        ```
-    - **WAIT for command completion**
+    - **Use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" to retrieve all objects (if not already retrieved)**
     - Verify each field exists on the object
     - Create `<pathAssistantSteps>` ONLY for picklist values with specified fields
     - Repeat for each picklist value the user wants to customize
@@ -473,10 +487,10 @@ FileName = CleanObjectName + "_" + CleanFieldName + ".pathAssistant-meta.xml"
 **Example Correct Sequence:**
 
 ```
-Step 1: sf project retrieve start --metadata CustomObject:Account
+Step 1: Use <retrieve_sf_metadata> tool with metadata_type "CustomObject" to retrieve all objects
 [WAIT for completion]
 Step 2: [Analyze metadata]
-Step 3: sf project retrieve start --metadata PathAssistant
+Step 3: Use <retrieve_sf_metadata> tool with metadata_type "PathAssistant"
 [WAIT for completion]
 Step 4: [Check for existing paths]
 Step 5: [Create XML file]
@@ -487,12 +501,11 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
 **NEVER do this:**
 
 ```
-❌ sf project retrieve start --metadata CustomObject:Account && sf project retrieve start --metadata PathAssistant
-❌ Running multiple commands simultaneously
-❌ Batching commands together
+❌ Running multiple retrieve operations simultaneously
+❌ Batching retrieval commands together
 ```
 
-**ONE COMMAND AT A TIME - ALWAYS**
+**ONE OPERATION AT A TIME - ALWAYS**
 
 ## Automatic Deployment (CRITICAL - MUST FOLLOW)
 
@@ -579,8 +592,7 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
   **Step 1: Gather Information**
     - Check if both object and field are provided. If not, ask for missing information.
       **Step 2: Retrieve Object Metadata (MANDATORY)**
-    - Execute: `sf project retrieve start --metadata CustomObject:<ObjectName>`
-    - **WAIT for command completion**
+    - Use <retrieve_sf_metadata> tool with metadata_type "CustomObject" to retrieve all objects
     - Read the retrieved metadata XML file from: `force-app/main/default/objects/<ObjectName>/<ObjectName>.object-meta.xml`
       **Step 3: Parse and Extract Record Types (MANDATORY)**
     - Parse the object metadata XML file
@@ -602,8 +614,7 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
     - Check field type is Picklist
     - If field doesn't exist or is not a picklist, inform the user and STOP
       **Step 6: Check for Existing Paths (MANDATORY)**
-    - Execute: `sf project retrieve start --metadata PathAssistant`
-    - **WAIT for command completion**
+    - Use <retrieve_sf_metadata> tool with metadata_type "PathAssistant" to retrieve all existing paths
     - Check if a path exists for the object/field/record type combination
     - **If path exists: STOP IMMEDIATELY**
         - Inform user about existing path

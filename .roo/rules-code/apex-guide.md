@@ -38,9 +38,71 @@
 
 ---
 
-## Creation of XML: (! IMPORTANT)
+## Creation of XML: (!!**IMPORTANT**)
 
 - After creation of apex class immediatly create it's XML file too WITHOUT ASKING.
+
+## User-Provided Guidelines Priority (**HIGHEST PRIORITY**)
+
+- **When the user provides code or project guidelines in a BRD (Business Requirement Document), you MUST prioritize those guidelines above all else.**
+- User-provided guidelines have the **HIGHEST PRIORITY** and override any default patterns or best practices mentioned in this guide.
+- If there is a conflict between user guidelines and this reference guide, always follow the user's guidelines.
+- Examples of user guidelines include:
+    - Naming conventions specific to the project
+    - Code structure and architecture patterns
+    - Error handling approaches
+    - Testing strategies
+    - Documentation standards
+    - Deployment processes
+- Always acknowledge and confirm user-provided guidelines before proceeding with implementation.
+
+## (!!**IMPORTANT**)Retrieving Apex Classes
+
+**CRITICAL RULE: ALWAYS RETRIEVE BEFORE CREATING OR MODIFYING ANY APEX CLASS**
+
+Before creating or modifying Apex classes, you MUST ALWAYS check existing classes in the Salesforce org first:
+
+### Directory Location
+
+**Apex classes are stored in:** `force-app/main/default/classes/`
+
+- Each Apex class has two files:
+    - `ClassName.cls` (the Apex class file)
+    - `ClassName.cls-meta.xml` (the metadata XML file)
+
+### (!!**IMPORTANT**)Retrieve All Apex Classes
+
+- **MANDATORY FIRST STEP**: Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" to retrieve all Apex classes from the org
+- This retrieves all classes to the `force-app/main/default/classes/` directory
+- **ALWAYS DO THIS** when starting any Apex-related task to understand what classes exist in the org
+- **DO NOT skip this step** - you must check what already exists before creating new classes
+
+### (!!**IMPORTANT**)Retrieve Specific Apex Classes
+
+- Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" and metadata_name "<ClassName>" to retrieve a specific class
+- Replace <ClassName> with the actual class name without the .cls extension (e.g., "AccountService", "MyController", "OpportunityTriggerHandler")
+- The tool retrieves files to `force-app/main/default/classes/`
+- Use this when you need to view or modify a specific class
+
+### Sync Latest Code
+
+- **MANDATORY**: Before modifying any Apex class, always retrieve the latest version using the tool to ensure you have the most current code
+- This prevents conflicts and ensures you're working with the latest version from the org
+- Always sync before making changes to existing classes
+
+### When to Use Retrieval (MANDATORY CHECKLIST)
+
+✅ **ALWAYS retrieve at the start** of any Apex-related task to understand existing code
+✅ **ALWAYS retrieve before creating** a new class to check if a similar class already exists
+✅ **ALWAYS retrieve before modifying** a class to get the latest version
+✅ When syncing local code with org code
+✅ When analyzing or refactoring existing Apex code
+
+### ❌ NEVER DO THIS
+
+❌ **NEVER create an Apex class file directly without first using the retrieve tool**
+❌ **NEVER assume a class doesn't exist** - always retrieve and check first
+❌ **NEVER modify a class without retrieving** the latest version first
 
 ## Language Fundamentals
 
@@ -2319,7 +2381,7 @@ for(Account acc : accountList) {
 
 ---
 
-### 9. Dry run and Deployment:(! IMPORTANT)
+### 9. (**!! IMPORTANT**)Dry run and Deployment:
 
 After creation of all required apex classes and LWC components then first do dry run on apex using this command:
 `sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls>`
@@ -2328,8 +2390,18 @@ Replace <classname.cls> with the actual classes.
 - If got any errors after dry run solve them.
 - After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
   `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls>`
-- Replace <classname.cls> with the all classes that are created comma separated.
-- Before Going for LWC first dry-run and deploy Apex Classes.(!IMPORTANT)
+- Replace <classname.cls> with the all classes that are created like below format for multiple apex classes deployment:
+    # Deploy multiple specific Apex classes in order
+    ```
+    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger
+    ```
+- (**!IMPORTANT**)Before Going for LWC first dry-run and deploy Apex Classes.
+
+Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
+
+Deployment workflow you should follow every time:
+
+- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
 
 ## Quick Reference: Common Patterns
 

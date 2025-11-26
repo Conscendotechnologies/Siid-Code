@@ -13,7 +13,19 @@
     Gather Basic Information
     When a user asks to create a validation rule, collect:
     Object name (e.g., "Account", "Opportunity", "CustomObject__c")
-    Validation formula - the condition that should block the save
+    User's requirement/prompt - understand what the user wants to validate
+
+    Check existing validation rules on the object FIRST:
+    - Use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" and metadata_name "<ObjectName>" to retrieve the object
+    - Check the validationRules/ subfolder under force-app/main/default/objects/<ObjectName>/validationRules/ for existing validation rules
+    - If validation rules exist, review them and compare with the user's requirement/prompt:
+        - Check if any existing validation rule already implements similar logic or validates the same condition the user is requesting
+        - If a similar validation rule exists, inform the user and ask:
+          "A similar validation rule already exists: [RuleName] with formula: [Formula]. Do you want to:
+          1. Update the existing rule
+          2. Create a new rule anyway
+          3. Cancel"
+    - If no similar rules exist, proceed with collecting the validation formula from the user and creating the new validation rule
 
 ## Step 2:
 

@@ -1,9 +1,32 @@
 # Salesforce Assignment Rules — Full Workflow (with Queue Creation)
 
-This workflow automates creation and deployment of Assignment Rules in Salesforce using the Salesforce CLI.  
+This workflow automates creation and deployment of Assignment Rules in Salesforce using the Salesforce CLI.
 It supports creating a new Queue dynamically if it does not already exist.
 
 All commands use the `sf` CLI.
+
+## 0. Check Existing Assignment Rules (RECOMMENDED FIRST STEP)
+
+Before creating new assignment rules, retrieve existing assignment rules from the Salesforce org:
+
+- **Use the <retrieve_sf_metadata> tool with metadata_type "AssignmentRules" to retrieve all assignment rules**
+- This will retrieve all assignment rules from all objects in the org
+- **IMPORTANT: Check if there is an ACTIVE assignment rule on the target object**
+- After retrieval, read the assignment rules file for the object: `force-app/main/default/assignmentRules/<ObjectApiName>.assignmentRules-meta.xml`
+- Look for any `<assignmentRule>` with `<active>true</active>` tag
+- If an active assignment rule exists:
+    - Inform the user: "An active assignment rule already exists for [ObjectName]"
+    - Show the existing rule details (rule name, assigned to)
+    - Ask: "Do you want to deactivate the existing rule and create a new active rule?"
+    - **If user says YES:**
+        - Set the existing rule's `<active>` tag to `false`
+        - Create the new rule with `<active>true</active>`
+    - **If user says NO:**
+        - Create the new rule with `<active>false</active>` (inactive)
+        - Inform the user they can activate it later from Salesforce Setup
+- If no active assignment rule exists:
+    - Continue with creating the new rule as active
+- **Note:** Only one assignment rule can be active per object at a time
 
 ## 1. Prompt: Gather Minimal Inputs
 
