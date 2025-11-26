@@ -44,7 +44,7 @@ Sprawdź [CHANGELOG](../../CHANGELOG.md), aby uzyskać szczegółowe informacje 
 
 ---
 
-## 🎉 Siid Code 3.25 został wydany
+## 🎉 Najnowsza wersja
 
 Siid Code 3.25 wprowadza potężne nowe funkcje i znaczące usprawnienia, aby ulepszyć Twój przepływ pracy deweloperskiej!
 

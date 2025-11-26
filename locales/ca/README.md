@@ -44,7 +44,7 @@ Consulteu el [CHANGELOG](../../CHANGELOG.md) per a actualitzacions i correccions
 
 ---
 
-## 🎉 Siid Code 3.25 Llançat
+## 🎉 Última versió
 
 Siid Code 3.25 aporta noves funcionalitats potents i millores significatives per millorar el vostre flux de treball de desenvolupament!
 

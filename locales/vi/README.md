@@ -40,7 +40,7 @@ Kiểm tra [CHANGELOG](../../CHANGELOG.md) để biết thông tin chi tiết v�
 
 ---
 
-## 🎉 Đã Phát Hành Siid Code 3.25
+## 🎉 Bản phát hành mới nhất
 
 Siid Code 3.25 mang đến những tính năng mới mạnh mẽ và cải tiến đáng kể để nâng cao quy trình phát triển của bạn.
 

@@ -43,7 +43,7 @@ Lihat [CHANGELOG](../../CHANGELOG.md) untuk update dan perbaikan detail.
 
 ---
 
-## 🎉 Siid Code 3.25 Dirilis
+## 🎉 Rilis Terbaru
 
 Siid Code 3.25 menghadirkan fitur-fitur baru yang powerful dan peningkatan signifikan untuk meningkatkan workflow development kamu!
 

@@ -44,7 +44,7 @@ Detaylı güncellemeler ve düzeltmeler için [CHANGELOG](../../CHANGELOG.md) do
 
 ---
 
-## 🎉 Siid Code 3.25 Yayınlandı
+## 🎉 Son Sürüm
 
 Siid Code 3.25 geliştirme iş akışınızı geliştirmek için güçlü yeni özellikler ve önemli iyileştirmeler getiriyor.
 

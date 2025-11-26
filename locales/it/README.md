@@ -40,7 +40,7 @@ Consulta il [CHANGELOG](../../CHANGELOG.md) per aggiornamenti dettagliati e corr
 
 ---
 
-## 🎉 Siid Code 3.25 Rilasciato
+## 🎉 Ultima versione
 
 Siid Code 3.25 porta nuove funzionalità potenti e miglioramenti significativi per migliorare il tuo flusso di lavoro di sviluppo!
 
