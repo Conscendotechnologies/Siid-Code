@@ -31,11 +31,40 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 
 ## Retrieve Profile Data (MANDATORY SECOND STEP)
 
-- **After fetching object and field metadata**, retrieve the profile data using this command:
+- **After fetching object and field metadata**, retrieve the profile data following this flow:
+
+1. List all available Profile metadata from the Salesforce org:
+
+    ```bash
+    sf org list metadata -m Profile --json > profiles.json
     ```
-    sf project retrieve start --metadata "Profile:ProfileName"
-    ```
-- Replace `ProfileName` with the actual profile name (e.g., Custom_Sales_Profile, Standard_User).
+
+    **Notes:**
+
+    - This command produces a JSON list of available Profile metadata in the target org.
+    - Saving the output to `profiles.json` ensures you have an up-to-date authoritative mapping between the friendly names and the backend metadata names.
+
+2. Inspect `profiles.json` to understand the available profiles and their exact API/backend names.
+
+3. Map the user-provided profile name to the exact `fullName` in `profiles.json`:
+
+    - Use an exact match when possible. If the user uses a friendly/display name (for example, "System Administrator"), implement a mapping or a small fuzzy-match routine that compares the user input against `fullName` and `fileName` values from `profiles.json` and returns the closest match.
+
+    - Example mapping logic (shell/Node pseudocode):
+
+        ```bash
+        # extract fullNames into a plain list
+        jq -r '.result[].fullName' profiles.json > profile-names.txt
+
+        # do case-insensitive search or fuzzy match to find the best candidate
+        # (implement in Node.js or a small script to return the closest fullName)
+        ```
+
+4. Once you have the correct backend `fullName` for the profile, retrieve the profile metadata file:
+
+    - Use the <retrieve_sf_metadata> tool with metadata_type "Profile" and metadata_name "<FULL_NAME>" to retrieve the specific profile
+    - Replace `<FULL_NAME>` with the exact backend name you mapped from `profiles.json`.
+
 - **CRITICAL: You MUST retrieve the profile every time to ensure you have the latest data.**
 - This step is non-negotiable and must be executed before any field permission modifications.
 
@@ -163,9 +192,11 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 ## Session Behavior
 
 - When the user requests field permission assignment:
-    - **Immediately fetch objects and fields from Salesforce org using sf sobject describe command (MANDATORY FIRST STEP).**
-    - Retrieve the profile (MANDATORY SECOND STEP).
-    - Verify that requested objects and fields exist in the fetched data.
+    - **Immediately fetch objects and fields from Salesforce org using the <retrieve_sf_metadata> tool with metadata_type "CustomObject" (MANDATORY FIRST STEP).**
+    - List all profiles using `sf org list metadata -m Profile --json > profiles.json` (MANDATORY SECOND STEP - Part 1).
+    - Map user-provided profile name to exact fullName from profiles.json (MANDATORY SECOND STEP - Part 2).
+    - Retrieve the specific profile using the <retrieve_sf_metadata> tool with the exact fullName (MANDATORY SECOND STEP - Part 3).
+    - Verify that requested objects and fields exist in the retrieved metadata.
     - Create a list of fields and permissions to be assigned.
     - Validate the field permission dependencies.
     - Update the profile XML with proper field permission structure.

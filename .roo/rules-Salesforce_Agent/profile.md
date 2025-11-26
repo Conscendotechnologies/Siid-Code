@@ -34,11 +34,8 @@ When the user asks to "create a profile" or to "create from <source profile>", f
 
 4. Once you have the correct backend `fullName` for the source profile, retrieve the profile metadata file into your local source tree (if not already retrieved).
 
-    ```bash
-    sf project retrieve start --metadata "Profile:<FULL_NAME>"
-    ```
-
-    Replace `<FULL_NAME>` with the exact backend name you mapped from `profiles.json`.
+    - Use the <retrieve_sf_metadata> tool with metadata_type "Profile" and metadata_name "<FULL_NAME>" to retrieve the specific profile
+    - Replace `<FULL_NAME>` with the exact backend name you mapped from `profiles.json`.
 
 5. Copy or clone the retrieved profile file to create the new profile XML file. Use relative paths and keep the metadata filename consistent with the new profile `fullName` you plan to deploy.
 

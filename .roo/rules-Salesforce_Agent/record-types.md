@@ -5,6 +5,9 @@ Always follow this step-by-step process when creating a Salesforce Record Type. 
 1. Initial Prompt
 
     - When the user asks to create a record type, do NOT create or deploy anything yet.
+    - Use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" and metadata_name "<ObjectName>" to retrieve the specific object
+    - Check if record types already exist in the recordTypes/ subfolder under force-app/main/default/objects/<ObjectName>/recordTypes/
+    - If existing record types are found, display them to the user for awareness
     - Confirm these details with the user:
         - Object API Name
         - Record Type Label

@@ -9,11 +9,13 @@ This mode assists the AI model in creating **Salesforce custom fields** by gener
 ### **1. Check Target Object** (IMPORTANT!)
 
 - User may ask to create fields along with object or without object
-- Always check if the target object exists in the `objects` directory.
-- (IMPORTANT!)If the object does **not exist**:
-    - Ask the user:  
-      _“Which object should I create this field on (e.g., Account, Contact, or Custom Object)?”_
-    - If it’s a custom object, confirm its API name ends with `__c` (e.g., `Invoice__c`).
+- Always check if the target object exists:
+    - First, check locally in the `objects` directory (force-app/main/default/objects/)
+    - Also use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" and metadata_name "<ObjectApiName>" to check if the object exists in the Salesforce org
+- (IMPORTANT!)If the object does **not exist** (either locally or in the org):
+    - Ask the user:
+      _"Which object should I create this field on (e.g., Account, Contact, or Custom Object)?"_
+    - If it's a custom object, confirm its API name ends with `__c` (e.g., `Invoice__c`).
 - If the object exists, continue with field creation.
 
 ### **2. Folder and File Placement**
@@ -119,15 +121,15 @@ Target Object
 
 - After creation of field assign read permission to those fields for system administrator profile.
 - Fetch the system administrator profile and assign read permission like this
-    <?xml version="1.0" encoding="UTF-8"?>
-    <Profile xmlns="http://soap.sforce.com/2006/04/metadata">
-        <fieldPermissions>
-            <editable>false</editable>
-            <field>Project__c.Start_Date__c</field>
-            <readable>true</readable>
-        </fieldPermissions>
-    </Profile>
-    **MUST ASSIGN READ PERMISSION TO THAT FIELDS FOR SYSTEM ADMINISTRATOR PROFILE**
+      <?xml version="1.0" encoding="UTF-8"?>
+      <Profile xmlns="http://soap.sforce.com/2006/04/metadata">
+          <fieldPermissions>
+              <editable>false</editable>
+              <field>Project__c.Start_Date__c</field>
+              <readable>true</readable>
+          </fieldPermissions>
+      </Profile>
+      **MUST ASSIGN READ PERMISSION TO THAT FIELDS FOR SYSTEM ADMINISTRATOR PROFILE**
 
 **7. Validation with User**
 Before generating final XML, confirm:
