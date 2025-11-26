@@ -27,6 +27,7 @@ import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler } from "../index"
 import path from "path"
 import fs from "fs"
+import { ApiMetricsLogger } from "./utils/apiMetricsLogger"
 
 // Add custom interface for OpenRouter params.
 type OpenRouterChatCompletionParams = OpenAI.Chat.ChatCompletionCreateParams & {
@@ -148,42 +149,95 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 			console.warn("Failed to write completionParams debug file:", err)
 		}
 
-		const stream = await this.client.chat.completions.create(completionParams)
+		// Prepare user request string for logging
+		const userRequestString = JSON.stringify({
+			systemPrompt,
+			messages: messages.slice(-3), // Last 3 messages for context
+			model: modelId,
+		})
+
+		// Create timing tracker for metrics
+		const timingTracker = ApiMetricsLogger.createTimingTracker("openrouter", modelId, true, userRequestString)
 
 		let lastUsage: CompletionUsage | undefined = undefined
 
-		for await (const chunk of stream) {
-			// OpenRouter returns an error object instead of the OpenAI SDK throwing an error.
-			if ("error" in chunk) {
-				const error = chunk.error as { message?: string; code?: number }
-				console.error(`OpenRouter API Error: ${error?.code} - ${error?.message}`)
-				throw new Error(`OpenRouter API Error ${error?.code}: ${error?.message}`)
+		try {
+			const stream = await this.client.chat.completions.create(completionParams)
+
+			for await (const chunk of stream) {
+				// Mark first chunk received
+				timingTracker.markFirstChunk()
+
+				// OpenRouter returns an error object instead of the OpenAI SDK throwing an error.
+				if ("error" in chunk) {
+					const error = chunk.error as { message?: string; code?: number }
+					console.error(`OpenRouter API Error: ${error?.code} - ${error?.message}`)
+					await timingTracker.complete("error", undefined, `${error?.code}: ${error?.message}`)
+					throw new Error(`OpenRouter API Error ${error?.code}: ${error?.message}`)
+				}
+
+				// Start timing data processing
+				timingTracker.startProcessing()
+
+				const delta = chunk.choices[0]?.delta
+
+				if ("reasoning" in delta && delta.reasoning && typeof delta.reasoning === "string") {
+					timingTracker.appendOutput(`[REASONING] ${delta.reasoning}\n`)
+					yield { type: "reasoning", text: delta.reasoning }
+				}
+
+				if (delta?.content) {
+					timingTracker.appendOutput(delta.content)
+					yield { type: "text", text: delta.content }
+				}
+
+				if (chunk.usage) {
+					lastUsage = chunk.usage
+				}
+
+				// End timing data processing
+				timingTracker.endProcessing()
+
+				// Mark last chunk (will be overwritten until loop ends)
+				timingTracker.markLastChunk()
 			}
 
-			const delta = chunk.choices[0]?.delta
+			if (lastUsage) {
+				const usageData = {
+					inputTokens: lastUsage.prompt_tokens || 0,
+					outputTokens: lastUsage.completion_tokens || 0,
+					cacheReadTokens: lastUsage.prompt_tokens_details?.cached_tokens,
+					reasoningTokens: lastUsage.completion_tokens_details?.reasoning_tokens,
+					totalCost: (lastUsage.cost_details?.upstream_inference_cost || 0) + (lastUsage.cost || 0),
+				}
 
-			if ("reasoning" in delta && delta.reasoning && typeof delta.reasoning === "string") {
-				yield { type: "reasoning", text: delta.reasoning }
-			}
+				yield {
+					type: "usage",
+					...usageData,
+				}
 
-			if (delta?.content) {
-				yield { type: "text", text: delta.content }
+				// Complete metrics logging with token usage
+				await timingTracker.complete("success", usageData)
+			} else {
+				// Complete metrics logging without token usage
+				await timingTracker.complete("success")
 			}
-
-			if (chunk.usage) {
-				lastUsage = chunk.usage
-			}
-		}
-
-		if (lastUsage) {
-			yield {
-				type: "usage",
-				inputTokens: lastUsage.prompt_tokens || 0,
-				outputTokens: lastUsage.completion_tokens || 0,
-				cacheReadTokens: lastUsage.prompt_tokens_details?.cached_tokens,
-				reasoningTokens: lastUsage.completion_tokens_details?.reasoning_tokens,
-				totalCost: (lastUsage.cost_details?.upstream_inference_cost || 0) + (lastUsage.cost || 0),
-			}
+		} catch (error) {
+			// Log error metrics
+			await timingTracker.complete(
+				"error",
+				lastUsage
+					? {
+							inputTokens: lastUsage.prompt_tokens || 0,
+							outputTokens: lastUsage.completion_tokens || 0,
+							cacheReadTokens: lastUsage.prompt_tokens_details?.cached_tokens,
+							reasoningTokens: lastUsage.completion_tokens_details?.reasoning_tokens,
+							totalCost: (lastUsage.cost_details?.upstream_inference_cost || 0) + (lastUsage.cost || 0),
+						}
+					: undefined,
+				error instanceof Error ? error.message : String(error),
+			)
+			throw error
 		}
 	}
 
@@ -246,14 +300,51 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 			...(reasoning && { reasoning }),
 		}
 
-		const response = await this.client.chat.completions.create(completionParams)
+		// Prepare user request string for logging
+		const userRequestString = JSON.stringify({
+			prompt,
+			model: modelId,
+		})
 
-		if ("error" in response) {
-			const error = response.error as { message?: string; code?: number }
-			throw new Error(`OpenRouter API Error ${error?.code}: ${error?.message}`)
+		// Create timing tracker for non-streaming requests
+		const timingTracker = ApiMetricsLogger.createTimingTracker("openrouter", modelId, false, userRequestString)
+
+		try {
+			timingTracker.startProcessing()
+			const response = await this.client.chat.completions.create(completionParams)
+			timingTracker.endProcessing()
+
+			if ("error" in response) {
+				const error = response.error as { message?: string; code?: number }
+				await timingTracker.complete("error", undefined, `${error?.code}: ${error?.message}`)
+				throw new Error(`OpenRouter API Error ${error?.code}: ${error?.message}`)
+			}
+
+			const completion = response as OpenAI.Chat.ChatCompletion
+			const content = completion.choices[0]?.message?.content || ""
+
+			// Capture the output response
+			timingTracker.appendOutput(content)
+
+			// Extract token usage if available
+			const usage = completion.usage as CompletionUsage | undefined
+			if (usage) {
+				await timingTracker.complete("success", {
+					inputTokens: usage.prompt_tokens || 0,
+					outputTokens: usage.completion_tokens || 0,
+					cacheReadTokens: usage.prompt_tokens_details?.cached_tokens,
+					reasoningTokens: usage.completion_tokens_details?.reasoning_tokens,
+					totalCost: (usage.cost_details?.upstream_inference_cost || 0) + (usage.cost || 0),
+				})
+			} else {
+				await timingTracker.complete("success")
+			}
+
+			return content
+		} catch (error) {
+			// Log error metrics
+			await timingTracker.complete("error", undefined, error instanceof Error ? error.message : String(error))
+			throw error
 		}
-
-		const completion = response as OpenAI.Chat.ChatCompletion
-		return completion.choices[0]?.message?.content || ""
 	}
 }
