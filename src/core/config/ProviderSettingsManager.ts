@@ -282,38 +282,52 @@ export class ProviderSettingsManager {
 
 	/**
 	 * Fetch API keys from Firebase for free and paid tiers.
-	 * TODO: Implement Firebase integration - call the extension command to fetch keys
-	 * For now, returns keys from environment variables that will be replaced when Firebase is integrated.
+	 * Retrieves user API key from users/{uid} document (openRouterApiKey field).
 	 *
-	 * Structure: One provider, two API keys (free tier and paid tier)
+	 * Structure: One API key per user (used for both free and paid tier configs)
 	 */
 	private async fetchApiKeysFromFirebase(): Promise<{
 		freeApiKey: string | undefined // Single API key for free tier
 		paidApiKey: string | undefined // Single API key for paid tier
 	}> {
 		try {
-			// TODO: Replace with actual Firebase command execution
-			// Example: const result = await vscode.commands.executeCommand('extension.fetchFirebaseApiKeys')
-
 			logger.info("[ProviderSettingsManager] Fetching API keys from Firebase...")
 
-			// Get API keys from environment variables
-			// When Firebase integration is ready, this will fetch:
-			// - freeApiKey: API key for free tier models (rate-limited, $0 cost)
-			// - paidApiKey: API key for paid tier models (higher rate limits, costs money)
-			const freeApiKey = process.env.OPENROUTER_FREE_API_KEY
-			const paidApiKey = process.env.OPENROUTER_PAID_API_KEY
+			// Get the Firebase API to check authentication
+			const { isAuthenticated, getUserProperties } = await import("../../utils/firebaseHelper")
 
-			logger.info("[ProviderSettingsManager] Using API keys", {
-				hasFreeKey: !!freeApiKey,
-				hasPaidKey: !!paidApiKey,
-				freeKeySource: process.env.OPENROUTER_FREE_API_KEY ? "env" : "fallback",
-				paidKeySource: process.env.OPENROUTER_PAID_API_KEY ? "env" : "fallback",
+			// Check if user is authenticated
+			const authenticated = await isAuthenticated()
+			if (!authenticated) {
+				logger.warn("[ProviderSettingsManager] User not authenticated, skipping API key fetch")
+				return {
+					freeApiKey: undefined,
+					paidApiKey: undefined,
+				}
+			}
+
+			// Get user API key from user properties (users/{uid}/openRouterApiKey)
+			const userProps = await getUserProperties(["openRouterApiKey"])
+			const userApiKey = userProps?.openRouterApiKey
+
+			if (!userApiKey) {
+				logger.warn("[ProviderSettingsManager] No OpenRouter API key found in user properties")
+				return {
+					freeApiKey: undefined,
+					paidApiKey: undefined,
+				}
+			}
+
+			logger.info("[ProviderSettingsManager] Successfully fetched user API key from Firebase", {
+				hasKey: !!userApiKey,
 			})
 
+			// Use the same key for both free and paid tiers
+			// The free tier models are rate-limited by OpenRouter's :free suffix
+			// The paid tier uses the same key but accesses non-free models
 			return {
-				freeApiKey,
-				paidApiKey,
+				freeApiKey: userApiKey,
+				paidApiKey: userApiKey,
 			}
 		} catch (error) {
 			logger.error(`[ProviderSettingsManager] Failed to fetch API keys from Firebase: ${error}`)

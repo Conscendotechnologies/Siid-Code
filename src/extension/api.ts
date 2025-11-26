@@ -24,6 +24,8 @@ import { ClineProvider } from "../core/webview/ClineProvider"
 import { openClineInNewTab } from "../activate/registerCommands"
 import { t } from "../i18n"
 import { logout, onFirebaseLogin, onFirebaseLogout } from "../utils/firebaseHelper"
+import { logger } from "../utils/logging"
+import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
 
 export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	private readonly outputChannel: vscode.OutputChannel
@@ -63,7 +65,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 		if (enableLogging) {
 			this.log = (...args: unknown[]) => {
 				this.outputChannelLog(...args)
-				console.log(args)
 			}
 
 			this.logfile = path.join(os.tmpdir(), "roo-code-messages.log")
@@ -462,9 +463,70 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 			// Update the cached Firebase auth state
 			this.sidebarProvider.setFirebaseAuthState(true)
+			this.outputChannel.appendLine("Firebase auth state updated to authenticated")
 
-			// Update API keys from Firebase after successful login
-			await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase()
+			// Setup user API key directly without routing through webview
+			// Firebase Service extension sends: { uid, user: { uid, email, displayName, ... }, session: {...} }
+			const data = loginData as {
+				uid?: string
+				user?: { uid: string; email?: string; displayName?: string }
+				userInfo?: { uid: string; email?: string; displayName?: string } // Legacy format support
+			}
+
+			// Support both new format (user) and legacy format (userInfo)
+			const userInfo = data?.user || data?.userInfo
+			// Use a safe stringify that handles circular references
+			const safeStringify = (obj: any) => {
+				try {
+					return JSON.stringify(obj, (key, value) => {
+						// Skip circular references and functions
+						if (typeof value === "function" || value instanceof Promise) {
+							return undefined
+						}
+						return value
+					})
+				} catch (e) {
+					return "{...circular reference...}"
+				}
+			}
+			logger.info(`[onFirebaseLogin] User info extracted from loginData: userInfo: ${safeStringify(userInfo)}`)
+			this.outputChannel.appendLine(`User info extracted from loginData: ${safeStringify(userInfo)}`)
+
+			if (userInfo) {
+				logger.info(`[onFirebaseLogin] Setting up API key for user: ${userInfo.uid}`)
+				this.outputChannel.appendLine(`Setting up API key for user: ${userInfo.uid}`)
+				try {
+					const userId = userInfo.uid
+					const userEmail = userInfo.email || `user_${userId}`
+
+					logger.info(`[onFirebaseLogin] Processing login for user: ${userId}`)
+					this.outputChannel.appendLine(`[onFirebaseLogin] Processing login for user: ${userId}`)
+
+					// Import the OpenRouter key service
+					const keyService = await getOpenRouterKeyService(this.outputChannel)
+
+					// Setup user API key (fetches provisioning key, creates user key, stores it)
+					await keyService.setupUserApiKey(userId, userEmail)
+
+					logger.info(`[onFirebaseLogin] Successfully set up API key for user: ${userId}`)
+					this.outputChannel.appendLine(`[onFirebaseLogin] Successfully set up API key for user: ${userId}`)
+
+					vscode.window.showInformationMessage(
+						`Welcome ${userInfo.displayName || userEmail}! Your account is ready.`,
+					)
+				} catch (error) {
+					logger.error("[onFirebaseLogin] Failed to setup user API key:", error)
+					this.outputChannel.appendLine(
+						`[onFirebaseLogin] Failed to setup user API key: ${error instanceof Error ? error.message : String(error)}`,
+					)
+					vscode.window.showErrorMessage(
+						`Failed to setup your account: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			} else {
+				logger.warn("[onFirebaseLogin] No user data found in loginData")
+				this.outputChannel.appendLine("[onFirebaseLogin] No user data found in loginData")
+			}
 
 			// Post a custom message to webview indicating login success
 			// This bypasses the Firebase command check which may have timing issues
@@ -477,7 +539,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			} as any)
 
 			this.outputChannel.appendLine("Firebase login successful - updated API keys and refreshed state")
-			vscode.window.showInformationMessage("Firebase login successful!")
 		} catch (error) {
 			this.outputChannel.appendLine(`Error handling Firebase login: ${error}`)
 			vscode.window.showErrorMessage(

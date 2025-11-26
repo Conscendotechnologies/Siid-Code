@@ -122,7 +122,6 @@ export interface ExtensionMessage {
 		| "commands"
 		| "insertTextIntoTextarea"
 		| "deployResult"
-		| "loginSuccess"
 		| "firebaseLogout"
 	text?: string
 	payload?: any // Add a generic payload for now, can refine later

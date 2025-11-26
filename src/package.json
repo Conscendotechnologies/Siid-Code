@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName%",
 	"description": "%extension.description%",
 	"publisher": "ConscendoTechInc",
-	"version": "2025.0.22",
+	"version": "2025.1.56",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -179,6 +179,11 @@
 			{
 				"command": "siid-code.onFirebaseLogout",
 				"title": "Handle Firebase Logout",
+				"category": "%configuration.title%"
+			},
+			{
+				"command": "siid-code.testOpenRouterApiKey",
+				"title": "Test OpenRouter Api Key",
 				"category": "%configuration.title%"
 			}
 		],

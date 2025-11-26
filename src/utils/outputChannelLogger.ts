@@ -19,6 +19,8 @@ export function createOutputChannelLogger(outputChannel: vscode.OutputChannel): 
 				outputChannel.appendLine(`Error: ${arg.message}\n${arg.stack || ""}`)
 			} else {
 				try {
+					// Track seen objects to detect circular references
+					const seen = new WeakSet()
 					outputChannel.appendLine(
 						JSON.stringify(
 							arg,
@@ -26,6 +28,13 @@ export function createOutputChannelLogger(outputChannel: vscode.OutputChannel): 
 								if (typeof value === "bigint") return `BigInt(${value})`
 								if (typeof value === "function") return `Function: ${value.name || "anonymous"}`
 								if (typeof value === "symbol") return value.toString()
+								// Handle circular references
+								if (typeof value === "object" && value !== null) {
+									if (seen.has(value)) {
+										return "[Circular Reference]"
+									}
+									seen.add(value)
+								}
 								return value
 							},
 							2,

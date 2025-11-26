@@ -127,7 +127,6 @@ export const webviewMessageHandler = async (
 					// Initialize with history item after deletion
 					await provider.initClineWithHistoryItem(historyItem)
 				} catch (error) {
-					console.error("Error in delete message:", error)
 					vscode.window.showErrorMessage(
 						`Error deleting message: ${error instanceof Error ? error.message : String(error)}`,
 					)
@@ -181,7 +180,6 @@ export const webviewMessageHandler = async (
 					// Don't initialize with history item for edit operations
 					// The webviewMessageHandler will handle the conversation state
 				} catch (error) {
-					console.error("Error in edit message:", error)
 					vscode.window.showErrorMessage(
 						`Error editing message: ${error instanceof Error ? error.message : String(error)}`,
 					)
@@ -217,7 +215,6 @@ export const webviewMessageHandler = async (
 			if (activationStartTime) {
 				const timeToReady = Date.now() - activationStartTime
 				provider.log(`🚀 Webview UI ready in ${timeToReady}ms (${(timeToReady / 1000).toFixed(2)}s)`)
-				console.log(`[Performance] Extension activation to UI ready: ${timeToReady}ms`)
 				// Clear the start time after logging to avoid re-logging on subsequent launches
 				await provider.setValue("activationStartTime", undefined)
 			}
@@ -314,7 +311,6 @@ export const webviewMessageHandler = async (
 					const command = message.commands[0]
 					await vscode.commands.executeCommand(command)
 				} catch (error) {
-					console.error(`Error executing command ${message.commands}:`, error)
 					vscode.window.showErrorMessage(
 						`Error executing command ${message.commands}: ${error instanceof Error ? error.message : String(error)}`,
 					)
@@ -489,7 +485,6 @@ export const webviewMessageHandler = async (
 				const results = []
 
 				// Only log start and end of the operation
-				console.log(`Batch deletion started: ${ids.length} tasks total`)
 
 				for (let i = 0; i < ids.length; i += batchSize) {
 					const batch = ids.slice(i, i + batchSize)
@@ -500,9 +495,7 @@ export const webviewMessageHandler = async (
 							return { id, success: true }
 						} catch (error) {
 							// Keep error logging for debugging purposes
-							console.log(
-								`Failed to delete task ${id}: ${error instanceof Error ? error.message : String(error)}`,
-							)
+
 							return { id, success: false }
 						}
 					})
@@ -518,9 +511,6 @@ export const webviewMessageHandler = async (
 				// Log final results
 				const successCount = results.filter((r) => r.success).length
 				const failCount = results.length - successCount
-				console.log(
-					`Batch deletion completed: ${successCount}/${ids.length} tasks successful, ${failCount} tasks failed`,
-				)
 			}
 			break
 		}
@@ -565,15 +555,7 @@ export const webviewMessageHandler = async (
 			}
 
 			const safeGetModels = async (options: GetModelsOptions): Promise<ModelRecord> => {
-				try {
-					return await getModels(options)
-				} catch (error) {
-					console.error(
-						`Failed to fetch models in webviewMessageHandler requestRouterModels for ${options.provider}:`,
-						error,
-					)
-					throw error // Re-throw to be caught by Promise.allSettled
-				}
+				return await getModels(options)
 			}
 
 			const modelFetchPromises: Array<{ key: RouterName; options: GetModelsOptions }> = [
@@ -630,7 +612,6 @@ export const webviewMessageHandler = async (
 				} else {
 					// Handle rejection: Post a specific error message for this provider
 					const errorMessage = result.reason instanceof Error ? result.reason.message : String(result.reason)
-					console.error(`Error fetching models for ${routerName}:`, result.reason)
 
 					fetchedRouterModels[routerName] = {} // Ensure it's an empty object in the main routerModels message
 
@@ -669,7 +650,6 @@ export const webviewMessageHandler = async (
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured Ollama yet
-				console.debug("Ollama models fetch failed:", error)
 			}
 			break
 		}
@@ -693,7 +673,6 @@ export const webviewMessageHandler = async (
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured LM Studio yet
-				console.debug("LM Studio models fetch failed:", error)
 			}
 			break
 		}
@@ -723,7 +702,6 @@ export const webviewMessageHandler = async (
 					huggingFaceModels: huggingFaceModelsResponse.models,
 				})
 			} catch (error) {
-				console.error("Failed to fetch Hugging Face models:", error)
 				provider.postMessageToWebview({
 					type: "huggingFaceModels",
 					huggingFaceModels: [],
@@ -1090,8 +1068,6 @@ export const webviewMessageHandler = async (
 						value: vscode.workspace.getConfiguration().get(setting),
 					})
 				} catch (error) {
-					console.error(`Failed to get VSCode setting ${message.setting}:`, error)
-
 					await provider.postMessageToWebview({
 						type: "vsCodeSetting",
 						setting,
@@ -1605,40 +1581,7 @@ export const webviewMessageHandler = async (
 				}
 			}
 			break
-		case "storeLoginDetails":
-			// Handle storing login details and setting up user API key
-			if (message.loginData?.userInfo) {
-				try {
-					const userInfo = message.loginData.userInfo
-					const userId = userInfo.uid
-					const userEmail = userInfo.email || `user_${userId}`
 
-					logger.info(`[webviewMessageHandler] Processing login for user: ${userId}`)
-
-					// Import the OpenRouter key service
-					const { getOpenRouterKeyService } = await import("../../services/openrouter/api-key-service")
-					const keyService = getOpenRouterKeyService()
-
-					// Setup user API key (fetches provisioning key, creates user key, stores it)
-					const userApiKey = await keyService.setupUserApiKey(userId, userEmail)
-
-					logger.info(`[webviewMessageHandler] Successfully set up API key for user: ${userId}`)
-
-					// Optionally, update the user's API configuration with the new key
-					// This depends on how you want to integrate the key into your system
-					// For now, we'll just log success
-
-					vscode.window.showInformationMessage(
-						`Welcome ${userInfo.displayName || userEmail}! Your account is ready.`,
-					)
-				} catch (error) {
-					logger.error("[webviewMessageHandler] Failed to setup user API key:", error)
-					vscode.window.showErrorMessage(
-						`Failed to setup your account: ${error instanceof Error ? error.message : String(error)}`,
-					)
-				}
-			}
-			break
 		case "deleteApiConfiguration":
 			if (message.text) {
 				const answer = await vscode.window.showInformationMessage(

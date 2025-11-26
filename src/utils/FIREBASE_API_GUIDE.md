@@ -71,7 +71,7 @@ if (user) {
 ```typescript
 // Store data in a Firestore collection
 await storeData(
-	"user_api_keys", // collection name
+	"users", // collection name
 	"user123", // document ID
 	{
 		// data to store
@@ -86,7 +86,7 @@ await storeData(
 
 ```typescript
 // Retrieve data from Firestore
-const result = await getData("user_api_keys", "user123")
+const result = await getData("users", "user123")
 
 if (result?.data) {
 	console.log("API Key:", result.data.apiKey)
@@ -152,7 +152,7 @@ If you're migrating from the command-based approach, here's how to convert:
 
 ```typescript
 // Old way - using VS Code commands
-const result = await vscode.commands.executeCommand<any>("firebase-service.retrieveData", "user_api_keys", "user123")
+const result = await vscode.commands.executeCommand<any>("firebase-service.retrieveData", "users", "user123")
 
 if (result?.data?.apiKey) {
 	console.log("API Key:", result.data.apiKey)
@@ -163,7 +163,7 @@ if (result?.data?.apiKey) {
 
 ```typescript
 // New way - using Firebase API helper
-const result = await getData("user_api_keys", "user123")
+const result = await getData("users", "user123")
 
 if (result?.data?.apiKey) {
 	console.log("API Key:", result.data.apiKey)
@@ -197,14 +197,14 @@ async function setupUserApiKey() {
 	}
 
 	// Check for existing key
-	const existing = await getData("user_api_keys", user.uid)
+	const existing = await getData("users", user.uid)
 	if (existing?.data?.apiKey) {
 		return existing.data.apiKey
 	}
 
 	// Create and store new key
 	const newKey = await createApiKey(user.email)
-	await storeData("user_api_keys", user.uid, {
+	await storeData("users", user.uid, {
 		apiKey: newKey,
 		createdAt: new Date().toISOString(),
 		email: user.email,
@@ -280,7 +280,7 @@ Always wrap Firebase operations in try-catch blocks:
 
 ```typescript
 try {
-	const result = await getData("user_api_keys", userId)
+	const result = await getData("users", userId)
 	if (result?.data) {
 		// Handle data
 	}

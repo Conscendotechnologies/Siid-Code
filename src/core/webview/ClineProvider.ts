@@ -134,7 +134,6 @@ export class ClineProvider
 		super()
 
 		// Don't call this.log() here - it blocks for 7-8 seconds on first call due to output channel initialization
-		console.log("ClineProvider instantiated")
 
 		ClineProvider.activeInstances.add(this)
 
@@ -163,21 +162,15 @@ export class ClineProvider
 				const hub = await McpServerManager.getInstance(this.context, this)
 				this.mcpHub = hub
 				this.mcpHub.registerClient()
-			} catch (error) {
-				console.log(`Failed to initialize MCP Hub: ${error}`)
-			}
+			} catch (error) {}
 		})
 
 		this.marketplaceManager = new MarketplaceManager(this.context, this.customModesManager)
 
 		// Initialize Roo Code Cloud profile sync.
-		this.initializeCloudProfileSync().catch((error) => {
-			console.log(`Failed to initialize cloud profile sync: ${error}`)
-		})
+		this.initializeCloudProfileSync().catch((error) => {})
 
 		this.api = apiInstance!
-
-		console.log(`⏱️ ClineProvider: Total constructor time ${Date.now() - constructorStart}ms`)
 	}
 
 	/**
@@ -249,8 +242,6 @@ export class ClineProvider
 	// The instance is pushed to the top of the stack (LIFO order).
 	// When the task is completed, the top instance is removed, reactivating the previous task.
 	async addClineToStack(task: Task) {
-		console.log(`[subtasks] adding task ${task.taskId}.${task.instanceId} to stack`)
-
 		// Add this cline instance into the stack that represents the order of all the called tasks.
 		this.clineStack.push(task)
 		task.emit(RooCodeEventName.TaskFocused)
@@ -295,8 +286,6 @@ export class ClineProvider
 		let task = this.clineStack.pop()
 
 		if (task) {
-			console.log(`[subtasks] removing task ${task.taskId}.${task.instanceId} from stack`)
-
 			try {
 				// Abort the running task and set isAbandoned to true so
 				// all running promises will exit as well.
@@ -337,7 +326,6 @@ export class ClineProvider
 	// and resume the previous task/cline instance (if it exists)
 	// this is used when a sub task is finished and the parent task needs to be resumed
 	async finishSubTask(lastMessage: string) {
-		console.log(`[subtasks] finishing subtask ${lastMessage}`)
 		// remove the last cline instance from the stack (this is the finished sub task)
 		await this.removeClineFromStack()
 		// resume the last cline instance in the stack (if it exists - this is the 'parent' calling task)
@@ -509,7 +497,6 @@ export class ClineProvider
 
 	async resolveWebviewView(webviewView: vscode.WebviewView | vscode.WebviewPanel) {
 		const resolveStart = Date.now()
-		console.log("Resolving webview view")
 
 		this.view = webviewView
 
@@ -567,7 +554,6 @@ export class ClineProvider
 			this.contextProxy.extensionMode === vscode.ExtensionMode.Development
 				? await this.getHMRHtmlContent(webviewView.webview)
 				: this.getHtmlContent(webviewView.webview)
-		console.log(`⏱️ Webview HTML generated in ${Date.now() - htmlGenerationStart}ms`)
 
 		// Sets up an event listener to listen for messages passed from the webview view context
 		// and executes code based on the message that is received
@@ -584,7 +570,6 @@ export class ClineProvider
 		this.webviewDisposables.push(activeEditorSubscription)
 
 		// Logs show up in bottom panel > Debug Console
-		//console.log("registering listener")
 
 		// Listen for when the panel becomes visible
 		// https://github.com/microsoft/vscode-discussions/discussions/840
@@ -636,9 +621,6 @@ export class ClineProvider
 
 		// If the extension is starting a new session, clear previous task state.
 		await this.removeClineFromStack()
-
-		console.log(`⏱️ Webview view resolved in ${Date.now() - resolveStart}ms`)
-		console.log("Webview view resolved")
 	}
 
 	public async initClineWithSubTask(parent: Task, task?: string, images?: string[]) {
@@ -723,18 +705,15 @@ export class ClineProvider
 			// Load the saved API config for the restored mode if it exists
 			// First check if the mode definition specifies a direct API config ID
 			const modeConfig = getModeBySlug(historyItem.mode, customModes)
-			console.log(`[ClineProvider] Restoring mode ${historyItem.mode}, modeConfig:`, modeConfig)
 
 			let savedConfigId: string | undefined
 
 			if (modeConfig?.apiConfigId) {
 				// Mode has a direct API config reference
 				savedConfigId = modeConfig.apiConfigId
-				console.log(`[ClineProvider] Using mode-defined API config ID: ${savedConfigId}`)
 			} else {
 				// Fall back to the existing ProviderSettingsManager lookup
 				savedConfigId = await this.providerSettingsManager.getModeConfigId(historyItem.mode)
-				console.log(`[ClineProvider] Using ProviderSettingsManager config ID: ${savedConfigId}`)
 			}
 
 			const listApiConfig = await this.providerSettingsManager.listConfig()
@@ -808,14 +787,12 @@ export class ClineProvider
 
 			if (fs.existsSync(portFilePath)) {
 				localPort = fs.readFileSync(portFilePath, "utf8").trim()
-				console.log(`[ClineProvider:Vite] Using Vite server port from ${portFilePath}: ${localPort}`)
 			} else {
 				console.log(
 					`[ClineProvider:Vite] Port file not found at ${portFilePath}, using default port: ${localPort}`,
 				)
 			}
 		} catch (err) {
-			console.error("[ClineProvider:Vite] Failed to read Vite port file:", err)
 			// Continue with default port if file reading fails
 		}
 
@@ -835,7 +812,6 @@ export class ClineProvider
 			await Promise.race([fetch(`http://${localServerUrl}`, { method: "HEAD" }), timeoutPromise])
 
 			viteIsRunning = true
-			console.log(`⏱️ Vite dev server check completed in ${Date.now() - viteCheckStart}ms`)
 		} catch (error) {
 			console.log(
 				`⏱️ Vite dev server check failed after ${Date.now() - viteCheckStart}ms - using production build`,
@@ -1005,7 +981,6 @@ export class ClineProvider
 	 * @param newMode The mode to switch to
 	 */
 	public async handleModeSwitch(newMode: Mode) {
-		console.log(`[ClineProvider] Switching to mode: ${newMode}`)
 		logger.info(`Switching to mode: ${newMode}`)
 		const cline = this.getCurrentCline()
 
@@ -1047,7 +1022,6 @@ export class ClineProvider
 		const modeConfig = getModeBySlug(newMode, customModes)
 
 		logger.info(`ClineProvider.handleModeSwitch: newMode=${newMode}, modeConfig=${JSON.stringify(modeConfig)}`)
-		console.log(`[ClineProvider] Mode config:`, modeConfig)
 
 		let savedConfigId: string | undefined
 
@@ -1055,7 +1029,6 @@ export class ClineProvider
 			// Mode has a direct API config reference
 			savedConfigId = modeConfig.apiConfigId
 			logger.info(`ClineProvider.handleModeSwitch: using modeConfig.apiConfigId=${savedConfigId}`)
-			console.log(`[ClineProvider] Using mode-defined API config ID: ${savedConfigId}`)
 
 			// Check if we need to swap between free and paid configs based on useFreeModels setting
 			const useFreeModels = this.getGlobalState("useFreeModels")
@@ -1069,12 +1042,10 @@ export class ClineProvider
 					// User wants free models, but config is paid - swap to free
 					savedConfigId = savedConfigId.replace("-paid", "-free")
 					logger.info(`ClineProvider.handleModeSwitch: swapped to free config: ${savedConfigId}`)
-					console.log(`[ClineProvider] Swapped to free config: ${savedConfigId}`)
 				} else if (!useFreeModels && savedConfigId.endsWith("-free")) {
 					// User wants paid models, but config is free - swap to paid
 					savedConfigId = savedConfigId.replace("-free", "-paid")
 					logger.info(`ClineProvider.handleModeSwitch: swapped to paid config: ${savedConfigId}`)
-					console.log(`[ClineProvider] Swapped to paid config: ${savedConfigId}`)
 				}
 			}
 		} else {
@@ -1083,15 +1054,12 @@ export class ClineProvider
 			logger.info(
 				`ClineProvider.handleModeSwitch: using ProviderSettingsManager.getModeConfigId=${savedConfigId}`,
 			)
-			console.log(`[ClineProvider] Using ProviderSettingsManager config ID: ${savedConfigId}`)
 		}
 
 		const listApiConfig = await this.providerSettingsManager.listConfig()
 
 		// Update listApiConfigMeta first to ensure UI has latest data
 		await this.updateGlobalState("listApiConfigMeta", listApiConfig) // If this mode has a saved config, use it.
-		console.log(`listApiConfigMeta: ${JSON.stringify(listApiConfig)}`)
-		console.log(`savedConfigId: ${savedConfigId}`)
 
 		if (savedConfigId) {
 			const profile = listApiConfig.find(({ id }) => id === savedConfigId)
@@ -1099,15 +1067,12 @@ export class ClineProvider
 			logger.info(
 				`ClineProvider.handleModeSwitch: savedConfigId=${savedConfigId}, found profile=${JSON.stringify(profile)}`,
 			)
-			console.log(`[ClineProvider] Found profile for config ID ${savedConfigId}:`, profile)
 
 			if (profile?.name) {
 				logger.info(`ClineProvider.handleModeSwitch: activating profile ${profile.name}`)
-				console.log(`[ClineProvider] Activating profile: ${profile.name}`)
 				await this.activateProviderProfile({ name: profile.name })
 			} else {
 				logger.info(`ClineProvider.handleModeSwitch: no profile found for configId ${savedConfigId}`)
-				console.log(`[ClineProvider] No profile found for config ID: ${savedConfigId}`)
 			}
 		} else {
 			// If no saved config for this mode, save current config as default.
@@ -1269,8 +1234,6 @@ export class ClineProvider
 			return
 		}
 
-		console.log(`[subtasks] cancelling task ${cline.taskId}.${cline.instanceId}`)
-
 		const { historyItem } = await this.getTaskWithId(cline.taskId)
 		// Preserve parent and root task information for history item.
 		const rootTask = cline.rootTask
@@ -1290,9 +1253,7 @@ export class ClineProvider
 			{
 				timeout: 3_000,
 			},
-		).catch(() => {
-			console.error("Failed to abort task")
-		})
+		).catch(() => {})
 
 		if (this.getCurrentCline()) {
 			// 'abandoned' will prevent this Cline instance from affecting
@@ -1522,7 +1483,6 @@ export class ClineProvider
 			// delete the entire task directory including checkpoints and all content
 			try {
 				await fs.rm(taskDirPath, { recursive: true, force: true })
-				console.log(`[deleteTaskWithId${id}] removed task directory`)
 			} catch (error) {
 				console.error(
 					`[deleteTaskWithId${id}] failed to remove task directory: ${error instanceof Error ? error.message : String(error)}`,
@@ -1560,7 +1520,6 @@ export class ClineProvider
 	 * This should be called when login/logout events occur
 	 */
 	public setFirebaseAuthState(isAuthenticated: boolean) {
-		console.log(`[ClineProvider] Setting Firebase auth state cache to:`, isAuthenticated)
 		this.cachedFirebaseAuthState = isAuthenticated
 	}
 
@@ -1571,11 +1530,9 @@ export class ClineProvider
 		try {
 			const [marketplaceResult, marketplaceInstalledMetadata] = await Promise.all([
 				this.marketplaceManager.getMarketplaceItems().catch((error) => {
-					console.error("Failed to fetch marketplace items:", error)
 					return { organizationMcps: [], marketplaceItems: [], errors: [error.message] }
 				}),
 				this.marketplaceManager.getInstallationMetadata().catch((error) => {
-					console.error("Failed to fetch installation metadata:", error)
 					return { project: {}, global: {} } as MarketplaceInstalledMetadata
 				}),
 			])
@@ -1589,7 +1546,6 @@ export class ClineProvider
 				errors: marketplaceResult.errors,
 			})
 		} catch (error) {
-			console.error("Failed to fetch marketplace data:", error)
 			// Send empty data on error to prevent UI from hanging
 			this.postMessageToWebview({
 				type: "marketplaceData",
@@ -1658,7 +1614,6 @@ export class ClineProvider
 
 			return mergedCommands
 		} catch (error) {
-			console.error(`Error merging ${commandType} commands:`, error)
 			// Return empty array as fallback to prevent crashes
 			return []
 		}
@@ -1967,14 +1922,12 @@ export class ClineProvider
 		// Use cached Firebase auth state if available to avoid unnecessary checks
 		// The cache is updated when login/logout happens
 		let firebaseIsAuthenticated: boolean = this.cachedFirebaseAuthState ?? false
-		console.log(`[getState] Initial Firebase auth state:`, firebaseIsAuthenticated)
 
 		// Only check Firebase auth if we don't have a cached value
 		try {
 			// Use Firebase API helper instead of command
-			firebaseIsAuthenticated = await isAuthenticated()
+			firebaseIsAuthenticated = await isAuthenticated(this.outputChannel)
 			this.cachedFirebaseAuthState = firebaseIsAuthenticated
-			console.log(`[getState] Firebase auth check result:`, { firebaseIsAuthenticated })
 		} catch (error) {
 			console.error(
 				`[getState] failed to get Firebase authentication state: ${error instanceof Error ? error.message : String(error)}`,
@@ -2163,7 +2116,6 @@ export class ClineProvider
 
 		// Clear Firebase auth cache
 		this.cachedFirebaseAuthState = undefined
-		console.log(`[resetState] Cleared Firebase auth cache`)
 
 		await this.contextProxy.resetAllState()
 		await this.providerSettingsManager.resetAllConfigs()
@@ -2177,7 +2129,6 @@ export class ClineProvider
 
 	public log(message: string) {
 		this.outputChannel.appendLine(message)
-		console.log(message)
 	}
 
 	// integration tests

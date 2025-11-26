@@ -23,7 +23,7 @@ Implemented a complete flow to automatically fetch a default OpenRouter provisio
 - `fetchDefaultProvisioningKey()`: Gets the provisioning key from Firebase `static-data/siid-code`
 - `createUserApiKey(params)`: Creates a new API key via OpenRouter API
 - `createDefaultUserKey(userId, userEmail)`: Creates a key with default $10/month limit
-- `storeUserApiKey(userId, apiKey, metadata)`: Stores key in Firebase `user_api_keys/{userId}`
+- `storeUserApiKey(userId, apiKey, metadata)`: Stores key in Firebase `users/{userId}`
 - `getUserApiKey(userId)`: Retrieves existing user API key
 - `setupUserApiKey(userId, userEmail)`: Complete flow for new users
 
@@ -133,11 +133,11 @@ case "storeLoginDetails":
 │    a) Fetch provisioning key from Firebase                      │
 │       → firebase-service.retrieveData('static-data', 'siid-code')│
 │    b) Check if user already has an API key                      │
-│       → firebase-service.retrieveData('user_api_keys', userId)  │
+│       → firebase-service.retrieveData('users', userId)  │
 │    c) If no key exists, create new key via OpenRouter API       │
 │       → POST https://openrouter.ai/api/v1/keys                  │
 │    d) Store new key in Firebase                                 │
-│       → firebase-service.storeData('user_api_keys', userId, ...) │
+│       → firebase-service.storeData('users', userId, ...) │
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼
@@ -161,7 +161,7 @@ Stores the provisioning API key (has permission to create new keys):
 }
 ```
 
-### Collection: `user_api_keys`
+### Collection: `users`
 
 **Document ID:** `{userId}` (Firebase UID)
 
@@ -253,7 +253,7 @@ Errors are:
 
 ## Testing Checklist
 
-- [ ] Set up Firebase collections (`static-data`, `user_api_keys`)
+- [ ] Set up Firebase collections (`static-data`, `users`)
 - [ ] Add provisioning API key to `static-data/siid-code`
 - [ ] Test Firebase login flow
 - [ ] Verify API key creation on first login

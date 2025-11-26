@@ -27,7 +27,7 @@ This stores the OpenRouter provisioning API key.
 
 ⚠️ **Important**: The provisioning key should have permission to create new API keys on OpenRouter.
 
-#### Collection: `user_api_keys`
+#### Collection: `users`
 
 This will automatically store user API keys (no manual setup needed).
 
@@ -70,7 +70,7 @@ service cloud.firestore {
     }
 
     // User API keys - users can only access their own keys
-    match /user_api_keys/{userId} {
+    match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
@@ -107,7 +107,7 @@ service cloud.firestore {
 
 5. **Verify in Firebase**:
     - Go to Firebase Console
-    - Check `user_api_keys` collection
+    - Check `users` collection
     - You should see a new document with your user ID containing the API key
 
 ### 5. Verify API Key Works
@@ -180,7 +180,7 @@ curl https://openrouter.ai/api/v1/chat/completions \
 
 ### Check User API Keys
 
-Firebase Console → Firestore → `user_api_keys`
+Firebase Console → Firestore → `users`
 
 You'll see:
 

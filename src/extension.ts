@@ -14,13 +14,9 @@ const loadEnv = (context: vscode.ExtensionContext) => {
 			envPath = path.join(context.extensionPath, "dist/.env")
 		}
 
-		console.log("[Extension] Checking .env path:", envPath)
-		console.log("[Extension] .env exists:", fs.existsSync(envPath))
 		dotenvx.config({ path: envPath })
-		console.log("[Extension] OPENROUTER_FREE_API_KEY loaded:", !!process.env.OPENROUTER_FREE_API_KEY)
 	} catch (e) {
 		// Silently handle environment loading errors
-		console.warn("Failed to load environment variables:", e)
 	}
 }
 
@@ -52,6 +48,7 @@ import {
 	CodeActionProvider,
 } from "./activate"
 import { initializeI18n } from "./i18n"
+import { json } from "stream/consumers"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -87,9 +84,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	try {
 		telemetryService.register(new PostHogTelemetryClient())
-	} catch (error) {
-		console.warn("Failed to register PostHogTelemetryClient:", error)
-	}
+	} catch (error) {}
 
 	// Create logger for cloud services
 	const cloudLogger = createDualLogger(createOutputChannelLogger(outputChannel))
@@ -270,6 +265,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	const socketPath = process.env.ROO_CODE_IPC_SOCKET_PATH
 	const enableLogging = typeof socketPath === "string"
 
+	// Create and return API instance
+	const api = new API(outputChannel, provider, socketPath, true)
+
 	// Watch the core files and automatically reload the extension host.
 	if (process.env.NODE_ENV === "development") {
 		const watchPaths = [
@@ -278,10 +276,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			{ path: path.join(context.extensionPath, "../packages/telemetry"), pattern: "**/*.ts" },
 			{ path: path.join(context.extensionPath, "node_modules/@roo-code/cloud"), pattern: "**/*" },
 		]
-
-		console.log(
-			`♻️♻️♻️ Core auto-reloading: Watching for changes in ${watchPaths.map(({ path }) => path).join(", ")}`,
-		)
 
 		// Create a debounced reload function to prevent excessive reloads
 		let reloadTimeout: NodeJS.Timeout | undefined
@@ -292,10 +286,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				clearTimeout(reloadTimeout)
 			}
 
-			console.log(`♻️ ${uri.fsPath} changed; scheduling reload...`)
-
 			reloadTimeout = setTimeout(() => {
-				console.log(`♻️ Reloading host after debounce delay...`)
 				vscode.commands.executeCommand("workbench.action.reloadWindow")
 			}, DEBOUNCE_DELAY)
 		}
@@ -321,8 +312,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	}
-
-	return new API(outputChannel, provider, socketPath, enableLogging)
+	return api
 }
 
 // This method is called when your extension is deactivated.
