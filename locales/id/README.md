@@ -45,7 +45,7 @@ Lihat [CHANGELOG](../../CHANGELOG.md) untuk update dan perbaikan detail.
 
 ## 🎉 Rilis Terbaru
 
-Siid Code 3.25 menghadirkan fitur-fitur baru yang powerful dan peningkatan signifikan untuk meningkatkan workflow development kamu!
+Siid Code menghadirkan fitur-fitur baru yang powerful dan peningkatan signifikan untuk meningkatkan workflow development kamu!
 
 - **Antrian pesan** - Antrikan beberapa pesan saat Siid Code bekerja, memungkinkan kamu terus merencanakan alur kerja tanpa gangguan.
 - **Perintah slash kustom** - Buat perintah slash yang dipersonalisasi untuk akses cepat ke prompt dan alur kerja yang sering digunakan dengan manajemen UI lengkap.

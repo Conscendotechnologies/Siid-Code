@@ -42,7 +42,7 @@ Confira o [CHANGELOG](../../CHANGELOG.md) para atualizações e correções deta
 
 ## 🎉 Última versão
 
-O Siid Code 3.25 traz novos recursos poderosos e melhorias significativas para aprimorar seu fluxo de trabalho de desenvolvimento!
+O Siid Code traz novos recursos poderosos e melhorias significativas para aprimorar seu fluxo de trabalho de desenvolvimento!
 
 - **<bold>Gerenciamento de Sessões do Navegador</bold>** - Gerencie múltiplas sessões de navegador simultaneamente, permitindo a separação de diferentes tarefas e ambientes de teste.
 - **<bold>Cache de Prompts</bold>** - Faça cache de prompts frequentemente usados para reduzir significativamente os tempos de resposta e diminuir o uso da API.

@@ -42,7 +42,7 @@ Sehen Sie sich das [CHANGELOG](../../CHANGELOG.md) für detaillierte Updates und
 
 ## 🎉 Neueste Version
 
-Siid Code 3.25 bringt mächtige neue Funktionen und bedeutende Verbesserungen, um deinen Entwicklungsworkflow zu verbessern!
+Siid Code bringt mächtige neue Funktionen und bedeutende Verbesserungen, um deinen Entwicklungsworkflow zu verbessern!
 
 - **Nachrichten-Warteschlange** - Stelle mehrere Nachrichten in die Warteschlange, während Siid Code arbeitet, damit du deinen Workflow ohne Unterbrechung weiter planen kannst.
 - **Benutzerdefinierte Slash-Befehle** - Erstelle personalisierte Slash-Befehle für schnellen Zugriff auf häufig verwendete Prompts und Workflows mit vollständiger UI-Verwaltung.

@@ -46,7 +46,7 @@ Sprawdź [CHANGELOG](../../CHANGELOG.md), aby uzyskać szczegółowe informacje 
 
 ## 🎉 Najnowsza wersja
 
-Siid Code 3.25 wprowadza potężne nowe funkcje i znaczące usprawnienia, aby ulepszyć Twój przepływ pracy deweloperskiej!
+Siid Code wprowadza potężne nowe funkcje i znaczące usprawnienia, aby ulepszyć Twój przepływ pracy deweloperskiej!
 
 - **<bold>Zarządzanie Sesjami Przeglądarki</bold>** - Zarządzaj wieloma sesjami przeglądarki jednocześnie, umożliwiając separację różnych zadań i środowisk testowych.
 - **<bold>Buforowanie Promptów</bold>** - Buforuj często używane prompty, aby znacznie skrócić czas odpowiedzi i zmniejszyć użycie API.

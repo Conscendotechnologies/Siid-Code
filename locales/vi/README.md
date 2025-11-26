@@ -42,7 +42,7 @@ Kiểm tra [CHANGELOG](../../CHANGELOG.md) để biết thông tin chi tiết v�
 
 ## 🎉 Bản phát hành mới nhất
 
-Siid Code 3.25 mang đến những tính năng mới mạnh mẽ và cải tiến đáng kể để nâng cao quy trình phát triển của bạn.
+Siid Code mang đến những tính năng mới mạnh mẽ và cải tiến đáng kể để nâng cao quy trình phát triển của bạn.
 
 - **Nhà Cung Cấp Hugging Face** - Truy cập hàng tấn mô hình nguồn mở tuyệt vời trực tiếp thông qua nhà cung cấp Hugging Face mới với tích hợp liền mạch và lựa chọn mô hình.
 - **Điều Khiển Lệnh Nội Tuyến** - Các điều khiển tự động phê duyệt và từ chối mới cho việc thực thi lệnh cung cấp cho bạn quyền kiểm soát chính xác các hoạt động terminal với quyền hạn có thể tùy chỉnh.

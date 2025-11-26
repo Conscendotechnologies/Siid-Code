@@ -46,7 +46,7 @@ Consulteu el [CHANGELOG](../../CHANGELOG.md) per a actualitzacions i correccions
 
 ## 🎉 Última versió
 
-Siid Code 3.25 aporta noves funcionalitats potents i millores significatives per millorar el vostre flux de treball de desenvolupament!
+Siid Code aporta noves funcionalitats potents i millores significatives per millorar el vostre flux de treball de desenvolupament!
 
 - **Cua de missatges** - Poseu diversos missatges a la cua mentre Siid Code treballa, permetent-vos continuar planificant el vostre flux de treball sense interrupcions.
 - **Comandes slash personalitzades** - Creeu comandes slash personalitzades per a accés ràpid a prompts i fluxos de treball utilitzats freqüentment amb gestió completa de la interfície d'usuari.

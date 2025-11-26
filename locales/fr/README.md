@@ -42,7 +42,7 @@ Consultez le [CHANGELOG](../../CHANGELOG.md) pour des mises à jour détaillées
 
 ## 🎉 Dernière version
 
-Siid Code 3.25 apporte de puissantes nouvelles fonctionnalités et des améliorations significatives pour améliorer ton flux de travail de développement !
+Siid Code apporte de puissantes nouvelles fonctionnalités et des améliorations significatives pour améliorer ton flux de travail de développement !
 
 - **File d'attente de messages** - Mets plusieurs messages en file d'attente pendant que Siid Code travaille, te permettant de continuer à planifier ton flux de travail sans interruption.
 - **Commandes slash personnalisées** - Crée des commandes slash personnalisées pour un accès rapide aux prompts et flux de travail fréquemment utilisés avec une gestion complète de l'interface utilisateur.

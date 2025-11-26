@@ -42,7 +42,7 @@ Bekijk de [CHANGELOG](../../CHANGELOG.md) voor gedetailleerde updates en fixes.
 
 ## 🎉 Nieuwste release
 
-Siid Code 3.25 brengt krachtige nieuwe functies en significante verbeteringen om je ontwikkelingsworkflow te verbeteren!
+Siid Code brengt krachtige nieuwe functies en significante verbeteringen om je ontwikkelingsworkflow te verbeteren!
 
 - **<bold>Browser Sessiebeheer</bold>** - Beheer meerdere browsersessies tegelijkertijd, waardoor verschillende taken en testomgevingen gescheiden kunnen worden.
 - **<bold>Prompt Caching</bold>** - Cache veelgebruikte prompts om responstijden aanzienlijk te verkorten en API-gebruik te verminderen.
