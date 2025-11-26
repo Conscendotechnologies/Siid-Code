@@ -728,7 +728,7 @@ export const webviewMessageHandler = async (
 			break
 		case "openFile":
 			{
-				const requested = message.text || ""
+				const requested = message.text ?? (message as any).path ?? ""
 
 				try {
 					// Normalize and detect any attempts to open internal .roo instruction files
@@ -746,8 +746,7 @@ export const webviewMessageHandler = async (
 
 						await (provider.postMessageToWebview as any)({
 							type: "fileOpenBlocked",
-
-							text: path.basename(requested),
+							text: path.basename(String(requested)),
 						})
 
 						break
@@ -773,8 +772,7 @@ export const webviewMessageHandler = async (
 
 							await (provider.postMessageToWebview as any)({
 								type: "fileOpenBlocked",
-
-								text: path.basename(requested),
+								text: path.basename(String(requested)),
 							})
 
 							break
@@ -784,7 +782,8 @@ export const webviewMessageHandler = async (
 					// Fall through to normal openFile behavior if detection fails for any reason
 				}
 
-				openFile(message.text!, message.values as { create?: boolean; content?: string; line?: number })
+				// If webview sent `path` instead of `text`, accept that too.
+				openFile(requested, message.values as { create?: boolean; content?: string; line?: number })
 			}
 			break
 		case "openMention":

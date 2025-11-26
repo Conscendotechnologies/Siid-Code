@@ -1062,7 +1062,7 @@ export const ChatRowContent = ({
 				case "api_req_started":
 					return (
 						<>
-							<div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+							<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
 								<span
 									className="codicon codicon-loading codicon-modifier-spin"
 									style={{ fontSize: "14px", color: "var(--vscode-descriptionForeground)" }}
@@ -1071,9 +1071,9 @@ export const ChatRowContent = ({
 									style={{
 										fontSize: "12px",
 										color: "var(--vscode-descriptionForeground)",
-										fontStyle: "italic",
+										fontWeight: 500,
 									}}>
-									Thinking
+									API Request...
 								</span>
 							</div>
 							{(((cost === null || cost === undefined) && apiRequestFailedMessage) ||
