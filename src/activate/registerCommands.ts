@@ -205,70 +205,82 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 
 		visibleProvider.postMessageToWebview({ type: "acceptInput" })
 	},
-	onFirebaseLogin: async (loginData?: any) => {
-		const visibleProvider = getVisibleProviderOrLog(outputChannel)
-
-		if (!visibleProvider) {
-			return
-		}
-
-		try {
-			outputChannel.appendLine("Firebase login event received - user is now authenticated")
-
-			// Update the cached Firebase auth state
-			visibleProvider.setFirebaseAuthState(true)
-
-			// Update API keys from Firebase after successful login
-			await visibleProvider.providerSettingsManager.updateApiKeysFromFirebase()
-
-			// Post a custom message to webview indicating login success
-			// This bypasses the Firebase command check which may have timing issues
-			await visibleProvider.postMessageToWebview({
-				type: "state",
-				state: {
-					...(await visibleProvider.getStateToPostToWebview()),
-					firebaseIsAuthenticated: true, // Override to ensure we show as authenticated
-				},
-			} as any)
-
-			outputChannel.appendLine("Firebase login successful - updated API keys and refreshed state")
-			vscode.window.showInformationMessage("Firebase login successful!")
-		} catch (error) {
-			outputChannel.appendLine(`Error handling Firebase login: ${error}`)
-			vscode.window.showErrorMessage(
-				`Error handling Firebase login: ${error instanceof Error ? error.message : String(error)}`,
-			)
-		}
+	onFirebaseLogin: async () => {
+		// NOTE: This command is triggered by Firebase Service extension
+		// but the actual login handling is done in api.onFirebaseLogin()
+		// which is called directly by the Firebase Service extension.
+		// This command handler exists only for compatibility but does nothing.
+		outputChannel.appendLine("Firebase login command received - actual handling is in API method")
 	},
 	onFirebaseLogout: async () => {
-		const visibleProvider = getVisibleProviderOrLog(outputChannel)
-
-		if (!visibleProvider) {
-			return
-		}
-
+		// NOTE: This command is triggered by Firebase Service extension
+		// but the actual logout handling is done in api.onFirebaseLogout()
+		// which is called directly by the Firebase Service extension.
+		// This command handler exists only for compatibility but does nothing.
+		outputChannel.appendLine("Firebase logout command received - actual handling is in API method")
+	},
+	testOpenRouterApiKey: async () => {
 		try {
-			outputChannel.appendLine("Firebase logout event received - user is now logged out")
+			outputChannel.appendLine("\n=== OpenRouter API Key Generation Test ===")
 
-			// Update the cached Firebase auth state
-			visibleProvider.setFirebaseAuthState(false)
+			// Prompt for provisioning API key
+			const provisioningKey = await vscode.window.showInputBox({
+				prompt: "Enter your OpenRouter provisioning API key",
+				password: true,
+				placeHolder: "sk-or-v1-...",
+			})
 
-			// Post a custom message to webview indicating logout
-			// This bypasses the Firebase command check which may have timing issues
-			await visibleProvider.postMessageToWebview({
-				type: "state",
-				state: {
-					...(await visibleProvider.getStateToPostToWebview()),
-					firebaseIsAuthenticated: false, // Override to ensure we show as logged out
-				},
-			} as any)
+			if (!provisioningKey) {
+				outputChannel.appendLine("Test cancelled - no provisioning key provided")
+				vscode.window.showWarningMessage("Test cancelled")
+				return
+			}
 
-			outputChannel.appendLine("Firebase logout - refreshed state")
-			vscode.window.showInformationMessage("You have been logged out")
+			outputChannel.appendLine("Testing OpenRouter API key generation...")
+			outputChannel.appendLine(`Provisioning key: ${provisioningKey}`)
+
+			// Import the OpenRouter key service
+			const { OpenRouterKeyService } = await import("../services/openrouter/api-key-service")
+			const keyService = new OpenRouterKeyService(outputChannel)
+
+			// Set the provisioning key
+			keyService.setProvisioningKey(provisioningKey)
+
+			// Create a test API key
+			const testEmail = "test@example.com"
+			const testUserId = `test-${Date.now()}`
+			outputChannel.appendLine(`Creating test key for user: ${testUserId}`)
+
+			const keyParams = {
+				name: `test-siid-code-${testEmail}-${Date.now()}`,
+				limit: 10, // $10 USD
+				limit_reset: "monthly" as const,
+				include_byok_in_limit: true,
+			}
+
+			outputChannel.appendLine(`Key parameters: ${JSON.stringify(keyParams, null, 2)}`)
+
+			const result = await keyService.createUserApiKey(keyParams)
+
+			outputChannel.appendLine("\n✅ SUCCESS: API key created!")
+			outputChannel.appendLine(`Generated API Key: ${result.key}`)
+			outputChannel.appendLine(`Key Hash: ${result.data.hash}`)
+			outputChannel.appendLine(`Key Name: ${result.data.name}`)
+			outputChannel.appendLine(`Limit: $${result.data.limit}`)
+			outputChannel.appendLine(`Limit Remaining: $${result.data.limit_remaining}`)
+			outputChannel.appendLine(`Limit Reset: ${result.data.limit_reset}`)
+			outputChannel.appendLine(`Created At: ${result.data.created_at}`)
+
+			vscode.window.showInformationMessage(
+				`✅ OpenRouter API key created successfully! Check output channel for details.`,
+			)
 		} catch (error) {
-			outputChannel.appendLine(`Error handling Firebase logout: ${error}`)
+			outputChannel.appendLine(`\n❌ ERROR: ${error instanceof Error ? error.message : String(error)}`)
+			if (error instanceof Error && error.stack) {
+				outputChannel.appendLine(`Stack trace: ${error.stack}`)
+			}
 			vscode.window.showErrorMessage(
-				`Error handling Firebase logout: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to create OpenRouter API key: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
 	},

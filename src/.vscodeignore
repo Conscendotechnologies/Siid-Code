@@ -12,6 +12,7 @@
 
 # Include the built extension
 !dist
+!dist/**
 
 # Include the built webview
 !**/*.map

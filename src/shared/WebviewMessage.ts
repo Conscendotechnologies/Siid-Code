@@ -216,6 +216,7 @@ export interface WebviewMessage {
 		| "deploy"
 		| "deployResult"
 		| "executeCommand"
+		| "firebaseSignInWithApiKey"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"
@@ -259,6 +260,7 @@ export interface WebviewMessage {
 	visibility?: ShareVisibility // For share visibility
 	hasContent?: boolean // For checkRulesDirectoryResult
 	checkOnly?: boolean // For deleteCustomMode check
+	apiKey?: string // For firebaseSignInWithApiKey - user's own OpenRouter API key
 	codeIndexSettings?: {
 		// Global state settings
 		codebaseIndexEnabled: boolean

@@ -127,7 +127,6 @@ export const webviewMessageHandler = async (
 					// Initialize with history item after deletion
 					await provider.initClineWithHistoryItem(historyItem)
 				} catch (error) {
-					console.error("Error in delete message:", error)
 					vscode.window.showErrorMessage(
 						`Error deleting message: ${error instanceof Error ? error.message : String(error)}`,
 					)
@@ -181,7 +180,6 @@ export const webviewMessageHandler = async (
 					// Don't initialize with history item for edit operations
 					// The webviewMessageHandler will handle the conversation state
 				} catch (error) {
-					console.error("Error in edit message:", error)
 					vscode.window.showErrorMessage(
 						`Error editing message: ${error instanceof Error ? error.message : String(error)}`,
 					)
@@ -212,6 +210,15 @@ export const webviewMessageHandler = async (
 
 	switch (message.type) {
 		case "webviewDidLaunch":
+			// Calculate and log time from activation to UI ready
+			const activationStartTime = provider.getValue("activationStartTime")
+			if (activationStartTime) {
+				const timeToReady = Date.now() - activationStartTime
+				provider.log(`🚀 Webview UI ready in ${timeToReady}ms (${(timeToReady / 1000).toFixed(2)}s)`)
+				// Clear the start time after logging to avoid re-logging on subsequent launches
+				await provider.setValue("activationStartTime", undefined)
+			}
+
 			// Load custom modes first
 			const customModes = await provider.customModesManager.getCustomModes()
 			await updateGlobalState("customModes", customModes)
@@ -304,11 +311,26 @@ export const webviewMessageHandler = async (
 					const command = message.commands[0]
 					await vscode.commands.executeCommand(command)
 				} catch (error) {
-					console.error(`Error executing command ${message.commands}:`, error)
 					vscode.window.showErrorMessage(
 						`Error executing command ${message.commands}: ${error instanceof Error ? error.message : String(error)}`,
 					)
 				}
+			}
+			break
+		case "firebaseSignInWithApiKey":
+			// Store the user-provided API key temporarily
+			if (message.apiKey) {
+				await updateGlobalState("pendingUserApiKey", message.apiKey)
+			}
+			// Execute Firebase sign-in command
+			try {
+				await vscode.commands.executeCommand("firebase-service.signIn")
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Error executing Firebase sign-in: ${error instanceof Error ? error.message : String(error)}`,
+				)
+				// Clear pending API key on error
+				await updateGlobalState("pendingUserApiKey", undefined)
 			}
 			break
 		case "alwaysAllowReadOnlyOutsideWorkspace":
@@ -357,17 +379,6 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowUpdateTodoList":
 			await updateGlobalState("alwaysAllowUpdateTodoList", message.bool)
-			await provider.postStateToWebview()
-			break
-		case "useFreeModels":
-			await updateGlobalState("useFreeModels", message.bool)
-			// Update API keys when toggling free/paid models
-			await provider.providerSettingsManager.updateApiKeysFromFirebase()
-
-			// FIX: Re-activate the current mode's config to match free/paid preference
-			const currentMode = getGlobalState("mode") ?? defaultModeSlug
-			await provider.handleModeSwitch(currentMode)
-
 			await provider.postStateToWebview()
 			break
 		case "askResponse":
@@ -479,7 +490,6 @@ export const webviewMessageHandler = async (
 				const results = []
 
 				// Only log start and end of the operation
-				console.log(`Batch deletion started: ${ids.length} tasks total`)
 
 				for (let i = 0; i < ids.length; i += batchSize) {
 					const batch = ids.slice(i, i + batchSize)
@@ -490,9 +500,7 @@ export const webviewMessageHandler = async (
 							return { id, success: true }
 						} catch (error) {
 							// Keep error logging for debugging purposes
-							console.log(
-								`Failed to delete task ${id}: ${error instanceof Error ? error.message : String(error)}`,
-							)
+
 							return { id, success: false }
 						}
 					})
@@ -508,9 +516,6 @@ export const webviewMessageHandler = async (
 				// Log final results
 				const successCount = results.filter((r) => r.success).length
 				const failCount = results.length - successCount
-				console.log(
-					`Batch deletion completed: ${successCount}/${ids.length} tasks successful, ${failCount} tasks failed`,
-				)
 			}
 			break
 		}
@@ -555,15 +560,7 @@ export const webviewMessageHandler = async (
 			}
 
 			const safeGetModels = async (options: GetModelsOptions): Promise<ModelRecord> => {
-				try {
-					return await getModels(options)
-				} catch (error) {
-					console.error(
-						`Failed to fetch models in webviewMessageHandler requestRouterModels for ${options.provider}:`,
-						error,
-					)
-					throw error // Re-throw to be caught by Promise.allSettled
-				}
+				return await getModels(options)
 			}
 
 			const modelFetchPromises: Array<{ key: RouterName; options: GetModelsOptions }> = [
@@ -620,7 +617,6 @@ export const webviewMessageHandler = async (
 				} else {
 					// Handle rejection: Post a specific error message for this provider
 					const errorMessage = result.reason instanceof Error ? result.reason.message : String(result.reason)
-					console.error(`Error fetching models for ${routerName}:`, result.reason)
 
 					fetchedRouterModels[routerName] = {} // Ensure it's an empty object in the main routerModels message
 
@@ -659,7 +655,6 @@ export const webviewMessageHandler = async (
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured Ollama yet
-				console.debug("Ollama models fetch failed:", error)
 			}
 			break
 		}
@@ -683,7 +678,6 @@ export const webviewMessageHandler = async (
 				}
 			} catch (error) {
 				// Silently fail - user hasn't configured LM Studio yet
-				console.debug("LM Studio models fetch failed:", error)
 			}
 			break
 		}
@@ -713,7 +707,6 @@ export const webviewMessageHandler = async (
 					huggingFaceModels: huggingFaceModelsResponse.models,
 				})
 			} catch (error) {
-				console.error("Failed to fetch Hugging Face models:", error)
 				provider.postMessageToWebview({
 					type: "huggingFaceModels",
 					huggingFaceModels: [],
@@ -1158,8 +1151,6 @@ export const webviewMessageHandler = async (
 						value: vscode.workspace.getConfiguration().get(setting),
 					})
 				} catch (error) {
-					console.error(`Failed to get VSCode setting ${message.setting}:`, error)
-
 					await provider.postMessageToWebview({
 						type: "vsCodeSetting",
 						setting,
@@ -1673,6 +1664,7 @@ export const webviewMessageHandler = async (
 				}
 			}
 			break
+
 		case "deleteApiConfiguration":
 			if (message.text) {
 				const answer = await vscode.window.showInformationMessage(

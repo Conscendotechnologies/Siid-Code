@@ -77,7 +77,7 @@ export class ProviderSettingsManager {
 			[this.salesforceAgentPaidId]: {
 				id: this.salesforceAgentPaidId,
 				apiProvider: "openrouter",
-				apiModelId: "x-ai/grok-code-fast-1",
+				openRouterModelId: "z-ai/glm-4.6",
 				// apiKey will be set to PAID TIER key from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
@@ -282,28 +282,52 @@ export class ProviderSettingsManager {
 
 	/**
 	 * Fetch API keys from Firebase for free and paid tiers.
-	 * TODO: Implement Firebase integration - call the extension command to fetch keys
-	 * For now, returns placeholder keys that will be replaced when Firebase is integrated.
+	 * Retrieves user API key from users/{uid} document (openRouterApiKey field).
 	 *
-	 * Structure: One provider, two API keys (free tier and paid tier)
+	 * Structure: One API key per user (used for both free and paid tier configs)
 	 */
 	private async fetchApiKeysFromFirebase(): Promise<{
 		freeApiKey: string | undefined // Single API key for free tier
 		paidApiKey: string | undefined // Single API key for paid tier
 	}> {
 		try {
-			// TODO: Replace with actual Firebase command execution
-			// Example: const result = await vscode.commands.executeCommand('extension.fetchFirebaseApiKeys')
-
 			logger.info("[ProviderSettingsManager] Fetching API keys from Firebase...")
 
-			// PLACEHOLDER: Return empty keys for now
-			// When Firebase integration is ready, this will fetch:
-			// - freeApiKey: API key for free tier models (rate-limited, $0 cost)
-			// - paidApiKey: API key for paid tier models (higher rate limits, costs money)
+			// Get the Firebase API to check authentication
+			const { isAuthenticated, getUserProperties } = await import("../../utils/firebaseHelper")
+
+			// Check if user is authenticated
+			const authenticated = await isAuthenticated()
+			if (!authenticated) {
+				logger.warn("[ProviderSettingsManager] User not authenticated, skipping API key fetch")
+				return {
+					freeApiKey: undefined,
+					paidApiKey: undefined,
+				}
+			}
+
+			// Get user API key from user properties (users/{uid}/openRouterApiKey)
+			const userProps = await getUserProperties(["openRouterApiKey"])
+			const userApiKey = userProps?.openRouterApiKey
+
+			if (!userApiKey) {
+				logger.warn("[ProviderSettingsManager] No OpenRouter API key found in user properties")
+				return {
+					freeApiKey: undefined,
+					paidApiKey: undefined,
+				}
+			}
+
+			logger.info("[ProviderSettingsManager] Successfully fetched user API key from Firebase", {
+				hasKey: !!userApiKey,
+			})
+
+			// Use the same key for both free and paid tiers
+			// The free tier models are rate-limited by OpenRouter's :free suffix
+			// The paid tier uses the same key but accesses non-free models
 			return {
-				freeApiKey: "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", // e.g., "sk-or-v1-free-tier-abc123..."
-				paidApiKey: "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", // e.g., "sk-or-v1-paid-tier-xyz789..."
+				freeApiKey: userApiKey,
+				paidApiKey: userApiKey,
 			}
 		} catch (error) {
 			logger.error(`[ProviderSettingsManager] Failed to fetch API keys from Firebase: ${error}`)
@@ -363,7 +387,7 @@ export class ProviderSettingsManager {
 				(config) => config.id === this.salesforceAgentPaidId,
 			)
 			if (salesforceAgentPaidConfig && paidApiKey) {
-				salesforceAgentPaidConfig.apiKey = paidApiKey
+				salesforceAgentPaidConfig.openRouterApiKey = paidApiKey
 				isDirty = true
 			}
 
@@ -546,10 +570,6 @@ export class ProviderSettingsManager {
 				}))
 
 				logger.info(`[ProviderSettingsManager] listConfig returning ${entries.length} entries`)
-				console.log(
-					"[ProviderSettingsManager] listConfig entries:",
-					entries.map((e) => `${e.name} (id: ${e.id})`).join(", "),
-				)
 
 				return entries
 			})
@@ -692,7 +712,6 @@ export class ProviderSettingsManager {
 				}
 				// Assign the chosen config ID to this mode
 				providerProfiles.modeApiConfigs[mode] = configId
-				console.log(`[ProviderSettingsManager] setModeConfig: mode=${mode}, configId=${configId}`)
 				await this.store(providerProfiles)
 			})
 		} catch (error) {
@@ -711,7 +730,6 @@ export class ProviderSettingsManager {
 				logger.info(
 					`ProviderSettingsManager.getModeConfigId: mode=${mode}, configId=${configId}, modeApiConfigs=${JSON.stringify(modeApiConfigs)}`,
 				)
-				console.log(`[ProviderSettingsManager] getModeConfigId: mode=${mode}, configId=${configId}`)
 				return configId
 			})
 		} catch (error) {
@@ -762,11 +780,6 @@ export class ProviderSettingsManager {
 
 			if (!content) {
 				logger.info("[ProviderSettingsManager] No saved configs, returning defaults")
-				console.log("[ProviderSettingsManager] No saved configs, returning defaults")
-				console.log(
-					"[ProviderSettingsManager] Default config names:",
-					Object.keys(this.defaultProviderProfiles.apiConfigs),
-				)
 				return this.defaultProviderProfiles
 			}
 
@@ -785,7 +798,6 @@ export class ProviderSettingsManager {
 			)
 
 			logger.info(`[ProviderSettingsManager] Loaded ${Object.keys(apiConfigs).length} saved configs from secrets`)
-			console.log("[ProviderSettingsManager] Saved config names:", Object.keys(apiConfigs))
 
 			// Migrate old ids to new ids
 			const migrations = {
@@ -807,11 +819,6 @@ export class ProviderSettingsManager {
 			}
 
 			logger.info(`[ProviderSettingsManager] After merge: ${Object.keys(mergedApiConfigs).length} total configs`)
-			console.log("[ProviderSettingsManager] Merged config names:", Object.keys(mergedApiConfigs))
-			console.log(
-				"[ProviderSettingsManager] Merged config IDs:",
-				Object.values(mergedApiConfigs).map((c: any) => c.id),
-			)
 
 			// Find a config with API keys to populate predefined configs
 			const configWithKeys = Object.values(mergedApiConfigs).find((config) => {

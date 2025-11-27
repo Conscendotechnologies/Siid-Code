@@ -13,7 +13,6 @@ import {
 import { ExtensionMessage, ExtensionState, MarketplaceInstalledMetadata, Command } from "@roo/ExtensionMessage"
 import { findLastIndex } from "@roo/array"
 import { McpServer } from "@roo/mcp"
-import { checkExistKey } from "@roo/checkExistApiConfig"
 import { Mode, defaultModeSlug, defaultPrompts } from "@roo/modes"
 import { CustomSupportPrompts } from "@roo/support-prompt"
 import { experimentDefault } from "@roo/experiments"
@@ -294,13 +293,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const handleMessage = useCallback(
 		(event: MessageEvent) => {
 			const message: ExtensionMessage = event.data
-			console.log("ExtensionStateContext - Message received:", message.type, message)
 			switch (message.type) {
 				case "state": {
 					const newState = message.state!
 					setState((prevState) => mergeExtensionState(prevState, newState))
 
-					const hasApiConfig = checkExistKey(newState.apiConfiguration)
 					const isAuthenticated = newState.firebaseIsAuthenticated
 
 					// Show login if not authenticated and no API config
@@ -308,13 +305,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					// Show neither if has API config (go to main app)
 					const shouldShowLogin = !isAuthenticated
 					const shouldShowWelcome = isAuthenticated
-
-					console.log("🔍 Auth State Update:", {
-						firebaseIsAuthenticated: isAuthenticated,
-						hasApiConfig,
-						shouldShowLogin,
-						shouldShowWelcome,
-					})
 
 					setShowLogin(shouldShowLogin)
 					setShowWelcome(shouldShowWelcome)

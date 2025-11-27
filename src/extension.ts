@@ -1,15 +1,23 @@
 import * as vscode from "vscode"
 import * as dotenvx from "@dotenvx/dotenvx"
 import * as path from "path"
+import * as fs from "fs"
 
-// Load environment variables from .env file
-try {
-	// Specify path to .env file in the project root directory
-	const envPath = path.join(__dirname, "..", ".env")
-	dotenvx.config({ path: envPath })
-} catch (e) {
-	// Silently handle environment loading errors
-	console.warn("Failed to load environment variables:", e)
+// This will be set in activate
+let envPath: string
+
+// Load environment variables from .env file - moved to activate to access context
+const loadEnv = (context: vscode.ExtensionContext) => {
+	try {
+		if (!envPath) {
+			// For development, extensionPath is src/, so ../.env is workspace root
+			envPath = path.join(context.extensionPath, "dist/.env")
+		}
+
+		dotenvx.config({ path: envPath })
+	} catch (e) {
+		// Silently handle environment loading errors
+	}
 }
 
 import { CloudService } from "@roo-code/cloud"
@@ -40,6 +48,7 @@ import {
 	CodeActionProvider,
 } from "./activate"
 import { initializeI18n } from "./i18n"
+import { json } from "stream/consumers"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -55,11 +64,17 @@ let extensionContext: vscode.ExtensionContext
 // This method is called when your extension is activated.
 // Your extension is activated the very first time the command is executed.
 export async function activate(context: vscode.ExtensionContext) {
+	// Record activation start time at the very beginning for accurate performance tracking
+	const activationStartTime = Date.now()
+
 	extensionContext = context
 	outputChannel = vscode.window.createOutputChannel(Package.outputChannel)
 	context.subscriptions.push(outputChannel)
 	outputChannel.appendLine(`${Package.name} extension activated - ${JSON.stringify(Package)}`)
 	vscode.window.showInformationMessage("Siid Code activated!")
+
+	// Load environment variables from workspace .env file
+	loadEnv(context)
 
 	// Migrate old settings to new
 	await migrateSettings(context, outputChannel)
@@ -69,15 +84,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	try {
 		telemetryService.register(new PostHogTelemetryClient())
-	} catch (error) {
-		console.warn("Failed to register PostHogTelemetryClient:", error)
-	}
+	} catch (error) {}
 
 	// Create logger for cloud services
 	const cloudLogger = createDualLogger(createOutputChannelLogger(outputChannel))
 
 	// Initialize Roo Code Cloud service.
+	const cloudServiceStart = Date.now()
 	const cloudService = await CloudService.createInstance(context, cloudLogger)
+	outputChannel.appendLine(`⏱️ CloudService initialized in ${Date.now() - cloudServiceStart}ms`)
 
 	try {
 		if (cloudService.telemetryClient) {
@@ -86,18 +101,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	} catch (error) {
 		outputChannel.appendLine(
 			`[CloudService] Failed to register TelemetryClient: ${error instanceof Error ? error.message : String(error)}`,
-		)
-	}
-
-	// Initialize bundled instructions manager
-	try {
-		vscode.window.showInformationMessage("Initializing bundled instructions...")
-		const bundledInstructionsManager = new BundledInstructionsManager(context)
-		await bundledInstructionsManager.initializeBundledInstructions()
-		outputChannel.appendLine("[BundledInstructionsManager] Successfully initialized bundled instructions")
-	} catch (error) {
-		outputChannel.appendLine(
-			`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
 		)
 	}
 
@@ -113,7 +116,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(cloudService)
 
 	// Initialize MDM service
+	const mdmServiceStart = Date.now()
 	const mdmService = await MdmService.createInstance(cloudLogger)
+	outputChannel.appendLine(`⏱️ MDM Service initialized in ${Date.now() - mdmServiceStart}ms`)
 
 	// Initialize i18n for internationalization support
 	initializeI18n(context.globalState.get("language") ?? formatLanguage(vscode.env.language))
@@ -131,33 +136,49 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const contextProxy = await ContextProxy.getInstance(context)
 
-	// Initialize code index managers for all workspace folders
-	const codeIndexManagers: CodeIndexManager[] = []
-	if (vscode.workspace.workspaceFolders) {
-		for (const folder of vscode.workspace.workspaceFolders) {
-			const manager = CodeIndexManager.getInstance(context, folder.uri.fsPath)
-			if (manager) {
-				codeIndexManagers.push(manager)
-				try {
-					await manager.initialize(contextProxy)
-				} catch (error) {
-					outputChannel.appendLine(
-						`[CodeIndexManager] Error during background CodeIndexManager configuration/indexing for ${folder.uri.fsPath}: ${error.message || error}`,
-					)
+	// Store activation start time for performance tracking (recorded at function start)
+	await contextProxy.setValue("activationStartTime", activationStartTime)
+
+	// Initialize code index managers in background (non-blocking)
+	// This was taking ~7.8 seconds and blocking UI load
+	Promise.resolve().then(async () => {
+		const codeIndexStart = Date.now()
+		const codeIndexManagers: CodeIndexManager[] = []
+		if (vscode.workspace.workspaceFolders) {
+			for (const folder of vscode.workspace.workspaceFolders) {
+				const manager = CodeIndexManager.getInstance(context, folder.uri.fsPath)
+				if (manager) {
+					codeIndexManagers.push(manager)
+					try {
+						await manager.initialize(contextProxy)
+					} catch (error) {
+						outputChannel.appendLine(
+							`[CodeIndexManager] Error during background CodeIndexManager configuration/indexing for ${folder.uri.fsPath}: ${error.message || error}`,
+						)
+					}
+					context.subscriptions.push(manager)
 				}
-				context.subscriptions.push(manager)
 			}
 		}
-	}
+		if (codeIndexManagers.length > 0) {
+			outputChannel.appendLine(
+				`⏱️ [CodeIndexManager] Initialized in background in ${Date.now() - codeIndexStart}ms`,
+			)
+		}
+	})
 
+	const providerStart = Date.now()
 	const provider = new ClineProvider(context, outputChannel, "sidebar", contextProxy, mdmService)
+	outputChannel.appendLine(`⏱️ ClineProvider instantiated in ${Date.now() - providerStart}ms`)
 	TelemetryService.instance.setProvider(provider)
 
+	const webviewRegistrationStart = Date.now()
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(ClineProvider.sideBarId, provider, {
 			webviewOptions: { retainContextWhenHidden: true },
 		}),
 	)
+	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
 
 	// Auto-import configuration if specified in settings
 	try {
@@ -173,6 +194,23 @@ export async function activate(context: vscode.ExtensionContext) {
 	}
 
 	registerCommands({ context, outputChannel, provider })
+
+	// Initialize bundled instructions manager in background (non-blocking)
+	// This was taking ~10 seconds and blocking UI load
+	const bundledInstructionsStart = Date.now()
+	Promise.resolve().then(async () => {
+		try {
+			const bundledInstructionsManager = new BundledInstructionsManager(context)
+			await bundledInstructionsManager.initializeBundledInstructions()
+			outputChannel.appendLine(
+				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledInstructionsStart}ms`,
+			)
+		} catch (error) {
+			outputChannel.appendLine(
+				`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	})
 
 	// Create status bar item for chat access
 	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
@@ -227,6 +265,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	const socketPath = process.env.ROO_CODE_IPC_SOCKET_PATH
 	const enableLogging = typeof socketPath === "string"
 
+	// Create and return API instance
+	const api = new API(outputChannel, provider, socketPath, true)
+
 	// Watch the core files and automatically reload the extension host.
 	if (process.env.NODE_ENV === "development") {
 		const watchPaths = [
@@ -235,10 +276,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			{ path: path.join(context.extensionPath, "../packages/telemetry"), pattern: "**/*.ts" },
 			{ path: path.join(context.extensionPath, "node_modules/@roo-code/cloud"), pattern: "**/*" },
 		]
-
-		console.log(
-			`♻️♻️♻️ Core auto-reloading: Watching for changes in ${watchPaths.map(({ path }) => path).join(", ")}`,
-		)
 
 		// Create a debounced reload function to prevent excessive reloads
 		let reloadTimeout: NodeJS.Timeout | undefined
@@ -249,10 +286,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				clearTimeout(reloadTimeout)
 			}
 
-			console.log(`♻️ ${uri.fsPath} changed; scheduling reload...`)
-
 			reloadTimeout = setTimeout(() => {
-				console.log(`♻️ Reloading host after debounce delay...`)
 				vscode.commands.executeCommand("workbench.action.reloadWindow")
 			}, DEBOUNCE_DELAY)
 		}
@@ -278,8 +312,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			},
 		})
 	}
-
-	return new API(outputChannel, provider, socketPath, enableLogging)
+	return api
 }
 
 // This method is called when your extension is deactivated.
