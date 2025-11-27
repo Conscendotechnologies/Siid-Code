@@ -317,6 +317,22 @@ export const webviewMessageHandler = async (
 				}
 			}
 			break
+		case "firebaseSignInWithApiKey":
+			// Store the user-provided API key temporarily
+			if (message.apiKey) {
+				await updateGlobalState("pendingUserApiKey", message.apiKey)
+			}
+			// Execute Firebase sign-in command
+			try {
+				await vscode.commands.executeCommand("firebase-service.signIn")
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Error executing Firebase sign-in: ${error instanceof Error ? error.message : String(error)}`,
+				)
+				// Clear pending API key on error
+				await updateGlobalState("pendingUserApiKey", undefined)
+			}
+			break
 		case "alwaysAllowReadOnlyOutsideWorkspace":
 			await updateGlobalState("alwaysAllowReadOnlyOutsideWorkspace", message.bool ?? undefined)
 			await provider.postStateToWebview()
@@ -363,17 +379,6 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowUpdateTodoList":
 			await updateGlobalState("alwaysAllowUpdateTodoList", message.bool)
-			await provider.postStateToWebview()
-			break
-		case "useFreeModels":
-			await updateGlobalState("useFreeModels", message.bool)
-			// Update API keys when toggling free/paid models
-			await provider.providerSettingsManager.updateApiKeysFromFirebase()
-
-			// FIX: Re-activate the current mode's config to match free/paid preference
-			const currentMode = getGlobalState("mode") ?? defaultModeSlug
-			await provider.handleModeSwitch(currentMode)
-
 			await provider.postStateToWebview()
 			break
 		case "askResponse":

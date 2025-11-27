@@ -24,7 +24,6 @@ import {
 	MessageSquare,
 	LucideIcon,
 } from "lucide-react"
-import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react"
 
 import type { ProviderSettings, ExperimentId } from "@siid-code/types"
 
@@ -344,7 +343,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "updateCondensingPrompt", text: customCondensingPrompt || "" })
 			vscode.postMessage({ type: "updateSupportPrompt", values: customSupportPrompts || {} })
 			vscode.postMessage({ type: "includeTaskHistoryInEnhance", bool: includeTaskHistoryInEnhance ?? false })
-			vscode.postMessage({ type: "useFreeModels", bool: useFreeModels ?? false })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
 			vscode.postMessage({ type: "profileThresholds", values: profileThresholds })
@@ -610,25 +608,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 									errorMessage={errorMessage}
 									setErrorMessage={setErrorMessage}
 								/>
-
-								{/* Free Models Toggle */}
-								<div className="p-4 border-t border-vscode-sideBar-background">
-									<div className="flex flex-col gap-2">
-										<VSCodeCheckbox
-											checked={useFreeModels ?? false}
-											onChange={(e: any) => {
-												const newValue = e.target.checked
-												setCachedStateField("useFreeModels", newValue)
-												// Note: The actual setting is applied when Save button is clicked
-												// This ensures proper change detection
-											}}>
-											<span className="font-medium">Use Free Models</span>
-										</VSCodeCheckbox>
-										<p className="text-xs text-vscode-descriptionForeground ml-6">
-											{t("settings.useFreeModels.description")}
-										</p>
-									</div>
-								</div>
 							</Section>
 						</div>
 					)}

@@ -23,7 +23,13 @@ import { Package } from "../shared/package"
 import { ClineProvider } from "../core/webview/ClineProvider"
 import { openClineInNewTab } from "../activate/registerCommands"
 import { t } from "../i18n"
-import { logout, onFirebaseLogin, onFirebaseLogout } from "../utils/firebaseHelper"
+import {
+	logout,
+	onFirebaseLogin,
+	onFirebaseLogout,
+	getUserProperties,
+	updateUserProperties,
+} from "../utils/firebaseHelper"
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
 
@@ -502,14 +508,95 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 					logger.info(`[onFirebaseLogin] Processing login for user: ${userId}`)
 					this.outputChannel.appendLine(`[onFirebaseLogin] Processing login for user: ${userId}`)
 
-					// Import the OpenRouter key service
-					const keyService = await getOpenRouterKeyService(this.outputChannel)
+					// Check if user provided their own API key
+					const pendingApiKey = this.sidebarProvider.getGlobalState("pendingUserApiKey")
 
-					// Setup user API key (fetches provisioning key, creates user key, stores it)
-					await keyService.setupUserApiKey(userId, userEmail)
+					if (pendingApiKey) {
+						// User provided their own OpenRouter API key
+						logger.info(`[onFirebaseLogin] Using user-provided API key for user: ${userId}`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Using user-provided API key for user: ${userId}`,
+						)
 
-					logger.info(`[onFirebaseLogin] Successfully set up API key for user: ${userId}`)
-					this.outputChannel.appendLine(`[onFirebaseLogin] Successfully set up API key for user: ${userId}`)
+						try {
+							// Store the user-provided API key in Firebase user properties
+							await updateUserProperties(
+								{
+									openRouterApiKey: pendingApiKey,
+									apiKeySource: "user-provided",
+								},
+								this.outputChannel,
+							)
+
+							logger.info(
+								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
+							)
+						} catch (error) {
+							logger.error("[onFirebaseLogin] Failed to store user-provided API key:", error)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] Failed to store user-provided API key: ${error instanceof Error ? error.message : String(error)}`,
+							)
+							throw error
+						} finally {
+							// Clear pending API key from global state
+							await this.sidebarProvider.contextProxy.setValue("pendingUserApiKey", undefined)
+						}
+					} else {
+						// Auto-provision API key (default flow)
+						logger.info(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
+						this.outputChannel.appendLine(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
+
+						const keyService = await getOpenRouterKeyService(this.outputChannel)
+
+						// Setup user API key (fetches provisioning key, creates user key, stores it)
+						await keyService.setupUserApiKey(userId, userEmail)
+
+						logger.info(`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`,
+						)
+					}
+
+					// Setup useFreeModels preference
+					try {
+						logger.info(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
+						this.outputChannel.appendLine(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
+
+						// Check if user already has useFreeModels in Firebase
+						const userProps = await getUserProperties(["useFreeModels"], this.outputChannel)
+						let useFreeModels = userProps?.useFreeModels
+
+						// If not set in Firebase, initialize with default (true)
+						if (useFreeModels === undefined || useFreeModels === null) {
+							logger.info(
+								`[onFirebaseLogin] useFreeModels not found in Firebase, setting default to true`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] useFreeModels not found in Firebase, setting default to true`,
+							)
+							useFreeModels = true
+							await updateUserProperties({ useFreeModels: true }, this.outputChannel)
+						}
+
+						// Store in IDE global state
+						await this.sidebarProvider.contextProxy.setValue("useFreeModels", useFreeModels)
+						logger.info(`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`,
+						)
+
+						// Update API keys based on useFreeModels preference
+						await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase()
+					} catch (error) {
+						logger.error("[onFirebaseLogin] Failed to setup useFreeModels:", error)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Failed to setup useFreeModels: ${error instanceof Error ? error.message : String(error)}`,
+						)
+						// Don't throw - continue with login even if this fails
+					}
 
 					vscode.window.showInformationMessage(
 						`Welcome ${userInfo.displayName || userEmail}! Your account is ready.`,
