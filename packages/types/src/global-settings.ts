@@ -162,6 +162,12 @@ export const globalSettingsSchema = z.object({
 	 * @default false for existing users, true for new installations
 	 */
 	useFreeModels: z.boolean().optional(),
+
+	/**
+	 * Temporary storage for user-provided API key during Firebase sign-in flow
+	 * @internal
+	 */
+	pendingUserApiKey: z.string().optional(),
 })
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>

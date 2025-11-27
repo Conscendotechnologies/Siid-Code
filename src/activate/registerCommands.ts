@@ -205,61 +205,19 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 
 		visibleProvider.postMessageToWebview({ type: "acceptInput" })
 	},
-	onFirebaseLogin: async (loginData?: unknown) => {
-		const visibleProvider = getVisibleProviderOrLog(outputChannel)
-
-		if (!visibleProvider) {
-			return
-		}
-
-		try {
-			outputChannel.appendLine("Firebase login event received - user is now authenticated")
-
-			// Update the cached Firebase auth state
-			visibleProvider.setFirebaseAuthState(true)
-
-			// Firebase login handling is now done in api.onFirebaseLogin()
-			// which is called by the Firebase Service extension directly
-			outputChannel.appendLine("Firebase login command received - delegating to API handler")
-			vscode.window.showInformationMessage("Firebase login successful!")
-		} catch (error) {
-			outputChannel.appendLine(`Error handling Firebase login: ${error}`)
-			vscode.window.showErrorMessage(
-				`Error handling Firebase login: ${error instanceof Error ? error.message : String(error)}`,
-			)
-		}
+	onFirebaseLogin: async () => {
+		// NOTE: This command is triggered by Firebase Service extension
+		// but the actual login handling is done in api.onFirebaseLogin()
+		// which is called directly by the Firebase Service extension.
+		// This command handler exists only for compatibility but does nothing.
+		outputChannel.appendLine("Firebase login command received - actual handling is in API method")
 	},
 	onFirebaseLogout: async () => {
-		const visibleProvider = getVisibleProviderOrLog(outputChannel)
-
-		if (!visibleProvider) {
-			return
-		}
-
-		try {
-			outputChannel.appendLine("Firebase logout event received - user is now logged out")
-
-			// Update the cached Firebase auth state
-			visibleProvider.setFirebaseAuthState(false)
-
-			// Post a custom message to webview indicating logout
-			// This bypasses the Firebase command check which may have timing issues
-			await visibleProvider.postMessageToWebview({
-				type: "state",
-				state: {
-					...(await visibleProvider.getStateToPostToWebview()),
-					firebaseIsAuthenticated: false, // Override to ensure we show as logged out
-				},
-			} as any)
-
-			outputChannel.appendLine("Firebase logout - refreshed state")
-			vscode.window.showInformationMessage("You have been logged out")
-		} catch (error) {
-			outputChannel.appendLine(`Error handling Firebase logout: ${error}`)
-			vscode.window.showErrorMessage(
-				`Error handling Firebase logout: ${error instanceof Error ? error.message : String(error)}`,
-			)
-		}
+		// NOTE: This command is triggered by Firebase Service extension
+		// but the actual logout handling is done in api.onFirebaseLogout()
+		// which is called directly by the Firebase Service extension.
+		// This command handler exists only for compatibility but does nothing.
+		outputChannel.appendLine("Firebase logout command received - actual handling is in API method")
 	},
 	testOpenRouterApiKey: async () => {
 		try {

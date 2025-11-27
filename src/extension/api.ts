@@ -509,7 +509,7 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 					this.outputChannel.appendLine(`[onFirebaseLogin] Processing login for user: ${userId}`)
 
 					// Check if user provided their own API key
-					const pendingApiKey = this.sidebarProvider.getGlobalState("pendingUserApiKey")
+					const pendingApiKey = this.sidebarProvider.contextProxy.getValue("pendingUserApiKey")
 
 					if (pendingApiKey) {
 						// User provided their own OpenRouter API key
