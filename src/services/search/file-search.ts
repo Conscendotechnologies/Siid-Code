@@ -155,7 +155,22 @@ export async function searchWorkspaceFiles(
 			}),
 		)
 
-		return verifiedResults
+		// Sanitize results for internal instruction files under .roo so we don't return internal paths to the UI
+		const sanitizedResults = verifiedResults.map((result) => {
+			try {
+				const p = result.path as string
+				// Use posix-style detection since ripgrep returns POSIX-style paths
+				if (p.includes(".roo/") || p.startsWith(".roo")) {
+					const base = path.posix.basename(p)
+					return { ...result, path: base, label: base }
+				}
+				return result
+			} catch (err) {
+				return result
+			}
+		})
+
+		return sanitizedResults
 	} catch (error) {
 		console.error("Error in searchWorkspaceFiles:", error)
 		return []

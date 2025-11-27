@@ -1641,6 +1641,7 @@ export class ClineProvider
 			allowedMaxCost,
 			autoCondenseContext,
 			autoCondenseContextPercent,
+			notificationsEnabled,
 			soundEnabled,
 			ttsEnabled,
 			ttsSpeed,
@@ -1746,6 +1747,7 @@ export class ClineProvider
 			taskHistory: (taskHistory || [])
 				.filter((item: HistoryItem) => item.ts && item.task)
 				.sort((a: HistoryItem, b: HistoryItem) => b.ts - a.ts),
+			notificationsEnabled: notificationsEnabled ?? false,
 			soundEnabled: soundEnabled ?? false,
 			ttsEnabled: ttsEnabled ?? false,
 			ttsSpeed: ttsSpeed ?? 1.0,
@@ -1961,6 +1963,7 @@ export class ClineProvider
 			taskHistory: stateValues.taskHistory,
 			allowedCommands: stateValues.allowedCommands,
 			deniedCommands: stateValues.deniedCommands,
+			notificationsEnabled: stateValues.notificationsEnabled ?? false,
 			soundEnabled: stateValues.soundEnabled ?? false,
 			ttsEnabled: stateValues.ttsEnabled ?? false,
 			ttsSpeed: stateValues.ttsSpeed ?? 1.0,

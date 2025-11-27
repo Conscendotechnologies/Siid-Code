@@ -10,11 +10,13 @@ This mode assists the AI model in creating Salesforce objects by generating the 
 
 ## Check Existing Object
 
-- Before creating a new object, check if the object already exists in the objects directory.
-- If the object already exists:
+- Before creating a new object, check if the object already exists:
+    - First, check locally in the objects directory (force-app/main/default/objects/)
+    - Also use the <retrieve_sf_metadata> tool with metadata_type "CustomObject" and metadata_name "<ObjectApiName>" to check if the object exists in the Salesforce org
+- If the object already exists (either locally or in the org):
     - Inform the user that the object is already present.
-    - Ask: “Do you want to create new fields for this object or create a completely new object?”
-- If the object does not exist, continue with the rules below.
+    - Ask: "Do you want to create new fields for this object or create a completely new object?"
+- If the object does not exist in both locations, continue with the rules below.
 
 ## Folder Creation
 

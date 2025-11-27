@@ -33,6 +33,7 @@ import { Task } from "../task/Task"
 import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
+import { retrieveSfMetadataTool } from "../tools/retrieveSfMetadataTool"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -213,6 +214,8 @@ export async function presentAssistantMessage(cline: Task) {
 						const modeName = getModeBySlug(mode, customModes)?.name ?? mode
 						return `[${block.name} in ${modeName} mode: '${message}']`
 					}
+					case "retrieve_sf_metadata":
+						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
 				}
 			}
 
@@ -524,6 +527,16 @@ export async function presentAssistantMessage(cline: Task) {
 						removeClosingTag,
 						toolDescription,
 						askFinishSubTaskApproval,
+					)
+					break
+				case "retrieve_sf_metadata":
+					await retrieveSfMetadataTool(
+						cline,
+						block,
+						askApproval,
+						handleError,
+						pushToolResult,
+						removeClosingTag,
 					)
 					break
 			}

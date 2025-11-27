@@ -151,6 +151,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		remoteBrowserHost,
 		screenshotQuality,
 		soundEnabled,
+		notificationsEnabled,
 		ttsEnabled,
 		ttsSpeed,
 		soundVolume,
@@ -297,6 +298,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			vscode.postMessage({ type: "autoCondenseContext", bool: autoCondenseContext })
 			vscode.postMessage({ type: "autoCondenseContextPercent", value: autoCondenseContextPercent })
 			vscode.postMessage({ type: "browserToolEnabled", bool: browserToolEnabled })
+			vscode.postMessage({ type: "notificationsEnabled", bool: notificationsEnabled })
 			vscode.postMessage({ type: "soundEnabled", bool: soundEnabled })
 			vscode.postMessage({ type: "ttsEnabled", bool: ttsEnabled })
 			vscode.postMessage({ type: "ttsSpeed", value: ttsSpeed })
@@ -659,6 +661,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{/* Notifications Section */}
 					{activeTab === "notifications" && (
 						<NotificationSettings
+							notificationsEnabled={notificationsEnabled}
 							ttsEnabled={ttsEnabled}
 							ttsSpeed={ttsSpeed}
 							soundEnabled={soundEnabled}

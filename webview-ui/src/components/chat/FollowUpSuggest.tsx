@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { Edit } from "lucide-react"
 
 import { Button, StandardTooltip } from "@/components/ui"
@@ -28,7 +28,11 @@ export const FollowUpSuggest = ({
 	const { autoApprovalEnabled, alwaysAllowFollowupQuestions, followupAutoApproveTimeoutMs } = useExtensionState()
 	const [countdown, setCountdown] = useState<number | null>(null)
 	const [suggestionSelected, setSuggestionSelected] = useState(false)
+	const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestionItem | null>(null)
 	const { t } = useAppTranslation()
+
+	// Use ref to track if we've already handled the click to prevent double-processing
+	const isProcessingClick = useRef(false)
 
 	// Start countdown timer when auto-approval is enabled for follow-up questions
 	useEffect(() => {
@@ -80,19 +84,41 @@ export const FollowUpSuggest = ({
 		onCancelAutoApproval,
 		isAnswered,
 	])
+
+	// When question is marked as answered (by auto-approval), set the first suggestion as selected
+	useEffect(() => {
+		if (isAnswered && !selectedSuggestion && suggestions.length > 0) {
+			setSelectedSuggestion(suggestions[0])
+			setSuggestionSelected(true)
+		}
+	}, [isAnswered, selectedSuggestion, suggestions])
+
 	const handleSuggestionClick = useCallback(
 		(suggestion: SuggestionItem, event: React.MouseEvent) => {
+			// Prevent double-processing
+			if (isProcessingClick.current) {
+				return
+			}
+
 			// Mark a suggestion as selected if it's not a shift-click (which just copies to input)
 			if (!event.shiftKey) {
+				isProcessingClick.current = true
+
+				// Update state immediately
 				setSuggestionSelected(true)
+				setSelectedSuggestion(suggestion)
+
 				// Also notify parent component to cancel auto-approval timeout
 				// This prevents race conditions between visual countdown and actual timeout
 				onCancelAutoApproval?.()
-			}
 
-			// Pass the suggestion object to the parent component
-			// The parent component will handle mode switching if needed
-			onSuggestionClick?.(suggestion, event)
+				// Pass the suggestion object to the parent component
+				// The parent component will handle mode switching if needed
+				onSuggestionClick?.(suggestion, event)
+			} else {
+				// For shift-click, just call the handler (copying to input)
+				onSuggestionClick?.(suggestion, event)
+			}
 		},
 		[onSuggestionClick, onCancelAutoApproval],
 	)
@@ -100,6 +126,32 @@ export const FollowUpSuggest = ({
 	// Don't render if there are no suggestions or no click handler.
 	if (!suggestions?.length || !onSuggestionClick) {
 		return null
+	}
+
+	// If answered or a suggestion was selected, show only the selected option
+	if ((isAnswered || suggestionSelected) && selectedSuggestion) {
+		return (
+			<div className="flex mb-2 flex-col h-full gap-2">
+				<div className="w-full relative">
+					<Button
+						variant="outline"
+						className="text-left whitespace-normal break-words w-full h-auto py-3 justify-start pr-8 opacity-100"
+						disabled
+						aria-label={selectedSuggestion.answer}>
+						<span className="flex items-center gap-2">
+							<span className="codicon codicon-check text-vscode-charts-green" />
+							{selectedSuggestion.answer}
+						</span>
+					</Button>
+					{selectedSuggestion.mode && (
+						<div className="absolute bottom-0 right-0 text-[10px] bg-vscode-badge-background text-vscode-badge-foreground px-1 py-0.5 border border-vscode-badge-background flex items-center gap-0.5">
+							<span className="codicon codicon-arrow-right" style={{ fontSize: "8px" }} />
+							{selectedSuggestion.mode}
+						</div>
+					)}
+				</div>
+			</div>
+		)
 	}
 
 	return (

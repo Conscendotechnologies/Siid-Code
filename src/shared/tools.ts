@@ -65,6 +65,8 @@ export const toolParamNames = [
 	"query",
 	"args",
 	"todos",
+	"metadata_type",
+	"metadata_name",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -158,6 +160,11 @@ export interface NewTaskToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "mode" | "message">>
 }
 
+export interface RetrieveSfMetadataToolUse extends ToolUse {
+	name: "retrieve_sf_metadata"
+	params: Partial<Pick<Record<ToolParamName, string>, "metadata_type" | "metadata_name">>
+}
+
 export interface SearchAndReplaceToolUse extends ToolUse {
 	name: "search_and_replace"
 	params: Required<Pick<Record<ToolParamName, string>, "path" | "search" | "replace">> &
@@ -190,6 +197,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	search_and_replace: "search and replace",
 	codebase_search: "codebase search",
 	update_todo_list: "update todo list",
+	retrieve_sf_metadata: "retrieve salesforce metadata",
 } as const
 
 // Define available tool groups.
@@ -202,6 +210,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 			"list_files",
 			"list_code_definition_names",
 			"codebase_search",
+			"retrieve_sf_metadata",
 		],
 	},
 	edit: {
