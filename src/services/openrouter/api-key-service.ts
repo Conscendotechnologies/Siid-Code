@@ -205,10 +205,10 @@ export class OpenRouterKeyService {
 	public async createDefaultUserKey(userId: string, userEmail: string): Promise<OpenRouterKeyResponse> {
 		const keyName = `siid-code-${userEmail || userId}-${Date.now()}`
 
-		// Default settings: $10 monthly limit
+		// Default settings: $0 monthly limit (for free tier)
 		const params: CreateKeyParams = {
 			name: keyName,
-			limit: 10, // $10 USD
+			limit: 0,
 			limit_reset: "monthly",
 			include_byok_in_limit: true,
 		}
