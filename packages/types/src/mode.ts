@@ -154,8 +154,8 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 			"Answer and generate solutions strictly related to Salesforce. Politely refuse anything outside Salesforce scope.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: getCustomInstructionsForMode("salesforce-agent"),
-		freeApiConfigId: "salesforce-agent-free", // Free: DeepSeek R1 ($0)
-		apiConfigId: "salesforce-agent-paid", // Paid: Claude 3.5 Sonnet ($3/$15)
+		freeApiConfigId: "salesforce-agent-basic", // Basic: Free tier ($0)
+		apiConfigId: "salesforce-agent-medium", // Medium: Standard tier ($3/$15)
 	},
 	{
 		slug: "code",
@@ -169,8 +169,8 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		customInstructions:
 			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
 			getCustomInstructionsForMode("code"),
-		freeApiConfigId: "code-free", // Free: Cerebras Qwen 3 ($0, 2000 tok/s)
-		apiConfigId: "code-paid", // Paid: Claude 3.5 Sonnet via OpenRouter ($3/$15)
+		freeApiConfigId: "code-basic", // Basic: Free tier ($0)
+		apiConfigId: "code-medium", // Medium: Standard tier ($3/$15)
 	},
 	{
 		slug: "orchestrator",
@@ -184,7 +184,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}
         `,
-		freeApiConfigId: "orchestrator-free", // Free: Same as code mode
-		apiConfigId: "orchestrator-paid", // Paid: Same as code mode
+		freeApiConfigId: "orchestrator-basic", // Basic: Free tier
+		apiConfigId: "orchestrator-medium", // Medium: Standard tier
 	},
 ] as const

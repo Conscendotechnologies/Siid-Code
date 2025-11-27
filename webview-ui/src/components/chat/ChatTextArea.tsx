@@ -930,6 +930,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							onChange={handleApiConfigChange}
 							triggerClassName="w-full text-ellipsis overflow-hidden"
 							listApiConfigMeta={listApiConfigMeta || []}
+							mode={mode}
 							pinnedApiConfigs={pinnedApiConfigs}
 							togglePinnedApiConfig={togglePinnedApiConfig}
 						/>
