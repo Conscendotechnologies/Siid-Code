@@ -154,7 +154,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 			"Answer and generate solutions strictly related to Salesforce. Politely refuse anything outside Salesforce scope.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: getCustomInstructionsForMode("salesforce-agent"),
-		freeApiConfigId: "salesforce-agent-basic", // Basic: Free tier ($0)
+		freeApiConfigId: "salesforce-agent-basic-free", // Basic: Free tier ($0)
 		apiConfigId: "salesforce-agent-medium", // Medium: Standard tier ($3/$15)
 	},
 	{
@@ -169,7 +169,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		customInstructions:
 			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
 			getCustomInstructionsForMode("code"),
-		freeApiConfigId: "code-basic", // Basic: Free tier ($0)
+		freeApiConfigId: "code-basic-free", // Basic: Free tier ($0)
 		apiConfigId: "code-medium", // Medium: Standard tier ($3/$15)
 	},
 	{
@@ -184,7 +184,7 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}
         `,
-		freeApiConfigId: "orchestrator-basic", // Basic: Free tier
+		freeApiConfigId: "orchestrator-basic-free", // Basic: Free tier
 		apiConfigId: "orchestrator-medium", // Medium: Standard tier
 	},
 ] as const

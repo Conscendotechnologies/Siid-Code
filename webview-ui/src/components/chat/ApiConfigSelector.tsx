@@ -19,6 +19,7 @@ interface ApiConfigSelectorProps {
 	mode?: string
 	pinnedApiConfigs?: Record<string, boolean>
 	togglePinnedApiConfig: (id: string) => void
+	useFreeModels?: boolean
 }
 
 export const ApiConfigSelector = ({
@@ -32,6 +33,7 @@ export const ApiConfigSelector = ({
 	mode,
 	pinnedApiConfigs,
 	togglePinnedApiConfig,
+	useFreeModels = false,
 }: ApiConfigSelectorProps) => {
 	const { t } = useAppTranslation()
 	const [open, setOpen] = useState(false)
@@ -39,11 +41,21 @@ export const ApiConfigSelector = ({
 	const portalContainer = useRooPortal("roo-portal")
 
 	// If a mode is provided, only show the mode-specific basic/medium/advanced configs
+	// If useFreeModels is true, only show configs ending with -free
 	const modeFilteredList = useMemo(() => {
-		if (!mode) return listApiConfigMeta
-		const allowedNames = [`${mode}-basic`, `${mode}-medium`, `${mode}-advanced`]
-		return listApiConfigMeta.filter((c) => allowedNames.includes(c.name ?? ""))
-	}, [listApiConfigMeta, mode])
+		let filtered = listApiConfigMeta
+
+		if (mode) {
+			const allowedNames = [`${mode}-basic-free`, `${mode}-medium`, `${mode}-advanced`]
+			filtered = filtered.filter((c) => allowedNames.includes(c.name ?? ""))
+		}
+
+		if (useFreeModels) {
+			filtered = filtered.filter((c) => (c.name ?? "").endsWith("-free"))
+		}
+
+		return filtered
+	}, [listApiConfigMeta, mode, useFreeModels])
 
 	// Create searchable items for fuzzy search
 	const searchableItems = useMemo(() => {

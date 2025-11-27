@@ -227,7 +227,7 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 			// Filter based on current mode: only show the mode-specific basic/medium/advanced configs
 			if (visualMode) {
 				// Updated to account for (free) suffix in basic config names
-				const allowedNames = [`${visualMode}-basic`, `${visualMode}-medium`, `${visualMode}-advanced`]
+				const allowedNames = [`${visualMode}-basic-free`, `${visualMode}-medium`, `${visualMode}-advanced`]
 				const matches = allowedNames.includes(config.name ?? "")
 
 				if (!matches) {

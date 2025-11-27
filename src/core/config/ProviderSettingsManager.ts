@@ -46,15 +46,15 @@ export class ProviderSettingsManager {
 
 	// API tier config IDs
 	// salesforce-agent
-	private readonly salesforceAgentBasicId = "salesforce-agent-basic"
+	private readonly salesforceAgentBasicId = "salesforce-agent-basic-free"
 	private readonly salesforceAgentMediumId = "salesforce-agent-medium"
 	private readonly salesforceAgentAdvancedId = "salesforce-agent-advanced"
 	// code
-	private readonly codeBasicId = "code-basic"
+	private readonly codeBasicId = "code-basic-free"
 	private readonly codeMediumId = "code-medium"
 	private readonly codeAdvancedId = "code-advanced"
 	// orchestrator
-	private readonly orchestratorBasicId = "orchestrator-basic"
+	private readonly orchestratorBasicId = "orchestrator-basic-free"
 	private readonly orchestratorMediumId = "orchestrator-medium"
 	private readonly orchestratorAdvancedId = "orchestrator-advanced"
 
