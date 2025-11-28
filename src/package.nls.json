@@ -27,6 +27,9 @@
 	"command.acceptInput.title": "Accept Input/Suggestion",
 	"command.openChatView.title": "Open Chat View",
 	"configuration.title": "SIID Code",
+	"firebase.login.inProgress": "Firebase login in progress...",
+	"firebase.login.success": "Firebase login successful!",
+	"firebase.login.failed": "Error handling Firebase login: {0}",
 	"commands.allowedCommands.description": "Commands that can be auto-executed when 'Always approve execute operations' is enabled",
 	"commands.deniedCommands.description": "Command prefixes that will be automatically denied without asking for approval. In case of conflicts with allowed commands, the longest prefix match takes precedence. Add * to deny all commands.",
 	"commands.commandExecutionTimeout.description": "Maximum time in seconds to wait for command execution to complete before timing out (0 = no timeout, 1-600s, default: 0s)",
@@ -39,5 +42,6 @@
 	"settings.enableCodeActions.description": "Enable SIID Code quick fixes",
 	"settings.autoImportSettingsPath.description": "Path to a ProCode configuration file to automatically import on extension startup. Supports absolute paths and paths relative to the home directory (e.g. '~/Documents/Pro-code-settings.json'). Leave empty to disable auto-import.",
 	"settings.useAgentRules.description": "Enable loading of AGENTS.md files for agent-specific rules (see https://agent-rules.org/)",
-	"settings.useFreeModels.description": "Use free models ($0 cost) instead of paid models for all modes. Free models include OpenRouter models with :free suffix and Cerebras free tier. Note: Free models typically have lower rate limits."
+	"settings.useFreeModels.description": "Use free models ($0 cost) instead of paid models for all modes. Free models include OpenRouter models with :free suffix and Cerebras free tier. Note: Free models typically have lower rate limits.",
+	"settings.enablePerformanceLogs.description": "Enable detailed performance logging for extension activation and initialization (useful for debugging startup time)"
 }

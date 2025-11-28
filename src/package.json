@@ -180,6 +180,11 @@
 				"command": "siid-code.onFirebaseLogout",
 				"title": "Handle Firebase Logout",
 				"category": "%configuration.title%"
+			},
+			{
+				"command": "siid-code.testOpenRouterApiKey",
+				"title": "Test OpenRouter Api Key",
+				"category": "%configuration.title%"
 			}
 		],
 		"menus": {
@@ -387,6 +392,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "%settings.useFreeModels.description%"
+				},
+				"siid-code.enablePerformanceLogs": {
+					"type": "boolean",
+					"default": false,
+					"description": "%settings.enablePerformanceLogs.description%"
 				}
 			}
 		}

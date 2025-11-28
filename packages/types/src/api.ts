@@ -133,6 +133,14 @@ export interface RooCodeAPI extends EventEmitter<RooCodeAPIEvents> {
 	 * @throws Error if the profile does not exist
 	 */
 	setActiveProfile(name: string): Promise<string | undefined>
+	/**
+	 * Logs in to Firebase
+	 */
+	onFirebaseLogin(loginData?: unknown): Promise<void>
+	/**
+	 * Logs out from Firebase
+	 */
+	onFirebaseLogout(): Promise<void>
 }
 
 export interface RooCodeIpcServer extends EventEmitter<IpcServerEvents> {

@@ -151,12 +151,24 @@ export const globalSettingsSchema = z.object({
 	lastModeImportPath: z.string().optional(),
 
 	/**
+	 * Timestamp when the extension was activated, used for performance tracking
+	 * @internal
+	 */
+	activationStartTime: z.number().optional(),
+
+	/**
 	 * Use free models (OpenRouter :free, Cerebras free tier) instead of paid models
 	 * When true, modes will use their freeApiConfigId instead of apiConfigId
 	 * Changes apply to new tasks only, not mid-task
 	 * @default false for existing users, true for new installations
 	 */
 	useFreeModels: z.boolean().optional(),
+
+	/**
+	 * Temporary storage for user-provided API key during Firebase sign-in flow
+	 * @internal
+	 */
+	pendingUserApiKey: z.string().optional(),
 })
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>

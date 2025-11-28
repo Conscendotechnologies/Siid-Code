@@ -52,8 +52,11 @@ export const commandIds = [
 	"acceptInput",
 	"openChatView",
 	"focusPanel",
+
 	"onFirebaseLogin",
 	"onFirebaseLogout",
+
+	"testOpenRouterApiKey",
 ] as const
 
 export type CommandId = (typeof commandIds)[number]

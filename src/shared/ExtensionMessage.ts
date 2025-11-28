@@ -122,7 +122,6 @@ export interface ExtensionMessage {
 		| "commands"
 		| "insertTextIntoTextarea"
 		| "deployResult"
-		| "loginSuccess"
 		| "firebaseLogout"
 		| "showOsNotification"
 	text?: string

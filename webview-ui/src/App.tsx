@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { useEvent } from "react-use"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-console.log("🚀 App.tsx module is loading...")
-
 import { ExtensionMessage } from "@roo/ExtensionMessage"
 import TranslationProvider from "./i18n/TranslationContext"
 
@@ -192,11 +190,6 @@ const App = () => {
 			if (message.type === "acceptInput") {
 				chatViewRef.current?.acceptInput()
 			}
-
-			if (message.type === "loginSuccess") {
-				// Handle successful login - store login details and update state
-				vscode.postMessage({ type: "storeLoginDetails", loginData: message.loginData } as any)
-			}
 		},
 		[switchTab, notificationsEnabled],
 	)
@@ -230,7 +223,6 @@ const App = () => {
 		}
 
 		// Log initialization for debugging
-		console.debug("App initialized with source map support")
 	}, [])
 
 	// Focus the WebView when non-interactive content is clicked (only in editor/tab mode)
@@ -250,7 +242,6 @@ const App = () => {
 	// }, [tab])
 
 	if (!didHydrateState) {
-		console.log("App: didHydrateState is false, returning null")
 		return null
 	}
 
