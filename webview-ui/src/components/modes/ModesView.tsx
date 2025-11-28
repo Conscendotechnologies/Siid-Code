@@ -72,9 +72,11 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 		listApiConfigMeta,
 		currentApiConfigName,
 		mode,
+		modeApiConfigs,
 		customInstructions,
 		setCustomInstructions,
 		customModes,
+		useFreeModels,
 	} = useExtensionState()
 
 	// Use a local state to track the visually active mode
@@ -83,6 +85,13 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 	// 2. Not syncing with the backend mode state (which would cause flickering)
 	// 3. Still sending the mode change to the backend for persistence
 	const [visualMode, setVisualMode] = useState(mode)
+
+	// Sync visualMode with backend mode changes
+	useEffect(() => {
+		if (mode && mode !== visualMode) {
+			setVisualMode(mode)
+		}
+	}, [mode, visualMode])
 
 	// Memoize modes to preserve array order
 	const modes = useMemo(() => getAllModes(customModes), [customModes])
@@ -197,6 +206,56 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 
 	// Use the shared ESC key handler hook
 	useEscapeKey(open, () => setOpen(false))
+
+	// Helper function to get filtered API configs based on current mode and useFreeModels setting
+	const filteredApiConfigs = useMemo(() => {
+		if (!listApiConfigMeta) return []
+
+		console.log(
+			`[ModesView] All configs before filtering:`,
+			listApiConfigMeta.map((c) => ({ name: c.name, id: c.id })),
+		)
+		console.log(`[ModesView] useFreeModels=${useFreeModels}, visualMode=${visualMode}`)
+
+		const filtered = listApiConfigMeta.filter((config) => {
+			// Always exclude 'default' config
+			if (config.name === "default") {
+				console.log(`[ModesView] Filtering out default config`)
+				return false
+			}
+
+			// Filter based on current mode: only show the mode-specific basic/medium/advanced configs
+			if (visualMode) {
+				// Updated to account for (free) suffix in basic config names
+				const allowedNames = [`${visualMode}-basic-free`, `${visualMode}-medium`, `${visualMode}-advanced`]
+				const matches = allowedNames.includes(config.name ?? "")
+
+				if (!matches) {
+					console.log(`[ModesView] Filtering out ${config.name} - doesn't match mode ${visualMode}`)
+					return false
+				}
+
+				// If useFreeModels is checked, show ONLY the basic(free) config
+				if (useFreeModels && !config.name?.includes("(free)")) {
+					console.log(`[ModesView] Filtering out ${config.name} - useFreeModels is true, need (free) suffix`)
+					return false
+				}
+
+				// If useFreeModels is unchecked, show all three (basic(free), medium, advanced)
+				return true
+			}
+
+			// For custom modes, show all non-default configs
+			console.log(`[ModesView] Showing ${config.name} for custom mode ${visualMode}`)
+			return true
+		})
+
+		console.log(
+			`[ModesView] Filtered configs for mode ${visualMode}:`,
+			filtered.map((c) => c.name),
+		)
+		return filtered
+	}, [visualMode, listApiConfigMeta, useFreeModels])
 
 	// Handler for clearing search input
 	const onClearSearch = useCallback(() => {
@@ -707,6 +766,11 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 						<div className="text-sm text-vscode-descriptionForeground mb-2">
 							{t("prompts:apiConfiguration.select")}
 						</div>
+						{/* Diagnostic: show current per-mode config ID for the active mode */}
+						<div className="mb-2 text-xs text-vscode-descriptionForeground">
+							{t("prompts:apiConfiguration.activeTier", { defaultValue: "Active tier:" })}
+							&nbsp;<code>{modeApiConfigs?.[visualMode ?? ""] ?? "—"}</code>
+						</div>
 						<div className="mb-2">
 							<Select
 								value={currentApiConfigName}
@@ -719,8 +783,8 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 								<SelectTrigger className="w-60">
 									<SelectValue placeholder={t("settings:common.select")} />
 								</SelectTrigger>
-								<SelectContent>
-									{(listApiConfigMeta || []).map((config) => (
+								<SelectContent key={`api-config-${visualMode}`}>
+									{filteredApiConfigs.map((config) => (
 										<SelectItem key={config.id} value={config.name}>
 											{config.name}
 										</SelectItem>

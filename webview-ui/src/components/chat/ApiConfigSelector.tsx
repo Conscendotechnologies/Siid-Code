@@ -16,8 +16,10 @@ interface ApiConfigSelectorProps {
 	onChange: (value: string) => void
 	triggerClassName?: string
 	listApiConfigMeta: Array<{ id: string; name: string }>
+	mode?: string
 	pinnedApiConfigs?: Record<string, boolean>
 	togglePinnedApiConfig: (id: string) => void
+	useFreeModels?: boolean
 }
 
 export const ApiConfigSelector = ({
@@ -28,21 +30,40 @@ export const ApiConfigSelector = ({
 	onChange,
 	triggerClassName = "",
 	listApiConfigMeta,
+	mode,
 	pinnedApiConfigs,
 	togglePinnedApiConfig,
+	useFreeModels = false,
 }: ApiConfigSelectorProps) => {
 	const { t } = useAppTranslation()
 	const [open, setOpen] = useState(false)
 	const [searchValue, setSearchValue] = useState("")
 	const portalContainer = useRooPortal("roo-portal")
 
+	// If a mode is provided, only show the mode-specific basic/medium/advanced configs
+	// If useFreeModels is true, only show configs ending with -free
+	const modeFilteredList = useMemo(() => {
+		let filtered = listApiConfigMeta
+
+		if (mode) {
+			const allowedNames = [`${mode}-basic-free`, `${mode}-medium`, `${mode}-advanced`]
+			filtered = filtered.filter((c) => allowedNames.includes(c.name ?? ""))
+		}
+
+		if (useFreeModels) {
+			filtered = filtered.filter((c) => (c.name ?? "").endsWith("-free"))
+		}
+
+		return filtered
+	}, [listApiConfigMeta, mode, useFreeModels])
+
 	// Create searchable items for fuzzy search
 	const searchableItems = useMemo(() => {
-		return listApiConfigMeta.map((config) => ({
+		return modeFilteredList.map((config) => ({
 			original: config,
 			searchStr: config.name,
 		}))
-	}, [listApiConfigMeta])
+	}, [modeFilteredList])
 
 	// Create Fzf instance
 	const fzfInstance = useMemo(() => {
@@ -53,11 +74,11 @@ export const ApiConfigSelector = ({
 
 	// Filter configs based on search
 	const filteredConfigs = useMemo(() => {
-		if (!searchValue) return listApiConfigMeta
+		if (!searchValue) return modeFilteredList
 
 		const matchingItems = fzfInstance.find(searchValue).map((result) => result.item.original)
 		return matchingItems
-	}, [listApiConfigMeta, searchValue, fzfInstance])
+	}, [modeFilteredList, searchValue, fzfInstance])
 
 	// Separate pinned and unpinned configs
 	const { pinnedConfigs, unpinnedConfigs } = useMemo(() => {
@@ -164,7 +185,7 @@ export const ApiConfigSelector = ({
 				className="p-0 overflow-hidden w-[300px]">
 				<div className="flex flex-col w-full">
 					{/* Search input or info blurb */}
-					{listApiConfigMeta.length > 6 ? (
+					{modeFilteredList.length > 6 ? (
 						<div className="relative p-2 border-b border-vscode-dropdown-border">
 							<input
 								aria-label={t("common:ui.search_placeholder")}
@@ -225,7 +246,7 @@ export const ApiConfigSelector = ({
 
 						{/* Info icon and title on the right with matching spacing */}
 						<div className="flex items-center gap-1 pr-1">
-							{listApiConfigMeta.length > 6 && (
+							{modeFilteredList.length > 6 && (
 								<StandardTooltip content={t("prompts:apiConfiguration.select")}>
 									<span className="codicon codicon-info text-xs text-vscode-descriptionForeground opacity-70 hover:opacity-100 cursor-help" />
 								</StandardTooltip>

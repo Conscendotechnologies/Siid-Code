@@ -44,25 +44,31 @@ export class ProviderSettingsManager {
 	private static readonly SCOPE_PREFIX = "roo_cline_config_"
 	private readonly defaultConfigId = this.generateId()
 
-	// Free model config IDs
-	private readonly salesforceAgentFreeId = "salesforce-agent-free"
-	private readonly salesforceAgentPaidId = "salesforce-agent-paid"
-	private readonly codeFreeId = "code-free"
-	private readonly codePaidId = "code-paid"
-	private readonly orchestratorFreeId = "orchestrator-free"
-	private readonly orchestratorPaidId = "orchestrator-paid"
+	// API tier config IDs
+	// salesforce-agent
+	private readonly salesforceAgentBasicId = "salesforce-agent-basic-free"
+	private readonly salesforceAgentMediumId = "salesforce-agent-medium"
+	private readonly salesforceAgentAdvancedId = "salesforce-agent-advanced"
+	// code
+	private readonly codeBasicId = "code-basic-free"
+	private readonly codeMediumId = "code-medium"
+	private readonly codeAdvancedId = "code-advanced"
+	// orchestrator
+	private readonly orchestratorBasicId = "orchestrator-basic-free"
+	private readonly orchestratorMediumId = "orchestrator-medium"
+	private readonly orchestratorAdvancedId = "orchestrator-advanced"
 
 	private readonly defaultModeApiConfigs: Record<string, string> = Object.fromEntries(
 		modes.map((mode) => {
 			if (mode.slug === "salesforce-agent") {
 				// Use the actual ID constant
-				return [mode.slug, this.salesforceAgentPaidId]
+				return [mode.slug, this.salesforceAgentMediumId]
 			}
 			if (mode.slug === "code") {
-				return [mode.slug, this.codePaidId]
+				return [mode.slug, this.codeMediumId]
 			}
 			if (mode.slug === "orchestrator") {
-				return [mode.slug, this.orchestratorPaidId]
+				return [mode.slug, this.orchestratorMediumId]
 			}
 			return [mode.slug, this.defaultConfigId]
 		}),
@@ -74,22 +80,33 @@ export class ProviderSettingsManager {
 			default: { id: this.defaultConfigId },
 
 			// salesforce-agent configs
-			[this.salesforceAgentPaidId]: {
-				id: this.salesforceAgentPaidId,
+			[this.salesforceAgentBasicId]: {
+				id: this.salesforceAgentBasicId,
 				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.6",
-				// apiKey will be set to PAID TIER key from Firebase
+				openRouterModelId: "z-ai/glm-4.5-air:free",
+				// openRouterApiKey will be set to BASIC TIER key from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
 				consecutiveMistakeLimit: 3,
 				todoListEnabled: true,
 			},
-			[this.salesforceAgentFreeId]: {
-				id: this.salesforceAgentFreeId,
+			[this.salesforceAgentMediumId]: {
+				id: this.salesforceAgentMediumId,
 				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5-air:free",
-				// openRouterApiKey will be set to FREE TIER key from Firebase
+				openRouterModelId: "z-ai/glm-4.6",
+				// apiKey will be set to MEDIUM TIER key from Firebase
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+			[this.salesforceAgentAdvancedId]: {
+				id: this.salesforceAgentAdvancedId,
+				apiProvider: "openrouter",
+				openRouterModelId: "openai/gpt-5",
+				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
@@ -98,30 +115,43 @@ export class ProviderSettingsManager {
 			},
 
 			// code mode configs
-			[this.codeFreeId]: {
-				id: this.codeFreeId,
+			[this.codeBasicId]: {
+				id: this.codeBasicId,
 				apiProvider: "openrouter",
 				openRouterModelId: "z-ai/glm-4.5-air:free",
-				// openRouterApiKey will be set to FREE TIER key from Firebase
+				// openRouterApiKey will be set to BASIC TIER key from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
 				consecutiveMistakeLimit: 3,
 				todoListEnabled: true,
 			},
-			[this.codePaidId]: {
-				id: this.codePaidId,
+			[this.codeMediumId]: {
+				id: this.codeMediumId,
 				apiProvider: "openrouter",
 				openRouterModelId: "z-ai/glm-4.5",
-				// openRouterApiKey will be set to PAID TIER key from Firebase
+				// openRouterApiKey will be set to MEDIUM TIER key from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
 				consecutiveMistakeLimit: 3,
 				todoListEnabled: true,
 			},
-			[this.orchestratorFreeId]: {
-				id: this.orchestratorFreeId,
+			[this.codeAdvancedId]: {
+				id: this.codeAdvancedId,
+				apiProvider: "openrouter",
+				openRouterModelId: "openai/gpt-5",
+				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+
+			// orchestrator configs
+			[this.orchestratorBasicId]: {
+				id: this.orchestratorBasicId,
 				apiProvider: "openrouter",
 				openRouterModelId: "openrouter/polaris-alpha",
 				rateLimitSeconds: 0,
@@ -130,10 +160,21 @@ export class ProviderSettingsManager {
 				consecutiveMistakeLimit: 3,
 				todoListEnabled: true,
 			},
-			[this.orchestratorPaidId]: {
-				id: this.orchestratorPaidId,
+			[this.orchestratorMediumId]: {
+				id: this.orchestratorMediumId,
 				apiProvider: "openrouter",
 				openRouterModelId: "x-ai/grok-code-fast-1",
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+			[this.orchestratorAdvancedId]: {
+				id: this.orchestratorAdvancedId,
+				apiProvider: "openrouter",
+				openRouterModelId: "openai/gpt-5",
+				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
@@ -355,61 +396,88 @@ export class ProviderSettingsManager {
 
 			let isDirty = false
 
-			// Update all FREE configs with the free tier API key
-			// Free configs use OpenRouter with :free suffix models
-			const salesforceAgentFreeConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.salesforceAgentFreeId,
+			// Update all BASIC configs with the free tier API key
+			// Basic configs use OpenRouter with :free suffix models
+			const salesforceAgentBasicConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.salesforceAgentBasicId,
 			)
-			if (salesforceAgentFreeConfig && freeApiKey) {
-				salesforceAgentFreeConfig.openRouterApiKey = freeApiKey
+			if (salesforceAgentBasicConfig && freeApiKey) {
+				salesforceAgentBasicConfig.openRouterApiKey = freeApiKey
 				isDirty = true
 			}
 
-			const codeFreeConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.codeFreeId,
+			const codeBasicConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.codeBasicId,
 			)
-			if (codeFreeConfig && freeApiKey) {
-				codeFreeConfig.openRouterApiKey = freeApiKey
+			if (codeBasicConfig && freeApiKey) {
+				codeBasicConfig.openRouterApiKey = freeApiKey
 				isDirty = true
 			}
 
-			const orchestratorFreeConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.orchestratorFreeId,
+			const orchestratorBasicConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.orchestratorBasicId,
 			)
-			if (orchestratorFreeConfig && freeApiKey) {
-				orchestratorFreeConfig.cerebrasApiKey = freeApiKey
+			if (orchestratorBasicConfig && freeApiKey) {
+				orchestratorBasicConfig.cerebrasApiKey = freeApiKey
 				isDirty = true
 			}
 
-			// Update all PAID configs with the paid tier API key
-			// Paid configs use Anthropic and OpenRouter
-			const salesforceAgentPaidConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.salesforceAgentPaidId,
+			// Update all MEDIUM configs with the paid tier API key
+			// Medium configs use Anthropic and OpenRouter
+			const salesforceAgentMediumConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.salesforceAgentMediumId,
 			)
-			if (salesforceAgentPaidConfig && paidApiKey) {
-				salesforceAgentPaidConfig.openRouterApiKey = paidApiKey
+			if (salesforceAgentMediumConfig && paidApiKey) {
+				salesforceAgentMediumConfig.apiKey = paidApiKey
 				isDirty = true
 			}
 
-			const codePaidConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.codePaidId,
+			const codeMediumConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.codeMediumId,
 			)
-			if (codePaidConfig && paidApiKey) {
-				codePaidConfig.openRouterApiKey = paidApiKey
+			if (codeMediumConfig && paidApiKey) {
+				codeMediumConfig.openRouterApiKey = paidApiKey
 				isDirty = true
 			}
 
-			const orchestratorPaidConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.orchestratorPaidId,
+			const orchestratorMediumConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.orchestratorMediumId,
 			)
-			if (orchestratorPaidConfig && paidApiKey) {
-				orchestratorPaidConfig.openRouterApiKey = paidApiKey
+			if (orchestratorMediumConfig && paidApiKey) {
+				orchestratorMediumConfig.openRouterApiKey = paidApiKey
 				isDirty = true
 			}
+
+			// Update all ADVANCED configs with the paid tier API key (same as MEDIUM)
+			// Advanced configs use GPT-5 which uses paid tier key
+			const salesforceAgentAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.salesforceAgentAdvancedId,
+			)
+			if (salesforceAgentAdvancedConfig && paidApiKey) {
+				salesforceAgentAdvancedConfig.openRouterApiKey = paidApiKey
+				isDirty = true
+			}
+
+			const codeAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.codeAdvancedId,
+			)
+			if (codeAdvancedConfig && paidApiKey) {
+				codeAdvancedConfig.openRouterApiKey = paidApiKey
+				isDirty = true
+			}
+
+			const orchestratorAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.orchestratorAdvancedId,
+			)
+			if (orchestratorAdvancedConfig && paidApiKey) {
+				orchestratorAdvancedConfig.openRouterApiKey = paidApiKey
+				isDirty = true
+			}
+
 			if (isDirty) {
 				await this.store(providerProfiles)
 				logger.info(
-					"[ProviderSettingsManager] Updated API configs with Firebase keys (free tier and paid tier)",
+					"[ProviderSettingsManager] Updated API configs with Firebase keys (basic, medium, and advanced tiers)",
 				)
 			} else if (!freeApiKey && !paidApiKey) {
 				logger.info("[ProviderSettingsManager] No API keys fetched from Firebase (using placeholders)")
@@ -556,18 +624,20 @@ export class ProviderSettingsManager {
 	}
 
 	/**
-	 * List all available configs with metadata.
+	 * List all available configs with metadata, excluding 'default' config.
 	 */
 	public async listConfig(): Promise<ProviderSettingsEntry[]> {
 		try {
 			return await this.lock(async () => {
 				const providerProfiles = await this.load()
 
-				const entries = Object.entries(providerProfiles.apiConfigs).map(([name, apiConfig]) => ({
-					name,
-					id: apiConfig.id || "",
-					apiProvider: apiConfig.apiProvider,
-				}))
+				const entries = Object.entries(providerProfiles.apiConfigs)
+					.filter(([name]) => name !== "default") // Exclude default config
+					.map(([name, apiConfig]) => ({
+						name,
+						id: apiConfig.id || "",
+						apiProvider: apiConfig.apiProvider,
+					}))
 
 				logger.info(`[ProviderSettingsManager] listConfig returning ${entries.length} entries`)
 
@@ -839,13 +909,13 @@ export class ProviderSettingsManager {
 					"openAIModelId",
 				]
 				keysToCopy.forEach((key) => {
-					if ((configWithKeys as any)[key] && !(mergedApiConfigs["salesforce-agent-paid"] as any)[key]) {
-						;(mergedApiConfigs["salesforce-agent-paid"] as any)[key] = (configWithKeys as any)[key]
-						logger.info(`ProviderSettingsManager.load: copied ${key} to salesforce-agent-paid`)
+					if ((configWithKeys as any)[key] && !(mergedApiConfigs["salesforce-agent-medium"] as any)[key]) {
+						;(mergedApiConfigs["salesforce-agent-medium"] as any)[key] = (configWithKeys as any)[key]
+						logger.info(`ProviderSettingsManager.load: copied ${key} to salesforce-agent-medium`)
 					}
-					if ((configWithKeys as any)[key] && !(mergedApiConfigs["code-paid"] as any)[key]) {
-						;(mergedApiConfigs["code-paid"] as any)[key] = (configWithKeys as any)[key]
-						logger.info(`ProviderSettingsManager.load: copied ${key} to code-paid`)
+					if ((configWithKeys as any)[key] && !(mergedApiConfigs["code-medium"] as any)[key]) {
+						;(mergedApiConfigs["code-medium"] as any)[key] = (configWithKeys as any)[key]
+						logger.info(`ProviderSettingsManager.load: copied ${key} to code-medium`)
 					}
 				})
 			} else {

@@ -89,9 +89,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			taskHistory,
 			clineMessages,
 			commands,
-		} = useExtensionState()
-
-		// Find the ID and display text for the currently selected API configuration
+			useFreeModels,
+		} = useExtensionState() // Find the ID and display text for the currently selected API configuration
 		const { currentConfigId, displayName } = useMemo(() => {
 			const currentConfig = listApiConfigMeta?.find((config) => config.name === currentApiConfigName)
 			return {
@@ -105,6 +104,21 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		const [fileSearchResults, setFileSearchResults] = useState<SearchResult[]>([])
 		const [searchLoading, setSearchLoading] = useState(false)
 		const [searchRequestId, setSearchRequestId] = useState<string>("")
+
+		// Auto-select free config when mode changes and useFreeModels is enabled
+		useEffect(() => {
+			if (!useFreeModels || !mode || !listApiConfigMeta || listApiConfigMeta.length === 0) {
+				return
+			}
+
+			// Find the free config for the current mode (e.g., "code-basic-free", "salesforce-agent-basic-free")
+			const freeConfigForMode = listApiConfigMeta.find((config) => config.name === `${mode}-basic-free`)
+
+			if (freeConfigForMode && freeConfigForMode.id !== currentConfigId) {
+				// Auto-switch to the free config
+				vscode.postMessage({ type: "loadApiConfigurationById", text: freeConfigForMode.id })
+			}
+		}, [mode, useFreeModels, listApiConfigMeta, currentConfigId])
 
 		// Close dropdown when clicking outside.
 		useEffect(() => {
@@ -930,8 +944,10 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							onChange={handleApiConfigChange}
 							triggerClassName="w-full text-ellipsis overflow-hidden"
 							listApiConfigMeta={listApiConfigMeta || []}
+							mode={mode}
 							pinnedApiConfigs={pinnedApiConfigs}
 							togglePinnedApiConfig={togglePinnedApiConfig}
+							useFreeModels={useFreeModels}
 						/>
 					</div>
 				</div>
