@@ -279,6 +279,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 
 	const handleSubmit = () => {
 		if (isSettingValid) {
+			vscode.postMessage({ type: "developerMode", bool: (cachedState as any).developerMode ?? false })
 			vscode.postMessage({ type: "language", text: language })
 			vscode.postMessage({ type: "alwaysAllowReadOnly", bool: alwaysAllowReadOnly })
 			vscode.postMessage({
@@ -672,6 +673,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					{/* Context Management Section */}
 					{activeTab === "contextManagement" && (
 						<ContextManagementSettings
+							developerMode={(cachedState as any).developerMode ?? false}
 							autoCondenseContext={autoCondenseContext}
 							autoCondenseContextPercent={autoCondenseContextPercent}
 							listApiConfigMeta={listApiConfigMeta ?? []}

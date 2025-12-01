@@ -1708,6 +1708,7 @@ export class ClineProvider
 			includeDiagnosticMessages,
 			maxDiagnosticMessages,
 			includeTaskHistoryInEnhance,
+			developerMode,
 			useFreeModels,
 		} = await this.getState()
 
@@ -1838,6 +1839,7 @@ export class ClineProvider
 			maxDiagnosticMessages: maxDiagnosticMessages ?? 50,
 			includeTaskHistoryInEnhance: includeTaskHistoryInEnhance ?? false,
 			useFreeModels: useFreeModels ?? false,
+			developerMode: developerMode ?? false,
 		}
 	}
 
@@ -1976,7 +1978,7 @@ export class ClineProvider
 			remoteBrowserEnabled: stateValues.remoteBrowserEnabled ?? false,
 			cachedChromeHostUrl: stateValues.cachedChromeHostUrl as string | undefined,
 			fuzzyMatchThreshold: stateValues.fuzzyMatchThreshold ?? 1.0,
-			writeDelayMs: stateValues.writeDelayMs ?? DEFAULT_WRITE_DELAY_MS,
+			writeDelayMs: stateValues.writeDelayMs ?? 100, // Reduced to 100ms for faster file operations
 			terminalOutputLineLimit: stateValues.terminalOutputLineLimit ?? 500,
 			terminalOutputCharacterLimit:
 				stateValues.terminalOutputCharacterLimit ?? DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
@@ -1995,7 +1997,7 @@ export class ClineProvider
 			mcpEnabled: stateValues.mcpEnabled ?? true,
 			enableMcpServerCreation: stateValues.enableMcpServerCreation ?? true,
 			alwaysApproveResubmit: stateValues.alwaysApproveResubmit ?? false,
-			requestDelaySeconds: Math.max(5, stateValues.requestDelaySeconds ?? 10),
+			requestDelaySeconds: Math.max(0, stateValues.requestDelaySeconds ?? 2), // Reduced to 2s default, 0s minimum for maximum speed
 			currentApiConfigName: stateValues.currentApiConfigName ?? "default",
 			listApiConfigMeta: stateValues.listApiConfigMeta ?? [],
 			pinnedApiConfigs: stateValues.pinnedApiConfigs ?? {},
@@ -2049,6 +2051,7 @@ export class ClineProvider
 			// Add includeTaskHistoryInEnhance setting
 			includeTaskHistoryInEnhance: stateValues.includeTaskHistoryInEnhance ?? false,
 			useFreeModels: stateValues.useFreeModels,
+			developerMode: stateValues.developerMode ?? false,
 		}
 
 		perfLog(`[Performance] getState: TOTAL time ${Date.now() - getStateStart}ms`)

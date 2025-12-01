@@ -168,46 +168,46 @@
 		"tokens": "tokens"
 	},
 	"instructions": {
-		"wantsToFetch": "Pro wants to fetch detailed instructions to assist with the current task"
+		"wantsToFetch": "SIID Code wants to fetch detailed instructions to assist with the current task"
 	},
 	"fileOperations": {
-		"wantsToRead": "Pro wants to read this file:",
-		"wantsToReadMultiple": "Pro wants to read multiple files:",
-		"wantsToReadAndXMore": "Pro wants to read this file and {{count}} more:",
-		"wantsToReadOutsideWorkspace": "Pro wants to read this file outside of the workspace:",
-		"didRead": "Pro read this file:",
-		"wantsToEdit": "Pro wants to edit this file:",
-		"wantsToEditOutsideWorkspace": "Pro wants to edit this file outside of the workspace:",
-		"wantsToEditProtected": "Pro wants to edit a protected configuration file:",
-		"wantsToApplyBatchChanges": "Pro wants to apply changes to multiple files:",
-		"wantsToCreate": "Pro wants to create a new file:",
-		"wantsToSearchReplace": "Pro wants to search and replace in this file:",
-		"didSearchReplace": "Pro performed search and replace on this file:",
-		"wantsToInsert": "Pro wants to insert content into this file:",
-		"wantsToInsertWithLineNumber": "Pro wants to insert content into this file at line {{lineNumber}}:",
-		"wantsToInsertAtEnd": "Pro wants to append content to the end of this file:"
+		"wantsToRead": "SIID Code wants to read this file:",
+		"wantsToReadMultiple": "SIID Code wants to read multiple files:",
+		"wantsToReadAndXMore": "SIID Code wants to read this file and {{count}} more:",
+		"wantsToReadOutsideWorkspace": "SIID Code wants to read this file outside of the workspace:",
+		"didRead": "SIID Code read this file:",
+		"wantsToEdit": "SIID Code wants to edit this file:",
+		"wantsToEditOutsideWorkspace": "SIID Code wants to edit this file outside of the workspace:",
+		"wantsToEditProtected": "SIID Code wants to edit a protected configuration file:",
+		"wantsToApplyBatchChanges": "SIID Code wants to apply changes to multiple files:",
+		"wantsToCreate": "SIID Code wants to create a new file:",
+		"wantsToSearchReplace": "SIID Code wants to search and replace in this file:",
+		"didSearchReplace": "SIID Code performed search and replace on this file:",
+		"wantsToInsert": "SIID Code wants to insert content into this file:",
+		"wantsToInsertWithLineNumber": "SIID Code wants to insert content into this file at line {{lineNumber}}:",
+		"wantsToInsertAtEnd": "SIID Code wants to append content to the end of this file:"
 	},
 	"directoryOperations": {
-		"wantsToViewTopLevel": "Pro wants to view the top level files in this directory:",
-		"didViewTopLevel": "Pro viewed the top level files in this directory:",
-		"wantsToViewTopLevelOutsideWorkspace": "Pro wants to view the top level files in this directory (outside workspace):",
-		"didViewTopLevelOutsideWorkspace": "Pro viewed the top level files in this directory (outside workspace):",
-		"wantsToViewRecursive": "Pro wants to recursively view all files in this directory:",
-		"didViewRecursive": "Pro recursively viewed all files in this directory:",
-		"wantsToViewRecursiveOutsideWorkspace": "Pro wants to recursively view all files in this directory (outside workspace):",
-		"didViewRecursiveOutsideWorkspace": "Pro recursively viewed all files in this directory (outside workspace):",
-		"wantsToViewDefinitions": "Pro wants to view source code definition names used in this directory:",
-		"didViewDefinitions": "Pro viewed source code definition names used in this directory:",
-		"wantsToViewDefinitionsOutsideWorkspace": "Pro wants to view source code definition names used in this directory (outside workspace):",
-		"didViewDefinitionsOutsideWorkspace": "Pro viewed source code definition names used in this directory (outside workspace):",
-		"wantsToSearch": "Pro wants to search this directory for <code>{{regex}}</code>:",
-		"didSearch": "Pro searched this directory for <code>{{regex}}</code>:",
-		"wantsToSearchOutsideWorkspace": "Pro wants to search this directory (outside workspace) for <code>{{regex}}</code>:",
-		"didSearchOutsideWorkspace": "Pro searched this directory (outside workspace) for <code>{{regex}}</code>:"
+		"wantsToViewTopLevel": "SIID Code wants to view the top level files in this directory:",
+		"didViewTopLevel": "SIID Code viewed the top level files in this directory:",
+		"wantsToViewTopLevelOutsideWorkspace": "SIID Code wants to view the top level files in this directory (outside workspace):",
+		"didViewTopLevelOutsideWorkspace": "SIID Code viewed the top level files in this directory (outside workspace):",
+		"wantsToViewRecursive": "SIID Code wants to recursively view all files in this directory:",
+		"didViewRecursive": "SIID Code recursively viewed all files in this directory:",
+		"wantsToViewRecursiveOutsideWorkspace": "SIID Code wants to recursively view all files in this directory (outside workspace):",
+		"didViewRecursiveOutsideWorkspace": "SIID Code recursively viewed all files in this directory (outside workspace):",
+		"wantsToViewDefinitions": "SIID Code wants to view source code definition names used in this directory:",
+		"didViewDefinitions": "SIID Code viewed source code definition names used in this directory:",
+		"wantsToViewDefinitionsOutsideWorkspace": "SIID Code wants to view source code definition names used in this directory (outside workspace):",
+		"didViewDefinitionsOutsideWorkspace": "SIID Code viewed source code definition names used in this directory (outside workspace):",
+		"wantsToSearch": "SIID Code wants to search this directory for <code>{{regex}}</code>:",
+		"didSearch": "SIID Code searched this directory for <code>{{regex}}</code>:",
+		"wantsToSearchOutsideWorkspace": "SIID Code wants to search this directory (outside workspace) for <code>{{regex}}</code>:",
+		"didSearchOutsideWorkspace": "SIID Code searched this directory (outside workspace) for <code>{{regex}}</code>:"
 	},
 	"codebaseSearch": {
-		"wantsToSearch": "Pro wants to search the codebase for <code>{{query}}</code>:",
-		"wantsToSearchWithPath": "Pro wants to search the codebase for <code>{{query}}</code> in <code>{{path}}</code>:",
+		"wantsToSearch": "SIID Code wants to search the codebase for <code>{{query}}</code>:",
+		"wantsToSearchWithPath": "SIID Code wants to search the codebase for <code>{{query}}</code> in <code>{{path}}</code>:",
 		"didSearch_one": "Found 1 result",
 		"didSearch_other": "Found {{count}} results",
 		"resultTooltip": "Similarity score: {{score}} (click to open file)"
@@ -232,18 +232,18 @@
 	"response": "Response",
 	"arguments": "Arguments",
 	"mcp": {
-		"wantsToUseTool": "Pro wants to use a tool on the {{serverName}} MCP server:",
-		"wantsToAccessResource": "Pro wants to access a resource on the {{serverName}} MCP server:"
+		"wantsToUseTool": "SIID Code wants to use a tool on the {{serverName}} MCP server:",
+		"wantsToAccessResource": "SIID Code wants to access a resource on the {{serverName}} MCP server:"
 	},
 	"modes": {
-		"wantsToSwitch": "Pro wants to switch to {{mode}} mode",
-		"wantsToSwitchWithReason": "Pro wants to switch to {{mode}} mode because: {{reason}}",
-		"didSwitch": "Pro switched to {{mode}} mode",
-		"didSwitchWithReason": "Pro switched to {{mode}} mode because: {{reason}}"
+		"wantsToSwitch": "SIID Code wants to switch to {{mode}} mode",
+		"wantsToSwitchWithReason": "SIID Code wants to switch to {{mode}} mode because: {{reason}}",
+		"didSwitch": "SIID Code switched to {{mode}} mode",
+		"didSwitchWithReason": "SIID Code switched to {{mode}} mode because: {{reason}}"
 	},
 	"subtasks": {
-		"wantsToCreate": "Pro wants to create a new subtask in {{mode}} mode:",
-		"wantsToFinish": "Pro wants to finish this subtask",
+		"wantsToCreate": "SIID Code wants to create a new subtask in {{mode}} mode:",
+		"wantsToFinish": "SIID Code wants to finish this subtask",
 		"newTaskContent": "Subtask Instructions",
 		"completionContent": "Subtask Completed",
 		"resultContent": "Subtask Results",
@@ -251,7 +251,7 @@
 		"completionInstructions": "Subtask completed! You can review the results and suggest any corrections or next steps. If everything looks good, confirm to return the result to the parent task."
 	},
 	"questions": {
-		"hasQuestion": "Pro has a question:"
+		"hasQuestion": "SIID Code has a question:"
 	},
 	"taskCompleted": "Task Completed",
 	"error": "Error",
@@ -280,7 +280,7 @@
 		"countdownDisplay": "{{count}}s"
 	},
 	"browser": {
-		"rooWantsToUse": "Pro wants to use the browser:",
+		"rooWantsToUse": "SIID Code wants to use the browser:",
 		"consoleLogs": "Console Logs",
 		"noNewLogs": "(No new logs)",
 		"screenshot": "Browser screenshot",
@@ -336,7 +336,7 @@
 	},
 	"rooCloudCTA": {
 		"title": "SIID Code Cloud is coming soon!",
-		"description": "Run Roomote agents in the cloud, access your tasks from anywhere, collaborate with others, and more.",
+		"description": "Run remote agents in the cloud, access your tasks from anywhere, collaborate with others, and more.",
 		"joinWaitlist": "Join the waitlist to get early access."
 	},
 	"command": {

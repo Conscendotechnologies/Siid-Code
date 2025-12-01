@@ -113,8 +113,11 @@ export const ChatRowContent = ({
 	isFollowUpAnswered,
 }: ChatRowContentProps) => {
 	const { t } = useTranslation()
-	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode } = useExtensionState()
-	const [reasoningCollapsed, setReasoningCollapsed] = useState(true)
+	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode, developerMode } = useExtensionState()
+	const [reasoningCollapsed, setReasoningCollapsed] = useState(!developerMode)
+	useEffect(() => {
+		setReasoningCollapsed(!developerMode)
+	}, [developerMode])
 	const [isDiffErrorExpanded, setIsDiffErrorExpanded] = useState(false)
 	const [showCopySuccess, setShowCopySuccess] = useState(false)
 	const [isEditing, setIsEditing] = useState(false)
@@ -643,6 +646,16 @@ export const ChatRowContent = ({
 				}
 
 				// Regular single file read request
+				// Generate a simple summary when developer mode is OFF
+				const fileName = tool.path
+					? tool.path.split(/[\\/]/).pop()
+					: removeLeadingNonAlphanumeric(tool.path ?? "")
+				const simpleReason = developerMode
+					? tool.reason
+					: message.type === "ask"
+						? `Reading ${fileName} to understand its contents`
+						: undefined
+
 				return (
 					<>
 						<div style={headerStyle}></div>
@@ -658,12 +671,9 @@ export const ChatRowContent = ({
 									background: "var(--vscode-sideBar-background)",
 									display: "inline-block",
 								}}>
-								Read:{" "}
-								{tool.path
-									? tool.path.split(/[\\/]/).pop()
-									: removeLeadingNonAlphanumeric(tool.path ?? "")}
+								Read: {fileName}
 							</span>
-							{tool.reason}
+							{simpleReason}
 						</div>
 					</>
 				)
@@ -1060,6 +1070,39 @@ export const ChatRowContent = ({
 						/>
 					)
 				case "api_req_started":
+					// Generate a summary of what's being requested when developer mode is OFF
+					let approvalSummary = ""
+					if (!developerMode && isLast && followingMessages && followingMessages.length > 0) {
+						// Look at the first tool message after api_req_started
+						const toolMessage = followingMessages.find(
+							(msg) => msg.type === "ask" && msg.ask === "tool" && msg.text,
+						)
+						if (toolMessage?.text) {
+							try {
+								const tool = JSON.parse(toolMessage.text)
+								if (tool.tool === "readFile") {
+									const fileName = tool.path?.split(/[\\/]/).pop() || tool.path || "file"
+									approvalSummary = `Reading ${fileName} to analyze its contents`
+								} else if (tool.tool === "write_to_file") {
+									const fileName = tool.path?.split(/[\\/]/).pop() || tool.path || "file"
+									const action = tool.diff ? "Modifying" : "Creating"
+									approvalSummary = `${action} ${fileName}`
+								} else if (tool.tool === "execute_command") {
+									const cmd = (tool.command || "").split(" ")[0]
+									approvalSummary = `Running command: ${cmd}`
+								} else if (tool.tool === "apply_diff") {
+									const fileName = tool.path?.split(/[\\/]/).pop() || tool.path || "file"
+									approvalSummary = `Applying changes to ${fileName}`
+								} else if (tool.tool === "insert_content") {
+									const fileName = tool.path?.split(/[\\/]/).pop() || tool.path || "file"
+									approvalSummary = `Inserting content into ${fileName}`
+								}
+							} catch (_e) {
+								// If parsing fails, just show the generic message
+							}
+						}
+					}
+
 					return (
 						<>
 							<div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
@@ -1076,6 +1119,20 @@ export const ChatRowContent = ({
 									API Request...
 								</span>
 							</div>
+							{approvalSummary && (
+								<div
+									style={{
+										fontSize: "13px",
+										color: "var(--vscode-foreground)",
+										marginTop: "4px",
+										padding: "6px 10px",
+										background: "var(--vscode-editor-background)",
+										border: "1px solid var(--vscode-sideBar-border)",
+										borderRadius: "3px",
+									}}>
+									{approvalSummary}
+								</div>
+							)}
 							{(((cost === null || cost === undefined) && apiRequestFailedMessage) ||
 								apiReqStreamingFailedMessage) && (
 								<>

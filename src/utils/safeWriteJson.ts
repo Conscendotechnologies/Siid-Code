@@ -40,15 +40,14 @@ async function safeWriteJson(filePath: string, data: any): Promise<void> {
 	// Acquire the lock before any file operations
 	try {
 		releaseLock = await lockfile.lock(absoluteFilePath, {
-			stale: 31000, // Stale after 31 seconds
-			update: 10000, // Update mtime every 10 seconds to prevent staleness if operation is long
-			realpath: false, // the file may not exist yet, which is acceptable
+			stale: 5000, // Reduced from 10s to 5s
+			update: 2000, // Reduced from 5s to 2s
+			realpath: false,
 			retries: {
-				// Configuration for retrying lock acquisition
-				retries: 5, // Number of retries after the initial attempt
-				factor: 2, // Exponential backoff factor (e.g., 100ms, 200ms, 400ms, ...)
-				minTimeout: 100, // Minimum time to wait before the first retry (in ms)
-				maxTimeout: 1000, // Maximum time to wait for any single retry (in ms)
+				retries: 2, // Reduced from 3 to 2 retries for speed
+				factor: 2,
+				minTimeout: 25, // Reduced from 50ms to 25ms
+				maxTimeout: 250, // Reduced from 500ms to 250ms
 			},
 			onCompromised: (err) => {
 				console.error(`Lock at ${absoluteFilePath} was compromised:`, err)

@@ -241,7 +241,7 @@ export async function writeToFileTool(
 					true,
 				)
 
-				await delay(300) // wait for diff view to update
+				await delay(0) // Instant - no delay for maximum speed
 				cline.diffViewProvider.scrollToFirstDiff()
 
 				// Check for code omissions before proceeding
