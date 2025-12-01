@@ -7,6 +7,7 @@ import { formatResponse } from "../prompts/responses"
 import { VectorStoreSearchResult } from "../../services/code-index/interfaces"
 import { AskApproval, HandleError, PushToolResult, RemoveClosingTag, ToolUse } from "../../shared/tools"
 import path from "path"
+import { regexSearchFiles } from "../../services/ripgrep"
 
 export async function codebaseSearchTool(
 	cline: Task,
@@ -28,6 +29,7 @@ export async function codebaseSearchTool(
 	// --- Parameter Extraction and Validation ---
 	let query: string | undefined = block.params.query
 	let directoryPrefix: string | undefined = block.params.path
+	let filePattern: string | undefined = block.params.file_pattern
 
 	query = removeClosingTag("query", query)
 
@@ -36,10 +38,15 @@ export async function codebaseSearchTool(
 		directoryPrefix = path.normalize(directoryPrefix)
 	}
 
+	if (filePattern) {
+		filePattern = removeClosingTag("file_pattern", filePattern)
+	}
+
 	const sharedMessageProps = {
 		tool: "codebaseSearch",
 		query: query,
 		path: directoryPrefix,
+		filePattern,
 		isOutsideWorkspace: false,
 	}
 
@@ -75,56 +82,42 @@ export async function codebaseSearchTool(
 			throw new Error("CodeIndexManager is not available.")
 		}
 
-		if (!manager.isFeatureEnabled) {
-			throw new Error("Code Indexing is disabled in the settings.")
-		}
-		if (!manager.isFeatureConfigured) {
-			throw new Error("Code Indexing is not configured (Missing OpenAI Key or Qdrant URL).")
-		}
+		const canUseIndex = manager.isFeatureEnabled && manager.isFeatureConfigured && manager.isInitialized
+		let usedIndex = false
+		if (canUseIndex) {
+			const searchResults: VectorStoreSearchResult[] = await manager.searchIndex(query, directoryPrefix)
+			if (searchResults && searchResults.length > 0) {
+				const jsonResult = {
+					query,
+					results: [],
+				} as {
+					query: string
+					results: Array<{
+						filePath: string
+						score: number
+						startLine: number
+						endLine: number
+						codeChunk: string
+					}>
+				}
 
-		const searchResults: VectorStoreSearchResult[] = await manager.searchIndex(query, directoryPrefix)
+				searchResults.forEach((result) => {
+					if (!result.payload) return
+					if (!("filePath" in result.payload)) return
+					const relativePath = vscode.workspace.asRelativePath(result.payload.filePath, false)
+					jsonResult.results.push({
+						filePath: relativePath,
+						score: result.score,
+						startLine: result.payload.startLine,
+						endLine: result.payload.endLine,
+						codeChunk: result.payload.codeChunk.trim(),
+					})
+				})
 
-		// 3. Format and push results
-		if (!searchResults || searchResults.length === 0) {
-			pushToolResult(`No relevant code snippets found for the query: "${query}"`) // Use simple string for no results
-			return
-		}
+				const payload = { tool: "codebaseSearch", content: jsonResult }
+				await cline.say("codebase_search_result", JSON.stringify(payload))
 
-		const jsonResult = {
-			query,
-			results: [],
-		} as {
-			query: string
-			results: Array<{
-				filePath: string
-				score: number
-				startLine: number
-				endLine: number
-				codeChunk: string
-			}>
-		}
-
-		searchResults.forEach((result) => {
-			if (!result.payload) return
-			if (!("filePath" in result.payload)) return
-
-			const relativePath = vscode.workspace.asRelativePath(result.payload.filePath, false)
-
-			jsonResult.results.push({
-				filePath: relativePath,
-				score: result.score,
-				startLine: result.payload.startLine,
-				endLine: result.payload.endLine,
-				codeChunk: result.payload.codeChunk.trim(),
-			})
-		})
-
-		// Send results to UI
-		const payload = { tool: "codebaseSearch", content: jsonResult }
-		await cline.say("codebase_search_result", JSON.stringify(payload))
-
-		// Push results to AI
-		const output = `Query: ${query}
+				const output = `Query: ${query}
 Results:
 
 ${jsonResult.results
@@ -137,7 +130,25 @@ Code Chunk: ${result.codeChunk}
 	)
 	.join("\n")}`
 
-		pushToolResult(output)
+				pushToolResult(output)
+				usedIndex = true
+			}
+		}
+
+		if (!usedIndex) {
+			const cwd = workspacePath
+			const baseDir = directoryPrefix ? path.resolve(workspacePath, directoryPrefix) : workspacePath
+			const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			const regex = escapeRegex(query)
+			const text = await regexSearchFiles(cwd, baseDir, regex, filePattern, cline.rooIgnoreController)
+			if (!text || text.trim().length === 0 || /^No results found/i.test(text)) {
+				pushToolResult(`No relevant code snippets found for the query: "${query}"`)
+				return
+			}
+			const payload = { tool: "codebaseSearch", content: { query, fallback: true, text } }
+			await cline.say("codebase_search_result", JSON.stringify(payload))
+			pushToolResult(text)
+		}
 	} catch (error: any) {
 		await handleError(toolName, error) // Use the standard error handler
 	}
