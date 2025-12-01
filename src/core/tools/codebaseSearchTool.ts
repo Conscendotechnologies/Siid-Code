@@ -56,9 +56,13 @@ function getSalesforceFilePattern(query: string): string | undefined {
     service: "**/*Service.cls",
     handler: "**/*Handler.cls",
     selector: "**/*Selector.cls",
+    batch: "**/*Batch*.cls",
+    queueable: "**/*Queueable*.cls",
     lwc: "**/lwc/**/*.{js,html,css}",
     component: "**/lwc/**/*.{js,html}",
     wire: "**/lwc/**/*.js",
+    javascript: "**/lwc/**/*.js",
+    html: "**/lwc/**/*.html",
     aura: "**/aura/**/*.{js,cmp,css}",
     visualforce: "**/*.{page,component}",
     vf: "**/*.{page,component}",
@@ -68,6 +72,10 @@ function getSalesforceFilePattern(query: string): string | undefined {
     permission: "**/*.permissionset-meta.xml",
     profile: "**/*.profile-meta.xml",
     flow: "**/*.flow-meta.xml",
+    layout: "**/*.layout-meta.xml",
+    payment: "**/*{Payment,Transaction,Charge,Refund}*.cls",
+    integration: "**/*{Integration,Callout,Service,Http,REST}*.cls",
+    validation: "**/*{Validation,Validator}*.{cls,trigger}",
   }
   for (const k of Object.keys(patterns)) {
     if (ql.includes(k)) return patterns[k]
@@ -87,11 +95,127 @@ function detectSalesforcePattern(query: string): string | undefined {
 
 function getSalesforceRegexPattern(query: string): string {
   const ql = query.toLowerCase()
-  if (ql.includes("@auraenabled")) return "@AuraEnabled\\s*(\\(.*?\\))?\\s*public"
-  if (ql.includes("trigger")) return "trigger\\s+\\w+\\s+on\\s+\\w+"
-  if (ql.includes("soql")) return "\\[SELECT\\s+.*?FROM\\s+\\w+"
-  if (ql.includes("@wire") || ql.includes("wire")) return "@wire\\s*\\(.*?\\)"
+  if (ql.includes("payment") || ql.includes("transaction") || ql.includes("charge")) {
+    return "(Payment|Transaction|Charge|Refund|Invoice|Spreedly|Razorpay|TapPay)\\w*"
+  }
+  if (ql.includes("integration") || ql.includes("callout") || ql.includes("http")) {
+    return "(Http|REST|SOAP|Callout|Integration|@RestResource)\\w*"
+  }
+  if (ql.includes("@auraenabled") || ql.includes("auraenabled")) {
+    return "@AuraEnabled\\s*(\\(.*?\\))?\\s*(public|global)"
+  }
+  if (ql.includes("@future")) {
+    return "@future\\s*(\\(.*?\\))?"
+  }
+  if (ql.includes("@invocable")) {
+    return "@InvocableMethod\\s*(\\(.*?\\))?"
+  }
+  if (ql.includes("trigger")) {
+    return "trigger\\s+\\w+\\s+on\\s+\\w+\\s*\\(.*?\\)"
+  }
+  if (ql.includes("trigger.new") || ql.includes("trigger.old")) {
+    return "Trigger\\.(new|old|newMap|oldMap)"
+  }
+  if (ql.includes("soql") || ql.includes("query")) {
+    return "\\[(SELECT|select)\\s+.*?(FROM|from)\\s+\\w+"
+  }
+  if (ql.includes("@wire") || ql.includes("wire")) {
+    return "@wire\\s*\\([^\\)]+\\)"
+  }
+  if (ql.includes("import") && ql.includes("lwc")) {
+    return "import\\s+.*?from\\s+['\"]@salesforce"
+  }
+  if (ql.includes("batch") || ql.includes("batchable")) {
+    return "implements\\s+Database\\.Batchable"
+  }
+  if (ql.includes("queueable")) {
+    return "implements\\s+Queueable"
+  }
+  if (ql.includes("schedulable")) {
+    return "implements\\s+Schedulable"
+  }
+  if (ql.includes("test") || ql.includes("@istest")) {
+    return "(@isTest|@TestSetup|Test\\.startTest|System\\.assert)"
+  }
+  if (ql.includes("dml") || ql.includes("insert") || ql.includes("update")) {
+    return "(insert|update|delete|upsert|Database\\.(insert|update|delete|upsert))\\s+"
+  }
+  if (ql.includes("schema") || ql.includes("describe")) {
+    return "Schema\\.(SObjectType|DescribeSObjectResult|FieldSet)"
+  }
   return query.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")
+}
+
+function generateSmartVariations(query: string): string[] {
+  const variations: string[] = []
+  const ql = query.toLowerCase()
+  const camelSplit = query.replace(/([a-z])([A-Z])/g, "$1 $2")
+  if (camelSplit !== query) variations.push(camelSplit)
+  const withoutPrefix = query.replace(/^(handle|on|get|set|is|has|fetch|load|create|update|delete)/i, "")
+  if (withoutPrefix !== query && withoutPrefix.length > 2) variations.push(withoutPrefix)
+  const sfSynonyms: Record<string, string> = {
+    lwc: "@wire",
+    api: "@AuraEnabled",
+    async: "@future",
+    test: "@isTest",
+    trigger: "Trigger.new",
+    soql: "SELECT",
+  }
+  for (const [key, expansion] of Object.entries(sfSynonyms)) {
+    if (ql.includes(key)) {
+      variations.push(expansion)
+      break
+    }
+  }
+  return variations.slice(0, 2)
+}
+
+type RegexSearchResult = {
+  filePath: string
+  line: number
+  lineEnd: number
+  text: string
+  score: number
+}
+
+function parseRipgrepResults(text: string, query: string, context: any): RegexSearchResult[] {
+  const results: RegexSearchResult[] = []
+  let currentPath = ""
+  const lines = text.split("\n")
+  const ql = query.toLowerCase()
+  for (const line of lines) {
+    if (line.startsWith("# ")) {
+      currentPath = line.slice(2).trim()
+      continue
+    }
+    const match = line.match(/^\s*(\d+)\s\|\s(.*)$/)
+    if (match && currentPath) {
+      const lineNum = Number(match[1])
+      const t = match[2]
+      const tl = t.toLowerCase()
+      let score = 0.5
+      if (tl.includes(ql)) score += 0.3
+      if ((/@AuraEnabled/.test(t))) score += 0.25
+      if ((/@wire/.test(t))) score += 0.25
+      if ((/@future/.test(t))) score += 0.2
+      if ((/@InvocableMethod/.test(t))) score += 0.2
+      if ((/@isTest/.test(t))) score += 0.15
+      if (/^(public|global|private|protected)\s+(class|interface|enum)/.test(t.trim())) score += 0.3
+      if (/^(public|global)\s+(static\s+)?(\w+)\s+\w+\s*\(/.test(t.trim())) score += 0.25
+      if (/^trigger\s+\w+\s+on\s+\w+/.test(t.trim())) score += 0.4
+      if (/\[SELECT\s+.*?FROM\s+\w+/i.test(t)) score += 0.2
+      if (/payment|transaction|charge|refund/i.test(currentPath)) score += 0.15
+      if (/integration|callout|http/i.test(currentPath)) score += 0.15
+      if (context?.currentFileType === "apex" && currentPath.endsWith(".cls")) score += 0.2
+      if (context?.currentFileType === "lwc" && (currentPath.includes("/lwc/") || currentPath.includes("\\lwc\\"))) score += 0.2
+      if (context?.componentName && currentPath.includes(context.componentName)) score += 0.3
+      if (context?.relatedFiles?.some((rf: string) => currentPath.endsWith(rf))) score += 0.4
+      if (!ql.includes("test") && currentPath.includes("Test.cls")) score *= 0.4
+      results.push({ filePath: currentPath, line: lineNum, lineEnd: lineNum, text: t.trim(), score })
+    }
+  }
+  results.sort((a, b) => b.score - a.score)
+  return results
 }
 
 function getSalesforceContext() {
@@ -220,7 +344,7 @@ function mergeAndDeduplicateResults(
 ) {
   const sfCtx = getSalesforceContext()
   const rankedVector = rankWithSalesforceContext(rankWithContext(rankSalesforceResults(rankResults(vector, query), query), contextPath), sfCtx)
-  const regexMatches = parseRegexResults(regexText)
+  const regexMatches = parseRipgrepResults(regexText, query, sfCtx)
   const unified: { filePath: string; score: number; startLine: number; endLine: number; codeChunk: string }[] = []
   const seen = new Set<string>()
   for (const r of rankedVector) {
@@ -232,22 +356,15 @@ function mergeAndDeduplicateResults(
     seen.add(k)
     unified.push({ filePath: fp, score: r.score, startLine: r.payload.startLine, endLine: r.payload.endLine, codeChunk: chunk })
   }
-  const ql = query.toLowerCase()
   for (const m of regexMatches) {
     const fp = m.filePath
-    const chunk = m.text.trim()
-    let s = 0.4
-    if (chunk.toLowerCase().includes(ql)) s += 0.2
-    if (/^(export )?(function|class|const|interface|type)\s/.test(chunk)) s += 0.1
-    if (/@AuraEnabled/.test(chunk)) s += 0.1
-    if (/@wire/.test(chunk)) s += 0.1
-    if (/trigger\s+\w+\s+on\s+\w+/.test(chunk)) s += 0.1
+    const chunk = m.text
     const overlap = unified.some((u) => u.filePath === fp && m.line >= u.startLine && m.line <= u.endLine && u.codeChunk.includes(chunk))
     if (overlap) continue
-    const k = `${fp}:${m.line}:${m.line}:${chunk}`
+    const k = `${fp}:${m.line}:${m.lineEnd}:${chunk.substring(0,50)}`
     if (seen.has(k)) continue
     seen.add(k)
-    unified.push({ filePath: fp, score: s, startLine: m.line, endLine: m.line, codeChunk: chunk })
+    unified.push({ filePath: fp, score: m.score, startLine: m.line, endLine: m.lineEnd, codeChunk: chunk })
   }
   unified.sort((a, b) => b.score - a.score)
   return unified.slice(0, maxResults)
@@ -368,7 +485,9 @@ export async function codebaseSearchTool(
       regexText = regSet.value as string
     }
     if (!regexText || regexText.trim().length === 0 || /^No results found/i.test(regexText)) {
-      const variations = generateQueryVariations(cleanedQuery)
+      const v1 = generateQueryVariations(cleanedQuery)
+      const v2 = generateSmartVariations(cleanedQuery)
+      const variations = Array.from(new Set([...v1, ...v2])).slice(0, 4)
       if (variations.length > 0) {
         const extraPromises = variations.map((v) => regexSearchFiles(cwd, baseDir, escapeRegex(v), filePattern, cline.rooIgnoreController))
         const extras = await Promise.allSettled(extraPromises)
@@ -384,7 +503,36 @@ export async function codebaseSearchTool(
     }
     const merged = mergeAndDeduplicateResults(vectorResults, regexText, maxResults, cleanedQuery, baseDir)
     if (!merged || merged.length === 0) {
-      pushToolResult(`No relevant code snippets found for the query: "${query}"`)
+      const suggestions = (function generateSearchSuggestions(query: string, filePattern?: string) {
+        const ql = query.toLowerCase()
+        const s: string[] = []
+        if (filePattern) s.push("Try without file pattern filter")
+        if (ql.includes("lwc")) {
+          s.push('Try: "@wire"')
+          s.push('Try searching in: **/lwc/**/*.js')
+        } else if (ql.includes("trigger")) {
+          s.push('Try: "Trigger.new"')
+          s.push('Try searching in: **/*.trigger')
+        } else if (ql.includes("test")) {
+          s.push('Try: "@isTest"')
+          s.push('Try searching in: **/*Test.cls')
+        } else if (ql.includes("api") || ql.includes("auraenabled")) {
+          s.push('Try: "@AuraEnabled"')
+          s.push('Try searching in: **/*Controller.cls')
+        } else if (ql.includes("payment") || ql.includes("transaction")) {
+          s.push('Try: "Payment" or "Transaction"')
+          s.push('Try searching in: **/*Payment*.cls')
+        } else if (ql.includes("integration")) {
+          s.push('Try: "Http" or "Callout"')
+          s.push('Try searching in: **/*Integration*.cls')
+        }
+        return s.slice(0, 3)
+      })(cleanedQuery, filePattern)
+      let msg = `No relevant code snippets found for the query: "${query}"`
+      if (suggestions.length > 0) {
+        msg += `\n\nSuggestions:\n${suggestions.map((s) => `  • ${s}`).join("\n")}`
+      }
+      pushToolResult(msg)
       return
     }
     const jsonResult = { query, results: merged.map((r) => ({
