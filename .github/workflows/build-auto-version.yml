@@ -340,9 +340,9 @@ jobs:
           if [ "$CURRENT_PKG_VERSION" != "$NEW_VERSION" ]; then
             node -e "
               const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              const pkg = JSON.parse(fs.readFileSync('/src/package.json', 'utf8'));
               pkg.version = '$NEW_VERSION';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+              fs.writeFileSync('./src/package.json', JSON.stringify(pkg, null, 2) + '\n');
             "
             echo "✅ package.json version updated to: $NEW_VERSION"
           else
