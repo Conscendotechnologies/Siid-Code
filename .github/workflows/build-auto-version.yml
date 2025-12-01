@@ -333,7 +333,7 @@ jobs:
           echo "📝 Updating package.json to version $NEW_VERSION"
           
           # Get current package.json version
-          CURRENT_PKG_VERSION=$(node -p "require('./package.json').version")
+          CURRENT_PKG_VERSION=$(node -p "require('./src/package.json').version")
           echo "Current package.json version: $CURRENT_PKG_VERSION"
           
           # Update version in package.json (only if different)
@@ -350,7 +350,7 @@ jobs:
           fi
           
           # Verify the changes
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          PACKAGE_VERSION=$(node -p "require('./src/package.json').version")
           echo "✅ Final package.json version: $PACKAGE_VERSION"
           
       - name: Commit version bump
