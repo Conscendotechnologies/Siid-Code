@@ -271,29 +271,32 @@ export async function codebaseSearchTool(
 	}
 
 	// --- Parameter Extraction and Validation ---
-	let query: string | undefined = block.params.query
-	let directoryPrefix: string | undefined = block.params.path
-	let filePattern: string | undefined = block.params.file_pattern
-	let maxResultsParam: any = block.params.max_results
+  let query: string | undefined = (block.params as any).query
+  let directoryPrefix: string | undefined = block.params.path
+  let filePattern: string | undefined = (block.params as any).file_pattern
+  let maxResultsParam: any = (block.params as any).size ?? (block.params as any).max_results
 
-	query = removeClosingTag("query", query)
+  query = removeClosingTag("search", query)
 
 	if (directoryPrefix) {
 		directoryPrefix = removeClosingTag("path", directoryPrefix)
 		directoryPrefix = path.normalize(directoryPrefix)
 	}
 
-	if (filePattern) {
-		filePattern = removeClosingTag("file_pattern", filePattern)
-	}
+  if (filePattern) {
+    filePattern = String(filePattern)
+  }
 
 	let maxResults = 10
-	if (typeof maxResultsParam !== "undefined") {
-		const parsed = Number(removeClosingTag("max_results", String(maxResultsParam)))
-		if (!Number.isNaN(parsed) && parsed > 0) {
-			maxResults = parsed
-		}
-	}
+  if (typeof maxResultsParam !== "undefined") {
+    const cleaned = (block.params as any).size !== undefined
+      ? removeClosingTag("size", String(maxResultsParam))
+      : String(maxResultsParam)
+    const parsed = Number(cleaned)
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      maxResults = parsed
+    }
+  }
 
 	const sharedMessageProps = {
 		tool: "codebaseSearch",
