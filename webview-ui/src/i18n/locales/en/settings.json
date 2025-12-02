@@ -145,7 +145,7 @@
 			},
 			"protected": {
 				"label": "Include protected files",
-				"description": "Allow Pro to create and edit protected files (like .rooignore and .roo/ configuration files) without requiring approval."
+				"description": "Allow SIID Code to create and edit protected files (like .rooignore and .roo/ configuration files) without requiring approval."
 			}
 		},
 		"browser": {
@@ -725,7 +725,7 @@
 		"useCustomModel": "Use custom: {{modelId}}"
 	},
 	"footer": {
-		"feedback": "If you have any questions or feedback, feel free to open an issue at <githubLink>github.com/RooCodeInc/Pro-Code</githubLink> or join <redditLink>reddit.com/r/RooCode</redditLink> or <discordLink>discord.gg/roocode</discordLink>",
+		"feedback": "If you have any questions or feedback, feel free to open an issue at <githubLink>github.com/Conscendotechnologies/Siid-Code</githubLink>",
 		"telemetry": {
 			"label": "Allow anonymous error and usage reporting",
 			"description": "Help improve SIID Code by sending anonymous usage data and error reports. No code, prompts, or personal information is ever sent (unless you connect to SIID Code Cloud). See our <privacyLink>privacy policy</privacyLink> for more details."

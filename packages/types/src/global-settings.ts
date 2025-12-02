@@ -20,7 +20,7 @@ import { languagesSchema } from "./vscode.js"
  * This delay is particularly important for Go and other languages where tools like goimports
  * need time to automatically clean up unused imports.
  */
-export const DEFAULT_WRITE_DELAY_MS = 1000
+export const DEFAULT_WRITE_DELAY_MS = 100 // Optimized for speed - reduced from 1000ms
 
 /**
  * Default terminal output character limit constant.
@@ -52,6 +52,7 @@ export const globalSettingsSchema = z.object({
 	alwaysAllowWriteOutsideWorkspace: z.boolean().optional(),
 	alwaysAllowWriteProtected: z.boolean().optional(),
 	writeDelayMs: z.number().min(0).optional(),
+	developerMode: z.boolean().optional(),
 	alwaysAllowBrowser: z.boolean().optional(),
 	alwaysApproveResubmit: z.boolean().optional(),
 	requestDelaySeconds: z.number().optional(),

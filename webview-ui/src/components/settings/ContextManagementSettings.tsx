@@ -2,6 +2,7 @@ import { HTMLAttributes } from "react"
 import React from "react"
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react"
+import { useExtensionState } from "@src/context/ExtensionStateContext"
 import { Database, FoldVertical } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -13,6 +14,7 @@ import { Section } from "./Section"
 import { vscode } from "@/utils/vscode"
 
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
+	developerMode?: boolean
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
 	listApiConfigMeta: any[]
@@ -28,6 +30,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	maxDiagnosticMessages?: number
 	writeDelayMs: number
 	setCachedStateField: SetCachedStateField<
+		| "developerMode"
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
 		| "maxOpenTabsContext"
@@ -45,6 +48,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 }
 
 export const ContextManagementSettings = ({
+	developerMode,
 	autoCondenseContext,
 	autoCondenseContextPercent,
 	listApiConfigMeta,
@@ -63,6 +67,7 @@ export const ContextManagementSettings = ({
 	className,
 	...props
 }: ContextManagementSettingsProps) => {
+	const { setDeveloperMode } = useExtensionState()
 	const { t } = useAppTranslation()
 	const [selectedThresholdProfile, setSelectedThresholdProfile] = React.useState<string>("default")
 
@@ -104,6 +109,21 @@ export const ContextManagementSettings = ({
 			</SectionHeader>
 
 			<Section>
+				<div>
+					<VSCodeCheckbox
+						checked={developerMode}
+						onChange={(e: any) => {
+							const checked = e.target.checked
+							setCachedStateField("developerMode", checked)
+							setDeveloperMode(checked)
+						}}
+						data-testid="developer-mode-checkbox">
+						<label className="block font-medium mb-1">Developer Mode</label>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1 mb-3">
+						Show chain of thought and technical metadata
+					</div>
+				</div>
 				<div>
 					<span className="block font-medium mb-1">{t("settings:contextManagement.openTabs.label")}</span>
 					<div className="flex items-center gap-2">

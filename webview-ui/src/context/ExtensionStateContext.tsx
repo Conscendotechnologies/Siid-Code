@@ -23,6 +23,8 @@ import { vscode } from "@src/utils/vscode"
 import { convertTextMateToHljs } from "@src/utils/textMateToHljs"
 
 export interface ExtensionStateContextType extends ExtensionState {
+	developerMode?: boolean
+	setDeveloperMode: (value: boolean) => void
 	historyPreviewCollapsed?: boolean // Add the new state property
 	didHydrateState: boolean
 	showWelcome: boolean
@@ -252,6 +254,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		alwaysAllowUpdateTodoList: true,
 		includeDiagnosticMessages: true,
 		maxDiagnosticMessages: 50,
+		developerMode: false,
 	})
 
 	const [didHydrateState, setDidHydrateState] = useState(false)
@@ -414,6 +417,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 
 	const contextValue: ExtensionStateContextType = {
 		...state,
+		developerMode: state.developerMode,
 		didHydrateState,
 		showWelcome,
 		showLogin,
@@ -552,6 +556,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setUseFreeModels: (value) => {
 			setUseFreeModels(value)
 			vscode.postMessage({ type: "useFreeModels", bool: value })
+		},
+		setDeveloperMode: (value) => {
+			setState((prevState) => ({ ...prevState, developerMode: value }))
+			vscode.postMessage({ type: "developerMode", bool: value })
 		},
 	}
 

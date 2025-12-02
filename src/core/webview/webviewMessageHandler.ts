@@ -1140,6 +1140,10 @@ export const webviewMessageHandler = async (
 
 			break
 		}
+		case "developerMode":
+			await updateGlobalState("developerMode", message.bool ?? false)
+			await provider.postStateToWebview()
+			break
 		case "getVSCodeSetting":
 			const { setting } = message
 

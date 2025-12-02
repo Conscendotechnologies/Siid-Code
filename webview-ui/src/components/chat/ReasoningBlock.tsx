@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { CaretDownIcon, CaretUpIcon, CounterClockwiseClockIcon } from "@radix-ui/react-icons"
 import { useTranslation } from "react-i18next"
-
+import { useExtensionState } from "@src/context/ExtensionStateContext"
 import MarkdownBlock from "../common/MarkdownBlock"
-import { useMount } from "react-use"
 
 interface ReasoningBlockProps {
 	content: string
@@ -12,21 +11,15 @@ interface ReasoningBlockProps {
 	onToggleCollapse?: () => void
 }
 
-export const ReasoningBlock = ({ content, elapsed, isCollapsed = false, onToggleCollapse }: ReasoningBlockProps) => {
-	const contentRef = useRef<HTMLDivElement>(null)
+export const ReasoningBlock = ({ content, elapsed, isCollapsed, onToggleCollapse }: ReasoningBlockProps) => {
 	const elapsedRef = useRef<number>(0)
 	const { t } = useTranslation("chat")
-	const [thought, setThought] = useState<string>()
-	const [prevThought, setPrevThought] = useState<string>(t("chat:reasoning.thinking"))
-	const [isTransitioning, setIsTransitioning] = useState<boolean>(false)
-	const cursorRef = useRef<number>(0)
-	const queueRef = useRef<string[]>([])
+	const { developerMode } = useExtensionState()
 
 	useEffect(() => {
-		if (contentRef.current && !isCollapsed) {
-			contentRef.current.scrollTop = contentRef.current.scrollHeight
-		}
-	}, [content, isCollapsed])
+		// Intentionally do not render or reveal internal reasoning content
+		// Only track elapsed time for display
+	}, [content])
 
 	useEffect(() => {
 		if (elapsed) {
@@ -34,50 +27,23 @@ export const ReasoningBlock = ({ content, elapsed, isCollapsed = false, onToggle
 		}
 	}, [elapsed])
 
-	// Process the transition queue.
-	const processNextTransition = useCallback(() => {
-		const nextThought = queueRef.current.pop()
-		queueRef.current = []
-
-		if (nextThought) {
-			setIsTransitioning(true)
-		}
-
-		setTimeout(() => {
-			if (nextThought) {
-				setPrevThought(nextThought)
-				setIsTransitioning(false)
-			}
-
-			setTimeout(() => processNextTransition(), 500)
-		}, 200)
-	}, [])
-
-	useMount(() => {
-		processNextTransition()
-	})
-
-	useEffect(() => {
-		if (content.length - cursorRef.current > 160) {
-			setThought("... " + content.slice(cursorRef.current))
-			cursorRef.current = content.length
-		}
-	}, [content])
-
-	useEffect(() => {
-		if (thought && thought !== prevThought) {
-			queueRef.current.push(thought)
-		}
-	}, [thought, prevThought])
+	// When developer mode is OFF, don't render the reasoning block at all
+	// This completely hides the chain of thought from end users
+	if (!developerMode) {
+		return null
+	}
 
 	return (
 		<div className="bg-vscode-editor-background border border-vscode-border rounded-xs overflow-hidden">
-			<div
-				className="flex items-center justify-between gap-1 px-3 py-2 cursor-pointer text-muted-foreground"
-				onClick={onToggleCollapse}>
-				<div
-					className={`truncate flex-1 transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}>
-					{prevThought}
+			<div className="flex items-center justify-between gap-1 px-3 py-2 text-muted-foreground">
+				<div className="truncate flex-1 flex items-center gap-2">
+					<button
+						onClick={onToggleCollapse}
+						className="shrink-0 min-h-[20px] min-w-[20px] p-[2px] cursor-pointer opacity-85 hover:opacity-100 bg-transparent border-none rounded-md"
+						aria-label={isCollapsed ? "Expand reasoning" : "Collapse reasoning"}>
+						{isCollapsed ? <CaretDownIcon className="scale-80" /> : <CaretUpIcon className="scale-80" />}
+					</button>
+					<span>{t("chat:reasoning.thinking")}</span>
 				</div>
 				<div className="flex flex-row items-center gap-1">
 					{elapsedRef.current > 1000 && (
@@ -86,11 +52,10 @@ export const ReasoningBlock = ({ content, elapsed, isCollapsed = false, onToggle
 							<div>{t("reasoning.seconds", { count: Math.round(elapsedRef.current / 1000) })}</div>
 						</>
 					)}
-					{isCollapsed ? <CaretDownIcon /> : <CaretUpIcon />}
 				</div>
 			</div>
 			{!isCollapsed && (
-				<div ref={contentRef} className="px-3 max-h-[160px] overflow-y-auto">
+				<div style={{ padding: "12px 16px", backgroundColor: "var(--vscode-editor-background)" }}>
 					<MarkdownBlock markdown={content} />
 				</div>
 			)}

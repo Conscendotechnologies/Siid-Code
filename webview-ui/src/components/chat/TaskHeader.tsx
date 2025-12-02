@@ -46,7 +46,7 @@ const TaskHeader = ({
 	todos,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
-	const { apiConfiguration, currentTaskItem } = useExtensionState()
+	const { apiConfiguration, currentTaskItem, developerMode } = useExtensionState()
 	const { id: modelId, info: model } = useSelectedModel(apiConfiguration)
 	const [isTaskExpanded, setIsTaskExpanded] = useState(false)
 
@@ -120,7 +120,7 @@ const TaskHeader = ({
 						</div>
 					</div>
 				</div>
-				{!isTaskExpanded && contextWindow > 0 && (
+				{!isTaskExpanded && contextWindow > 0 && developerMode && (
 					<div className="flex items-center gap-2 text-sm" onClick={(e) => e.stopPropagation()}>
 						<StandardTooltip
 							content={
@@ -165,7 +165,7 @@ const TaskHeader = ({
 								{formatLargeNumber(contextTokens || 0)} / {formatLargeNumber(contextWindow)}
 							</span>
 						</StandardTooltip>
-						{!!totalCost && <span>${totalCost.toFixed(2)}</span>}
+						{!!totalCost && developerMode && <span>${totalCost.toFixed(2)}</span>}
 					</div>
 				)}
 				{/* Expanded state: Show task text and images */}
@@ -190,7 +190,7 @@ const TaskHeader = ({
 						<div className="border-t border-b border-vscode-panel-border/50 py-4 mt-2 mb-1">
 							<table className="w-full">
 								<tbody>
-									{contextWindow > 0 && (
+									{contextWindow > 0 && developerMode && (
 										<tr>
 											<th
 												className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]"
@@ -218,42 +218,45 @@ const TaskHeader = ({
 										</tr>
 									)}
 
-									<tr>
-										<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
-											{t("chat:task.tokens")}
-										</th>
-										<td className="align-top">
-											<div className="flex items-center gap-1 flex-wrap">
-												{typeof tokensIn === "number" && tokensIn > 0 && (
-													<span>↑ {formatLargeNumber(tokensIn)}</span>
-												)}
-												{typeof tokensOut === "number" && tokensOut > 0 && (
-													<span>↓ {formatLargeNumber(tokensOut)}</span>
-												)}
-											</div>
-										</td>
-									</tr>
-
-									{((typeof cacheReads === "number" && cacheReads > 0) ||
-										(typeof cacheWrites === "number" && cacheWrites > 0)) && (
+									{developerMode && (
 										<tr>
 											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
-												{t("chat:task.cache")}
+												{t("chat:task.tokens")}
 											</th>
 											<td className="align-top">
 												<div className="flex items-center gap-1 flex-wrap">
-													{typeof cacheWrites === "number" && cacheWrites > 0 && (
-														<span>↑ {formatLargeNumber(cacheWrites)}</span>
+													{typeof tokensIn === "number" && tokensIn > 0 && (
+														<span>↑ {formatLargeNumber(tokensIn)}</span>
 													)}
-													{typeof cacheReads === "number" && cacheReads > 0 && (
-														<span>↓ {formatLargeNumber(cacheReads)}</span>
+													{typeof tokensOut === "number" && tokensOut > 0 && (
+														<span>↓ {formatLargeNumber(tokensOut)}</span>
 													)}
 												</div>
 											</td>
 										</tr>
 									)}
 
-									{!!totalCost && (
+									{developerMode &&
+										((typeof cacheReads === "number" && cacheReads > 0) ||
+											(typeof cacheWrites === "number" && cacheWrites > 0)) && (
+											<tr>
+												<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+													{t("chat:task.cache")}
+												</th>
+												<td className="align-top">
+													<div className="flex items-center gap-1 flex-wrap">
+														{typeof cacheWrites === "number" && cacheWrites > 0 && (
+															<span>↑ {formatLargeNumber(cacheWrites)}</span>
+														)}
+														{typeof cacheReads === "number" && cacheReads > 0 && (
+															<span>↓ {formatLargeNumber(cacheReads)}</span>
+														)}
+													</div>
+												</td>
+											</tr>
+										)}
+
+									{!!totalCost && developerMode && (
 										<tr>
 											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
 												{t("chat:task.apiCost")}
@@ -265,20 +268,21 @@ const TaskHeader = ({
 									)}
 
 									{/* Cache size display */}
-									{((typeof cacheReads === "number" && cacheReads > 0) ||
-										(typeof cacheWrites === "number" && cacheWrites > 0)) && (
-										<tr>
-											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
-												{t("chat:task.cache")}
-											</th>
-											<td className="align-top">
-												{prettyBytes(((cacheReads || 0) + (cacheWrites || 0)) * 4)}
-											</td>
-										</tr>
-									)}
+									{developerMode &&
+										((typeof cacheReads === "number" && cacheReads > 0) ||
+											(typeof cacheWrites === "number" && cacheWrites > 0)) && (
+											<tr>
+												<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+													{t("chat:task.cache")}
+												</th>
+												<td className="align-top">
+													{prettyBytes(((cacheReads || 0) + (cacheWrites || 0)) * 4)}
+												</td>
+											</tr>
+										)}
 
 									{/* Size display */}
-									{!!currentTaskItem?.size && currentTaskItem.size > 0 && (
+									{developerMode && !!currentTaskItem?.size && currentTaskItem.size > 0 && (
 										<tr>
 											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-2  h-[20px]">
 												{t("chat:task.size")}

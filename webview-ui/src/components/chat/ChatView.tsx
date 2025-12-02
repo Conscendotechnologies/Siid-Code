@@ -113,6 +113,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		notificationsEnabled,
 		soundEnabled,
 		soundVolume,
+		developerMode,
 	} = useExtensionState()
 
 	const messagesRef = useRef(messages)
@@ -1008,6 +1009,15 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		const latestApiReqStarted = apiReqStartedMessages.at(-1)
 
 		const newVisibleMessages = recentMessages.filter((message: ClineMessage) => {
+			// Hide assistant's thinking/explanation text when developer mode is OFF
+			if (!developerMode && message.say === "text" && message.type === "say") {
+				return false
+			}
+			// Hide reasoning blocks when developer mode is OFF
+			if (!developerMode && message.say === "reasoning") {
+				return false
+			}
+
 			if (everVisibleMessagesTsRef.current.has(message.ts)) {
 				const alwaysHiddenOnceProcessedAsk: ClineAsk[] = [
 					"api_req_failed",
@@ -1079,6 +1089,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					}
 					break
 				case "text":
+					// Hide assistant's thinking/explanation text when developer mode is OFF
+					if (!developerMode && message.type === "say") {
+						return false
+					}
 					if ((message.text ?? "") === "" && (message.images?.length ?? 0) === 0) return false
 					// Hide text messages that come between thinking/ask messages (informational boxes)
 					{
@@ -1095,6 +1109,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						) {
 							return false
 						}
+					}
+					break
+				case "reasoning":
+					// Hide reasoning blocks when developer mode is OFF
+					if (!developerMode) {
+						return false
 					}
 					break
 				case "mcp_server_request_started":
@@ -1119,7 +1139,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			.forEach((msg: ClineMessage) => everVisibleMessagesTsRef.current.set(msg.ts, true))
 
 		return newVisibleMessages
-	}, [modifiedMessages])
+	}, [modifiedMessages, developerMode])
 
 	useEffect(() => {
 		const cleanupInterval = setInterval(() => {

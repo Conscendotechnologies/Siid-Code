@@ -249,6 +249,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	assistantMessageContent: AssistantMessageContent[] = []
 	presentAssistantMessageLocked = false
 	presentAssistantMessageHasPendingUpdates = false
+	private lastReasoningUpdateTs = 0
+	private reasoningUpdateIntervalMs = 500 // Increased to 500ms for better performance
 	userMessageContent: (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[] = []
 	userMessageContentReady = false
 	didRejectTool = false
@@ -561,6 +563,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	private async updateClineMessage(message: ClineMessage) {
+		if (message.partial === true && message.type === "say" && message.say === "reasoning") {
+			const now = Date.now()
+			if (now - this.lastReasoningUpdateTs < this.reasoningUpdateIntervalMs) {
+				return
+			}
+			this.lastReasoningUpdateTs = now
+		}
 		const provider = this.providerRef.deref()
 		await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
 		this.emit(RooCodeEventName.Message, { action: "updated", message })
