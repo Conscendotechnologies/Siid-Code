@@ -259,8 +259,21 @@ export async function readFileTool(
 					continue
 				}
 
-				// Add to files that need approval
-				filesToApprove.push(fileResult)
+				const fullPathForApproval = path.resolve(cline.cwd, relPath)
+				const provider = cline.providerRef.deref()
+				const globalInstructionsPath = provider
+					? path.join(provider.context.globalStorageUri.fsPath, "instructions")
+					: ""
+				const isMarkdown = path.extname(relPath).toLowerCase() === ".md"
+				const inWorkspaceRulesDir = fullPathForApproval.includes(path.join(".roo", "rules-"))
+				const inGlobalInstructions =
+					globalInstructionsPath && fullPathForApproval.startsWith(globalInstructionsPath)
+
+				if (isMarkdown && (inWorkspaceRulesDir || inGlobalInstructions)) {
+					updateFileResult(relPath, { status: "approved" })
+				} else {
+					filesToApprove.push(fileResult)
+				}
 			}
 		}
 
