@@ -84,6 +84,17 @@ export async function isAuthenticated(outputChannel?: vscode.OutputChannel): Pro
 
 	try {
 		log("Checking authentication status")
+
+		// Check for dev bypass mode first
+		const context = (global as any).__rooCodeExtensionContext as vscode.ExtensionContext | undefined
+		if (context) {
+			const devBypassActive = context.globalState.get<boolean>("devBypassActive")
+			if (devBypassActive) {
+				log("Dev bypass mode active - returning authenticated")
+				return true
+			}
+		}
+
 		const api = await getFirebaseAPI(outputChannel)
 		if (!api) {
 			log("Firebase API not available for authentication check")
