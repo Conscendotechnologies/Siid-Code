@@ -153,7 +153,7 @@ export class ProviderSettingsManager {
 			[this.orchestratorBasicId]: {
 				id: this.orchestratorBasicId,
 				apiProvider: "openrouter",
-				openRouterModelId: "openrouter/polaris-alpha",
+				openRouterModelId: "x-ai/grok-4.1-fast:free",
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
