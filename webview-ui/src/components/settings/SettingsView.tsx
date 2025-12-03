@@ -79,7 +79,6 @@ export interface SettingsViewRef {
 }
 
 const sectionNames = [
-	"providers",
 	"autoApprove",
 	"browser",
 	"checkpoints",
@@ -90,6 +89,7 @@ const sectionNames = [
 	"experimental",
 	"language",
 	"about",
+	"providers",
 ] as const
 
 type SectionName = (typeof sectionNames)[number]
@@ -416,21 +416,28 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		}
 	}, [])
 
-	const sections: { id: SectionName; icon: LucideIcon }[] = useMemo(
-		() => [
-			{ id: "autoApprove", icon: CheckCheck },
-			{ id: "browser", icon: SquareMousePointer },
-			{ id: "checkpoints", icon: GitBranch },
-			{ id: "notifications", icon: Bell },
-			{ id: "contextManagement", icon: Database },
-			{ id: "terminal", icon: SquareTerminal },
-			{ id: "prompts", icon: MessageSquare },
-			{ id: "experimental", icon: FlaskConical },
-			{ id: "language", icon: Globe },
-			{ id: "about", icon: Info },
-		],
-		[], // No dependencies needed now
-	)
+	const isDeveloperMode = (cachedState as any)?.developerMode
+	const sections: { id: SectionName; icon: LucideIcon }[] = useMemo(() => {
+		const baseSections = [
+			{ id: "autoApprove" as SectionName, icon: CheckCheck },
+			{ id: "browser" as SectionName, icon: SquareMousePointer },
+			{ id: "checkpoints" as SectionName, icon: GitBranch },
+			{ id: "notifications" as SectionName, icon: Bell },
+			{ id: "contextManagement" as SectionName, icon: Database },
+			{ id: "terminal" as SectionName, icon: SquareTerminal },
+			{ id: "prompts" as SectionName, icon: MessageSquare },
+			{ id: "experimental" as SectionName, icon: FlaskConical },
+			{ id: "language" as SectionName, icon: Globe },
+			{ id: "about" as SectionName, icon: Info },
+		]
+
+		// Add providers tab only when developer mode is enabled
+		if (isDeveloperMode) {
+			baseSections.unshift({ id: "providers" as SectionName, icon: Webhook })
+		}
+
+		return baseSections
+	}, [isDeveloperMode])
 
 	// Update target section logic to set active tab
 	useEffect(() => {

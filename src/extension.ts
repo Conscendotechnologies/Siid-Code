@@ -68,6 +68,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	const activationStartTime = Date.now()
 
 	extensionContext = context
+	// Make context available globally for utilities like firebaseHelper
+	;(global as any).__rooCodeExtensionContext = context
 	outputChannel = vscode.window.createOutputChannel(Package.outputChannel)
 	context.subscriptions.push(outputChannel)
 	outputChannel.appendLine(`${Package.name} extension activated - ${JSON.stringify(Package)}`)

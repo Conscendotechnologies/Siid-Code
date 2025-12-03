@@ -206,18 +206,112 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		visibleProvider.postMessageToWebview({ type: "acceptInput" })
 	},
 	onFirebaseLogin: async () => {
-		// NOTE: This command is triggered by Firebase Service extension
-		// but the actual login handling is done in api.onFirebaseLogin()
+		// NOTE: This command can be used for development bypass when Firebase Service is not available
+		// In production, the actual login handling is done in api.onFirebaseLogin()
 		// which is called directly by the Firebase Service extension.
-		// This command handler exists only for compatibility but does nothing.
-		outputChannel.appendLine("Firebase login command received - actual handling is in API method")
+		outputChannel.appendLine("=== DEVELOPMENT BYPASS: Manual Authentication ===")
+
+		try {
+			// Prompt user for their OpenRouter API key
+			const userApiKey = await vscode.window.showInputBox({
+				prompt: "Enter your OpenRouter API key (for development bypass)",
+				password: true,
+				placeHolder: "sk-or-v1-...",
+				ignoreFocusOut: true,
+			})
+
+			if (!userApiKey) {
+				outputChannel.appendLine("Bypass cancelled - no API key provided")
+				vscode.window.showWarningMessage("Bypass cancelled - no API key provided")
+				return
+			}
+
+			outputChannel.appendLine("API key provided, setting up bypass authentication...")
+
+			// Store in global state for retrieval by ProviderSettingsManager
+			await context.globalState.update("devBypassApiKey", userApiKey)
+			await context.globalState.update("devBypassActive", true)
+			outputChannel.appendLine("API key stored in global state")
+
+			// Update Firebase auth state to authenticated
+			provider.setFirebaseAuthState(true)
+			outputChannel.appendLine("Firebase auth state set to authenticated")
+
+			// Set useFreeModels preference (false for dev bypass - user has their own API key)
+			await provider.contextProxy.setValue("useFreeModels", false)
+			outputChannel.appendLine("useFreeModels set to false (using user's own API key)")
+
+			// Update all provider configs with the API key
+			// This will call fetchApiKeysFromFirebase which now checks for devBypassApiKey
+			await provider.providerSettingsManager.updateApiKeysFromFirebase()
+			outputChannel.appendLine("Provider configs updated with API key")
+
+			// Update webview state to show as authenticated
+			// Send explicit state message with firebaseIsAuthenticated override
+			await provider.postMessageToWebview({
+				type: "state",
+				state: {
+					...(await provider.getStateToPostToWebview()),
+					firebaseIsAuthenticated: true, // Force authenticated state for dev bypass
+				},
+			} as any)
+			outputChannel.appendLine("Webview state updated")
+
+			outputChannel.appendLine("✅ Development bypass complete!")
+			vscode.window.showInformationMessage("✅ Development mode active! Using provided API key.")
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`❌ Bypass failed: ${errorMsg}`)
+			if (error instanceof Error && error.stack) {
+				outputChannel.appendLine(`Stack trace: ${error.stack}`)
+			}
+			vscode.window.showErrorMessage(`Failed to setup development bypass: ${errorMsg}`)
+		}
 	},
 	onFirebaseLogout: async () => {
-		// NOTE: This command is triggered by Firebase Service extension
-		// but the actual logout handling is done in api.onFirebaseLogout()
+		// NOTE: This command can be used for development bypass logout
+		// In production, the actual logout handling is done in api.onFirebaseLogout()
 		// which is called directly by the Firebase Service extension.
-		// This command handler exists only for compatibility but does nothing.
-		outputChannel.appendLine("Firebase logout command received - actual handling is in API method")
+		outputChannel.appendLine("=== DEVELOPMENT BYPASS: Manual Logout ===")
+
+		try {
+			// Check if dev bypass is active
+			const devBypassActive = context.globalState.get<boolean>("devBypassActive")
+
+			if (devBypassActive) {
+				outputChannel.appendLine("Clearing dev bypass state...")
+
+				// Clear dev bypass data from global state
+				await context.globalState.update("devBypassApiKey", undefined)
+				await context.globalState.update("devBypassActive", undefined)
+				outputChannel.appendLine("Dev bypass state cleared")
+
+				// Update Firebase auth state to logged out
+				provider.setFirebaseAuthState(false)
+				outputChannel.appendLine("Firebase auth state set to logged out")
+
+				// Clear useFreeModels preference
+				await provider.contextProxy.setValue("useFreeModels", undefined)
+				outputChannel.appendLine("useFreeModels cleared")
+
+				// Update webview state
+				await provider.postStateToWebview()
+				outputChannel.appendLine("Webview state updated")
+
+				outputChannel.appendLine("✅ Development bypass logout complete!")
+				vscode.window.showInformationMessage("✅ Logged out from development mode")
+			} else {
+				outputChannel.appendLine("No active dev bypass session found")
+				vscode.window.showInformationMessage("No active dev bypass session to logout from")
+			}
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`❌ Logout failed: ${errorMsg}`)
+			if (error instanceof Error && error.stack) {
+				outputChannel.appendLine(`Stack trace: ${error.stack}`)
+			}
+			vscode.window.showErrorMessage(`Failed to logout from development bypass: ${errorMsg}`)
+		}
 	},
 	testOpenRouterApiKey: async () => {
 		try {

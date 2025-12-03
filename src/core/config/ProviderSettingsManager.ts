@@ -334,6 +334,16 @@ export class ProviderSettingsManager {
 		try {
 			logger.info("[ProviderSettingsManager] Fetching API keys from Firebase...")
 
+			// Check for dev bypass API key first (for development/testing)
+			const devBypassKey = this.context.globalState.get<string>("devBypassApiKey")
+			if (devBypassKey) {
+				logger.info("[ProviderSettingsManager] Using dev bypass API key")
+				return {
+					freeApiKey: devBypassKey,
+					paidApiKey: devBypassKey,
+				}
+			}
+
 			// Get the Firebase API to check authentication
 			const { isAuthenticated, getUserProperties } = await import("../../utils/firebaseHelper")
 
@@ -624,20 +634,18 @@ export class ProviderSettingsManager {
 	}
 
 	/**
-	 * List all available configs with metadata, excluding 'default' config.
+	 * List all available configs with metadata, including the 'default' config.
 	 */
 	public async listConfig(): Promise<ProviderSettingsEntry[]> {
 		try {
 			return await this.lock(async () => {
 				const providerProfiles = await this.load()
 
-				const entries = Object.entries(providerProfiles.apiConfigs)
-					.filter(([name]) => name !== "default") // Exclude default config
-					.map(([name, apiConfig]) => ({
-						name,
-						id: apiConfig.id || "",
-						apiProvider: apiConfig.apiProvider,
-					}))
+				const entries = Object.entries(providerProfiles.apiConfigs).map(([name, apiConfig]) => ({
+					name,
+					id: apiConfig.id || "",
+					apiProvider: apiConfig.apiProvider,
+				}))
 
 				logger.info(`[ProviderSettingsManager] listConfig returning ${entries.length} entries`)
 

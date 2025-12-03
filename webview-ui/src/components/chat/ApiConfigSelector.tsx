@@ -20,6 +20,7 @@ interface ApiConfigSelectorProps {
 	pinnedApiConfigs?: Record<string, boolean>
 	togglePinnedApiConfig: (id: string) => void
 	useFreeModels?: boolean
+	developerMode?: boolean
 }
 
 export const ApiConfigSelector = ({
@@ -34,6 +35,7 @@ export const ApiConfigSelector = ({
 	pinnedApiConfigs,
 	togglePinnedApiConfig,
 	useFreeModels = false,
+	developerMode = false,
 }: ApiConfigSelectorProps) => {
 	const { t } = useAppTranslation()
 	const [open, setOpen] = useState(false)
@@ -42,20 +44,31 @@ export const ApiConfigSelector = ({
 
 	// If a mode is provided, only show the mode-specific basic/medium/advanced configs
 	// If useFreeModels is true, only show configs ending with -free
+	// If developerMode is enabled, always include the default config
 	const modeFilteredList = useMemo(() => {
 		let filtered = listApiConfigMeta
 
 		if (mode) {
 			const allowedNames = [`${mode}-basic-free`, `${mode}-medium`, `${mode}-advanced`]
+
+			// If developer mode is enabled, also allow the default config
+			if (developerMode) {
+				allowedNames.push("default")
+			}
+
 			filtered = filtered.filter((c) => allowedNames.includes(c.name ?? ""))
 		}
 
 		if (useFreeModels) {
-			filtered = filtered.filter((c) => (c.name ?? "").endsWith("-free"))
+			// Filter for free configs, but keep default if developer mode is enabled
+			filtered = filtered.filter((c) => {
+				const name = c.name ?? ""
+				return name.endsWith("-free") || (developerMode && name === "default")
+			})
 		}
 
 		return filtered
-	}, [listApiConfigMeta, mode, useFreeModels])
+	}, [listApiConfigMeta, mode, useFreeModels, developerMode])
 
 	// Create searchable items for fuzzy search
 	const searchableItems = useMemo(() => {
