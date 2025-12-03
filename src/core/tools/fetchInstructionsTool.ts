@@ -4,6 +4,32 @@ import { ClineSayTool } from "../../shared/ExtensionMessage"
 import { formatResponse } from "../prompts/responses"
 import { ToolUse, AskApproval, HandleError, PushToolResult } from "../../shared/tools"
 
+/**
+ * Maps task identifiers to user-friendly display names
+ */
+function getTaskDisplayName(task: string): string {
+	const taskNames: Record<string, string> = {
+		// General Instructions
+		create_mcp_server: "MCP Server Instructions",
+		create_mode: "Custom Mode Instructions",
+		create_lwc: "Lightning Web Component Instructions",
+		create_apex: "Apex Class Instructions",
+		// Salesforce Agent Instructions
+		assignment_rules: "Assignment Rules Instructions",
+		custom_field: "Custom Field Instructions",
+		custom_object: "Custom Object Instructions",
+		field_permissions: "Field Permissions Instructions",
+		object_permissions: "Object Permissions Instructions",
+		path_creation: "Path Creation Instructions",
+		profile: "Profile Instructions",
+		record_types: "Record Types Instructions",
+		role_creation: "Role Creation Instructions",
+		validation_rules: "Validation Rules Instructions",
+	}
+
+	return taskNames[task] || task
+}
+
 export async function fetchInstructionsTool(
 	cline: Task,
 	block: ToolUse,
@@ -12,7 +38,8 @@ export async function fetchInstructionsTool(
 	pushToolResult: PushToolResult,
 ) {
 	const task: string | undefined = block.params.task
-	const sharedMessageProps: ClineSayTool = { tool: "fetchInstructions", content: task }
+	const displayName = task ? getTaskDisplayName(task) : undefined
+	const sharedMessageProps: ClineSayTool = { tool: "fetchInstructions", content: displayName }
 
 	try {
 		if (block.partial) {
@@ -29,7 +56,10 @@ export async function fetchInstructionsTool(
 
 			cline.consecutiveMistakeCount = 0
 
-			const completeMessage = JSON.stringify({ ...sharedMessageProps, content: task } satisfies ClineSayTool)
+			const completeMessage = JSON.stringify({
+				...sharedMessageProps,
+				content: displayName,
+			} satisfies ClineSayTool)
 			const didApprove = await askApproval("tool", completeMessage)
 
 			if (!didApprove) {

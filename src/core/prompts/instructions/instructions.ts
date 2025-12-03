@@ -1,5 +1,19 @@
 import { createMCPServerInstructions } from "./create-mcp-server"
 import { createModeInstructions } from "./create-mode"
+import { createLWCInstructions } from "./create-lwc"
+import { createApexInstructions } from "./create-apex"
+import {
+	assignmentRulesInstructions,
+	customFieldInstructions,
+	customObjectInstructions,
+	fieldPermissionsInstructions,
+	objectPermissionsInstructions,
+	pathCreationInstructions,
+	profileInstructions,
+	recordTypesInstructions,
+	roleCreationInstructions,
+	validationRulesInstructions,
+} from "./salesforce-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -17,6 +31,43 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "create_mode": {
 			return await createModeInstructions(detail.context)
+		}
+		case "create_lwc": {
+			return await createLWCInstructions(detail.context)
+		}
+		case "create_apex": {
+			return await createApexInstructions(detail.context)
+		}
+		// Salesforce Agent Instructions
+		case "assignment_rules": {
+			return await assignmentRulesInstructions(detail.context)
+		}
+		case "custom_field": {
+			return await customFieldInstructions(detail.context)
+		}
+		case "custom_object": {
+			return await customObjectInstructions(detail.context)
+		}
+		case "field_permissions": {
+			return await fieldPermissionsInstructions(detail.context)
+		}
+		case "object_permissions": {
+			return await objectPermissionsInstructions(detail.context)
+		}
+		case "path_creation": {
+			return await pathCreationInstructions(detail.context)
+		}
+		case "profile": {
+			return await profileInstructions(detail.context)
+		}
+		case "record_types": {
+			return await recordTypesInstructions(detail.context)
+		}
+		case "role_creation": {
+			return await roleCreationInstructions(detail.context)
+		}
+		case "validation_rules": {
+			return await validationRulesInstructions(detail.context)
 		}
 		default: {
 			return ""

@@ -4,4 +4,17 @@ export const GlobalFileNames = {
 	mcpSettings: "mcp_settings.json",
 	customModes: "custom_modes.yaml",
 	taskMetadata: "task_metadata.json",
+	lwcInstructions: "code/lwc-guide.md",
+	apexInstructions: "code/apex-guide.md",
+	// Salesforce Agent Instructions
+	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
+	customFieldInstructions: "Salesforce_Agent/custom-field.md",
+	customObjectInstructions: "Salesforce_Agent/custom-object.md",
+	fieldPermissionsInstructions: "Salesforce_Agent/field-permissions.md",
+	objectPermissionsInstructions: "Salesforce_Agent/object-permission.md",
+	pathCreationInstructions: "Salesforce_Agent/path-creation.md",
+	profileInstructions: "Salesforce_Agent/profile.md",
+	recordTypesInstructions: "Salesforce_Agent/record-types.md",
+	roleCreationInstructions: "Salesforce_Agent/role-creation.md",
+	validationRulesInstructions: "Salesforce_Agent/validation-rules.md",
 }
