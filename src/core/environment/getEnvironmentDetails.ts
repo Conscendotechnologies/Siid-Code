@@ -250,33 +250,6 @@ export async function getEnvironmentDetails(
 			details += `<custom_instructions>${modeDetails.customInstructions}</custom_instructions>\n`
 		}
 	}
-	if (globalStorageUri) {
-		const instructionsPath = path.join(globalStorageUri.fsPath, "instructions")
-		let instructionDirs: string[] = []
-		let instructionFiles: string[] = []
-		try {
-			const walk = async (dir: string, relPath = ""): Promise<void> => {
-				const dirUri = vscode.Uri.file(dir)
-				const dirEntries = await vscode.workspace.fs.readDirectory(dirUri)
-				for (const [name, type] of dirEntries) {
-					const fullPath = path.join(dir, name)
-					const relative = path.join(relPath, name)
-					if (type === vscode.FileType.Directory) {
-						instructionDirs.push(relative)
-						await walk(fullPath, relative)
-					} else if (type === vscode.FileType.File) {
-						instructionFiles.push(relative)
-					}
-				}
-			}
-			await walk(instructionsPath)
-		} catch (err) {
-			// Directory may not exist
-		}
-		details += `\n# Custom Instructions Root (${globalStorageUri}/instructions) Files: \n ${instructionFiles.length > 0 ? instructionFiles.join("\n ") : "(None)"}\n`
-	} else {
-		details += `# Custom Instructions Root (none) Files: \n (globalStorageUri not provided)\n`
-	}
 
 	if (includeFileDetails) {
 		details += `\n\n# Current Workspace Directory (${cline.cwd.toPosix()}) Files\n`

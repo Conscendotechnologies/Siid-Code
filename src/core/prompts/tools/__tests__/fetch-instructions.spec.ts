@@ -50,4 +50,41 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("Example: Requesting instructions to create an MCP Server")
 		expect(description).toContain("<task>create_mcp_server</task>")
 	})
+
+	it("should include all Salesforce Agent instruction tasks", () => {
+		const description = getFetchInstructionsDescription(true)
+
+		// Check for all Salesforce Agent tasks
+		expect(description).toContain("assignment_rules")
+		expect(description).toContain("custom_field")
+		expect(description).toContain("custom_object")
+		expect(description).toContain("field_permissions")
+		expect(description).toContain("object_permissions")
+		expect(description).toContain("path_creation")
+		expect(description).toContain("profile")
+		expect(description).toContain("record_types")
+		expect(description).toContain("role_creation")
+		expect(description).toContain("validation_rules")
+	})
+
+	it("should include Salesforce Agent examples", () => {
+		const description = getFetchInstructionsDescription(true)
+
+		// Check for Salesforce Agent examples
+		expect(description).toContain("Example: Requesting instructions for Salesforce Assignment Rules")
+		expect(description).toContain("<task>assignment_rules</task>")
+		expect(description).toContain("Example: Requesting instructions for Salesforce Custom Field")
+		expect(description).toContain("<task>custom_field</task>")
+	})
+
+	it("should include Salesforce Agent tasks even when MCP server creation is disabled", () => {
+		const description = getFetchInstructionsDescription(false)
+
+		// Salesforce Agent tasks should still be present
+		expect(description).toContain("assignment_rules")
+		expect(description).toContain("custom_field")
+		expect(description).toContain("custom_object")
+		expect(description).toContain("validation_rules")
+		expect(description).toContain("<task>custom_object</task>")
+	})
 })

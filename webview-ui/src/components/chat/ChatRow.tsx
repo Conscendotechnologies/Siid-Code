@@ -680,17 +680,22 @@ export const ChatRowContent = ({
 			case "fetchInstructions":
 				return (
 					<>
-						<div style={headerStyle}>
-							{toolIcon("file-code")}
-							<span style={{ fontWeight: "bold" }}>{t("chat:instructions.wantsToFetch")}</span>
+						<div style={headerStyle}></div>
+						<div style={{ margin: "6px 0 6px 0", display: "flex", alignItems: "center", gap: 8 }}>
+							<span
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									border: `1px solid var(--vscode-sideBar-border)`,
+									borderRadius: "3px",
+									padding: "2px 6px",
+									background: "var(--vscode-sideBar-background)",
+									display: "inline-block",
+								}}>
+								Used {tool.content || "Instruction"}
+							</span>
 						</div>
-						<CodeAccordian
-							code={tool.content}
-							language="markdown"
-							isLoading={message.partial}
-							isExpanded={isExpanded}
-							onToggleExpand={handleToggleExpand}
-						/>
 					</>
 				)
 			case "listFilesTopLevel":
