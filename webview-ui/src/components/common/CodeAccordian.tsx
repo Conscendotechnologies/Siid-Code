@@ -81,7 +81,16 @@ const CodeAccordian = ({
 							aria-label={`Open file: ${path}`}
 						/>
 					)}
-					{!onJumpToFile && <span className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`}></span>}
+					{!onJumpToFile && (
+						<span
+							className={`codicon codicon-chevron-${isExpanded ? "up" : "down"}`}
+							style={{
+								fontSize: "14px",
+								color: "var(--vscode-foreground)",
+								opacity: 0.8,
+								marginLeft: "4px",
+							}}></span>
+					)}
 				</ToolUseBlockHeader>
 			)}
 			{(!hasHeader || isExpanded) && (

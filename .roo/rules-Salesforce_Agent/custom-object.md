@@ -78,28 +78,21 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 
 - Ensure the tab file name and the object API name match the custom object. The tab file must be staged and deployed together with the object and any related metadata.
 
-## Dry Run and deployment for objects(Mandatory)
+## Deployment (Mandatory)
 
-- Before deploying the created objects and tabs into the org do the dry run first using below command
-- Do dry run for all objects at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>`
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-- Do deploy all objects at once.
-  `sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiNames>`
-- Replace <ObjectApiName> with the actual object API name (e.g., Invoice_Item\_\_c).
+After creating all custom objects and tabs, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
 
-## Dry Run and deployment for tabs(Mandatory)
+- Runs dry-run validation first
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
 
-- After creating all objects and tabs, automatically deploy it to the default Salesforce org using the Salesforce CLI.
-- Run the deployment command after creating all objects and tabs creation
-- Do dry run for all tabs at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml`
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-- Do deploy all tabs at once.
-  `sf project deploy start --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml`
-- Replace <ObjectApiNames> with the all objects that are created comma separated.
+**Important Notes:**
+
+- **ONE tool call per metadata component does everything** - You don't need separate dry-run and deploy calls
+- Deploy objects and tabs as needed using the metadata_type and metadata_name parameters
+- The tool handles validation and deployment in a single operation
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## Compliance
 

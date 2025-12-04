@@ -373,31 +373,37 @@ export const ChatRowContent = ({
 
 				let linesAdded = linesAddedFromTool
 				let linesRemoved = linesRemovedFromTool
+				let statsSource = "explicit"
 
 				if (linesAdded === undefined && linesRemoved === undefined) {
 					if (tool.diff) {
 						const parsed = calculateDiffStats(tool.diff)
 						linesAdded = parsed.linesAdded
 						linesRemoved = parsed.linesRemoved
+						statsSource = "diff"
 					} else if ((tool as any).content && (tool as any).previousContent) {
 						// Fallback: calculate line count difference from previous and current content
-						const prevLines = ((tool as any).previousContent as string).split("\n").length
-						const currLines = ((tool as any).content as string).split("\n").length
+						const prevLines = ((tool as any).previousContent as string)
+							.split("\n")
+							.filter((l) => l.trim()).length
+						const currLines = ((tool as any).content as string).split("\n").filter((l) => l.trim()).length
 						linesAdded = Math.max(currLines - prevLines, 0)
 						linesRemoved = Math.max(prevLines - currLines, 0)
+						statsSource = "content_comparison"
 					} else if ((tool as any).content) {
-						// If only new content is available, treat all lines as added
+						// If only new content is available, count non-empty lines as added
 						const content = (tool as any).content as string
-						linesAdded = content ? content.split("\n").length : 0
+						linesAdded = content ? content.split("\n").filter((l) => l.trim()).length : 0
 						linesRemoved = 0
+						statsSource = "new_content"
 					} else {
 						linesAdded = 0
 						linesRemoved = 0
+						statsSource = "default"
 					}
-				}
-
-				// Always search followingMessages for a matching user_feedback_diff for this file
+				} // Always search followingMessages for a matching user_feedback_diff for this file
 				if (followingMessages && followingMessages.length > 0) {
+					const normalize = (p: string) => p.toLowerCase().replace(/\\/g, "/").trim()
 					const matchingFeedback = followingMessages.find(
 						(msg) =>
 							msg.say === "user_feedback_diff" &&
@@ -406,7 +412,6 @@ export const ChatRowContent = ({
 								try {
 									const lastTool = safeJsonParse<ClineSayTool>(msg.text)
 									if (lastTool && lastTool.diff && lastTool.path && tool.path) {
-										const normalize = (p: string) => p.toLowerCase().replace(/\\/g, "/")
 										return normalize(lastTool.path) === normalize(tool.path)
 									}
 								} catch (_e) {
@@ -420,15 +425,28 @@ export const ChatRowContent = ({
 							const lastTool = safeJsonParse<ClineSayTool>(matchingFeedback.text)
 							if (lastTool && lastTool.diff) {
 								const parsed = calculateDiffStats(lastTool.diff)
+								const prevAdded = linesAdded
+								const prevRemoved = linesRemoved
 								linesAdded = parsed.linesAdded
 								linesRemoved = parsed.linesRemoved
+								statsSource = "user_feedback_diff"
+								console.debug(
+									`ChatRow: Updated stats for ${tool.path} from ${statsSource} (+${prevAdded}/-${prevRemoved}) to user_feedback_diff (+${linesAdded}/-${linesRemoved})`,
+								)
 							}
 						} catch (_) {
 							/* ignore parse errors */
 						}
+					} else {
+						console.debug(
+							`ChatRow: Using ${statsSource} stats for ${tool.path}: +${linesAdded}/-${linesRemoved}`,
+						)
 					}
+				} else {
+					console.debug(
+						`ChatRow: Using ${statsSource} stats for ${tool.path}: +${linesAdded}/-${linesRemoved}`,
+					)
 				}
-
 				const addedColor = "var(--vscode-charts-green)"
 				const removedColor = "var(--vscode-errorForeground)"
 
@@ -930,6 +948,156 @@ export const ChatRowContent = ({
 							</div>
 						</div>
 					</>
+				)
+			case "deploySfMetadata":
+				// Check if deployment is in progress (approved but no result yet)
+				const hasFollowingResult =
+					followingMessages &&
+					followingMessages.some((msg) => {
+						if (msg.type === "ask" && msg.ask === "tool") {
+							try {
+								const followingTool = JSON.parse(msg.text || "{}") as ClineSayTool
+								return (
+									followingTool.tool === "deploySfMetadata" &&
+									followingTool.content &&
+									(followingTool.content.includes("DEPLOYMENT SUCCESSFUL") ||
+										followingTool.content.includes("DEPLOYMENT FAILED") ||
+										followingTool.content.includes("Error:") ||
+										followingTool.content.includes("SF CLI"))
+								)
+							} catch {
+								return false
+							}
+						}
+						return false
+					})
+
+				// Determine if this is the final result or just approval preview
+				// Final results will have a more detailed content (includes "DEPLOYMENT SUCCESSFUL" or validation results)
+				const isFinalResult =
+					tool.content &&
+					(tool.content.includes("DEPLOYMENT SUCCESSFUL") ||
+						tool.content.includes("Dry Run Validation") ||
+						tool.content.includes("Deployment Status:") ||
+						tool.content.includes("DEPLOYMENT FAILED") ||
+						tool.content.includes("Error:") ||
+						tool.content.includes("SF CLI"))
+				const isApprovalPreview = message.type === "ask" && tool.content && !isFinalResult && !tool.isLoading
+				// Show loading if this is not the final result and there's no result in following messages
+				const isDeploymentLoading = !isLast && !isFinalResult && !hasFollowingResult && message.type === "ask"
+				const hasError =
+					tool.content &&
+					(tool.content.includes("DEPLOYMENT FAILED") ||
+						tool.content.includes("Error:") ||
+						tool.content.includes("FAILED"))
+
+				return (
+					<>
+						<div style={headerStyle}>
+							{message.partial ||
+							isDeploymentLoading ||
+							(message.progressStatus && message.progressStatus.text) ? (
+								<span
+									className="codicon codicon-sync codicon-modifier-spin"
+									style={{ color: "var(--vscode-foreground)", marginBottom: "-1.5px" }}
+								/>
+							) : hasError ? (
+								<span
+									className="codicon codicon-error"
+									style={{ color: "var(--vscode-errorForeground)", marginBottom: "-1.5px" }}
+								/>
+							) : (
+								toolIcon("cloud-upload")
+							)}
+							<span style={{ fontWeight: "bold" }}>
+								{isDeploymentLoading
+									? `Deploying ${tool.metadataType} - ${tool.metadataName}...`
+									: isFinalResult
+										? t("chat:salesforce.didDeploy", {
+												metadataType: tool.metadataType,
+												metadataName: tool.metadataName,
+											})
+										: message.type === "ask"
+											? t("chat:salesforce.wantsToDeploy", {
+													metadataType: tool.metadataType,
+													metadataName: tool.metadataName,
+												})
+											: t("chat:salesforce.didDeploy", {
+													metadataType: tool.metadataType,
+													metadataName: tool.metadataName,
+												})}
+							</span>
+							{message.progressStatus && message.progressStatus.text && (
+								<>
+									{message.progressStatus.icon && (
+										<span
+											className={`codicon codicon-${message.progressStatus.icon} mr-1 ml-2`}
+											style={{ fontSize: "13px" }}
+										/>
+									)}
+									<span
+										className="mr-1 ml-auto"
+										style={{ color: "var(--vscode-descriptionForeground)", fontSize: "0.9em" }}>
+										{message.progressStatus.text}
+									</span>
+								</>
+							)}
+						</div>
+						{tool.testLevel && (
+							<div
+								style={{
+									marginTop: "5px",
+									paddingLeft: "25px",
+									fontSize: "0.9em",
+									color: "var(--vscode-descriptionForeground)",
+								}}>
+								Test Level: <code>{tool.testLevel}</code>
+								{tool.sourceDir && tool.sourceDir !== "default" && (
+									<>
+										{" • "}
+										Source: <code>{tool.sourceDir}</code>
+									</>
+								)}
+							</div>
+						)}
+						{/* Show accordion for approval preview, loading state, or final results */}
+						{(isApprovalPreview || isDeploymentLoading || (tool.content && isFinalResult)) && (
+							<CodeAccordian
+								code={
+									isDeploymentLoading
+										? "⏳ Deployment in progress...\n\nValidating metadata and running tests..."
+										: tool.content || ""
+								}
+								language="text"
+								isExpanded={isExpanded}
+								onToggleExpand={handleToggleExpand}
+								header={
+									isDeploymentLoading
+										? "Deployment Status"
+										: isFinalResult
+											? "Deployment Results"
+											: "Deployment Preview"
+								}
+							/>
+						)}
+					</>
+				)
+			case "retrieveSfMetadata":
+				return (
+					<div style={headerStyle}>
+						{toolIcon("cloud-download")}
+						<span style={{ fontWeight: "bold" }}>
+							{message.type === "ask"
+								? t("chat:salesforce.wantsToRetrieve", {
+										metadataType: tool.metadataType,
+										metadataName: tool.metadataName || "all",
+									})
+								: t("chat:salesforce.didRetrieve", {
+										metadataType: tool.metadataType,
+										metadataName: tool.metadataName || "all",
+									})}
+						</span>
+					</div>
 				)
 			default:
 				return null
