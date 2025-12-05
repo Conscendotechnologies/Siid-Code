@@ -743,23 +743,27 @@ Salesforce provides base components built on SLDS:
 
 ---
 
-### Dry run and Deployment: (!!**IMPORTANT - selective deployment only**)
+### Deployment: (!!**IMPORTANT - selective deployment only**)
 
-After creation of all required apex classes and LWC components then first do dry run on LWC using this command:(**!!Important- After completion of apex deployment**)
--(**!IMPORTANT**)Before doing Dry-run of LWC make sure you deployed required Apex classes
-`sf project deploy start --dry-run --source-dir force-app/main/default/lwc/<componentname>`
-Replace <componentname> with the actual classes.
+After creating all required Apex classes and LWC components, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
 
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-  `sf project deploy start --source-dir force-app/main/default/objects/<componentname>`
-- Replace <componentname> with the all components that are created comma separated.
+- Runs dry-run validation first (validates syntax, runs tests, checks coverage)
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
 
-Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
+**Important Deployment Order:**
 
-Deployment workflow you should follow every time:
+1. **Deploy Apex classes FIRST** (if LWC components depend on them)
+2. Then deploy LWC components
 
-- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
+**Important Notes:**
+
+- **ONE tool call does everything** - You don't need to call it twice (once for dry-run, once for deploy)
+- Deploy only the specific metadata files and component bundles that were created or modified
+- Do NOT deploy the entire metadata folder - this can introduce unrelated dependencies and cause failures
+- Verify dependencies before deployment
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## Development Tools
 

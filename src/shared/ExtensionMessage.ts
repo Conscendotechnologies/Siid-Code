@@ -352,6 +352,8 @@ export interface ClineSayTool {
 		| "finishTask"
 		| "searchAndReplace"
 		| "insertContent"
+		| "deploySfMetadata"
+		| "retrieveSfMetadata"
 	path?: string
 	diff?: string
 	content?: string
@@ -392,6 +394,12 @@ export interface ClineSayTool {
 		}>
 	}>
 	question?: string
+	// Salesforce metadata deployment/retrieval properties
+	metadataType?: string
+	metadataName?: string
+	testLevel?: string
+	sourceDir?: string
+	isLoading?: boolean // Indicates deployment is in progress
 }
 
 // Must keep in sync with system prompt.

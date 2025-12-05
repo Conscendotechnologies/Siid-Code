@@ -144,13 +144,19 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 
 ## Automatic Deployment (CRITICAL - MUST FOLLOW)
 
-- **After updating the profile XML with field permissions, you MUST immediately deploy it to the default Salesforce org.**
-- **Deployment Command:**
-    ```
-    sf project deploy start --source-dir force-app/main/default/profiles/<ProfileName>.profile-meta.xml
-    ```
-- Replace `<ProfileName>` with the actual profile name.
-- **MANDATORY: Execute the deployment command immediately after updating the profile. Do not skip this step.**
+After updating the profile XML with field permissions, use the `deploy_sf_metadata` tool to deploy it to the org. The tool automatically:
+
+- Runs dry-run validation first
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
+
+**Important Notes:**
+
+- **ONE tool call does everything** - You don't need separate dry-run and deploy calls
+- **MANDATORY: Deploy immediately after updating the profile**
+- The tool handles validation and deployment in a single operation
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## Validation Before Deployment
 
@@ -170,7 +176,7 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
     - "Adding field permissions for [X] fields on [ObjectName]..."
     - "Adding field permissions for fields across [X] objects..." (for multiple objects)
     - "Updating profile with field permissions..."
-    - "Deploying updated profile to Salesforce org..."
+    - "Deploying updated profile to Salesforce org..." (using deploy_sf_metadata tool)
 - **DO NOT mention technical XML details unless specifically asked.**
 - Provide a summary of what permissions were assigned after deployment.
 

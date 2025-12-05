@@ -243,18 +243,20 @@ force-app/main/default/assignmentRules/<ObjectApiName>.assignmentRules-meta.xml
 
 <template>{FolderName/DeveloperName}</template>
 
-## Dry Run and deployment for Assignment-Rules(Mandatory)
+## Deployment (Mandatory)
 
-- Before deploying the created Assignmentrules into the org do the dry run first using below command
-- Do dry run for all assignment rules at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/assignmentRules /
-<obj.Assignmentrules-meta.xml>`
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-- Do deploy all assignment rules at once.
-  `sf project deploy start --source-dir force-app/main/default/assignmentRules/
-<obj.Assignmentrules-meta.xml>`
-- Replace <obj.Assignmentrules-meta.xml> with the actual assignment rules that are created.
+After creating assignment rules, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
+
+- Runs dry-run validation first
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
+
+**Important Notes:**
+
+- **ONE tool call does everything** - You don't need separate dry-run and deploy calls
+- The tool handles validation and deployment in a single operation
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## 9. Validations
 

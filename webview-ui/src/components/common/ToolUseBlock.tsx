@@ -14,5 +14,12 @@ export const ToolUseBlock = ({ className, ...props }: React.HTMLAttributes<HTMLD
 )
 
 export const ToolUseBlockHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-	<div className={cn("flex items-center select-none text-vscode-descriptionForeground", className)} {...props} />
+	<div
+		className={cn(
+			"flex items-center select-none text-vscode-descriptionForeground hover:text-vscode-foreground transition-colors cursor-pointer",
+			className,
+		)}
+		style={{ padding: "4px 8px", borderRadius: "3px" }}
+		{...props}
+	/>
 )
