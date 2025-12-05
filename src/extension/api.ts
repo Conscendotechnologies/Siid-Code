@@ -565,19 +565,31 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						logger.info(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
 						this.outputChannel.appendLine(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
 
-						// Check if user already has useFreeModels in Firebase
-						const userProps = await getUserProperties(["useFreeModels"], this.outputChannel)
-						let useFreeModels = userProps?.useFreeModels
+						let useFreeModels: boolean
 
-						// If not set in Firebase, initialize with default (true)
-						if (useFreeModels === undefined || useFreeModels === null) {
+						// If the user provided their own API key via the pending flow,
+						// prefer explicit (paid/custom) configs and disable the "use free models" flag.
+						if (pendingApiKey) {
+							useFreeModels = false
 							logger.info(
-								`[onFirebaseLogin] useFreeModels not found in Firebase, setting default to true`,
+								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
 							)
 							this.outputChannel.appendLine(
-								`[onFirebaseLogin] useFreeModels not found in Firebase, setting default to true`,
+								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
 							)
+							// Persist to Firebase so subsequent sessions respect this choice
+							await updateUserProperties({ useFreeModels: false }, this.outputChannel)
+						} else {
+							// No pending API key: user is logging in with auto-provisioned key
+							// Always set useFreeModels to true for auto-provisioned users
 							useFreeModels = true
+							logger.info(
+								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
+							)
+							// Persist to Firebase so subsequent sessions respect this choice
 							await updateUserProperties({ useFreeModels: true }, this.outputChannel)
 						}
 

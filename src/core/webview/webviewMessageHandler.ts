@@ -321,6 +321,12 @@ export const webviewMessageHandler = async (
 			// Store the user-provided API key temporarily
 			if (message.apiKey) {
 				await updateGlobalState("pendingUserApiKey", message.apiKey)
+
+				// If user is signing in with their own API key, prefer free models by default
+				// so the UI reflects the intention to use OpenRouter free configs immediately.
+				await updateGlobalState("useFreeModels", true)
+				// Push updated state to webview so the checkbox updates immediately
+				await provider.postStateToWebview()
 			}
 			// Execute Firebase sign-in command
 			try {
