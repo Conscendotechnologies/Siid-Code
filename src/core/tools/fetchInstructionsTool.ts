@@ -56,9 +56,15 @@ export async function fetchInstructionsTool(
 
 			cline.consecutiveMistakeCount = 0
 
+			// Extract optional section parameter
+			const section: string | undefined = block.params.section
+
+			// Update display message to include section if provided
+			const displayMessage = section ? `${displayName} - Section: ${section}` : displayName
+
 			const completeMessage = JSON.stringify({
 				...sharedMessageProps,
-				content: displayName,
+				content: displayMessage,
 			} satisfies ClineSayTool)
 			const didApprove = await askApproval("tool", completeMessage)
 
@@ -66,7 +72,7 @@ export async function fetchInstructionsTool(
 				return
 			}
 
-			// Bow fetch the content and provide it to the agent.
+			// Now fetch the content and provide it to the agent.
 			const provider = cline.providerRef.deref()
 			const mcpHub = provider?.getMcpHub()
 
@@ -76,7 +82,7 @@ export async function fetchInstructionsTool(
 
 			const diffStrategy = cline.diffStrategy
 			const context = provider?.context
-			const content = await fetchInstructions(task, { mcpHub, diffStrategy, context })
+			const content = await fetchInstructions(task, { mcpHub, diffStrategy, context, section })
 
 			if (!content) {
 				pushToolResult(formatResponse.toolError(`Invalid instructions request: ${task}`))
