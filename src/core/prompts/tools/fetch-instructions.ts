@@ -88,6 +88,32 @@ Description: Request to fetch instructions to perform a task
 Parameters:
 - task: (required) The task to get instructions for.  This can take the following values:
 ${tasks}
+- section: (optional) The specific section to retrieve. Can be:
+  - "toc" or "table of contents" - Get table of contents with section numbers
+  - A section number (e.g., "5", "12") - Get specific section by number
+  - A section title (e.g., "SOQL & SOSL", "Event Handling") - Get specific section by title
+  - Omit to get full guide summary with TOC (default behavior)
 
-${example}`
+${example}
+
+Example: Requesting table of contents for Apex guide
+
+<fetch_instructions>
+<task>create_apex</task>
+<section>toc</section>
+</fetch_instructions>
+
+Example: Requesting specific section by number
+
+<fetch_instructions>
+<task>create_apex</task>
+<section>5</section>
+</fetch_instructions>
+
+Example: Requesting specific section by title
+
+<fetch_instructions>
+<task>create_lwc</task>
+<section>Event Handling</section>
+</fetch_instructions>`
 }
