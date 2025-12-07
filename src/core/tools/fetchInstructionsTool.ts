@@ -62,15 +62,13 @@ export async function fetchInstructionsTool(
 			// Update display message to include section if provided
 			const displayMessage = section ? `${displayName} - Section: ${section}` : displayName
 
+			// Auto-approve instructions fetch to reduce friction.
+			// We still emit a message so the webview shows what was fetched, but do not gate on user approval.
 			const completeMessage = JSON.stringify({
 				...sharedMessageProps,
 				content: displayMessage,
 			} satisfies ClineSayTool)
-			const didApprove = await askApproval("tool", completeMessage)
-
-			if (!didApprove) {
-				return
-			}
+			// Skip explicit approval prompt; we'll show the fetched content via pushToolResult below.
 
 			// Now fetch the content and provide it to the agent.
 			const provider = cline.providerRef.deref()

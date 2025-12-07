@@ -63,7 +63,8 @@ export type ProviderSettingsEntry = z.infer<typeof providerSettingsEntrySchema>
 /**
  * Default value for consecutive mistake limit
  */
-export const DEFAULT_CONSECUTIVE_MISTAKE_LIMIT = 3
+// Increase default to reduce frequent guidance interruptions while preserving safety.
+export const DEFAULT_CONSECUTIVE_MISTAKE_LIMIT = 5
 
 const baseProviderSettingsSchema = z.object({
 	includeMaxTokens: z.boolean().optional(),

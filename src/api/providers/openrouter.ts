@@ -60,6 +60,9 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 	private client: OpenAI
 	protected models: ModelRecord = {}
 	protected endpoints: ModelRecord = {}
+	// Simple in-memory cache to avoid refetching model metadata/endpoints on every call
+	private lastFetchTs?: number
+	private readonly fetchTtlMs = 60_000 // 60s TTL by default
 
 	constructor(options: ApiHandlerOptions) {
 		super()
@@ -112,7 +115,8 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 			}
 		}
 
-		const transforms = (this.options.openRouterUseMiddleOutTransform ?? true) ? ["middle-out"] : undefined
+		// Middle-out transform can add server-side processing latency; default to off unless explicitly enabled
+		const transforms = this.options.openRouterUseMiddleOutTransform === true ? ["middle-out"] : undefined
 
 		// https://openrouter.ai/docs/transforms
 		const completionParams: OpenRouterChatCompletionParams = {
@@ -136,16 +140,17 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 			...(reasoning && { reasoning }),
 		}
 
-		// Write completionParams to a debug file for inspection
-
-		const debugFilePath = path.resolve(__dirname, "../../../debug/openrouter-completionParams.json")
-		console.log(`debugFilePath created/openrouter-completionParams.json: ${debugFilePath}`)
-
-		try {
-			fs.promises.mkdir(path.dirname(debugFilePath), { recursive: true })
-			await fs.promises.writeFile(debugFilePath, JSON.stringify(completionParams, null, 2), "utf8")
-		} catch (err) {
-			console.warn("Failed to write completionParams debug file:", err)
+		// Optional debug write (disabled by default to avoid disk I/O latency on every request)
+		// Use env flag to avoid typing changes on ApiHandlerOptions
+		if (process.env.SIID_OPENROUTER_DEBUG === "1") {
+			const debugFilePath = path.resolve(__dirname, "../../../debug/openrouter-completionParams.json")
+			console.log(`openrouter completionParams debug: ${debugFilePath}`)
+			try {
+				await fs.promises.mkdir(path.dirname(debugFilePath), { recursive: true })
+				await fs.promises.writeFile(debugFilePath, JSON.stringify(completionParams, null, 2), "utf8")
+			} catch (err) {
+				console.warn("Failed to write completionParams debug file:", err)
+			}
 		}
 
 		const stream = await this.client.chat.completions.create(completionParams)
@@ -188,17 +193,22 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 	}
 
 	public async fetchModel() {
-		const [models, endpoints] = await Promise.all([
-			getModels({ provider: "openrouter" }),
-			getModelEndpoints({
-				router: "openrouter",
-				modelId: this.options.openRouterModelId,
-				endpoint: this.options.openRouterSpecificProvider,
-			}),
-		])
+		const now = Date.now()
+		const isFresh = this.lastFetchTs && now - this.lastFetchTs < this.fetchTtlMs
+		if (!isFresh) {
+			const [models, endpoints] = await Promise.all([
+				getModels({ provider: "openrouter" }),
+				getModelEndpoints({
+					router: "openrouter",
+					modelId: this.options.openRouterModelId,
+					endpoint: this.options.openRouterSpecificProvider,
+				}),
+			])
 
-		this.models = models
-		this.endpoints = endpoints
+			this.models = models
+			this.endpoints = endpoints
+			this.lastFetchTs = now
+		}
 
 		return this.getModel()
 	}

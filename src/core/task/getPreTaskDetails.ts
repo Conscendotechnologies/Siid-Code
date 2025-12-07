@@ -8,6 +8,29 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 	if (globalStorageUri) {
 		preTask += `\n\n**IMPORTANT: Before proceeding with any task, you MUST use the 'fetch_instructions' tool to read the relevant instructions.**\n\n`
 		preTask += `Do NOT attempt to read instruction files directly. Always use the fetch_instructions tool.\n\n`
+
+		// Enforce Todo Workflow
+		preTask += `---\n\n`
+		preTask += `### Required Todo Workflow\n`
+		preTask += `You MUST create and maintain a todo list for every non-trivial task before using any other tools. Use the 'update_todo_list' tool to create or update the checklist. Keep steps small to avoid losing context.\n\n`
+		preTask += `#### How to create/update the todo list\n`
+		preTask += `<update_todo_list>\n`
+		preTask += `<todos>\n`
+		preTask += `[ ] Capture task requirements\n`
+		preTask += `[ ] Locate relevant code areas\n`
+		preTask += `[ ] Break task into subtasks\n`
+		preTask += `[ ] Define assumptions & risks\n`
+		preTask += `[ ] Plan tool batches\n`
+		preTask += `[ ] Execute first subtask\n`
+		preTask += `[ ] Run build/lint/tests\n`
+		preTask += `[ ] Iterate on errors\n`
+		preTask += `[ ] Execute remaining subtasks\n`
+		preTask += `[ ] Finalize & summarize\n`
+		preTask += `</todos>\n`
+		preTask += `</update_todo_list>\n\n`
+		preTask += `Status legend: [ ] pending, [-] in_progress, [x] completed. Update statuses as you progress.\n\n`
+		preTask += `The checklist must be updated at each step and summarized at the end. If a failure occurs, add a brief note and retry up to three targeted fixes before escalating.\n\n`
+		preTask += `---\n\n`
 		preTask += `Available instruction tasks:\n`
 		preTask += `\n**General Instructions:**\n`
 		preTask += `- create_mcp_server: Instructions for creating MCP servers\n`
