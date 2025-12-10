@@ -22,9 +22,9 @@ export async function createLWCInstructions(
 			throw new Error(`LWC instructions file at '${lwcInstructionsPath}' is empty.`)
 		}
 
-		// If no section specified, return summary with TOC
+		// If no section specified, return full guide with XML meta and deployment instructions
 		if (!section) {
-			return getGuideSummary(customInstructions, "Lightning Web Components (LWC)")
+			return customInstructions
 		}
 
 		// Try to find the requested section
