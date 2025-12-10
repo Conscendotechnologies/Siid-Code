@@ -98,7 +98,7 @@ import { processUserContentMentions } from "../mentions/processUserContentMentio
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { getMessagesSinceLastSummary, summarizeConversation } from "../condense"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
-import { restoreTodoListForTask } from "../tools/updateTodoListTool"
+import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoListTool"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
@@ -354,6 +354,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		onCreated?.(this)
 
 		if (startTask) {
+			// Ensure todo list is initialized and present before starting any task.
+			this.ensureTodoListInitialized()
 			if (task || images) {
 				this.startTask(task, images)
 			} else if (historyItem) {
@@ -395,6 +397,43 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Use the provider's log method for better error visibility
 			const errorMessage = `Failed to initialize task mode: ${error instanceof Error ? error.message : String(error)}`
 			provider.log(errorMessage)
+		}
+	}
+
+	/**
+	 * Ensure the task's todo list is restored from messages or seeded with a default checklist.
+	 * This provides a simple, non-intrusive enforcement: the checklist always exists.
+	 */
+	private ensureTodoListInitialized(): void {
+		try {
+			// Attempt to restore from prior messages (history or resumed tasks).
+			restoreTodoListForTask(this)
+			const hasTodos = Array.isArray(this.todoList) && this.todoList.length > 0
+			if (!hasTodos) {
+				// Seed with the default minimal workflow checklist.
+				const defaultMd = [
+					"[ ] Capture task requirements",
+					"[ ] Locate relevant code areas",
+					"[ ] Break task into subtasks",
+					"[ ] Define assumptions & risks",
+					"[ ] Plan tool batches",
+					"[ ] Execute first subtask",
+					"[ ] Run build/lint/tests",
+					"[ ] Iterate on errors",
+					"[ ] Execute remaining subtasks",
+					"[ ] Finalize & summarize",
+				].join("\n")
+				// Use the same parser as the updateTodoListTool via its interface by reusing setTodoListForTask with parsed items.
+				// Minimal parsing: mirror updateTodoListTool's parser by synthesizing ids and pending status.
+				const seeded = defaultMd.split(/\r?\n/).map((line) => ({
+					id: crypto.createHash("md5").update(line).digest("hex"),
+					content: line.replace(/^\[[^\]]+\]\s+/, ""),
+					status: "pending" as const,
+				}))
+				void setTodoListForTask(this, seeded)
+			}
+		} catch (e) {
+			// Non-fatal: if anything goes wrong, proceed without blocking.
 		}
 	}
 
