@@ -22,9 +22,9 @@ export async function createApexInstructions(
 			throw new Error(`Apex instructions file at '${apexInstructionsPath}' is empty.`)
 		}
 
-		// If no section specified, return summary with TOC
+		// If no section specified, return full guide with XML and deployment instructions
 		if (!section) {
-			return getGuideSummary(customInstructions, "Apex")
+			return customInstructions
 		}
 
 		// Try to find the requested section
