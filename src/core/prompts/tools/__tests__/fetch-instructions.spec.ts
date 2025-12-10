@@ -67,23 +67,6 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("validation_rules")
 	})
 
-	it("should include salesforce_deployment task", () => {
-		const description = getFetchInstructionsDescription(true)
-
-		// Check for salesforce_deployment task
-		expect(description).toContain("salesforce_deployment")
-		expect(description).toContain("Example: Requesting Salesforce deployment and retrieval instructions")
-		expect(description).toContain("<task>salesforce_deployment</task>")
-	})
-
-	it("should include salesforce_deployment section-based retrieval example", () => {
-		const description = getFetchInstructionsDescription(true)
-
-		// Check for section-based retrieval example
-		expect(description).toContain("Example: Requesting specific section from deployment guide")
-		expect(description).toContain("<section>Apex Deployment</section>")
-	})
-
 	it("should include Salesforce Agent examples", () => {
 		const description = getFetchInstructionsDescription(true)
 
@@ -103,23 +86,5 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("custom_object")
 		expect(description).toContain("validation_rules")
 		expect(description).toContain("<task>custom_object</task>")
-	})
-
-	it("should include salesforce_deployment when MCP server creation is disabled", () => {
-		const description = getFetchInstructionsDescription(false)
-
-		// salesforce_deployment should be present regardless of MCP setting
-		expect(description).toContain("salesforce_deployment")
-		expect(description).toContain("<task>salesforce_deployment</task>")
-	})
-
-	it("should include all core development tasks", () => {
-		const description = getFetchInstructionsDescription(true)
-
-		// Check for core development tasks
-		expect(description).toContain("create_mode")
-		expect(description).toContain("create_lwc")
-		expect(description).toContain("create_apex")
-		expect(description).toContain("salesforce_deployment")
 	})
 })

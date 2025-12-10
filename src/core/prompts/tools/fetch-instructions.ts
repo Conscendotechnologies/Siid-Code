@@ -10,7 +10,6 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_mode
   create_lwc
   create_apex
-  salesforce_deployment
   assignment_rules
   custom_field
   custom_object
@@ -24,7 +23,6 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 			: `  create_mode
   create_lwc
   create_apex
-  salesforce_deployment
   assignment_rules
   custom_field
   custom_object
@@ -56,19 +54,6 @@ Example: Requesting instructions to create an Apex class
 <task>create_apex</task>
 </fetch_instructions>
 
-Example: Requesting Salesforce deployment and retrieval instructions
-
-<fetch_instructions>
-<task>salesforce_deployment</task>
-</fetch_instructions>
-
-Example: Requesting specific section from deployment guide
-
-<fetch_instructions>
-<task>salesforce_deployment</task>
-<section>Apex Deployment</section>
-</fetch_instructions>
-
 Example: Requesting instructions for Salesforce Assignment Rules
 
 <fetch_instructions>
@@ -90,19 +75,6 @@ Example: Requesting instructions to create a Lightning Web Component
 
 <fetch_instructions>
 <task>create_lwc</task>
-</fetch_instructions>
-
-Example: Requesting Salesforce deployment and retrieval instructions
-
-<fetch_instructions>
-<task>salesforce_deployment</task>
-</fetch_instructions>
-
-Example: Requesting specific section from deployment guide
-
-<fetch_instructions>
-<task>salesforce_deployment</task>
-<section>LWC Deployment</section>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object
