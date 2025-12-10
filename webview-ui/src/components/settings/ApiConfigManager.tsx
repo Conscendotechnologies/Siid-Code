@@ -13,6 +13,7 @@ interface ApiConfigManagerProps {
 	listApiConfigMeta?: ProviderSettingsEntry[]
 	organizationAllowList?: OrganizationAllowList
 	useFreeModels?: boolean
+	developerMode?: boolean
 	onSelectConfig: (configName: string) => void
 	onDeleteConfig: (configName: string) => void
 	onRenameConfig: (oldName: string, newName: string) => void
@@ -24,6 +25,7 @@ const ApiConfigManager = ({
 	listApiConfigMeta = [],
 	organizationAllowList,
 	useFreeModels = false,
+	developerMode = false,
 	onSelectConfig,
 	onDeleteConfig,
 	onRenameConfig,
@@ -174,10 +176,13 @@ const ApiConfigManager = ({
 
 	// Filter configs based on useFreeModels setting
 	// Free configs end with '-free', paid configs don't
-	const filteredConfigs = listApiConfigMeta.filter((config) => {
-		const isFreeConfig = config.id.endsWith("-free")
-		return useFreeModels ? isFreeConfig : !isFreeConfig
-	})
+	// In developer mode, show all configs regardless of tier
+	const filteredConfigs = developerMode
+		? listApiConfigMeta // Show all configs in developer mode
+		: listApiConfigMeta.filter((config) => {
+				const isFreeConfig = config.id.endsWith("-free")
+				return useFreeModels ? isFreeConfig : !isFreeConfig
+			})
 
 	const isOnlyProfile = filteredConfigs?.length === 1
 
