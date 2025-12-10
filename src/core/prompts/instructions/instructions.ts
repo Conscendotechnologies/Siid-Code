@@ -2,6 +2,7 @@ import { createMCPServerInstructions } from "./create-mcp-server"
 import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
+import { createSalesforceDeploymentInstructions } from "./create-salesforce-deployment"
 import {
 	assignmentRulesInstructions,
 	customFieldInstructions,
@@ -38,6 +39,9 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "create_apex": {
 			return await createApexInstructions(detail.context, detail.section)
+		}
+		case "salesforce_deployment": {
+			return await createSalesforceDeploymentInstructions(detail.context, detail.section)
 		}
 		// Salesforce Agent Instructions
 		case "assignment_rules": {

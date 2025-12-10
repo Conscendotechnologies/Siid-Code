@@ -56,53 +56,57 @@
     - Deployment processes
 - Always acknowledge and confirm user-provided guidelines before proceeding with implementation.
 
-## (!!**IMPORTANT**)Retrieving Apex Classes
+## (!!**IMPORTANT**)Deployment & Retrieval Guidelines
 
-**CRITICAL RULE: ALWAYS RETRIEVE BEFORE CREATING OR MODIFYING ANY APEX CLASS**
+**CRITICAL: For complete deployment and retrieval instructions, use:**
 
-Before creating or modifying Apex classes, you MUST ALWAYS check existing classes in the Salesforce org first:
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+</fetch_instructions>
+```
 
-### Directory Location
+### Quick Reference
 
-**Apex classes are stored in:** `force-app/main/default/classes/`
+**Before creating or modifying Apex classes:**
 
-- Each Apex class has two files:
-    - `ClassName.cls` (the Apex class file)
-    - `ClassName.cls-meta.xml` (the metadata XML file)
+- ✅ **ALWAYS retrieve first** using `<retrieve_sf_metadata>` tool
+- ✅ Retrieve all Apex classes: `metadata_type="ApexClass"`
+- ✅ Retrieve specific class: `metadata_type="ApexClass"` and `metadata_name="ClassName"`
 
-### (!!**IMPORTANT**)Retrieve All Apex Classes
+**Deployment workflow:**
 
-- **MANDATORY FIRST STEP**: Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" to retrieve all Apex classes from the org
-- This retrieves all classes to the `force-app/main/default/classes/` directory
-- **ALWAYS DO THIS** when starting any Apex-related task to understand what classes exist in the org
-- **DO NOT skip this step** - you must check what already exists before creating new classes
+1. Retrieve existing metadata (MANDATORY)
+2. Create/modify files locally
+3. Run dry-run: `sf project deploy start --dry-run --source-dir force-app/main/default/classes/ClassName.cls`
+4. Deploy: `sf project deploy start --source-dir force-app/main/default/classes/ClassName.cls`
 
-### (!!**IMPORTANT**)Retrieve Specific Apex Classes
+**For detailed instructions on:**
 
-- Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" and metadata_name "<ClassName>" to retrieve a specific class
-- Replace <ClassName> with the actual class name without the .cls extension (e.g., "AccountService", "MyController", "OpportunityTriggerHandler")
-- The tool retrieves files to `force-app/main/default/classes/`
-- Use this when you need to view or modify a specific class
+- Retrieval guidelines and best practices
+- Deployment workflows and commands
+- Dependency management
+- Error handling and troubleshooting
+- Code coverage requirements
 
-### Sync Latest Code
+**Use the Salesforce Deployment Guide:**
 
-- **MANDATORY**: Before modifying any Apex class, always retrieve the latest version using the tool to ensure you have the most current code
-- This prevents conflicts and ensures you're working with the latest version from the org
-- Always sync before making changes to existing classes
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+</fetch_instructions>
+```
 
-### When to Use Retrieval (MANDATORY CHECKLIST)
+Or fetch specific sections:
 
-✅ **ALWAYS retrieve at the start** of any Apex-related task to understand existing code
-✅ **ALWAYS retrieve before creating** a new class to check if a similar class already exists
-✅ **ALWAYS retrieve before modifying** a class to get the latest version
-✅ When syncing local code with org code
-✅ When analyzing or refactoring existing Apex code
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+  <section>Apex Deployment</section>
+</fetch_instructions>
+```
 
-### ❌ NEVER DO THIS
-
-❌ **NEVER create an Apex class file directly without first using the retrieve tool**
-❌ **NEVER assume a class doesn't exist** - always retrieve and check first
-❌ **NEVER modify a class without retrieving** the latest version first
+---
 
 ## Language Fundamentals
 
@@ -2383,49 +2387,22 @@ for(Account acc : accountList) {
 
 ### 9. (**!! IMPORTANT**)Dry run and Deployment:
 
-After creation of all required apex classes and LWC components then first do dry run on apex using this command:
-`sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls>`
-Replace <classname.cls> with the actual classes.
-
-- If got any errors after dry run solve them.
-- After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
-  `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls>`
-- Replace <classname.cls> with the all classes that are created like below format for multiple apex classes deployment:
-    # Deploy multiple specific Apex classes in order
-    ```
-    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger
-    ```
-- (**!IMPORTANT**)Before Going for LWC first dry-run and deploy Apex Classes.
-
-Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
-
-Deployment workflow you should follow every time:
-
-- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
-
-## Quick Reference: Common Patterns
-
-### Pattern 1: Trigger Handler
-
-```apex
-trigger AccountTrigger on Account (before insert, after insert) {
-    AccountTriggerHandler.handle();
-}
-
 public class AccountTriggerHandler {
-    public static void handle() {
-        if(Trigger.isBefore && Trigger.isInsert) {
-            beforeInsert(Trigger.new);
-        }
-        if(Trigger.isAfter && Trigger.isInsert) {
-            afterInsert(Trigger.new);
-        }
-    }
+public static void handle() {
+if(Trigger.isBefore && Trigger.isInsert) {
+beforeInsert(Trigger.new);
+}
+if(Trigger.isAfter && Trigger.isInsert) {
+afterInsert(Trigger.new);
+}
+}
 
     private static void beforeInsert(List<Account> accounts) { }
     private static void afterInsert(List<Account> accounts) { }
+
 }
-```
+
+````
 
 ### Pattern 2: Map-Based Bulkification
 
@@ -2446,7 +2423,7 @@ for(Contact con : contacts) {
     Account acc = accountMap.get(con.AccountId);
     // Use account
 }
-```
+````
 
 ### Pattern 3: Batch Processing
 

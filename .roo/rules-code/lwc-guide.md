@@ -4,63 +4,75 @@
 
 ---
 
+## Creation of XML Meta File: (!!**IMPORTANT**)
+
+- After creation of LWC component files (.js, .html, .css) **IMMEDIATELY create the .js-meta.xml file too WITHOUT ASKING**.
+- The .js-meta.xml file is REQUIRED for every LWC component.
+- Example structure:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>false</isExposed>
+</LightningComponentBundle>
+```
+
 ## (**!IMPORTANT**)Retrieving Lightning Web Components
 
-**CRITICAL RULE: ALWAYS RETRIEVE BEFORE CREATING OR MODIFYING ANY LWC COMPONENT**
+## (!!**IMPORTANT**)Deployment & Retrieval Guidelines
 
-Before creating or modifying Lightning Web Components, you MUST ALWAYS check existing components in the Salesforce org first:
+**CRITICAL: For complete deployment and retrieval instructions, use:**
 
-### Directory Location
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+</fetch_instructions>
+```
 
-**Lightning Web Components are stored in:** `force-app/main/default/lwc/`
+### Quick Reference
 
-- Each LWC component has its own folder with multiple files:
-    - `componentName/` (folder in camelCase)
-        - `componentName.js` (JavaScript controller - required)
-        - `componentName.html` (HTML template - optional)
-        - `componentName.css` (CSS styles - optional)
-        - `componentName.js-meta.xml` (metadata configuration - required)
+**Before creating or modifying LWC components:**
 
-### (**!IMPORTANT**)Retrieve All Lightning Web Components
+- ✅ **ALWAYS retrieve first** using `<retrieve_sf_metadata>` tool
+- ✅ Retrieve all LWC: `metadata_type="LightningComponentBundle"`
+- ✅ Retrieve specific component: `metadata_type="LightningComponentBundle"` and `metadata_name="componentName"`
 
-- **MANDATORY FIRST STEP**: Use the <retrieve_sf_metadata> tool with metadata_type "LightningComponentBundle" to retrieve all LWC components from the org
-- This retrieves all LWC components to the `force-app/main/default/lwc/` directory
-- **ALWAYS DO THIS** when starting any LWC-related task to understand what components exist in the org
-- **DO NOT skip this step** - you must check what already exists before creating new components
+**Deployment workflow:**
 
-### (**!IMPORTANT**)Retrieve Specific Lightning Web Components
+1. **Deploy Apex controllers FIRST** (if LWC uses Apex)
+2. Retrieve existing metadata (MANDATORY)
+3. Create/modify files locally
+4. Run dry-run: `sf project deploy start --dry-run --source-dir force-app/main/default/lwc/componentName`
+5. Deploy: `sf project deploy start --source-dir force-app/main/default/lwc/componentName`
 
-- Use the <retrieve_sf_metadata> tool with metadata_type "LightningComponentBundle" and metadata_name "<ComponentName>" to retrieve a specific component
-- Replace <ComponentName> with the actual component folder name in camelCase (e.g., "myComponent", "accountList", "opportunityCard")
-- This retrieves the entire component bundle including .js, .html, .css, and .js-meta.xml files to `force-app/main/default/lwc/<ComponentName>/`
-- Use this when you need to view or modify a specific component
+**For detailed instructions on:**
 
-### Sync Latest Code
+- Retrieval guidelines and best practices
+- Deployment workflows and commands
+- Dependency management (Apex before LWC)
+- Error handling and troubleshooting
+- Selective deployment best practices
 
-- **MANDATORY**: Before modifying any LWC component, always retrieve the latest version using the tool to ensure you have the most current code
-- This prevents conflicts and ensures you're working with the latest version from the org
-- Always sync before making changes to existing components
+**Use the Salesforce Deployment Guide:**
 
-### When to Use Retrieval (MANDATORY CHECKLIST)
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+</fetch_instructions>
+```
 
-✅ **ALWAYS retrieve at the start** of any LWC-related task to understand existing components
-✅ **ALWAYS retrieve before creating** a new component to check if a similar component already exists
-✅ **ALWAYS retrieve before modifying** a component to get the latest version
-✅ When syncing local code with org code
-✅ When analyzing or refactoring existing LWC components
-✅ When working with component composition (checking parent/child components)
+Or fetch specific sections:
 
-### ❌ NEVER DO THIS
-
-❌ **NEVER create an LWC component folder/files directly without first using the retrieve tool**
-❌ **NEVER assume a component doesn't exist** - always retrieve and check first
-❌ **NEVER modify a component without retrieving** the latest version first
+```xml
+<fetch_instructions>
+  <task>salesforce_deployment</task>
+  <section>LWC Deployment</section>
+</fetch_instructions>
+```
 
 ---
 
-## User-Provided Guidelines Priority (HIGHEST PRIORITY)
-
-- **When the user provides code or project guidelines in a BRD (Business Requirement Document), you MUST prioritize those guidelines above all else.**
 - User-provided guidelines have the **HIGHEST PRIORITY** and override any default patterns or best practices mentioned in this guide.
 - If there is a conflict between user guidelines and this reference guide, always follow the user's guidelines.
 - Examples of user guidelines include:
@@ -745,32 +757,6 @@ Salesforce provides base components built on SLDS:
 
 ### Dry run and Deployment: (!!**IMPORTANT - selective deployment only**)
 
-After creation of all required apex classes and LWC components then first do dry run on LWC using this command:(**!!Important- After completion of apex deployment**)
--(**!IMPORTANT**)Before doing Dry-run of LWC make sure you deployed required Apex classes
-`sf project deploy start --dry-run --source-dir force-app/main/default/lwc/<componentname>`
-Replace <componentname> with the actual classes.
-
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-  `sf project deploy start --source-dir force-app/main/default/objects/<componentname>`
-- Replace <componentname> with the all components that are created comma separated.
-
-Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
-
-Deployment workflow you should follow every time:
-
-- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
-
-## Development Tools
-
-### Local Development
-
-```bash
-sfdx force:lightning:lwc:start
-```
-
-- Runs components locally
-- Hot reload
 - Proxies org data
 
 ### Debug Mode
