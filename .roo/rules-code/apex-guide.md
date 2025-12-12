@@ -4,6 +4,216 @@
 
 ---
 
+## ⚠️ CRITICAL: MANDATORY FIRST STEP - Retrieve Apex Classes
+
+**BEFORE DOING ANYTHING ELSE, YOU MUST RETRIEVE EXISTING APEX CLASSES FROM THE ORG**
+
+This is **NOT OPTIONAL**. Every time you start an Apex-related task, you MUST:
+
+### Step 1: Retrieve All Apex Classes (MANDATORY)
+
+**USE THIS COMMAND FIRST:**
+
+```
+<retrieve_sf_metadata>
+<metadata_type>ApexClass</metadata_type>
+</retrieve_sf_metadata>
+```
+
+This retrieves all existing Apex classes from the org to `force-app/main/default/classes/`
+
+### Why This Is Critical:
+
+✅ **ALWAYS retrieve at the start** of any Apex-related task to understand existing code
+✅ **ALWAYS retrieve before creating** a new class to check if a similar class already exists
+✅ **ALWAYS retrieve before modifying** a class to get the latest version
+✅ Prevents duplicate class creation
+✅ Prevents conflicts with existing code
+✅ Ensures you work with the latest version from the org
+
+### ❌ NEVER DO THIS:
+
+❌ **NEVER create an Apex class file directly without first using the retrieve tool**
+❌ **NEVER assume a class doesn't exist** - always retrieve and check first
+❌ **NEVER modify a class without retrieving** the latest version first
+❌ **NEVER skip this step** - it is MANDATORY for every Apex task
+
+### Directory Location:
+
+**Apex classes are stored in:** `force-app/main/default/classes/`
+
+- Each Apex class has two files:
+    - `ClassName.cls` (the Apex class file)
+    - `ClassName.cls-meta.xml` (the metadata XML file)
+
+---
+
+## ⚠️ MANDATORY WORKFLOW FOR ALL APEX TASKS
+
+**After retrieving Apex classes, you MUST follow this workflow for EVERY Apex-related task:**
+
+### Step 1: ✅ Retrieve All Apex Classes (Already Done Above)
+
+### Step 2: 🔍 Check for Existing Patterns
+
+After retrieving, check if the following classes already exist:
+
+- **Selector Classes**: Look for `*Selector.cls` files (e.g., `AccountSelector`, `OpportunitySelector`)
+- **Service Classes**: Look for `*Service.cls` files (e.g., `AccountService`, `OpportunityService`)
+- **Related Classes**: Look for any existing class that handles similar functionality
+
+### Step 3: 📋 Plan Your Implementation Using Required Patterns
+
+**YOU MUST USE THESE PATTERNS - THIS IS NOT OPTIONAL:**
+
+#### A) Selector Pattern for SOQL (MANDATORY)
+
+- **All SOQL queries MUST be in Selector classes**
+- **One Selector class per SObject** (e.g., `OpportunitySelector`, `AccountSelector`)
+- **Naming**: `<ObjectName>Selector`
+- **Methods return Lists/Sets**, never single records
+
+**Example:**
+
+```apex
+public with sharing class OpportunitySelector {
+    /**
+     * Get opportunities by stage name
+     * @param strStageName The stage name to filter by
+     * @return List of Opportunity records
+     */
+    public static List<Opportunity> getByStage(String strStageName) {
+        return [
+            SELECT Id, Name, Amount, CloseDate, StageName
+            FROM Opportunity
+            WHERE StageName = :strStageName
+            WITH USER_MODE
+        ];
+    }
+}
+```
+
+#### B) Service Pattern for Business Logic (MANDATORY)
+
+- **All business logic MUST be in Service classes**
+- **Controllers should only call Service classes, NOT Selectors directly**
+- **Naming**: `<ObjectName>Service`
+- **Methods are entry points for business operations**
+
+**Example:**
+
+```apex
+public with sharing class OpportunityService {
+    /**
+     * Get prospecting opportunities for display
+     * @return List of Opportunity records with Prospecting stage
+     */
+    public static List<Opportunity> getProspectingOpportunities() {
+        // Call Selector for data retrieval
+        List<Opportunity> listOpportunities = OpportunitySelector.getByStage('Prospecting');
+
+        // Add any business logic/transformations here if needed
+
+        return listOpportunities;
+    }
+}
+```
+
+#### C) Controller for LWC (MANDATORY NAMING CONVENTIONS)
+
+- **Naming**: `<ComponentName>Controller`
+- **All methods must be @AuraEnabled**
+- **Use Service classes, NOT Selector classes directly**
+- **Follow variable naming conventions**
+
+**Example:**
+
+```apex
+public with sharing class OpportunityListController {
+    /**
+     * Get prospecting opportunities for LWC component
+     * @return List of Opportunity records
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<Opportunity> getProspectingOpportunities() {
+        try {
+            // Call Service class
+            return OpportunityService.getProspectingOpportunities();
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+}
+```
+
+### Step 4: 🔤 Follow Naming Conventions (MANDATORY)
+
+**YOU MUST USE THESE NAMING CONVENTIONS:**
+
+#### Variables:
+
+- **Lists**: `listOpportunities`, `listAccounts`, `listContacts`
+- **Sets**: `setOpportunityIds`, `setAccountIds`
+- **Maps**: `mapOppById`, `mapAccByName`
+- **Strings**: `strStageName`, `strAccountName`
+- **Integers**: `intCount`, `intIndex`
+- **Booleans**: `isValid`, `hasErrors`, `shouldProcess`
+
+#### Classes:
+
+- **Selectors**: `OpportunitySelector`, `AccountSelector`
+- **Services**: `OpportunityService`, `AccountService`
+- **Controllers**: `OpportunityListController`, `AccountCardController`
+- **Test Classes**: `OpportunityService_Test`, `AccountSelector_Test`
+
+#### Methods:
+
+- **camelCase with verb**: `getProspectingOpportunities()`, `validateAccount()`, `createOrder()`
+
+### Step 5: 📝 Implementation Checklist
+
+Before writing ANY code, verify:
+
+- [ ] ✅ Retrieved all Apex classes
+- [ ] 🔍 Checked for existing Selector/Service classes
+- [ ] 📋 Planned to use Selector pattern for SOQL
+- [ ] 📋 Planned to use Service pattern for business logic
+- [ ] 🔤 Will follow naming conventions (list/set/map/str/int prefixes)
+- [ ] 🔒 Will use `WITH USER_MODE` or `WITH SECURITY_ENFORCED` in SOQL
+- [ ] 📦 Will use `with sharing` on classes
+- [ ] 📄 Will create XML metadata files for each class
+
+### Step 6: ⚡ Create Classes in This Order
+
+1. **First**: Create Selector class(es) with SOQL queries
+2. **Second**: Create Service class(es) that call Selector(s)
+3. **Third**: Create Controller class(es) that call Service(s)
+4. **Fourth**: Create corresponding XML metadata files for each class
+
+### ❌ ANTI-PATTERNS TO AVOID
+
+❌ **NEVER put SOQL directly in Controller classes**
+❌ **NEVER put SOQL directly in LWC JavaScript files**
+❌ **NEVER skip the Selector pattern**
+❌ **NEVER skip the Service pattern**
+❌ **NEVER use variable names without prefixes** (e.g., `opportunities` instead of `listOpportunities`)
+❌ **NEVER create a Controller that directly calls Selector** - always go through Service
+
+### ✅ CORRECT PATTERN
+
+```
+LWC Component
+    ↓ calls
+Controller (@AuraEnabled method)
+    ↓ calls
+Service (business logic)
+    ↓ calls
+Selector (SOQL queries)
+    ↓ returns data
+```
+
+---
+
 ## Executive Summary
 
 **Apex** is Salesforce's proprietary, strongly-typed, object-oriented programming language that executes on the Salesforce Platform server. It's syntactically similar to Java but specifically designed for building business logic that operates on Salesforce data within a multi-tenant cloud environment.
@@ -21,20 +231,24 @@
 
 ## Table of Contents
 
-1. [Language Fundamentals](#language-fundamentals)
-2. [Data Types](#data-types)
-3. [Collections](#collections)
-4. [Classes, Interfaces & Enums](#classes-interfaces--enums)
-5. [SOQL & SOSL](#soql--sosl)
-6. [DML Operations](#dml-operations)
-7. [Governor Limits & Bulkification](#governor-limits--bulkification)
-8. [Asynchronous Apex](#asynchronous-apex)
-9. [Testing Framework](#testing-framework)
-10. [Security & Sharing](#security--sharing)
-11. [Triggers](#triggers)
-12. [Key Namespaces](#key-namespaces)
-13. [Exception Handling](#exception-handling)
-14. [Best Practices](#best-practices)
+1. [Naming Conventions & Standards](#naming-conventions--standards)
+2. [Language Fundamentals](#language-fundamentals)
+3. [Data Types](#data-types)
+4. [Collections](#collections)
+5. [Classes, Interfaces & Enums](#classes-interfaces--enums)
+6. [Apex Class Architecture Patterns](#apex-class-architecture-patterns)
+7. [SOQL & SOSL](#soql--sosl)
+8. [DML Operations](#dml-operations)
+9. [Governor Limits & Bulkification](#governor-limits--bulkification)
+10. [Asynchronous Apex](#asynchronous-apex)
+11. [Testing Framework](#testing-framework)
+12. [Security & Sharing](#security--sharing)
+13. [Triggers](#triggers)
+14. [Key Namespaces](#key-namespaces)
+15. [Exception Handling](#exception-handling)
+16. [Integration Standards](#integration-standards)
+17. [Best Practices](#best-practices)
+18. [Governance & Developer Checklist](#governance--developer-checklist)
 
 ---
 
@@ -56,53 +270,65 @@
     - Deployment processes
 - Always acknowledge and confirm user-provided guidelines before proceeding with implementation.
 
-## (!!**IMPORTANT**)Retrieving Apex Classes
+---
 
-**CRITICAL RULE: ALWAYS RETRIEVE BEFORE CREATING OR MODIFYING ANY APEX CLASS**
+## Naming Conventions & Standards
 
-Before creating or modifying Apex classes, you MUST ALWAYS check existing classes in the Salesforce org first:
+Consistent naming is critical for maintainability and code readability. Use the following standards for all Apex classes, variables, and components.
 
-### Directory Location
+### General Apex Naming
 
-**Apex classes are stored in:** `force-app/main/default/classes/`
+| Component        | Format                 | Pattern / Example                                          |
+| ---------------- | ---------------------- | ---------------------------------------------------------- |
+| **Classes**      | PascalCase             | `OrderService`, `AccountTriggerHandler`, `AccountSelector` |
+| **Interfaces**   | PascalCase + Suffix    | `IntegrationStrategyInterface`                             |
+| **Methods**      | camelCase (Verb-based) | `createOrder()`, `validateInput()`, `syncToSAP()`          |
+| **Variables**    | camelCase              | `accountList`, `hasErrors`, `retryCount`                   |
+| **Constants**    | ALL_CAPS (Underscore)  | `MAX_RETRY_COUNT`, `SAP_ENDPOINT_NAME`                     |
+| **Triggers**     | PascalCase             | `<ObjectName>Trigger` (e.g., `AccountTrigger`)             |
+| **Test Classes** | PascalCase + Suffix    | `<ClassName>_Test` (e.g., `OrderService_Test`)             |
 
-- Each Apex class has two files:
-    - `ClassName.cls` (the Apex class file)
-    - `ClassName.cls-meta.xml` (the metadata XML file)
+### Primitive Variable Prefixes (Optional but Recommended)
 
-### (!!**IMPORTANT**)Retrieve All Apex Classes
+Use type-based prefixes to improve readability and consistency:
 
-- **MANDATORY FIRST STEP**: Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" to retrieve all Apex classes from the org
-- This retrieves all classes to the `force-app/main/default/classes/` directory
-- **ALWAYS DO THIS** when starting any Apex-related task to understand what classes exist in the org
-- **DO NOT skip this step** - you must check what already exists before creating new classes
+| Data Type    | Prefix              | Example                                |
+| ------------ | ------------------- | -------------------------------------- |
+| **Integer**  | `int`               | `intRetryCount`, `intIndex`            |
+| **Decimal**  | `dec`               | `decTotalAmount`, `decDiscountRate`    |
+| **Double**   | `dbl`               | `dblPercentage`, `dblRatio`            |
+| **Long**     | `lng`               | `lngRecordCount`, `lngExecutionTimeMs` |
+| **String**   | `str`               | `strAccountName`, `strErrorMessage`    |
+| **Boolean**  | `is`/`has`/`should` | `isValid`, `hasErrors`, `shouldSync`   |
+| **Date**     | `dt`                | `dtStartDate`, `dtEndDate`             |
+| **Datetime** | `dtm`               | `dtmCreatedOn`, `dtmLastRunAt`         |
+| **Id**       | `id`                | `idAccount`, `idContact`               |
 
-### (!!**IMPORTANT**)Retrieve Specific Apex Classes
+### Collection Naming Patterns
 
-- Use the <retrieve_sf_metadata> tool with metadata_type "ApexClass" and metadata_name "<ClassName>" to retrieve a specific class
-- Replace <ClassName> with the actual class name without the .cls extension (e.g., "AccountService", "MyController", "OpportunityTriggerHandler")
-- The tool retrieves files to `force-app/main/default/classes/`
-- Use this when you need to view or modify a specific class
+| Collection Type | Prefix                | Example                                          |
+| --------------- | --------------------- | ------------------------------------------------ |
+| **List**        | `list`                | `listAccounts`, `listOrders`, `listWrapAccounts` |
+| **Set**         | `set`                 | `setAccountIds`, `setEmailIds`                   |
+| **Map**         | `map`                 | `mapAccById`, `mapOppByStage`, `mapConfigByName` |
+| **Wrapper/DTO** | Suffix DTO or Wrapper | `OrderDTO`, `ProductDTO`, `AccountWrapper`       |
 
-### Sync Latest Code
+### Automation Naming Standards
 
-- **MANDATORY**: Before modifying any Apex class, always retrieve the latest version using the tool to ensure you have the most current code
-- This prevents conflicts and ensures you're working with the latest version from the org
-- Always sync before making changes to existing classes
+Apply consistent naming to declarative automation to prevent conflicts and ensure sortability:
 
-### When to Use Retrieval (MANDATORY CHECKLIST)
+| Component                 | Format                          | Example                                                                                    |
+| ------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Validation Rule**       | `{Object}{Validation}{Purpose}` | `AccountValidationForTaxCalculation`                                                       |
+| **Record-Triggered Flow** | `{Object}{RTF}{Event}{Purpose}` | `AccountRTFAfterUpdateForTerritoryAssignment`<br>`ContactRTFBeforeInsertForAutoEnrollment` |
+| **Screen Flow**           | `{Object}{ScreenFlow}{Purpose}` | `CaseScreenFlowForIntake`                                                                  |
+| **Auto-Launched Flow**    | `{Object}{Flow}{Purpose}`       | `OpportunityFlowForDiscountProcessing`                                                     |
+| **Workflow Rule**         | `{Object}{Workflow}{Purpose}`   | `LeadWorkflowAlertSalesManager`                                                            |
+| **Approval Process**      | `{Object}{Approval}{Purpose}`   | `OpportunityApprovalDiscountRequest`                                                       |
 
-✅ **ALWAYS retrieve at the start** of any Apex-related task to understand existing code
-✅ **ALWAYS retrieve before creating** a new class to check if a similar class already exists
-✅ **ALWAYS retrieve before modifying** a class to get the latest version
-✅ When syncing local code with org code
-✅ When analyzing or refactoring existing Apex code
+**Note:** While prefixes are optional for primitive variables, using them consistently across your team improves code clarity and reduces ambiguity.
 
-### ❌ NEVER DO THIS
-
-❌ **NEVER create an Apex class file directly without first using the retrieve tool**
-❌ **NEVER assume a class doesn't exist** - always retrieve and check first
-❌ **NEVER modify a class without retrieving** the latest version first
+---
 
 ## Language Fundamentals
 
@@ -614,6 +840,91 @@ OuterClass.InnerClass inner = new OuterClass.InnerClass();
 
 ---
 
+## Apex Class Architecture Patterns
+
+### Service Class Pattern
+
+Business logic should reside in **Service classes**, not Triggers or Controllers. Service classes provide reusable, testable business logic that can be called from multiple contexts.
+
+**✅ Recommended Structure:**
+
+1. Class-level constants
+2. Public service methods (entry points)
+3. Private helper methods
+4. Inner wrapper/DTO classes (if needed)
+
+```apex
+public with sharing class OrderService {
+    private static final Integer MAX_RETRY_COUNT = 3;
+
+    /**
+     * Public entry method to create orders for given Account Ids.
+     * @param listAccountIds List of Account Ids to create orders for
+     * @return List of created Order records
+     */
+    public static List<Order__c> createOrdersForAccounts(List<Id> listAccountIds) {
+        // Validation
+        if (listAccountIds == null || listAccountIds.isEmpty()) {
+            return new List<Order__c>();
+        }
+
+        // Query using Selector pattern
+        List<Account> listAccounts = AccountSelector.getByIds(new Set<Id>(listAccountIds));
+
+        // Build orders using helper method
+        List<Order__c> listOrdersToInsert = buildOrders(listAccounts);
+
+        // DML operation
+        if (!listOrdersToInsert.isEmpty()) {
+            insert listOrdersToInsert;
+        }
+
+        return listOrdersToInsert;
+    }
+
+    /**
+     * Private helper to build Orders from Accounts.
+     * @param listAccounts List of Account records
+     * @return List of Order records ready for insert
+     */
+    private static List<Order__c> buildOrders(List<Account> listAccounts) {
+        List<Order__c> listOrders = new List<Order__c>();
+        for (Account acc : listAccounts) {
+            listOrders.add(new Order__c(
+                Account__c = acc.Id,
+                Name = acc.Name + ' - Auto Order',
+                Status__c = 'Draft'
+            ));
+        }
+        return listOrders;
+    }
+}
+```
+
+### Selector Pattern (SOQL Encapsulation)
+
+Centralize all SOQL queries in Selector classes to promote reusability and maintainability.
+
+- **Rule:** One selector per SObject (e.g., `AccountSelector`).
+- **Rule:** Methods should return Lists/Sets, not single records.
+
+```apex
+public with sharing class AccountSelector {
+    public static List<Account> getByIds(Set<Id> setAccountIds) {
+        if (setAccountIds == null || setAccountIds.isEmpty()) {
+            return new List<Account>();
+        }
+        return [
+            SELECT Id, Name, Industry, AnnualRevenue
+            FROM Account
+            WHERE Id IN :setAccountIds
+        ];
+    }
+}
+```
+
+---
+
 ## SOQL & SOSL
 
 ### SOQL (Salesforce Object Query Language)
@@ -799,6 +1110,29 @@ Map<Id, Account> accountMap = new Map<Id, Account>(
 for(Contact con : contacts) {
     Account acc = [SELECT Id FROM Account WHERE Id = :con.AccountId];  // NO!
 }
+```
+
+#### SOQL Safety & Assignment
+
+Always assign SOQL results to a List, even if you expect one record. This prevents "List has no rows for assignment" exceptions.
+
+```apex
+// ❌ BAD: Throws exception if 0 rows returned
+Account acc = [SELECT Id FROM Account WHERE Name = 'Acme'];
+
+// ✅ GOOD: Safely handle empty results
+List<Account> listAccounts = [SELECT Id FROM Account WHERE Name = 'Acme'];
+if (!listAccounts.isEmpty()) {
+    Account acc = listAccounts[0];
+    // Process account
+} else {
+    // Handle no results case
+    System.debug('No account found');
+}
+
+// ✅ GOOD: Alternative with LIMIT 1
+List<Account> listAccounts = [SELECT Id FROM Account WHERE Name = 'Acme' LIMIT 1];
+Account acc = listAccounts.isEmpty() ? null : listAccounts[0];
 ```
 
 ### SOSL (Salesforce Object Search Language)
@@ -1499,7 +1833,8 @@ static void testSomething() {
 ### Code Coverage Requirements
 
 - **75% overall coverage** required for production deployment
-- **1% per-class minimum** (recommended 75%+ per class)
+- **Target 90%+ per class** for best practices
+- **1% per-class minimum** enforced by Salesforce
 - Every trigger must have some coverage
 - Test methods themselves don't count toward coverage
 - @isTest methods and classes don't count toward coverage
@@ -1511,6 +1846,237 @@ ApexCodeCoverage[] coverage = [
     FROM ApexCodeCoverage
     WHERE ApexClassOrTrigger.Name = 'MyClass'
 ];
+```
+
+### Test Data Setup Standards
+
+Isolate test data to ensure tests are independent and robust.
+
+**Key Principles:**
+
+- **✅ Isolation**: All test methods must create their own test data or use a shared Test Data Factory
+- **✅ Independence**: Never rely on existing org data (profiles, accounts, opportunities) in tests
+- **✅ Structure**: Use clear Given–When–Then comment structure to delimit setup, execution, and verification
+- **✅ Efficiency**: Avoid creating unnecessary data—only create what the specific scenario needs
+- **✅ Reusability**: Use Test Data Factory classes for common data setup
+
+**Example: Test Data Setup with Given-When-Then**
+
+```apex
+@isTest
+private class OrderService_Test {
+    @isTest
+    static void testCreateOrdersForAccounts_Positive() {
+        // GIVEN – Test data setup
+        Account acc = new Account(Name = 'Test Account', Industry = 'Technology');
+        insert acc;
+        List<Id> listAccountIds = new List<Id>{ acc.Id };
+
+        // WHEN – Call method under test
+        Test.startTest();
+        List<Order__c> listOrders = OrderService.createOrdersForAccounts(listAccountIds);
+        Test.stopTest();
+
+        // THEN – Verify results
+        System.assertEquals(1, listOrders.size(), 'One order should be created.');
+        System.assertEquals(acc.Id, listOrders[0].Account__c, 'Order linked to correct Account.');
+    }
+}
+```
+
+### Test Data Factory Pattern
+
+Use a dedicated class to centralize test data creation. This reduces code duplication and simplifies maintenance when required fields change.
+
+**Structure:**
+
+- Create a separate class annotated with `@isTest`
+- Provide small, focused factory methods per object
+- No asserts in factory methods—they strictly create and return data
+- Use naming conventions with prefixes (optional): `listAccounts`, `intCount`
+
+**Example: Test Data Factory Class**
+
+```apex
+@isTest
+public class TestDataFactory {
+
+    /**
+     * Create a single Account with given name
+     */
+    public static Account createAccount(String name) {
+        Account acc = new Account(
+            Name = name,
+            Industry = 'Technology',
+            Type = 'Customer'
+        );
+        insert acc;
+        return acc;
+    }
+
+    /**
+     * Create multiple Accounts in bulk
+     */
+    public static List<Account> createAccounts(Integer intCount) {
+        List<Account> listAcc = new List<Account>();
+        for (Integer intIndex = 0; intIndex < intCount; intIndex++) {
+            listAcc.add(new Account(
+                Name = 'Test Acc ' + intIndex,
+                Industry = 'Technology'
+            ));
+        }
+        insert listAcc;
+        return listAcc;
+    }
+
+    /**
+     * Create an Opportunity linked to an Account
+     */
+    public static Opportunity createOpportunity(Account acc, Decimal decAmount) {
+        Opportunity opp = new Opportunity(
+            Name = 'Test Opp',
+            StageName = 'Prospecting',
+            CloseDate = System.today().addDays(30),
+            AccountId = acc.Id,
+            Amount = decAmount
+        );
+        insert opp;
+        return opp;
+    }
+
+    /**
+     * Create multiple Opportunities for an Account
+     */
+    public static List<Opportunity> createOpportunities(Account acc, Integer intCount, Decimal decAmount) {
+        List<Opportunity> listOpp = new List<Opportunity>();
+        for (Integer intIndex = 0; intIndex < intCount; intIndex++) {
+            listOpp.add(new Opportunity(
+                Name = 'Test Opp ' + intIndex,
+                StageName = 'Prospecting',
+                CloseDate = System.today().addDays(30),
+                AccountId = acc.Id,
+                Amount = decAmount
+            ));
+        }
+        insert listOpp;
+        return listOpp;
+    }
+}
+```
+
+**Example: Using the Factory in a Test**
+
+```apex
+@isTest
+private class OpportunityService_Test {
+    @isTest
+    static void testCalculateCommission_Positive() {
+        // GIVEN
+        Account acc = TestDataFactory.createAccount('Commission Acc');
+        Opportunity opp = TestDataFactory.createOpportunity(acc, 10000);
+
+        // WHEN
+        Test.startTest();
+        Decimal decCommission = OpportunityService.calculateCommission(opp.Id);
+        Test.stopTest();
+
+        // THEN
+        System.assertEquals(1000, decCommission, '10% commission expected.');
+    }
+}
+```
+
+### Per-Method Test Strategy (Positive & Negative)
+
+Every public method in a Service or Handler class requires comprehensive testing coverage, not just "Happy Path" testing.
+
+- **Positive Test:** Verifies that the method works correctly with valid data.
+- **Negative Test:** Verifies that the method handles invalid data, null inputs, or boundary limits gracefully (including Exception handling).
+- **Naming:** Name methods clearly reflect the scenario (e.g., `testMethodName_Positive`, `testMethodName_Negative_NullInput`).
+- **Bulk Testing:** Ensure logic holds up to 200 records.
+
+**Example: Service Class Logic**
+
+```apex
+public with sharing class PaymentService {
+    public static Decimal calculateTax(Decimal decAmount) {
+        if (decAmount == null || decAmount < 0) {
+            throw new PaymentException('Amount must be positive.');
+        }
+        return decAmount * 0.18;
+    }
+
+    public static Boolean validatePaymentLimit(Decimal decAmount, Decimal decLimit) {
+        return decAmount <= decLimit;
+    }
+
+    public class PaymentException extends Exception {}
+}
+```
+
+**Example: Positive & Negative Tests**
+
+```apex
+@isTest
+private class PaymentService_Test {
+
+    // Positive test case
+    @isTest
+    static void testCalculateTax_Positive() {
+        // GIVEN
+        Decimal decAmount = 100;
+
+        // WHEN
+        Decimal decTax = PaymentService.calculateTax(decAmount);
+
+        // THEN
+        System.assertEquals(18, decTax, '18% tax expected.');
+    }
+
+    @isTest
+    static void testCalculateTax_Negative_AmountNullOrNegative() {
+        // GIVEN
+        Decimal decAmount = -10;
+
+        // WHEN
+        try {
+            Decimal decTax = PaymentService.calculateTax(decAmount);
+            System.assert(false, 'Exception should have been thrown.');
+        } catch (PaymentService.PaymentException ex) {
+            // THEN
+            System.assert(ex.getMessage().contains('Amount must be positive.'),
+                'Expected positive amount error.');
+        }
+    }
+
+    // Positive test case
+    @isTest
+    static void testValidatePaymentLimit_Positive() {
+        // GIVEN
+        Decimal decAmount = 90;
+        Decimal decLimit = 100;
+
+        // WHEN
+        Boolean isAllowed = PaymentService.validatePaymentLimit(decAmount, decLimit);
+
+        // THEN
+        System.assertEquals(true, isAllowed, 'Payment should be within limit.');
+    }
+
+    // Negative test case - exceeds limit
+    @isTest
+    static void testValidatePaymentLimit_Negative_ExceedsLimit() {
+        // GIVEN
+        Decimal decAmount = 150;
+        Decimal decLimit = 100;
+
+        // WHEN
+        Boolean isAllowed = PaymentService.validatePaymentLimit(decAmount, decLimit);
+
+        // THEN
+        System.assertEquals(false, isAllowed, 'Payment should exceed limit and be rejected.');
+    }
+}
 ```
 
 ---
@@ -1550,11 +2116,21 @@ public class DefaultController {
 }
 ```
 
+### Security Standards Summary
+
+| Security Feature    | Usage Rule                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| **Read Access**     | Use `WITH USER_MODE` (API 59+) or `WITH SECURITY_ENFORCED` for user-facing data           |
+| **Create/Update**   | Use `Security.stripInaccessible` to enforce field-level security (FLS)                    |
+| **Secrets**         | Never log passwords or tokens. Use Named Credentials                                      |
+| **SOQL Injection**  | Always use bind variables (`:variable`), never string concatenation                       |
+| **Client Exposure** | Do not expose sensitive fields or internal IDs to client-side components unless necessary |
+
 ### Object & Field-Level Security
 
 Apex does NOT automatically enforce object-level (CRUD) or field-level security (FLS).
 
-#### Option 1: WITH USER_MODE (Recommended)
+#### Option 1: WITH USER_MODE (Recommended - API 59+)
 
 ```apex
 public with sharing class SecureSOQL {
@@ -1569,7 +2145,20 @@ public with sharing class SecureSOQL {
 }
 ```
 
-When using WITH USER_MODE in SOQL or DML statements, always ensure your Apex class is set to API version 59.0 or higher (Winter ’24 or later), as earlier versions do not support this keyword. If your org or class uses an older API version, replace WITH USER_MODE with WITH SECURITY_ENFORCED to enforce object- and field-level security instead.
+**Note:** When using WITH USER_MODE in SOQL or DML statements, always ensure your Apex class is set to API version 59.0 or higher (Winter '24 or later), as earlier versions do not support this keyword. If your org or class uses an older API version, use `WITH SECURITY_ENFORCED` to enforce object- and field-level security instead.
+
+```apex
+// For API versions < 59
+public with sharing class LegacySecureSOQL {
+    public List<Account> getAccounts() {
+        return [
+            SELECT Id, Name, Industry
+            FROM Account
+            WITH SECURITY_ENFORCED
+        ];
+    }
+}
+```
 
 #### Option 2: Security.stripInaccessible()
 
@@ -2164,6 +2753,33 @@ if(Limits.getQueries() >= Limits.getLimitQueries()) {
 
 ---
 
+## Integration Standards
+
+- **Named Credentials:** Always use Named Credentials for endpoints and authentication.
+- **DTOs:** Use separate Request and Response DTO (Data Transfer Object) classes.
+- **Error Handling:** Handle timeouts and status codes (200 vs 500) gracefully.
+
+**Code Snippet (Callout):**
+
+```apex
+HttpRequest httpRequest = new HttpRequest();
+httpRequest.setEndpoint('callout:SAP_NC/orders');
+httpRequest.setMethod('POST');
+httpRequest.setBody(JSON.serialize(orderRequest));
+
+Http http = new Http();
+HttpResponse response = http.send(httpRequest);
+
+if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+    return (SAPOrderResponseDTO) JSON.deserialize(response.getBody(), SAPOrderResponseDTO.class);
+} else {
+    // Log error securely
+    throw new SAPIntegrationException('Integration failed: ' + response.getStatus());
+}
+```
+
+---
+
 ## Best Practices
 
 ### 1. Bulkification
@@ -2512,3 +3128,34 @@ Apex is Salesforce's **strongly-typed, object-oriented, case-insensitive** serve
 - Asynchronous processing for long-running operations
 
 Apex combines Java-like syntax with Salesforce-specific features, requiring constant awareness of the multi-tenant environment's constraints and capabilities.
+
+---
+
+## Governance & Developer Checklist
+
+### Developer Checklist
+
+Before submitting a Pull Request, ensure the following:
+
+- [ ] Naming conventions followed (Variables, Methods, Classes).
+- [ ] No SOQL or DML inside loops.
+- [ ] Code is bulkified (handles List inputs).
+- [ ] Security enforced (`WITH SECURITY_ENFORCED`).
+- [ ] No hard-coded IDs (Use Custom Labels/Metadata).
+- [ ] Unit tests cover positive, negative, and bulk scenarios.
+- [ ] Code formatted/indented correctly.
+
+### Automation Governance
+
+Avoid automation conflicts by adhering to the "One Tool" strategy per object:
+
+| Scenario              | Preferred Tool                                                   |
+| --------------------- | ---------------------------------------------------------------- |
+| Simple Field Updates  | Record-Triggered Flow (Fast Field Update)                        |
+| Cross-Object Logic    | Record-Triggered Flow                                            |
+| Complex Logic / Loops | Apex Trigger + Handler                                           |
+| **Conflict Rule**     | Do Not Mix Flow and Apex Triggers on the same event if possible. |
+
+---
+
+**End of Apex Reference Guide with Integrated Coding Standards**
