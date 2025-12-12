@@ -586,6 +586,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 									currentApiConfigName={currentApiConfigName}
 									listApiConfigMeta={listApiConfigMeta}
 									useFreeModels={useFreeModels}
+									developerMode={extensionState.developerMode}
 									onSelectConfig={(configName: string) =>
 										checkUnsaveChanges(() =>
 											vscode.postMessage({ type: "loadApiConfiguration", text: configName }),
