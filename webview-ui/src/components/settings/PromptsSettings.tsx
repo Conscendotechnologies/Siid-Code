@@ -43,6 +43,8 @@ const PromptsSettings = ({
 		setCustomCondensingPrompt,
 		includeTaskHistoryInEnhance: contextIncludeTaskHistoryInEnhance,
 		setIncludeTaskHistoryInEnhance: contextSetIncludeTaskHistoryInEnhance,
+		enablePmdRules,
+		setEnablePmdRules,
 	} = useExtensionState()
 
 	// Use props if provided, otherwise fall back to context
@@ -279,6 +281,24 @@ const PromptsSettings = ({
 							)}
 						</div>
 					)}
+				</div>
+			</Section>
+
+			<Section>
+				<div>
+					<VSCodeCheckbox
+						checked={enablePmdRules}
+						onChange={(e: any) => {
+							const value = e.target.checked
+							setEnablePmdRules(value)
+							vscode.postMessage({ type: "enablePmdRules", bool: value })
+						}}>
+						<span className="font-medium">Enable PMD Code Quality Rules</span>
+					</VSCodeCheckbox>
+					<div className="text-vscode-descriptionForeground text-sm mt-1">
+						When enabled, the AI can fetch PMD rules for Apex, JavaScript, HTML, Visualforce, and XML to
+						ensure code follows best practices and quality standards.
+					</div>
 				</div>
 			</Section>
 		</div>

@@ -133,6 +133,7 @@ export interface WebviewMessage {
 		| "terminalCompressProgressBar"
 		| "mcpEnabled"
 		| "enableMcpServerCreation"
+		| "enablePmdRules"
 		| "searchCommits"
 		| "alwaysApproveResubmit"
 		| "requestDelaySeconds"

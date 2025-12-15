@@ -304,6 +304,7 @@ export type ExtensionState = Pick<
 
 	mcpEnabled: boolean
 	enableMcpServerCreation: boolean
+	enablePmdRules: boolean
 
 	mode: Mode
 	customModes: ModeConfig[]
