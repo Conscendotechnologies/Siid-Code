@@ -30,7 +30,8 @@ import { CodeIndexManager } from "../../../services/code-index/manager"
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
 	execute_command: (args) => getExecuteCommandDescription(args),
 	read_file: (args) => getReadFileDescription(args),
-	fetch_instructions: (args) => getFetchInstructionsDescription(args.settings?.enableMcpServerCreation),
+	fetch_instructions: (args) =>
+		getFetchInstructionsDescription(args.settings?.enableMcpServerCreation, args.settings?.enablePmdRules),
 	write_to_file: (args) => getWriteToFileDescription(args),
 	search_files: (args) => getSearchFilesDescription(args),
 	list_files: (args) => getListFilesDescription(args),
@@ -64,6 +65,7 @@ export function getToolDescriptionsForMode(
 	partialReadsEnabled?: boolean,
 	settings?: Record<string, any>,
 	enableMcpServerCreation?: boolean,
+	enablePmdRules?: boolean,
 ): string {
 	const config = getModeConfig(mode, customModes)
 	const args: ToolArgs = {
@@ -76,6 +78,7 @@ export function getToolDescriptionsForMode(
 		settings: {
 			...settings,
 			enableMcpServerCreation,
+			enablePmdRules,
 		},
 		experiments,
 	}

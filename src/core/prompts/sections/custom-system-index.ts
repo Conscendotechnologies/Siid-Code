@@ -49,5 +49,32 @@ Example: If the user asks you to create a Custom Object:
 Example: If the user asks you to create Validation Rules:
 <fetch_instructions>
 <task>validation_rules</task>
+</fetch_instructions>
+
+**PMD Rules Instructions Examples:**
+
+Example: If the user is writing Apex code and needs to follow PMD best practices:
+<fetch_instructions>
+<task>pmd_apex</task>
+</fetch_instructions>
+
+Example: If the user is writing JavaScript code and needs to follow PMD best practices:
+<fetch_instructions>
+<task>pmd_javascript</task>
+</fetch_instructions>
+
+Example: If the user is writing HTML code and needs to follow PMD best practices:
+<fetch_instructions>
+<task>pmd_html</task>
+</fetch_instructions>
+
+Example: If the user is writing Visualforce code and needs to follow PMD best practices:
+<fetch_instructions>
+<task>pmd_visualforce</task>
+</fetch_instructions>
+
+Example: If the user is writing XML configuration and needs to follow PMD best practices:
+<fetch_instructions>
+<task>pmd_xml</task>
 </fetch_instructions>`
 }

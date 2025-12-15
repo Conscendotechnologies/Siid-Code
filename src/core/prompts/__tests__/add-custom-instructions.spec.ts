@@ -302,6 +302,7 @@ describe("addCustomInstructions", () => {
 			undefined, // diffEnabled
 			undefined, // experiments
 			true, // enableMcpServerCreation
+			true, // enablePmdRules
 			undefined, // language
 			undefined, // rooIgnoreInstructions
 			true, // partialReadsEnabled

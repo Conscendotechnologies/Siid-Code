@@ -596,6 +596,7 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffEnabled
 			experiments,
 			true, // enableMcpServerCreation
+			true, // enablePmdRules
 			undefined, // language
 			undefined, // rooIgnoreInstructions
 			undefined, // partialReadsEnabled
@@ -628,6 +629,7 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffEnabled
 			experiments,
 			true, // enableMcpServerCreation
+			true, // enablePmdRules
 			undefined, // language
 			undefined, // rooIgnoreInstructions
 			undefined, // partialReadsEnabled
@@ -659,6 +661,7 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffEnabled
 			experiments,
 			true, // enableMcpServerCreation
+			true, // enablePmdRules
 			undefined, // language
 			undefined, // rooIgnoreInstructions
 			undefined, // partialReadsEnabled
