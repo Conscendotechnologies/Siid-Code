@@ -2,6 +2,7 @@ import { createMCPServerInstructions } from "./create-mcp-server"
 import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
+import { createVisualForceInstructions } from "./create-visual-force"
 import {
 	assignmentRulesInstructions,
 	customFieldInstructions,
@@ -38,6 +39,12 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "create_apex": {
 			return await createApexInstructions(detail.context, detail.section)
+		}
+		case "create_visual_force": {
+			console.log("[INSTRUCTIONS] Matched task: create_visual_force")
+			const result = await createVisualForceInstructions(detail.context, detail.section)
+			console.log("[INSTRUCTIONS] Visual Force instructions fetched successfully")
+			return result
 		}
 		// Salesforce Agent Instructions
 		case "assignment_rules": {

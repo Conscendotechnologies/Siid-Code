@@ -14,6 +14,7 @@ function getTaskDisplayName(task: string): string {
 		create_mode: "Custom Mode Instructions",
 		create_lwc: "Lightning Web Component Instructions",
 		create_apex: "Apex Class Instructions",
+		create_visual_force: "Visual Force Page Instructions",
 		// Salesforce Agent Instructions
 		assignment_rules: "Assignment Rules Instructions",
 		custom_field: "Custom Field Instructions",
