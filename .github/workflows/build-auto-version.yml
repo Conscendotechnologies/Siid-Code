@@ -359,7 +359,7 @@ jobs:
           NEW_VERSION="${{ steps.calc_version.outputs.new_version }}"
           
           # Check if there are any changes to commit
-          if git diff --quiet package.json; then
+          if git diff --quiet src/package.json; then
             echo "ℹ️  No version changes detected, skipping commit"
           else
             # Configure git
@@ -367,7 +367,7 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             
             # Commit and push
-            git add package.json
+            git add src/package.json
             git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
             git push
             

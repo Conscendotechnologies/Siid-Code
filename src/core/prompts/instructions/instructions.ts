@@ -22,6 +22,7 @@ interface InstructionsDetail {
 	mcpHub?: McpHub
 	diffStrategy?: DiffStrategy
 	context?: vscode.ExtensionContext
+	section?: string
 }
 
 export async function fetchInstructions(text: string, detail: InstructionsDetail): Promise<string> {
@@ -33,10 +34,10 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return await createModeInstructions(detail.context)
 		}
 		case "create_lwc": {
-			return await createLWCInstructions(detail.context)
+			return await createLWCInstructions(detail.context, detail.section)
 		}
 		case "create_apex": {
-			return await createApexInstructions(detail.context)
+			return await createApexInstructions(detail.context, detail.section)
 		}
 		// Salesforce Agent Instructions
 		case "assignment_rules": {

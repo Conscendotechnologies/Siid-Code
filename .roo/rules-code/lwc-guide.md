@@ -58,6 +58,35 @@ Before creating or modifying Lightning Web Components, you MUST ALWAYS check exi
 
 ---
 
+## LWC Standards
+
+- **Naming:** kebab-case for folders/files (`accountList`), PascalCase for Classes (`AccountList`).
+- **@wire:** Prefer `@wire` for reading data; use imperative Apex for user actions (button clicks).
+- **Logic:** Keep heavy business logic in Apex, not JavaScript.
+
+**Example (JS Controller):**
+
+```javascript
+import { LightningElement, wire } from "lwc"
+import getActiveAccounts from "@salesforce/apex/AccountService.getActiveAccounts"
+
+export default class AccountList extends LightningElement {
+	listAccounts
+	error
+
+	@wire(getActiveAccounts)
+	wiredAccounts({ data, error }) {
+		if (data) {
+			this.listAccounts = data
+			this.error = undefined
+		} else if (error) {
+			this.error = error
+			this.listAccounts = undefined
+		}
+	}
+}
+```
+
 ## User-Provided Guidelines Priority (HIGHEST PRIORITY)
 
 - **When the user provides code or project guidelines in a BRD (Business Requirement Document), you MUST prioritize those guidelines above all else.**
