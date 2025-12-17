@@ -14,6 +14,12 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
+import {
+	screenFlowPatternsInstructions,
+	recordTriggerFlowPatternsInstructions,
+	detailedWorkflowInstructions,
+	quickReferenceInstructions,
+} from "./flow-builder-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -69,6 +75,19 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "validation_rules": {
 			return await validationRulesInstructions(detail.context)
+		}
+		// Flow Builder Instructions
+		case "screen_flow_patterns": {
+			return await screenFlowPatternsInstructions(detail.context)
+		}
+		case "record_trigger_flow_patterns": {
+			return await recordTriggerFlowPatternsInstructions(detail.context)
+		}
+		case "detailed_workflow": {
+			return await detailedWorkflowInstructions(detail.context)
+		}
+		case "quick_reference": {
+			return await quickReferenceInstructions(detail.context)
 		}
 		default: {
 			return ""

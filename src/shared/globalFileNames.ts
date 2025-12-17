@@ -17,4 +17,9 @@ export const GlobalFileNames = {
 	recordTypesInstructions: "Salesforce_Agent/record-types.md",
 	roleCreationInstructions: "Salesforce_Agent/role-creation.md",
 	validationRulesInstructions: "Salesforce_Agent/validation-rules.md",
+	// Flow Builder Instructions
+	screenFlowPatternsInstructions: "flow-builder/SCREEN-FLOW-PATTERNS.md",
+	recordTriggerFlowPatternsInstructions: "flow-builder/RECORD-TRIGGER-FLOW-PATTERNS.md",
+	detailedWorkflowInstructions: "flow-builder/DETAILED-WORKFLOW.md",
+	quickReferenceInstructions: "flow-builder/QUICK-REFERENCE.md",
 }

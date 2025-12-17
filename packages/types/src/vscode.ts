@@ -57,6 +57,7 @@ export const commandIds = [
 	"onFirebaseLogout",
 
 	"testOpenRouterApiKey",
+	"testRetrieveSchema",
 ] as const
 
 export type CommandId = (typeof commandIds)[number]

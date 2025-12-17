@@ -1540,7 +1540,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			includeFileDetails,
 		)
 
-		const preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, includeFileDetails)
+		const preTaskDetails = await getPreTaskDetails(
+			provider?.contextProxy.globalStorageUri,
+			includeFileDetails,
+			this._taskMode,
+		)
 
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
 		const finalUserContent = [

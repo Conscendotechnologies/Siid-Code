@@ -68,6 +68,8 @@ export const toolParamNames = [
 	"metadata_type",
 	"metadata_name",
 	"section",
+	"component_name",
+	"schema_file",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -166,6 +168,11 @@ export interface RetrieveSfMetadataToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "metadata_type" | "metadata_name">>
 }
 
+export interface RetrieveSchemaToolUse extends ToolUse {
+	name: "retrieve_schema"
+	params: Partial<Pick<Record<ToolParamName, string>, "component_name" | "schema_file">>
+}
+
 export interface SearchAndReplaceToolUse extends ToolUse {
 	name: "search_and_replace"
 	params: Required<Pick<Record<ToolParamName, string>, "path" | "search" | "replace">> &
@@ -199,6 +206,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	codebase_search: "codebase search",
 	update_todo_list: "update todo list",
 	retrieve_sf_metadata: "retrieve salesforce metadata",
+	retrieve_schema: "retrieve xml schema",
 } as const
 
 // Define available tool groups.
@@ -212,6 +220,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 			"list_code_definition_names",
 			"codebase_search",
 			"retrieve_sf_metadata",
+			"retrieve_schema",
 		],
 	},
 	edit: {

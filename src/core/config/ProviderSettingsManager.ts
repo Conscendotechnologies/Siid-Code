@@ -57,6 +57,10 @@ export class ProviderSettingsManager {
 	private readonly orchestratorBasicId = "orchestrator-basic-free"
 	private readonly orchestratorMediumId = "orchestrator-medium"
 	private readonly orchestratorAdvancedId = "orchestrator-advanced"
+	// flow-builder
+	private readonly flowBuilderBasicId = "flow-builder-basic-free"
+	private readonly flowBuilderMediumId = "flow-builder-medium"
+	private readonly flowBuilderAdvancedId = "flow-builder-advanced"
 
 	private readonly defaultModeApiConfigs: Record<string, string> = Object.fromEntries(
 		modes.map((mode) => {
@@ -69,6 +73,9 @@ export class ProviderSettingsManager {
 			}
 			if (mode.slug === "orchestrator") {
 				return [mode.slug, this.orchestratorMediumId]
+			}
+			if (mode.slug === "flow-builder") {
+				return [mode.slug, this.flowBuilderMediumId]
 			}
 			return [mode.slug, this.defaultConfigId]
 		}),
@@ -153,7 +160,7 @@ export class ProviderSettingsManager {
 			[this.orchestratorBasicId]: {
 				id: this.orchestratorBasicId,
 				apiProvider: "openrouter",
-				openRouterModelId: "x-ai/grok-4.1-fast:free",
+				openRouterModelId: "z-ai/glm-4.5-air:free",
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
@@ -172,6 +179,41 @@ export class ProviderSettingsManager {
 			},
 			[this.orchestratorAdvancedId]: {
 				id: this.orchestratorAdvancedId,
+				apiProvider: "openrouter",
+				openRouterModelId: "openai/gpt-5",
+				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+
+			// flow-builder configs
+			[this.flowBuilderBasicId]: {
+				id: this.flowBuilderBasicId,
+				apiProvider: "openrouter",
+				openRouterModelId: "z-ai/glm-4.5-air:free",
+				// openRouterApiKey will be set to BASIC TIER key from Firebase
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+			[this.flowBuilderMediumId]: {
+				id: this.flowBuilderMediumId,
+				apiProvider: "openrouter",
+				openRouterModelId: "z-ai/glm-4.5",
+				// openRouterApiKey will be set to MEDIUM TIER key from Firebase
+				rateLimitSeconds: 0,
+				diffEnabled: true,
+				fuzzyMatchThreshold: 1.0,
+				consecutiveMistakeLimit: 3,
+				todoListEnabled: true,
+			},
+			[this.flowBuilderAdvancedId]: {
+				id: this.flowBuilderAdvancedId,
 				apiProvider: "openrouter",
 				openRouterModelId: "openai/gpt-5",
 				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
@@ -432,6 +474,14 @@ export class ProviderSettingsManager {
 				isDirty = true
 			}
 
+			const flowBuilderBasicConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.flowBuilderBasicId,
+			)
+			if (flowBuilderBasicConfig && freeApiKey) {
+				flowBuilderBasicConfig.openRouterApiKey = freeApiKey
+				isDirty = true
+			}
+
 			// Update all MEDIUM configs with the paid tier API key
 			// Medium configs use Anthropic and OpenRouter
 			const salesforceAgentMediumConfig = Object.values(providerProfiles.apiConfigs).find(
@@ -458,6 +508,14 @@ export class ProviderSettingsManager {
 				isDirty = true
 			}
 
+			const flowBuilderMediumConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.flowBuilderMediumId,
+			)
+			if (flowBuilderMediumConfig && paidApiKey) {
+				flowBuilderMediumConfig.openRouterApiKey = paidApiKey
+				isDirty = true
+			}
+
 			// Update all ADVANCED configs with the paid tier API key (same as MEDIUM)
 			// Advanced configs use GPT-5 which uses paid tier key
 			const salesforceAgentAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
@@ -481,6 +539,14 @@ export class ProviderSettingsManager {
 			)
 			if (orchestratorAdvancedConfig && paidApiKey) {
 				orchestratorAdvancedConfig.openRouterApiKey = paidApiKey
+				isDirty = true
+			}
+
+			const flowBuilderAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.flowBuilderAdvancedId,
+			)
+			if (flowBuilderAdvancedConfig && paidApiKey) {
+				flowBuilderAdvancedConfig.openRouterApiKey = paidApiKey
 				isDirty = true
 			}
 

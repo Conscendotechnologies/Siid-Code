@@ -378,6 +378,125 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			)
 		}
 	},
+	testRetrieveSchema: async () => {
+		try {
+			outputChannel.appendLine("\n=== Retrieve Schema Tool Test ===")
+
+			// Prompt for component name
+			const componentName = await vscode.window.showInputBox({
+				prompt: "Enter the component name to retrieve (e.g., Flow, FlowDecision, DeployResult)",
+				placeHolder: "Flow",
+			})
+
+			if (!componentName) {
+				outputChannel.appendLine("Test cancelled - no component name provided")
+				vscode.window.showWarningMessage("Test cancelled")
+				return
+			}
+
+			// Prompt for schema file
+			const schemaFile = await vscode.window.showQuickPick(["metadata", "apex", "both"], {
+				placeHolder: "Select schema file to search",
+			})
+
+			if (!schemaFile) {
+				outputChannel.appendLine("Test cancelled - no schema file selected")
+				vscode.window.showWarningMessage("Test cancelled")
+				return
+			}
+
+			outputChannel.appendLine(`Testing retrieve schema for component: ${componentName}`)
+			outputChannel.appendLine(`Schema file: ${schemaFile}`)
+
+			// Import necessary functions
+			const path = await import("path")
+			const fs = await import("fs/promises")
+			const { getProjectRooDirectoryForCwd, fileExists } = await import("../services/roo-config")
+
+			// Get current workspace folder
+			const workspaceFolder = vscode.workspace.workspaceFolders?.[0]
+			if (!workspaceFolder) {
+				throw new Error("No workspace folder found")
+			}
+			const cwd = workspaceFolder.uri.fsPath
+
+			outputChannel.appendLine(`\nWorkspace: ${cwd}`)
+
+			// Test path resolution
+			const fileName = schemaFile === "both" ? "metadata.xml" : `${schemaFile}.xml`
+
+			// Check project-local path
+			const projectLocalPath = path.join(getProjectRooDirectoryForCwd(cwd), "rules-flow-builder", fileName)
+			const projectExists = await fileExists(projectLocalPath)
+			outputChannel.appendLine(`\nProject-local path: ${projectLocalPath}`)
+			outputChannel.appendLine(`Project-local exists: ${projectExists}`)
+
+			// Check global storage path using extension context (the one that's actually available)
+			const extensionContext = context
+			let globalPath: string | null = null
+			let globalExists = false
+
+			if (extensionContext) {
+				globalPath = path.join(
+					extensionContext.globalStorageUri.fsPath,
+					"instructions",
+					"modes",
+					"flow-builder",
+					fileName,
+				)
+				globalExists = await fileExists(globalPath)
+				outputChannel.appendLine(`\nGlobal storage path: ${globalPath}`)
+				outputChannel.appendLine(`Global storage exists: ${globalExists}`)
+				outputChannel.appendLine(
+					`Extension context global storage: ${extensionContext.globalStorageUri.fsPath}`,
+				)
+			}
+
+			// Determine which file to use
+			let filePath: string | null = null
+			if (projectExists) {
+				filePath = projectLocalPath
+				outputChannel.appendLine(`\n📁 Using project-local file`)
+			} else if (globalExists && globalPath) {
+				filePath = globalPath
+				outputChannel.appendLine(`\n📁 Using global storage file`)
+			} else {
+				outputChannel.appendLine(`\n❌ Schema file not found in any location`)
+				vscode.window.showErrorMessage("Schema file not found!")
+				return
+			}
+
+			// Import the searchInSchemaFile function from retrieveSchemaTool
+			const { searchInSchemaFile } = await import("../core/tools/retrieveSchemaTool")
+
+			outputChannel.appendLine(
+				`\n🔍 Searching for component '${componentName}' using retrieve_schema tool logic...`,
+			)
+
+			// Use the actual tool logic to search for the component
+			const globalStoragePath = extensionContext.globalStorageUri.fsPath
+			const result = await searchInSchemaFile(cwd, componentName, "metadata", globalStoragePath)
+
+			if (result.found && result.definition) {
+				outputChannel.appendLine(`\n✅ Component '${componentName}' found in schema!`)
+				outputChannel.appendLine(`\nFull definition:\n${result.definition}`)
+
+				if (result.relatedTypes && result.relatedTypes.length > 0) {
+					outputChannel.appendLine(`\n📎 Referenced types: ${result.relatedTypes.join(", ")}`)
+				}
+			} else {
+				outputChannel.appendLine(`\n❌ Component '${componentName}' not found in schema`)
+			}
+
+			vscode.window.showInformationMessage(`✅ Test completed! Check output channel for details.`)
+		} catch (error) {
+			outputChannel.appendLine(`\n❌ ERROR: ${error instanceof Error ? error.message : String(error)}`)
+			if (error instanceof Error && error.stack) {
+				outputChannel.appendLine(`Stack trace: ${error.stack}`)
+			}
+			vscode.window.showErrorMessage(`Test failed: ${error instanceof Error ? error.message : String(error)}`)
+		}
+	},
 	openChatView: async () => {
 		// Open the sidebar view first
 		await vscode.commands.executeCommand("workbench.view.extension.siid-code-ActivityBar")

@@ -176,15 +176,29 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		slug: "orchestrator",
 		name: "🪃 Orchestrator",
 		roleDefinition:
-			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (salesforce-agent for admin/config, code for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
+			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (salesforce-agent for admin/config, flow-builder for Flows, code for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
 		whenToUse:
-			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to salesforce-agent mode for admin/config work, code mode for development work, or both for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
-		description: "Analyze requests and coordinate work across salesforce-agent and code modes",
+			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to salesforce-agent mode for admin/config work, flow-builder mode for Flow automation, code mode for development work, or multiple modes for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
+		description: "Analyze requests and coordinate work across salesforce-agent, flow-builder, and code modes",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}
         `,
 		freeApiConfigId: "orchestrator-basic-free", // Basic: Free tier
 		apiConfigId: "orchestrator-medium", // Medium: Standard tier
+	},
+	{
+		slug: "flow-builder",
+		name: "🔧 Flow Builder",
+		roleDefinition:
+			"You are a SIID-Code Flow Builder, an expert in designing, building, and optimizing Salesforce Flows using declarative tools. You possess deep knowledge of Flow types, elements, best practices, and Salesforce platform capabilities.",
+		whenToUse:
+			"Use this mode when you need to create, modify, or optimize Salesforce Flows. Ideal for building complex business processes, automating tasks, and enhancing user experiences using Flow Builder.",
+		description:
+			"Design, build, and optimize Salesforce Flows using declarative tools. Focus on Flow elements, logic, and best practices.",
+		groups: ["read", "edit", "browser", "command", "mcp"],
+		customInstructions: getCustomInstructionsForMode("flow-builder"),
+		freeApiConfigId: "flow-builder-basic-free", // Basic: Free tier ($0)
+		apiConfigId: "flow-builder-medium", // Medium: Standard tier ($3/$15)
 	},
 ] as const

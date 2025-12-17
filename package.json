@@ -32,7 +32,11 @@
 		"unlink-workspace-packages": "node scripts/link-packages.js --unlink",
 		"test:instructions": "tsx src/dev-tools/test-fetch-instructions.ts",
 		"test:instructions:apex": "tsx src/dev-tools/test-fetch-instructions.ts apex",
-		"test:instructions:lwc": "tsx src/dev-tools/test-fetch-instructions.ts lwc"
+		"test:instructions:lwc": "tsx src/dev-tools/test-fetch-instructions.ts lwc",
+		"test:schema": "tsx src/dev-tools/test-retrieve-schema.ts",
+		"test:schema:metadata": "tsx src/dev-tools/test-retrieve-schema.ts metadata",
+		"test:schema:apex": "tsx src/dev-tools/test-retrieve-schema.ts apex",
+		"test:schema:both": "tsx src/dev-tools/test-retrieve-schema.ts both"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.10",
