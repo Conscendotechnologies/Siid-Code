@@ -2997,27 +2997,22 @@ for(Account acc : accountList) {
 
 ---
 
-### 9. (**!! IMPORTANT**)Dry run and Deployment:
+### 9. (**!! IMPORTANT**) Deployment:
 
-After creation of all required apex classes and LWC components then first do dry run on apex using this command:
-`sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls>`
-Replace <classname.cls> with the actual classes.
+After creating all required Apex classes, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
 
-- If got any errors after dry run solve them.
-- After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
-  `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls>`
-- Replace <classname.cls> with the all classes that are created like below format for multiple apex classes deployment:
-    # Deploy multiple specific Apex classes in order
-    ```
-    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger
-    ```
-- (**!IMPORTANT**)Before Going for LWC first dry-run and deploy Apex Classes.
+- Runs dry-run validation first (validates syntax, runs tests, checks coverage)
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
 
-Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
+**Important Notes:**
 
-Deployment workflow you should follow every time:
+- **ONE tool call does everything** - You don't need to call it twice (once for dry-run, once for deploy)
+- Deploy Apex classes BEFORE deploying LWC components that depend on them
+- Deploy only the specific metadata files that were created or modified
+- The tool will use `NoTestRun` by default for faster deployments
 
-- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## Quick Reference: Common Patterns
 

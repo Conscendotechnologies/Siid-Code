@@ -107,13 +107,67 @@ export function getObjectiveSection(
 
 	**Instruction Reading Protocol:**
 	- If creating/modifying a **Custom Object** → Read the object creation instruction file
-	- If creating/modifying **Fields** → Read the field creation instruction file  
+	- If creating/modifying **Fields** → Read the field creation instruction file
 	- If adding/modifying **field permissions** to the profile → Read the field permission instruction file
 	- If adding/modifying **Object permissions** to the profile → Read the object permission instruction file
 	- If creating/modifying **Profiles** → Read the profile creation instruction file
 	- If creating/modifying **path** → Read the path creation instruction file
 	- If creating/modifying **role** → Read the role creation instruction file
 	- And so on for each component type
+
+	**Salesforce Metadata Deployment Protocol:**
+
+	🚀 **When to use \`deploy_sf_metadata\`:**
+	- Use this tool when you need to deploy metadata changes TO a Salesforce org
+	- Use when the user asks to "deploy", "push to org", "upload to Salesforce", or similar deployment requests
+	- Use after creating or modifying local Salesforce metadata files that need to be deployed
+	- Examples: "Deploy this Apex class to the org", "Push these changes to Salesforce", "Deploy the Lightning component"
+
+	🔍 **When to use \`retrieve_sf_metadata\` (companion tool):**
+	- Use this tool when you need to retrieve/pull metadata FROM a Salesforce org to local files
+	- Use when the user asks to "retrieve", "pull from org", "download from Salesforce", or similar retrieval requests
+	- Use when you need to inspect existing org metadata before making changes
+	- Examples: "Get the AccountHandler class from the org", "Retrieve the custom object definition"
+
+	**CRITICAL DEPLOYMENT WORKFLOW:**
+
+	⚠️ **IMPORTANT: Call \`deploy_sf_metadata\` ONLY ONCE** - The tool automatically handles both validation and deployment in a single call.
+
+	1. The \`deploy_sf_metadata\` tool has a **mandatory two-phase process in ONE call**:
+	   - **Phase 1 (DRY RUN)**: Automatically validates metadata, runs tests, checks for conflicts
+	   - **Phase 2 (DEPLOY)**: Only proceeds if dry run passes successfully
+	   - **You do NOT need to call the tool twice** - it's all automatic!
+
+	2. **Default Test Level**: Always use \`RunLocalTests\` unless the user explicitly requests otherwise
+	   - \`RunLocalTests\`: Run all tests except managed packages (RECOMMENDED)
+	   - \`NoTestRun\`: Skip tests (only for non-production, minor config changes)
+	   - \`RunAllTestsInOrg\`: Run all tests including managed packages (production deployments)
+	   - \`RunSpecifiedTests\`: Run specific test classes (requires \`tests\` parameter)
+
+	3. **What happens when you call the tool (AUTOMATIC)**:
+	   - Tool executes dry run validation first
+	   - **If dry run FAILS**: Deployment is ABORTED, error details returned, tool call ends
+	   - **If dry run PASSES**: Deployment proceeds automatically, success confirmation returned
+	   - **You never need to call it again** - one call does everything!
+
+	4. **Error Handling**:
+	   - If validation fails, you get detailed errors (validation errors, test failures, code coverage issues)
+	   - Fix the issues in the code, then call \`deploy_sf_metadata\` again with the fixed code
+	   - DO NOT call it multiple times without fixing the errors
+
+	**Example deployment usage:**
+	<deploy_sf_metadata>
+	<metadata_type>ApexClass</metadata_type>
+	<metadata_name>AccountHandler</metadata_name>
+	<test_level>RunLocalTests</test_level>
+	</deploy_sf_metadata>
+
+	**Deployment Best Practices:**
+	- Always ensure local metadata files exist before deploying (use \`read_file\` to verify)
+	- For Apex classes/triggers, ALWAYS include test coverage (minimum 75% required)
+	- Use \`retrieve_sf_metadata\` first if you need to see the current org state
+	- Review any validation errors carefully and fix before redeploying
+	- Use appropriate test levels: \`RunLocalTests\` for most cases, \`NoTestRun\` only for simple config changes
 
 	**Within <thinking> tags, you must:**
 	1. **FIRST: Apply Salesforce Guardrails Check**
