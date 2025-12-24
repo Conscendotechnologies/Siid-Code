@@ -11,6 +11,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_lwc
   create_apex
   create_visual_force
+  create_aura_components
   assignment_rules
   custom_field
   custom_object
@@ -25,6 +26,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_lwc
   create_apex
   create_visual_force
+  create_aura_components
   assignment_rules
   custom_field
   custom_object
@@ -60,6 +62,12 @@ Example: Requesting instructions to create a Visualforce Page
 
 <fetch_instructions>
 <task>create_visual_force</task>
+</fetch_instructions>
+
+Example: Requesting instructions to create Aura Components
+
+<fetch_instructions>
+<task>create_aura_components</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Assignment Rules

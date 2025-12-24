@@ -7,6 +7,7 @@ export const GlobalFileNames = {
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
 	visualForceInstructions: "code/visual-force.md",
+	auraComponentsInstructions: "code/aura-components.md",
 	// Salesforce Agent Instructions
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
