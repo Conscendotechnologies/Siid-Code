@@ -40,7 +40,7 @@ const MODEL_FALLBACK_CHAIN: Record<string, string[]> = {
 		"deepseek/deepseek-r1-0528:free", // Fallback 3 (index 3)
 	],
 	"orchestrator-basic-free": [
-		"z-ai/grok-4.1-fast:free", // Primary (index 0) - Note: Different primary
+		"z-ai/glm-4.5-air:free", // Primary (index 0)
 		"qwen/qwen3-coder:free", // Fallback 1 (index 1)
 		"meta-llama/llama-3.3-70b-instruct:free", // Fallback 2 (index 2)
 		"deepseek/deepseek-r1-0528:free", // Fallback 3 (index 3)
