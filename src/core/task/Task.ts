@@ -48,6 +48,16 @@ import { getApiMetrics } from "../../shared/getApiMetrics"
 import { ClineAskResponse } from "../../shared/WebviewMessage"
 import { defaultModeSlug } from "../../shared/modes"
 import { DiffStrategy } from "../../shared/tools"
+import {
+	is429Error,
+	getNextModelOnError,
+	resetModelToDefault,
+	shouldSwitchToFallback,
+	getPrimaryModel,
+	isModelTimeoutExpired,
+	resetOnTimeout,
+	getModelTimeRemaining,
+} from "../../shared/model-fallback"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import { getModelMaxOutputTokens } from "../../shared/api"
 
@@ -1026,6 +1036,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.apiConversationHistory = []
 		await this.providerRef.deref()?.postStateToWebview()
 
+		// IMPORTANT: Ensure new tasks always start with the primary model (GLM)
+		// Reset model tracking so this new task begins with primary model
+		const configId = (await this.providerRef.deref()?.getState())?.currentApiConfigName
+		if (configId) {
+			const { reset, message } = resetModelToDefault(configId)
+			// Note: We don't show the message here since it's a fresh task start
+		}
+
 		// Store task title for notifications - take first line or first 50 chars
 		if (task) {
 			const firstLine = task.split("\n")[0]
@@ -1994,6 +2012,42 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	public async *attemptApiRequest(retryAttempt: number = 0): ApiStream {
 		const state = await this.providerRef.deref()?.getState()
 
+		// Check if current model has exceeded its timeout and needs to be reset to primary
+		if (state?.currentApiConfigName) {
+			const { timedOut, message, model: primaryModel } = resetOnTimeout(state.currentApiConfigName)
+
+			if (timedOut && primaryModel && state.currentApiConfigName) {
+				// Show timeout message to user
+				await this.say("api_req_retry_delayed", message, undefined, false)
+
+				// Get the provider and reset the model in provider settings
+				const provider = this.providerRef.deref()
+				const profileResult = await provider?.providerSettingsManager.getProfile({
+					id: state.currentApiConfigName,
+				})
+
+				if (profileResult && profileResult.name && profileResult.apiProvider === "openrouter") {
+					// Update the model in the profile back to primary
+					const updatedProfile: ProviderSettings = {
+						...profileResult,
+						openRouterModelId: primaryModel,
+					}
+
+					// Save the updated profile
+					await provider?.providerSettingsManager.saveConfig(profileResult.name, updatedProfile)
+
+					// Update provider settings in context to sync UI
+					await provider?.contextProxy.setProviderSettings(updatedProfile)
+
+					// Post updated state to webview to refresh UI
+					await provider?.postStateToWebview()
+
+					// Rebuild API handler with primary model
+					this.api = buildApiHandler(updatedProfile)
+				}
+			}
+		}
+
 		const {
 			apiConfiguration,
 			autoApprovalEnabled,
@@ -2139,8 +2193,74 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const firstChunk = await iterator.next()
 			yield firstChunk.value
 			this.isWaitingForFirstChunk = false
+			// Don't reset on success - stay on fallback for 3 minutes
+			// Only the timeout check and 429 errors trigger model switches
 		} catch (error) {
 			this.isWaitingForFirstChunk = false
+			// Handle 429 errors with automatic model toggle (GLM <-> Qwen)
+			if (is429Error(error)) {
+				// Show 429 error message to user
+				const errorMessage = error?.message || error?.error?.message || "Rate limit error (429) from provider"
+				await this.say(
+					"api_req_retry_delayed",
+					`⚠️ Provider Rate Limited (429): ${errorMessage}`,
+					undefined,
+					false,
+				)
+
+				const state = await this.providerRef.deref()?.getState()
+				const currentConfigId = state?.currentApiConfigName
+
+				if (currentConfigId && shouldSwitchToFallback(currentConfigId)) {
+					// Get the current model from the config
+					const provider = this.providerRef.deref()
+					const profileResult = await provider?.providerSettingsManager.getProfile({
+						id: currentConfigId,
+					})
+
+					const currentModel = profileResult?.openRouterModelId
+
+					if (currentModel) {
+						const { model: nextModel, message: switchMessage } = getNextModelOnError(
+							currentConfigId,
+							currentModel,
+						)
+
+						if (
+							nextModel &&
+							profileResult &&
+							profileResult.name &&
+							profileResult.apiProvider === "openrouter"
+						) {
+							// Show switching message with rich formatting
+							await this.say("api_req_retry_delayed", switchMessage, undefined, false)
+
+							// Update the model in the profile
+							const updatedProfile: ProviderSettings = {
+								...profileResult,
+								openRouterModelId: nextModel,
+							}
+
+							// Save the updated profile
+							await provider?.providerSettingsManager.saveConfig(profileResult.name, updatedProfile)
+
+							// Update provider settings in context to sync UI
+							await provider?.contextProxy.setProviderSettings(updatedProfile)
+
+							// Post updated state to webview to refresh UI
+							await provider?.postStateToWebview()
+
+							// Rebuild API handler with new model
+							this.api = buildApiHandler(updatedProfile)
+
+							// Retry with the new model
+							yield* this.attemptApiRequest(retryAttempt)
+							return
+						}
+					}
+				}
+			}
+
 			// note that this api_req_failed ask is unique in that we only present this option if the api hasn't streamed any content yet (ie it fails on the first chunk due), as it would allow them to hit a retry button. However if the api failed mid-stream, it could be in any arbitrary state where some tools may have executed, so that error is handled differently and requires cancelling the task entirely.
 			if (autoApprovalEnabled && alwaysApproveResubmit) {
 				let errorMsg
