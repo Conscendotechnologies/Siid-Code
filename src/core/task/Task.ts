@@ -2013,8 +2013,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const state = await this.providerRef.deref()?.getState()
 
 		// Check if current model has exceeded its timeout and needs to be reset to primary
-		if (state?.currentApiConfigName) {
-			const { timedOut, message, model: primaryModel } = resetOnTimeout(state.currentApiConfigName)
+		if (state?.mode) {
+			const { timedOut, message, model: primaryModel } = resetOnTimeout(state.mode)
 
 			if (timedOut && primaryModel && state.currentApiConfigName) {
 				// Show timeout message to user
@@ -2023,7 +2023,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// Get the provider and reset the model in provider settings
 				const provider = this.providerRef.deref()
 				const profileResult = await provider?.providerSettingsManager.getProfile({
-					id: state.currentApiConfigName,
+					name: state.currentApiConfigName,
 				})
 
 				if (profileResult && profileResult.name && profileResult.apiProvider === "openrouter") {
@@ -2209,20 +2209,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				)
 
 				const state = await this.providerRef.deref()?.getState()
-				const currentConfigId = state?.currentApiConfigName
+				const currentMode = state?.mode
 
-				if (currentConfigId && shouldSwitchToFallback(currentConfigId)) {
+				if (currentMode && shouldSwitchToFallback(currentMode)) {
 					// Get the current model from the config
 					const provider = this.providerRef.deref()
 					const profileResult = await provider?.providerSettingsManager.getProfile({
-						id: currentConfigId,
+						name: state.currentApiConfigName,
 					})
 
 					const currentModel = profileResult?.openRouterModelId
 
 					if (currentModel) {
 						const { model: nextModel, message: switchMessage } = getNextModelOnError(
-							currentConfigId,
+							currentMode,
 							currentModel,
 						)
 

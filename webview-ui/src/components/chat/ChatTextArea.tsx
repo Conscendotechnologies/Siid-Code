@@ -6,6 +6,7 @@ import { mentionRegex, mentionRegexGlobal, commandRegexGlobal, unescapeSpaces } 
 import { WebviewMessage } from "@roo/WebviewMessage"
 import { Mode, getAllModes } from "@roo/modes"
 import { ExtensionMessage } from "@roo/ExtensionMessage"
+import { useSelectedModel } from "@/components/ui/hooks/useSelectedModel"
 
 import { vscode } from "@/utils/vscode"
 import { useExtensionState } from "@/context/ExtensionStateContext"
@@ -23,7 +24,7 @@ import { StandardTooltip } from "@/components/ui"
 
 import Thumbnails from "../common/Thumbnails"
 import ModeSelector from "./ModeSelector"
-import { ApiConfigSelector } from "./ApiConfigSelector"
+import { ModelSelector } from "./ModelSelector"
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { VolumeX, Image, WandSparkles, SendHorizontal } from "lucide-react"
@@ -59,7 +60,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			inputValue,
 			setInputValue,
 			sendingDisabled,
-			selectApiConfigDisabled,
+			_selectApiConfigDisabled,
 			placeholderText,
 			selectedImages,
 			setSelectedImages,
@@ -76,62 +77,28 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		ref,
 	) => {
 		const { t } = useAppTranslation()
+		const extensionState = useExtensionState()
 		const {
 			filePaths,
 			openedTabs,
-			currentApiConfigName,
-			listApiConfigMeta,
 			customModes,
 			customModePrompts,
 			cwd,
-			pinnedApiConfigs,
-			togglePinnedApiConfig,
 			taskHistory,
 			clineMessages,
 			commands,
 			useFreeModels,
 			developerMode,
-		} = useExtensionState() // Find the ID and display text for the currently selected API configuration
-		const { currentConfigId, displayName } = useMemo(() => {
-			const currentConfig = listApiConfigMeta?.find((config) => config.name === currentApiConfigName)
-			return {
-				currentConfigId: currentConfig?.id || "",
-				displayName: currentApiConfigName || "", // Use the name directly for display
-			}
-		}, [listApiConfigMeta, currentApiConfigName])
+			apiConfiguration,
+		} = extensionState
+		const selectedModel = useSelectedModel(apiConfiguration)
+		const modelId = selectedModel?.id || ""
 
 		const [gitCommits, setGitCommits] = useState<any[]>([])
-		const [showDropdown, setShowDropdown] = useState(false)
+		const [_showDropdown, _setShowDropdown] = useState(false)
 		const [fileSearchResults, setFileSearchResults] = useState<SearchResult[]>([])
 		const [searchLoading, setSearchLoading] = useState(false)
 		const [searchRequestId, setSearchRequestId] = useState<string>("")
-
-		// Auto-select free config when mode changes and useFreeModels is enabled
-		useEffect(() => {
-			if (!useFreeModels || !mode || !listApiConfigMeta || listApiConfigMeta.length === 0) {
-				return
-			}
-
-			// Find the free config for the current mode (e.g., "code-basic-free", "salesforce-agent-basic-free")
-			const freeConfigForMode = listApiConfigMeta.find((config) => config.name === `${mode}-basic-free`)
-
-			if (freeConfigForMode && freeConfigForMode.id !== currentConfigId) {
-				// Auto-switch to the free config
-				vscode.postMessage({ type: "loadApiConfigurationById", text: freeConfigForMode.id })
-			}
-		}, [mode, useFreeModels, listApiConfigMeta, currentConfigId])
-
-		// Close dropdown when clicking outside.
-		useEffect(() => {
-			const handleClickOutside = () => {
-				if (showDropdown) {
-					setShowDropdown(false)
-				}
-			}
-
-			document.addEventListener("mousedown", handleClickOutside)
-			return () => document.removeEventListener("mousedown", handleClickOutside)
-		}, [showDropdown])
 
 		// Handle enhanced prompt response and search results.
 		useEffect(() => {
@@ -925,33 +892,29 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			/>
 		)
 
-		// Helper function to handle API config change
-		const handleApiConfigChange = useCallback((value: string) => {
-			vscode.postMessage({ type: "loadApiConfigurationById", text: value })
+		// Helper function to handle model change
+		const handleModelChange = useCallback((modelId: string) => {
+			vscode.postMessage({ type: "updateModel", text: modelId })
 		}, [])
 
 		// Helper function to render non-edit mode controls
 		const renderNonEditModeControls = () => (
-			<div className={cn("flex", "justify-between", "items-center", "mt-auto")}>
-				<div className={cn("flex", "items-center", "gap-1", "min-w-0")}>
+			<div className={cn("flex", "items-center", "gap-1", "px-1.5", "mb-1")}>
+				<div className={cn("flex", "items-center", "gap-1")}>
 					<div className="shrink-0">{renderModeSelector()}</div>
 
-					<div className={cn("flex-1", "min-w-0", "overflow-hidden")}>
-						<ApiConfigSelector
-							value={currentConfigId}
-							displayName={displayName}
-							disabled={selectApiConfigDisabled}
-							title={t("chat:selectApiConfig")}
-							onChange={handleApiConfigChange}
-							triggerClassName="w-full text-ellipsis overflow-hidden"
-							listApiConfigMeta={listApiConfigMeta || []}
-							mode={mode}
-							pinnedApiConfigs={pinnedApiConfigs}
-							togglePinnedApiConfig={togglePinnedApiConfig}
-							useFreeModels={useFreeModels}
-							developerMode={developerMode}
-						/>
-					</div>
+					{modelId && (
+						<div className="shrink-0">
+							<ModelSelector
+								value={modelId}
+								mode={mode}
+								onChange={handleModelChange}
+								title={t("chat:selectModel", { defaultValue: "Select model" })}
+								useFreeModels={useFreeModels}
+								developerMode={developerMode}
+							/>
+						</div>
+					)}
 				</div>
 
 				<div className={cn("flex", "items-center", "gap-0.5", "shrink-0")}>

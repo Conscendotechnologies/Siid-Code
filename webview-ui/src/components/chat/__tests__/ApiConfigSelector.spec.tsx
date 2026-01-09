@@ -21,6 +21,15 @@ vi.mock("@/components/ui/hooks/useRooPortal", () => ({
 	useRooPortal: () => document.body,
 }))
 
+// Mock useSelectedModel hook
+vi.mock("@/components/ui/hooks/useSelectedModel", () => ({
+	useSelectedModel: vi.fn(() => ({
+		id: "claude-sonnet-4-20250514",
+		provider: "anthropic",
+		info: undefined,
+	})),
+}))
+
 // Mock Popover components to be testable
 vi.mock("@/components/ui", () => ({
 	Popover: ({ children, open }: any) => (

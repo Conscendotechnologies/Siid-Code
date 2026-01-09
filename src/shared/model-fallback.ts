@@ -2,53 +2,42 @@
  * Model Fallback Logic for 429 Rate Limit Errors
  *
  * This module handles automatic model switching when a 429 error occurs.
- * It maintains fallback chains for each config so that when one model is rate-limited,
- * it can switch to an alternative and restore back if needed.
+ * It uses the MODE_TO_MODELS mapping to determine fallback chains based on
+ * the current mode, prioritizing free models.
  *
  * Fallback Strategy:
- * - Primary: z-ai/glm-4.5-air:free (always the main model)
- * - Fallback 1: qwen/qwen3-coder:free
- * - Fallback 2: meta-llama/llama-3.3-70b-instruct:free
- * - Fallback 3: deepseek/deepseek-r1-0528:free
+ * - Uses free tier models from the current mode's model list
+ * - Cycles through them in order when rate limited
+ * - Automatically switches back to primary after 3 minutes
  *
  * Time-based Auto-Recovery:
  * - Each model has a 3-minute timeout
- * - After 3 minutes, automatically switch back to primary GLM
- * - New chats/tasks always start with primary GLM
+ * - After 3 minutes, automatically switch back to primary model
+ * - New chats/tasks always start with primary model
  */
 
 import type { ProviderSettings } from "@siid-code/types"
+import { MODE_TO_MODELS, type ModeModelInfo } from "./mode-models"
 
 // 3 minutes in milliseconds
 const MODEL_TIMEOUT_MS = 3 * 60 * 1000
 
 /**
- * Maps config IDs to their fallback chains
- * Format: configId -> [primaryModel, fallback1, fallback2, fallback3, ...]
+ * Get fallback chain for a mode (only free models, sorted by priority)
+ * @param mode - The mode slug (e.g., "salesforce-agent", "code", "orchestrator")
+ * @returns Array of model IDs in fallback order
  */
-const MODEL_FALLBACK_CHAIN: Record<string, string[]> = {
-	"salesforce-agent-basic-free": [
-		"z-ai/glm-4.5-air:free", // Primary (index 0)
-		"qwen/qwen3-coder:free", // Fallback 1 (index 1)
-		"meta-llama/llama-3.3-70b-instruct:free", // Fallback 2 (index 2)
-		"deepseek/deepseek-r1-0528:free", // Fallback 3 (index 3)
-	],
-	"code-basic-free": [
-		"z-ai/glm-4.5-air:free", // Primary (index 0)
-		"qwen/qwen3-coder:free", // Fallback 1 (index 1)
-		"meta-llama/llama-3.3-70b-instruct:free", // Fallback 2 (index 2)
-		"deepseek/deepseek-r1-0528:free", // Fallback 3 (index 3)
-	],
-	"orchestrator-basic-free": [
-		"z-ai/glm-4.5-air:free", // Primary (index 0)
-		"qwen/qwen3-coder:free", // Fallback 1 (index 1)
-		"meta-llama/llama-3.3-70b-instruct:free", // Fallback 2 (index 2)
-		"deepseek/deepseek-r1-0528:free", // Fallback 3 (index 3)
-	],
+function getFallbackChainForMode(mode: string): string[] {
+	const modeModels = MODE_TO_MODELS[mode] || []
+	// Filter to only free tier models and sort by priority
+	const freeModels = modeModels
+		.filter((m) => m.tier === "free")
+		.sort((a, b) => (a.priority || 999) - (b.priority || 999)) // Lower priority number = higher priority
+	return freeModels.map((m) => m.modelId)
 }
 
 /**
- * Tracks the current model index for each config
+ * Tracks the current model index for each mode
  * Allows us to switch between models in the fallback chain
  */
 const modelIndexTracker: Record<string, number> = {}
@@ -60,7 +49,7 @@ const modelIndexTracker: Record<string, number> = {}
 const modelActivationTimeTracker: Record<string, number> = {}
 
 /**
- * Tracks consecutive 429 errors per config
+ * Tracks consecutive 429 errors per mode
  */
 const errorCountTracker: Record<string, number> = {}
 
@@ -105,19 +94,21 @@ export function is429Error(error: any): boolean {
 }
 
 /**
- * Gets the fallback model for a given config or advances through the chain
+ * Gets the fallback model for a given mode or advances through the chain
  * Returns the model to switch to, whether it's a fallback, and a UI message
+ * @param mode - The mode slug (e.g., "salesforce-agent", "code")
+ * @param currentModel - The model that just failed
  */
 export function getNextModelOnError(
-	configId: string,
+	mode: string,
 	currentModel: string,
 ): {
 	model: string | null
 	isFallback: boolean
 	message: string
 } {
-	const chain = MODEL_FALLBACK_CHAIN[configId]
-	if (!chain) return { model: null, isFallback: false, message: "" }
+	const chain = getFallbackChainForMode(mode)
+	if (!chain || chain.length === 0) return { model: null, isFallback: false, message: "" }
 
 	const primaryModel = chain[0]
 
@@ -127,9 +118,9 @@ export function getNextModelOnError(
 	// If not found in chain or at primary, switch to first fallback
 	if (currentIndex === -1 || currentIndex === 0) {
 		if (chain.length > 1) {
-			modelIndexTracker[configId] = 1
-			modelActivationTimeTracker[configId] = Date.now()
-			errorCountTracker[configId] = 1
+			modelIndexTracker[mode] = 1
+			modelActivationTimeTracker[mode] = Date.now()
+			errorCountTracker[mode] = 1
 			const nextModel = chain[1]
 			return {
 				model: nextModel,
@@ -143,9 +134,9 @@ export function getNextModelOnError(
 	// If on a fallback, advance to next fallback if available
 	if (currentIndex > 0 && currentIndex < chain.length - 1) {
 		const nextIndex = currentIndex + 1
-		modelIndexTracker[configId] = nextIndex
-		modelActivationTimeTracker[configId] = Date.now()
-		errorCountTracker[configId] = (errorCountTracker[configId] ?? 0) + 1
+		modelIndexTracker[mode] = nextIndex
+		modelActivationTimeTracker[mode] = Date.now()
+		errorCountTracker[mode] = (errorCountTracker[mode] ?? 0) + 1
 		const nextModel = chain[nextIndex]
 		return {
 			model: nextModel,
@@ -156,9 +147,9 @@ export function getNextModelOnError(
 
 	// If on last fallback, cycle back to primary
 	if (currentIndex === chain.length - 1) {
-		modelIndexTracker[configId] = 0
-		modelActivationTimeTracker[configId] = Date.now()
-		errorCountTracker[configId] = 1
+		modelIndexTracker[mode] = 0
+		modelActivationTimeTracker[mode] = Date.now()
+		errorCountTracker[mode] = 1
 		return {
 			model: primaryModel,
 			isFallback: false,
@@ -173,8 +164,8 @@ export function getNextModelOnError(
  * Checks if a model has exceeded its timeout duration
  * Returns true if the model should be reset to primary
  */
-export function isModelTimeoutExpired(configId: string): boolean {
-	const activationTime = modelActivationTimeTracker[configId]
+export function isModelTimeoutExpired(mode: string): boolean {
+	const activationTime = modelActivationTimeTracker[mode]
 	if (!activationTime) return false
 
 	const elapsed = Date.now() - activationTime
@@ -185,8 +176,8 @@ export function isModelTimeoutExpired(configId: string): boolean {
  * Gets time remaining for current model (in seconds)
  * Useful for UI display
  */
-export function getModelTimeRemaining(configId: string): number {
-	const activationTime = modelActivationTimeTracker[configId]
+export function getModelTimeRemaining(mode: string): number {
+	const activationTime = modelActivationTimeTracker[mode]
 	if (!activationTime) return 0
 
 	const elapsed = Date.now() - activationTime
@@ -199,16 +190,16 @@ export function getModelTimeRemaining(configId: string): number {
  * Resets model to primary when timeout expires (NOT on success)
  * Only called when 3-minute timeout is exceeded
  */
-export function resetModelToDefault(configId: string): { reset: boolean; message: string } {
-	const chain = MODEL_FALLBACK_CHAIN[configId]
-	const currentIndex = modelIndexTracker[configId] ?? 0
+export function resetModelToDefault(mode: string): { reset: boolean; message: string } {
+	const chain = getFallbackChainForMode(mode)
+	const currentIndex = modelIndexTracker[mode] ?? 0
 	const primaryModel = chain?.[0]
 
 	// If we're not on primary, reset and return message
 	if (currentIndex !== 0 && primaryModel) {
-		modelIndexTracker[configId] = 0
-		errorCountTracker[configId] = 0
-		modelActivationTimeTracker[configId] = 0
+		modelIndexTracker[mode] = 0
+		errorCountTracker[mode] = 0
+		modelActivationTimeTracker[mode] = 0
 
 		return {
 			reset: true,
@@ -217,9 +208,9 @@ export function resetModelToDefault(configId: string): { reset: boolean; message
 	}
 
 	// Already on primary
-	modelIndexTracker[configId] = 0
-	errorCountTracker[configId] = 0
-	modelActivationTimeTracker[configId] = 0
+	modelIndexTracker[mode] = 0
+	errorCountTracker[mode] = 0
+	modelActivationTimeTracker[mode] = 0
 
 	return { reset: false, message: "" }
 }
@@ -228,18 +219,18 @@ export function resetModelToDefault(configId: string): { reset: boolean; message
  * Handles timeout-based reset to primary model
  * Called periodically or when timeout is detected
  */
-export function resetOnTimeout(configId: string): { timedOut: boolean; message: string; model: string | null } {
-	if (!isModelTimeoutExpired(configId)) {
+export function resetOnTimeout(mode: string): { timedOut: boolean; message: string; model: string | null } {
+	if (!isModelTimeoutExpired(mode)) {
 		return { timedOut: false, message: "", model: null }
 	}
 
-	const chain = MODEL_FALLBACK_CHAIN[configId]
+	const chain = getFallbackChainForMode(mode)
 	const primaryModel = chain?.[0]
 
 	if (primaryModel) {
-		modelIndexTracker[configId] = 0
-		errorCountTracker[configId] = 0
-		modelActivationTimeTracker[configId] = 0
+		modelIndexTracker[mode] = 0
+		errorCountTracker[mode] = 0
+		modelActivationTimeTracker[mode] = 0
 
 		return {
 			timedOut: true,
@@ -252,41 +243,41 @@ export function resetOnTimeout(configId: string): { timedOut: boolean; message: 
 }
 
 /**
- * Gets the primary model for a config
+ * Gets the primary model for a mode
  */
-export function getPrimaryModel(configId: string): string | null {
-	const chain = MODEL_FALLBACK_CHAIN[configId]
+export function getPrimaryModel(mode: string): string | null {
+	const chain = getFallbackChainForMode(mode)
 	if (!chain || chain.length === 0) return null
 	return chain[0] // Primary is always at index 0
 }
 
 /**
- * Gets the current active model for a config
+ * Gets the current active model for a mode
  */
-export function getCurrentActiveModel(configId: string, config: ProviderSettings): string | null {
-	const chain = MODEL_FALLBACK_CHAIN[configId]
+export function getCurrentActiveModel(mode: string, config: ProviderSettings): string | null {
+	const chain = getFallbackChainForMode(mode)
 	if (!chain) return null
 
-	const currentIndex = modelIndexTracker[configId] ?? 0
+	const currentIndex = modelIndexTracker[mode] ?? 0
 	return chain[currentIndex]
 }
 
 /**
  * Increments error count and returns true if we should try fallback
  */
-export function shouldSwitchToFallback(configId: string): boolean {
-	const currentCount = errorCountTracker[configId] ?? 0
-	errorCountTracker[configId] = currentCount + 1
+export function shouldSwitchToFallback(mode: string): boolean {
+	const currentCount = errorCountTracker[mode] ?? 0
+	errorCountTracker[mode] = currentCount + 1
 
 	// Switch to fallback on first 429 error
 	return true
 }
 
 /**
- * Gets the fallback chain for a config
+ * Gets the fallback chain for a mode
  */
-export function getFallbackChain(configId: string): string[] {
-	return MODEL_FALLBACK_CHAIN[configId] ?? []
+export function getFallbackChain(mode: string): string[] {
+	return getFallbackChainForMode(mode)
 }
 
 /**
