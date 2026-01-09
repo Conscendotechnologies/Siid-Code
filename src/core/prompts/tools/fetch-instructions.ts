@@ -19,7 +19,13 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  screen_flow_patterns
+  record_trigger_flow_patterns
+  detailed_workflow
+  quick_reference
+  schema_retrieval_guide
+  error_recovery_guide`
 			: `  create_mode
   create_lwc
   create_apex
@@ -32,7 +38,13 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  screen_flow_patterns
+  record_trigger_flow_patterns
+  detailed_workflow
+  quick_reference
+  schema_retrieval_guide
+  error_recovery_guide`
 
 	const example =
 		enableMcpServerCreation !== false

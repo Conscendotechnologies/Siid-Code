@@ -15,10 +15,15 @@ import {
 	validationRulesInstructions,
 } from "./salesforce-instructions"
 import {
+	flowBuilderReadmeInstructions,
+	hybridWorkflowInstructions,
 	screenFlowPatternsInstructions,
 	recordTriggerFlowPatternsInstructions,
 	detailedWorkflowInstructions,
 	quickReferenceInstructions,
+	schemaRetrievalGuideInstructions,
+	errorRecoveryGuideInstructions,
+	migrationGuideInstructions,
 } from "./flow-builder-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
@@ -77,6 +82,12 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return await validationRulesInstructions(detail.context)
 		}
 		// Flow Builder Instructions
+		case "flow_builder_readme": {
+			return await flowBuilderReadmeInstructions(detail.context)
+		}
+		case "hybrid_workflow": {
+			return await hybridWorkflowInstructions(detail.context)
+		}
 		case "screen_flow_patterns": {
 			return await screenFlowPatternsInstructions(detail.context)
 		}
@@ -88,6 +99,15 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "quick_reference": {
 			return await quickReferenceInstructions(detail.context)
+		}
+		case "schema_retrieval_guide": {
+			return await schemaRetrievalGuideInstructions(detail.context)
+		}
+		case "error_recovery_guide": {
+			return await errorRecoveryGuideInstructions(detail.context)
+		}
+		case "migration_guide": {
+			return await migrationGuideInstructions(detail.context)
 		}
 		default: {
 			return ""

@@ -824,6 +824,33 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
+		// Check rate limiting before making the API call
+		const apiConfiguration = state?.apiConfiguration
+		let rateLimitDelay = 0
+		if (Task.lastGlobalApiRequestTime) {
+			const now = Date.now()
+			const timeSinceLastRequest = now - Task.lastGlobalApiRequestTime
+			const rateLimit = apiConfiguration?.rateLimitSeconds || 0
+			rateLimitDelay = Math.ceil(Math.max(0, rateLimit * 1000 - timeSinceLastRequest) / 1000)
+		}
+
+		if (rateLimitDelay > 0) {
+			// Show rate limiting message
+			await this.say(
+				"text",
+				`Rate limit active. Waiting ${rateLimitDelay} second${rateLimitDelay !== 1 ? "s" : ""} before condensing context...`,
+				undefined,
+				false,
+				undefined,
+				undefined,
+				{ isNonInteractive: true },
+			)
+			await new Promise((resolve) => setTimeout(resolve, rateLimitDelay * 1000))
+		}
+
+		// Update the last API request time
+		Task.lastGlobalApiRequestTime = Date.now()
+
 		const { contextTokens: prevContextTokens } = this.getTokenUsage()
 		const {
 			messages,

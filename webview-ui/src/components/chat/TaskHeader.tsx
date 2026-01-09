@@ -31,6 +31,7 @@ export interface TaskHeaderProps {
 	buttonsDisabled: boolean
 	handleCondenseContext: (taskId: string) => void
 	todos?: any[]
+	isCondensing?: boolean
 }
 
 const TaskHeader = ({
@@ -44,6 +45,7 @@ const TaskHeader = ({
 	buttonsDisabled,
 	handleCondenseContext,
 	todos,
+	isCondensing = false,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
 	const { apiConfiguration, currentTaskItem, developerMode } = useExtensionState()
@@ -57,7 +59,7 @@ const TaskHeader = ({
 	const condenseButton = (
 		<StandardTooltip content={t("chat:task.condenseContext")}>
 			<button
-				disabled={buttonsDisabled}
+				disabled={isCondensing}
 				onClick={() => currentTaskItem && handleCondenseContext(currentTaskItem.id)}
 				className="shrink-0 min-h-[20px] min-w-[20px] p-[2px] cursor-pointer disabled:cursor-not-allowed opacity-85 hover:opacity-100 bg-transparent border-none rounded-md">
 				<FoldVertical size={16} />

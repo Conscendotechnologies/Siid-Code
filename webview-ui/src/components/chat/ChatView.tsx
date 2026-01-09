@@ -1913,7 +1913,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	}))
 
 	const handleCondenseContext = (taskId: string) => {
-		if (isCondensing || sendingDisabled) {
+		if (isCondensing) {
 			return
 		}
 		setIsCondensing(true)
@@ -2128,6 +2128,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						buttonsDisabled={sendingDisabled}
 						handleCondenseContext={handleCondenseContext}
 						todos={latestTodos}
+						isCondensing={isCondensing}
 					/>
 
 					{hasSystemPromptOverride && (

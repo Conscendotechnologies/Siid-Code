@@ -119,9 +119,9 @@ describe("TaskHeader", () => {
 		expect(handleCondenseContext).toHaveBeenCalledWith("test-task-id")
 	})
 
-	it("should disable the condense context button when buttonsDisabled is true", () => {
+	it("should disable the condense context button when isCondensing is true", () => {
 		const handleCondenseContext = vi.fn()
-		renderTaskHeader({ buttonsDisabled: true, handleCondenseContext })
+		renderTaskHeader({ isCondensing: true, handleCondenseContext })
 
 		// First click to expand the task header
 		const taskHeader = screen.getByText("Test task")

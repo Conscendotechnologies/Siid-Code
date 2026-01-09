@@ -18,8 +18,13 @@ export const GlobalFileNames = {
 	roleCreationInstructions: "Salesforce_Agent/role-creation.md",
 	validationRulesInstructions: "Salesforce_Agent/validation-rules.md",
 	// Flow Builder Instructions
+	flowBuilderReadme: "flow-builder/README.md",
+	hybridWorkflowInstructions: "flow-builder/HYBRID-WORKFLOW.md",
 	screenFlowPatternsInstructions: "flow-builder/SCREEN-FLOW-PATTERNS.md",
 	recordTriggerFlowPatternsInstructions: "flow-builder/RECORD-TRIGGER-FLOW-PATTERNS.md",
 	detailedWorkflowInstructions: "flow-builder/DETAILED-WORKFLOW.md",
 	quickReferenceInstructions: "flow-builder/QUICK-REFERENCE.md",
+	schemaRetrievalGuideInstructions: "flow-builder/SCHEMA-RETRIEVAL-GUIDE.md",
+	errorRecoveryGuideInstructions: "flow-builder/ERROR-RECOVERY-GUIDE.md",
+	migrationGuideInstructions: "flow-builder/MIGRATION-GUIDE.md",
 }

@@ -160,7 +160,7 @@ export class ProviderSettingsManager {
 			[this.orchestratorBasicId]: {
 				id: this.orchestratorBasicId,
 				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5-air:free",
+				openRouterModelId: "qwen/qwen3-coder:free",
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
@@ -193,7 +193,7 @@ export class ProviderSettingsManager {
 			[this.flowBuilderBasicId]: {
 				id: this.flowBuilderBasicId,
 				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5-air:free",
+				openRouterModelId: "qwen/qwen3-coder:free",
 				// openRouterApiKey will be set to BASIC TIER key from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,

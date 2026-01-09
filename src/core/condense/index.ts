@@ -160,14 +160,32 @@ export async function summarizeConversation(
 	let cost = 0
 	let outputTokens = 0
 
-	for await (const chunk of stream) {
-		if (chunk.type === "text") {
-			summary += chunk.text
-		} else if (chunk.type === "usage") {
-			// Record final usage chunk only
-			cost = chunk.totalCost ?? 0
-			outputTokens = chunk.outputTokens ?? 0
+	try {
+		for await (const chunk of stream) {
+			if (chunk.type === "text") {
+				summary += chunk.text
+			} else if (chunk.type === "usage") {
+				// Record final usage chunk only
+				cost = chunk.totalCost ?? 0
+				outputTokens = chunk.outputTokens ?? 0
+			}
 		}
+	} catch (streamError) {
+		console.error("[summarizeConversation] Stream error:", streamError)
+
+		// Check if it's a rate limit error (429)
+		const errorMessage = streamError instanceof Error ? streamError.message : String(streamError)
+		const isRateLimitError = errorMessage.includes("429") || errorMessage.toLowerCase().includes("rate limit")
+
+		let error: string
+		if (isRateLimitError) {
+			error =
+				"Rate limit exceeded. Please wait a moment before trying to condense context again, or check your API provider's rate limits in settings."
+		} else {
+			error = streamError instanceof Error ? streamError.message : t("common:errors.condense_failed")
+		}
+
+		return { ...response, cost, error }
 	}
 
 	summary = summary.trim()

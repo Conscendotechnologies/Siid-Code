@@ -58,27 +58,47 @@ export async function getPreTaskDetails(
 			preTask += `</fetch_instructions>\n\n`
 		}
 
-		// Enforce Todo Workflow (applies to all modes)
+		// Enforce Todo Workflow (all modes need todos, but orchestrator has a different template)
 		preTask += `---\n\n`
-		preTask += `### Required Todo Workflow\n`
-		preTask += `You MUST create and maintain a todo list for every non-trivial task before using any other tools. Use the 'update_todo_list' tool to create or update the checklist. Keep steps small to avoid losing context.\n\n`
-		preTask += `#### How to create/update the todo list\n`
-		preTask += `<update_todo_list>\n`
-		preTask += `<todos>\n`
-		preTask += `[ ] Capture task requirements\n`
-		preTask += `[ ] Locate relevant code areas\n`
-		preTask += `[ ] Break task into subtasks\n`
-		preTask += `[ ] Define assumptions & risks\n`
-		preTask += `[ ] Plan tool batches\n`
-		preTask += `[ ] Execute first subtask\n`
-		preTask += `[ ] Run build/lint/tests\n`
-		preTask += `[ ] Iterate on errors\n`
-		preTask += `[ ] Execute remaining subtasks\n`
-		preTask += `[ ] Finalize & summarize\n`
-		preTask += `</todos>\n`
-		preTask += `</update_todo_list>\n\n`
-		preTask += `Status legend: [ ] pending, [-] in_progress, [x] completed. Update statuses as you progress.\n\n`
-		preTask += `The checklist must be updated at each step and summarized at the end. If a failure occurs, add a brief note and retry up to three targeted fixes before escalating.\n\n`
+		preTask += `### Recommended Todo Workflow\n`
+		preTask += `Create a todo list once at the start, then proceed with your work. Don't update status after every step - focus on making progress. Update the todo list only when completing major milestones.\n\n`
+
+		if (currentMode === "orchestrator") {
+			// Orchestrator-specific todo template (phase-based coordination with subtasks)
+			preTask += `#### Orchestrator Todo Template\n`
+			preTask += `<update_todo_list>\n`
+			preTask += `<todos>\n`
+			preTask += `[ ] Analyze user request and identify phases\n`
+			preTask += `[ ] Create subtask for Phase 1 (assign to appropriate mode)\n`
+			preTask += `[ ] Monitor Phase 1 completion\n`
+			preTask += `[ ] Create subtask for Phase 2 (if needed)\n`
+			preTask += `[ ] Monitor Phase 2 completion\n`
+			preTask += `[ ] Continue with remaining phases (if needed)\n`
+			preTask += `[ ] Provide final summary\n`
+			preTask += `</todos>\n`
+			preTask += `</update_todo_list>\n\n`
+			preTask += `**CRITICAL:** Your job is to COORDINATE by creating subtasks, not by switching modes. Create subtasks and assign them to specialized modes (salesforce-agent, flow-builder, code). DO NOT switch modes yourself - always delegate through subtasks.\n\n`
+		} else {
+			// Standard todo template for other modes
+			preTask += `#### How to create/update the todo list\n`
+			preTask += `<update_todo_list>\n`
+			preTask += `<todos>\n`
+			preTask += `[ ] Capture task requirements\n`
+			preTask += `[ ] Locate relevant code areas\n`
+			preTask += `[ ] Break task into subtasks\n`
+			preTask += `[ ] Define assumptions & risks\n`
+			preTask += `[ ] Plan tool batches\n`
+			preTask += `[ ] Execute first subtask\n`
+			preTask += `[ ] Run build/lint/tests\n`
+			preTask += `[ ] Iterate on errors\n`
+			preTask += `[ ] Execute remaining subtasks\n`
+			preTask += `[ ] Finalize & summarize\n`
+			preTask += `</todos>\n`
+			preTask += `</update_todo_list>\n\n`
+		}
+
+		preTask += `Status legend: [ ] pending, [-] in_progress, [x] completed.\n\n`
+		preTask += `After creating the initial todo list, focus on completing the actual work. Don't get stuck updating status - make progress instead.\n\n`
 	}
 	preTask += `\n</pre-task>`
 	return preTask

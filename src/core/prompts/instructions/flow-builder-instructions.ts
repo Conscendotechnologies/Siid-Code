@@ -34,6 +34,20 @@ async function loadFlowBuilderInstruction(
 }
 
 /**
+ * Loads Flow Builder README (Documentation Index)
+ */
+export async function flowBuilderReadmeInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadFlowBuilderInstruction(context, GlobalFileNames.flowBuilderReadme)
+}
+
+/**
+ * Loads Hybrid Workflow instructions (PRIMARY workflow)
+ */
+export async function hybridWorkflowInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadFlowBuilderInstruction(context, GlobalFileNames.hybridWorkflowInstructions)
+}
+
+/**
  * Loads Screen Flow Patterns instructions
  */
 export async function screenFlowPatternsInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
@@ -61,4 +75,25 @@ export async function detailedWorkflowInstructions(context: vscode.ExtensionCont
  */
 export async function quickReferenceInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
 	return loadFlowBuilderInstruction(context, GlobalFileNames.quickReferenceInstructions)
+}
+
+/**
+ * Loads Schema Retrieval Guide instructions
+ */
+export async function schemaRetrievalGuideInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadFlowBuilderInstruction(context, GlobalFileNames.schemaRetrievalGuideInstructions)
+}
+
+/**
+ * Loads Error Recovery Guide instructions
+ */
+export async function errorRecoveryGuideInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadFlowBuilderInstruction(context, GlobalFileNames.errorRecoveryGuideInstructions)
+}
+
+/**
+ * Loads Migration Guide instructions
+ */
+export async function migrationGuideInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadFlowBuilderInstruction(context, GlobalFileNames.migrationGuideInstructions)
 }

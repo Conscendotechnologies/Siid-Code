@@ -25,6 +25,16 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
+		// Flow Builder Instructions
+		flow_builder_readme: "Flow Builder README (Documentation Index)",
+		hybrid_workflow: "Hybrid Workflow (5 Stages - PRIMARY)",
+		screen_flow_patterns: "Screen Flow Patterns",
+		record_trigger_flow_patterns: "Record-Triggered Flow Patterns",
+		detailed_workflow: "Detailed Workflow (Reference Only)",
+		quick_reference: "Quick Reference",
+		schema_retrieval_guide: "Schema Retrieval Guide",
+		error_recovery_guide: "Error Recovery Guide",
+		migration_guide: "Migration Guide (Old to New Workflow)",
 	}
 
 	return taskNames[task] || task

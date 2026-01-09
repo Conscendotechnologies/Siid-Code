@@ -1447,7 +1447,12 @@ export class ClineProvider
 		if (!task) {
 			throw new Error(`Task with id ${taskId} not found in stack`)
 		}
-		await task.condenseContext()
+		try {
+			await task.condenseContext()
+		} catch (error) {
+			console.error(`[condenseTaskContext] Error condensing task ${taskId}:`, error)
+			// Still send response to unlock UI even on error
+		}
 		await this.postMessageToWebview({ type: "condenseTaskContextResponse", text: taskId })
 	}
 
