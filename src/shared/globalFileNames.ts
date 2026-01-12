@@ -7,6 +7,7 @@ export const GlobalFileNames = {
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
 	// Salesforce Agent Instructions
+	approvalProcessInstructions: "Salesforce_Agent/approval-process.md",
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
 	customObjectInstructions: "Salesforce_Agent/custom-object.md",
@@ -17,4 +18,7 @@ export const GlobalFileNames = {
 	recordTypesInstructions: "Salesforce_Agent/record-types.md",
 	roleCreationInstructions: "Salesforce_Agent/role-creation.md",
 	validationRulesInstructions: "Salesforce_Agent/validation-rules.md",
+	// Workflow Action Creation Instructions
+	workflowFieldUpdateCreationInstructions: "Salesforce_Agent/workflow-field-update-creation.md",
+	workflowEmailAlertCreationInstructions: "Salesforce_Agent/workflow-email-alert-creation.md",
 }

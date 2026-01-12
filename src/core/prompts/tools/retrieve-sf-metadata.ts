@@ -28,6 +28,7 @@ Supported Metadata Types and Commands:
 - Role: Retrieves role hierarchy definition
 - AssignmentRule: Retrieves assignment rule (use format: ObjectName.RuleName, e.g., Case.Standard_Case_Assignment or Lead.Lead_Assignment)
 - AssignmentRules: Retrieves all assignment rules for an object (use format: ObjectName, e.g., Case or Lead)
+- ApprovalProcess: Retrieves approval process definition (use format: ObjectName.ProcessDeveloperName)
 - PathAssistant: Retrieves Sales Path / Path Assistant definition
 - PathAssistantSettings: Retrieves Path Assistant settings
 
@@ -40,6 +41,7 @@ Parameters:
   - For Layout: Use format ObjectName-LayoutName (e.g., Account-Account Layout)
   - For AssignmentRule: Use format ObjectName.RuleName (e.g., Case.Standard_Case_Assignment)
   - For AssignmentRules: Use the object name (e.g., Case, Lead)
+  - For ApprovalProcess: Use format ObjectName.ProcessDeveloperName (e.g., Opportunity.Large_Deal_Approval)
   - For PathAssistant: Use the path name (e.g., Opportunity_Path)
 
 Usage:
@@ -110,6 +112,17 @@ Example: Retrieve a specific assignment rule
 <retrieve_sf_metadata>
 <metadata_type>AssignmentRule</metadata_type>
 <metadata_name>Lead.Standard_Lead_Assignment</metadata_name>
+</retrieve_sf_metadata>
+
+Example: Retrieve an Approval Process
+<retrieve_sf_metadata>
+<metadata_type>ApprovalProcess</metadata_type>
+<metadata_name>Opportunity.Large_Deal_Approval</metadata_name>
+</retrieve_sf_metadata>
+
+Example: List all Approval Processes
+<retrieve_sf_metadata>
+<metadata_type>ApprovalProcess</metadata_type>
 </retrieve_sf_metadata>
 
 Example: Retrieve a Sales Path

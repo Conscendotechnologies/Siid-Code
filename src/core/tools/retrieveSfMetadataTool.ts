@@ -138,6 +138,11 @@ const METADATA_TYPE_CONFIG: Record<string, MetadataTypeConfig> = {
 		supportsListing: true,
 		description: "Assignment Rules",
 	},
+	ApprovalProcess: {
+		cliType: "ApprovalProcess",
+		supportsListing: true,
+		description: "Approval Process",
+	},
 	PathAssistant: {
 		cliType: "PathAssistant",
 		supportsListing: true,

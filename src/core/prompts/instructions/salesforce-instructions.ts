@@ -34,6 +34,13 @@ async function loadSalesforceInstruction(
 }
 
 /**
+ * Loads Approval Process instructions
+ */
+export async function approvalProcessInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadSalesforceInstruction(context, GlobalFileNames.approvalProcessInstructions)
+}
+
+/**
  * Loads Assignment Rules instructions
  */
 export async function assignmentRulesInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
@@ -101,4 +108,22 @@ export async function roleCreationInstructions(context: vscode.ExtensionContext 
  */
 export async function validationRulesInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
 	return loadSalesforceInstruction(context, GlobalFileNames.validationRulesInstructions)
+}
+
+/**
+ * Loads Workflow Field Update Creation instructions
+ */
+export async function workflowFieldUpdateCreationInstructions(
+	context: vscode.ExtensionContext | undefined,
+): Promise<string> {
+	return loadSalesforceInstruction(context, GlobalFileNames.workflowFieldUpdateCreationInstructions)
+}
+
+/**
+ * Loads Workflow Email Alert Creation instructions
+ */
+export async function workflowEmailAlertCreationInstructions(
+	context: vscode.ExtensionContext | undefined,
+): Promise<string> {
+	return loadSalesforceInstruction(context, GlobalFileNames.workflowEmailAlertCreationInstructions)
 }

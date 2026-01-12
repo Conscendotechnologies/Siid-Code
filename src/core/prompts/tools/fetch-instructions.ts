@@ -10,6 +10,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_mode
   create_lwc
   create_apex
+  approval_process
   assignment_rules
   custom_field
   custom_object
@@ -19,10 +20,13 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation`
 			: `  create_mode
   create_lwc
   create_apex
+  approval_process
   assignment_rules
   custom_field
   custom_object
@@ -32,7 +36,9 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation`
 
 	const example =
 		enableMcpServerCreation !== false

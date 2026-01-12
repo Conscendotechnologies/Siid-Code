@@ -3,6 +3,7 @@ import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
 import {
+	approvalProcessInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -13,6 +14,8 @@ import {
 	recordTypesInstructions,
 	roleCreationInstructions,
 	validationRulesInstructions,
+	workflowFieldUpdateCreationInstructions,
+	workflowEmailAlertCreationInstructions,
 } from "./salesforce-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
@@ -40,6 +43,9 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return await createApexInstructions(detail.context, detail.section)
 		}
 		// Salesforce Agent Instructions
+		case "approval_process": {
+			return await approvalProcessInstructions(detail.context)
+		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
 		}
@@ -69,6 +75,13 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "validation_rules": {
 			return await validationRulesInstructions(detail.context)
+		}
+		// Workflow Action Creation Instructions
+		case "workflow_field_update_creation": {
+			return await workflowFieldUpdateCreationInstructions(detail.context)
+		}
+		case "workflow_email_alert_creation": {
+			return await workflowEmailAlertCreationInstructions(detail.context)
 		}
 		default: {
 			return ""

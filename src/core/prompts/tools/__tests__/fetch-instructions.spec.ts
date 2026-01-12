@@ -55,6 +55,7 @@ describe("getFetchInstructionsDescription", () => {
 		const description = getFetchInstructionsDescription(true)
 
 		// Check for all Salesforce Agent tasks
+		expect(description).toContain("approval_process")
 		expect(description).toContain("assignment_rules")
 		expect(description).toContain("custom_field")
 		expect(description).toContain("custom_object")
@@ -81,6 +82,7 @@ describe("getFetchInstructionsDescription", () => {
 		const description = getFetchInstructionsDescription(false)
 
 		// Salesforce Agent tasks should still be present
+		expect(description).toContain("approval_process")
 		expect(description).toContain("assignment_rules")
 		expect(description).toContain("custom_field")
 		expect(description).toContain("custom_object")

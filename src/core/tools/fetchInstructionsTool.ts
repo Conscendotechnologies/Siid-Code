@@ -15,6 +15,7 @@ function getTaskDisplayName(task: string): string {
 		create_lwc: "Lightning Web Component Instructions",
 		create_apex: "Apex Class Instructions",
 		// Salesforce Agent Instructions
+		approval_process: "Approval Process Instructions",
 		assignment_rules: "Assignment Rules Instructions",
 		custom_field: "Custom Field Instructions",
 		custom_object: "Custom Object Instructions",
@@ -25,6 +26,9 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
+		// Workflow Action Creation Instructions
+		workflow_field_update_creation: "Workflow Field Update Creation Instructions",
+		workflow_email_alert_creation: "Workflow Email Alert Creation Instructions",
 	}
 
 	return taskNames[task] || task

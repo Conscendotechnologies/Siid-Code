@@ -36,6 +36,11 @@ Example: If the user asks you to create or edit an Apex class, you should fetch 
 
 **Salesforce Agent Instructions Examples:**
 
+Example: If the user asks you to create an Approval Process:
+<fetch_instructions>
+<task>approval_process</task>
+</fetch_instructions>
+
 Example: If the user asks you to create a Custom Field:
 <fetch_instructions>
 <task>custom_field</task>
