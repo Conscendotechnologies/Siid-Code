@@ -60,7 +60,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			inputValue,
 			setInputValue,
 			sendingDisabled,
-			_selectApiConfigDisabled,
+			selectApiConfigDisabled: _selectApiConfigDisabled,
 			placeholderText,
 			selectedImages,
 			setSelectedImages,
