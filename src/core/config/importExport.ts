@@ -58,10 +58,6 @@ export async function importSettingsFromPath(
 				...previousProviderProfiles.apiConfigs,
 				...newProviderProfiles.apiConfigs,
 			},
-			modeApiConfigs: {
-				...previousProviderProfiles.modeApiConfigs,
-				...newProviderProfiles.modeApiConfigs,
-			},
 		}
 
 		await Promise.all(
