@@ -47,6 +47,7 @@ import { TelemetrySetting } from "../../shared/TelemetrySetting"
 import { getWorkspacePath } from "../../utils/path"
 import { ensureSettingsDirectoryExists } from "../../utils/globalContext"
 import { Mode, defaultModeSlug } from "../../shared/modes"
+import { getModelsForMode } from "../../shared/mode-models"
 import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
 import { GetModelsOptions } from "../../shared/api"
 import { generateSystemPrompt } from "./generateSystemPrompt"
@@ -369,6 +370,120 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowModeSwitch":
 			await updateGlobalState("alwaysAllowModeSwitch", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "useFreeModels":
+			console.log("[webviewMessageHandler] useFreeModels handler called with value:", message.bool)
+			await updateGlobalState("useFreeModels", message.bool)
+
+			// Validate and update current model if needed
+			const {
+				apiConfiguration: useFreeModelsApiConfig,
+				mode: useFreeModelsMode,
+				currentApiConfigName,
+			} = await provider.getState()
+			const allModelsForUseFreeModels = getModelsForMode(useFreeModelsMode)
+			console.log("[webviewMessageHandler] Current mode:", useFreeModelsMode)
+			console.log(
+				"[webviewMessageHandler] All models for mode:",
+				allModelsForUseFreeModels.map((m) => ({ id: m.modelId, tier: m.tier })),
+			)
+
+			// Get current model from apiConfiguration
+			let currentModelId: string | undefined
+			switch (useFreeModelsApiConfig.apiProvider) {
+				case "openrouter":
+					currentModelId = useFreeModelsApiConfig.openRouterModelId
+					break
+				case "anthropic":
+				case "vertex":
+				case "bedrock":
+				case "gemini":
+				case "gemini-cli":
+				case "openai-native":
+				case "mistral":
+				case "deepseek":
+				case "doubao":
+				case "moonshot":
+				case "claude-code":
+					currentModelId = useFreeModelsApiConfig.apiModelId
+					break
+				case "openai":
+					currentModelId = useFreeModelsApiConfig.openAiModelId
+					break
+				default:
+					currentModelId = undefined
+			}
+
+			console.log("[webviewMessageHandler] Current modelId:", currentModelId)
+
+			// Find current model's tier
+			const currentModel = allModelsForUseFreeModels.find((m) => m.modelId === currentModelId)
+			const currentTier = currentModel?.tier
+			console.log("[webviewMessageHandler] Current model tier:", currentTier)
+
+			// Check if current model is compatible with new useFreeModels setting
+			// When useFreeModels=true, only free models are allowed
+			// When useFreeModels=false, all models are allowed (no validation needed)
+			const isIncompatible = message.bool === true && currentTier !== "free"
+			console.log("[webviewMessageHandler] Is model incompatible?", isIncompatible)
+
+			if (isIncompatible) {
+				console.log(
+					"[webviewMessageHandler] Current model is paid but useFreeModels=true, switching to free model",
+				)
+				// Filter to free models only
+				const freeModels = allModelsForUseFreeModels.filter((m) => m.tier === "free")
+				console.log(
+					"[webviewMessageHandler] Free models available:",
+					freeModels.map((m) => ({ id: m.modelId, tier: m.tier })),
+				)
+
+				if (freeModels.length > 0) {
+					const newModelId = freeModels[0].modelId
+					console.log("[webviewMessageHandler] Switching to model:", newModelId)
+
+					// Update the model
+					let newConfiguration: ProviderSettings
+					switch (useFreeModelsApiConfig.apiProvider) {
+						case "openrouter":
+							newConfiguration = { ...useFreeModelsApiConfig, openRouterModelId: newModelId }
+							break
+						case "anthropic":
+						case "vertex":
+						case "bedrock":
+						case "gemini":
+						case "gemini-cli":
+						case "openai-native":
+						case "mistral":
+						case "deepseek":
+						case "doubao":
+						case "moonshot":
+						case "claude-code":
+							newConfiguration = { ...useFreeModelsApiConfig, apiModelId: newModelId }
+							break
+						case "openai":
+							newConfiguration = { ...useFreeModelsApiConfig, openAiModelId: newModelId }
+							break
+						default:
+							newConfiguration = useFreeModelsApiConfig
+					}
+
+					// Save the updated configuration
+					try {
+						await provider.providerSettingsManager.saveConfig(currentApiConfigName, newConfiguration)
+						console.log("[webviewMessageHandler] Model updated successfully")
+					} catch (error) {
+						console.error("[webviewMessageHandler] Error updating model:", error)
+						provider.log(
+							`Error updating model when useFreeModels changed: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+						)
+					}
+				} else {
+					console.log("[webviewMessageHandler] No free models available for mode:", useFreeModelsMode)
+				}
+			}
+
 			await provider.postStateToWebview()
 			break
 		case "allowedMaxRequests":
@@ -1277,6 +1392,67 @@ export const webviewMessageHandler = async (
 			break
 		case "mode":
 			await provider.handleModeSwitch(message.text as Mode)
+			break
+		case "updateModel":
+			try {
+				if (!message.text) {
+					provider.log("updateModel message received with no model ID")
+					return
+				}
+
+				const modelId = message.text
+				const { apiConfiguration, currentApiConfigName } = await provider.getState()
+
+				// Update the correct model field based on the provider
+				let newConfiguration: ProviderSettings
+				switch (apiConfiguration.apiProvider) {
+					case "openrouter":
+						newConfiguration = { ...apiConfiguration, openRouterModelId: modelId }
+						break
+					case "anthropic":
+					case "vertex":
+					case "bedrock":
+					case "gemini":
+					case "gemini-cli":
+					case "openai-native":
+					case "mistral":
+					case "deepseek":
+					case "doubao":
+					case "moonshot":
+					case "claude-code":
+						newConfiguration = { ...apiConfiguration, apiModelId: modelId }
+						break
+					case "openai":
+						newConfiguration = { ...apiConfiguration, openAiModelId: modelId }
+						break
+					case "ollama":
+						newConfiguration = { ...apiConfiguration, ollamaModelId: modelId }
+						break
+					case "lmstudio":
+						newConfiguration = { ...apiConfiguration, lmStudioModelId: modelId }
+						break
+					case "glama":
+						newConfiguration = { ...apiConfiguration, glamaModelId: modelId }
+						break
+					case "unbound":
+						newConfiguration = { ...apiConfiguration, unboundModelId: modelId }
+						break
+					case "requesty":
+						newConfiguration = { ...apiConfiguration, requestyModelId: modelId }
+						break
+					default:
+						provider.log(`Unknown provider: ${apiConfiguration.apiProvider}, using apiModelId`)
+						newConfiguration = { ...apiConfiguration, apiModelId: modelId }
+				}
+
+				// Save the updated configuration
+				await provider.upsertProviderProfile(currentApiConfigName, newConfiguration, true)
+
+				provider.log(`Updated model to: ${modelId} for provider: ${apiConfiguration.apiProvider}`)
+			} catch (error) {
+				provider.log(`Error updating model: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`)
+				vscode.window.showErrorMessage(t("common:errors.update_model"))
+			}
 			break
 		case "updateSupportPrompt":
 			try {

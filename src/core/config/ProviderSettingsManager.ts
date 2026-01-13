@@ -24,7 +24,6 @@ export interface SyncCloudProfilesResult {
 export const providerProfilesSchema = z.object({
 	currentApiConfigName: z.string(),
 	apiConfigs: z.record(z.string(), providerSettingsWithIdSchema),
-	modeApiConfigs: z.record(z.string(), z.string()).optional(),
 	cloudProfileIds: z.array(z.string()).optional(),
 	migrations: z
 		.object({
@@ -34,6 +33,7 @@ export const providerProfilesSchema = z.object({
 			consecutiveMistakeLimitMigrated: z.boolean().optional(),
 			todoListEnabledMigrated: z.boolean().optional(),
 			useFreeModelsMigrated: z.boolean().optional(),
+			twoConfigStructureMigrated: z.boolean().optional(),
 		})
 		.optional(),
 })
@@ -42,139 +42,28 @@ export type ProviderProfiles = z.infer<typeof providerProfilesSchema>
 
 export class ProviderSettingsManager {
 	private static readonly SCOPE_PREFIX = "roo_cline_config_"
-	private readonly defaultConfigId = this.generateId()
-
-	// API tier config IDs
-	// salesforce-agent
-	private readonly salesforceAgentBasicId = "salesforce-agent-basic-free"
-	private readonly salesforceAgentMediumId = "salesforce-agent-medium"
-	private readonly salesforceAgentAdvancedId = "salesforce-agent-advanced"
-	// code
-	private readonly codeBasicId = "code-basic-free"
-	private readonly codeMediumId = "code-medium"
-	private readonly codeAdvancedId = "code-advanced"
-	// orchestrator
-	private readonly orchestratorBasicId = "orchestrator-basic-free"
-	private readonly orchestratorMediumId = "orchestrator-medium"
-	private readonly orchestratorAdvancedId = "orchestrator-advanced"
-
-	private readonly defaultModeApiConfigs: Record<string, string> = Object.fromEntries(
-		modes.map((mode) => {
-			if (mode.slug === "salesforce-agent") {
-				// Use the actual ID constant
-				return [mode.slug, this.salesforceAgentMediumId]
-			}
-			if (mode.slug === "code") {
-				return [mode.slug, this.codeMediumId]
-			}
-			if (mode.slug === "orchestrator") {
-				return [mode.slug, this.orchestratorMediumId]
-			}
-			return [mode.slug, this.defaultConfigId]
-		}),
-	)
+	private readonly defaultConfigId = "default-config-id"
+	private readonly paidApiConfigId = "paid-config-id"
 
 	private readonly defaultProviderProfiles: ProviderProfiles = {
 		currentApiConfigName: "default",
 		apiConfigs: {
-			default: { id: this.defaultConfigId },
-
-			// salesforce-agent configs
-			[this.salesforceAgentBasicId]: {
-				id: this.salesforceAgentBasicId,
+			default: {
+				id: this.defaultConfigId,
 				apiProvider: "openrouter",
 				openRouterModelId: "z-ai/glm-4.5-air:free",
-				// openRouterApiKey will be set to BASIC TIER key from Firebase
+				// openRouterApiKey will be set from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
 				consecutiveMistakeLimit: 3,
 				todoListEnabled: true,
 			},
-			[this.salesforceAgentMediumId]: {
-				id: this.salesforceAgentMediumId,
+			paidApiConfig: {
+				id: this.paidApiConfigId,
 				apiProvider: "openrouter",
 				openRouterModelId: "z-ai/glm-4.6",
-				// apiKey will be set to MEDIUM TIER key from Firebase
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-			[this.salesforceAgentAdvancedId]: {
-				id: this.salesforceAgentAdvancedId,
-				apiProvider: "openrouter",
-				openRouterModelId: "openai/gpt-5",
-				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-
-			// code mode configs
-			[this.codeBasicId]: {
-				id: this.codeBasicId,
-				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5-air:free",
-				// openRouterApiKey will be set to BASIC TIER key from Firebase
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-			[this.codeMediumId]: {
-				id: this.codeMediumId,
-				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5",
-				// openRouterApiKey will be set to MEDIUM TIER key from Firebase
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-			[this.codeAdvancedId]: {
-				id: this.codeAdvancedId,
-				apiProvider: "openrouter",
-				openRouterModelId: "openai/gpt-5",
-				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-
-			// orchestrator configs
-			[this.orchestratorBasicId]: {
-				id: this.orchestratorBasicId,
-				apiProvider: "openrouter",
-				openRouterModelId: "x-ai/grok-4.1-fast:free",
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-			[this.orchestratorMediumId]: {
-				id: this.orchestratorMediumId,
-				apiProvider: "openrouter",
-				openRouterModelId: "x-ai/grok-code-fast-1",
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
-			},
-			[this.orchestratorAdvancedId]: {
-				id: this.orchestratorAdvancedId,
-				apiProvider: "openrouter",
-				openRouterModelId: "openai/gpt-5",
-				// openRouterApiKey will be set to ADVANCED TIER key from Firebase (same as MEDIUM)
+				// openRouterApiKey will be set from Firebase
 				rateLimitSeconds: 0,
 				diffEnabled: true,
 				fuzzyMatchThreshold: 1.0,
@@ -182,7 +71,6 @@ export class ProviderSettingsManager {
 				todoListEnabled: true,
 			},
 		},
-		modeApiConfigs: this.defaultModeApiConfigs,
 		migrations: {
 			rateLimitSecondsMigrated: true, // Mark as migrated on fresh installs
 			diffSettingsMigrated: true, // Mark as migrated on fresh installs
@@ -197,13 +85,6 @@ export class ProviderSettingsManager {
 
 	constructor(context: ExtensionContext) {
 		this.context = context
-
-		logger.info(
-			`ProviderSettingsManager.constructor: defaultModeApiConfigs=${JSON.stringify(this.defaultModeApiConfigs)}`,
-		)
-		logger.info(
-			`ProviderSettingsManager.constructor: defaultProviderProfiles.modeApiConfigs=${JSON.stringify(this.defaultProviderProfiles.modeApiConfigs)}`,
-		)
 
 		// TODO: We really shouldn't have async methods in the constructor.
 		this.initialize().catch(console.error)
@@ -227,31 +108,40 @@ export class ProviderSettingsManager {
 	public async initialize() {
 		try {
 			return await this.lock(async () => {
+				logger.info(`[ProviderSettingsManager.initialize] Starting initialization...`)
+
+				// Check if configs exist in storage before loading
+				const content = await this.context.secrets.get(this.secretsKey)
+				const isFirstTime = !content
+
+				if (isFirstTime) {
+					console.log("[ProviderSettingsManager.initialize] First-time setup detected (no saved configs)")
+					logger.info(`[ProviderSettingsManager.initialize] First-time setup detected (no saved configs)`)
+				}
+
 				const providerProfiles = await this.load()
 
+				console.log(
+					`[ProviderSettingsManager.initialize] Loaded providerProfiles, currentApiConfigName='${providerProfiles.currentApiConfigName}', configs=${Object.keys(providerProfiles.apiConfigs).join(", ")}`,
+				)
 				logger.info(
-					`ProviderSettingsManager.initialize: existing providerProfiles=${JSON.stringify(providerProfiles)}`,
+					`[ProviderSettingsManager.initialize] Loaded providerProfiles, currentApiConfigName='${providerProfiles.currentApiConfigName}', configs=${Object.keys(providerProfiles.apiConfigs).join(", ")}`,
 				)
 
-				if (!providerProfiles) {
-					logger.info(`ProviderSettingsManager.initialize: storing defaultProviderProfiles`)
-					await this.store(this.defaultProviderProfiles)
-					return
+				// Log API configuration details on first-time setup
+				if (isFirstTime) {
+					for (const [name, config] of Object.entries(providerProfiles.apiConfigs)) {
+						console.log(`[ProviderSettingsManager.initialize] First-time config '${name}':`, {
+							id: config.id,
+							apiProvider: config.apiProvider,
+							openRouterModelId: config.openRouterModelId,
+							apiModelId: config.apiModelId,
+							openRouterApiKey: config.openRouterApiKey ? "[SET]" : "[NOT SET]",
+						})
+					}
 				}
 
-				let isDirty = false
-
-				// Migrate existing installs to have per-mode API config map
-				if (!providerProfiles.modeApiConfigs) {
-					// Use the currently selected config for all modes initially
-					const currentName = providerProfiles.currentApiConfigName
-					const seedId =
-						providerProfiles.apiConfigs[currentName]?.id ??
-						Object.values(providerProfiles.apiConfigs)[0]?.id ??
-						this.defaultConfigId
-					providerProfiles.modeApiConfigs = Object.fromEntries(modes.map((m) => [m.slug, seedId]))
-					isDirty = true
-				}
+				let isDirty = isFirstTime // Mark as dirty if first time to ensure defaults are stored
 
 				// Ensure all configs have IDs.
 				for (const [_name, apiConfig] of Object.entries(providerProfiles.apiConfigs)) {
@@ -307,6 +197,19 @@ export class ProviderSettingsManager {
 					await this.migrateUseFreeModels(providerProfiles)
 					providerProfiles.migrations.useFreeModelsMigrated = true
 					isDirty = true
+				}
+
+				// Migrate to 2-config structure with fixed IDs
+				if (!providerProfiles.migrations.twoConfigStructureMigrated) {
+					console.log("[ProviderSettingsManager.initialize] Running 2-config structure migration...")
+					logger.info("[ProviderSettingsManager.initialize] Running 2-config structure migration...")
+					await this.migrateTo2ConfigStructure(providerProfiles)
+					providerProfiles.migrations.twoConfigStructureMigrated = true
+					isDirty = true
+					console.log("[ProviderSettingsManager.initialize] 2-config migration completed")
+					logger.info("[ProviderSettingsManager.initialize] 2-config migration completed")
+				} else {
+					console.log("[ProviderSettingsManager.initialize] 2-config migration already completed, skipping")
 				}
 
 				if (isDirty) {
@@ -396,104 +299,106 @@ export class ProviderSettingsManager {
 	 */
 	public async updateApiKeysFromFirebase() {
 		try {
+			console.log("[ProviderSettingsManager.updateApiKeysFromFirebase] Fetching API keys from Firebase...")
+			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Fetching API keys...`)
 			const { freeApiKey, paidApiKey } = await this.fetchApiKeysFromFirebase()
+			console.log(
+				`[ProviderSettingsManager.updateApiKeysFromFirebase] Got keys - freeApiKey=${!!freeApiKey}, paidApiKey=${!!paidApiKey}`,
+			)
+			logger.info(
+				`[ProviderSettingsManager.updateApiKeysFromFirebase] Got keys - freeApiKey=${!!freeApiKey}, paidApiKey=${!!paidApiKey}`,
+			)
 
 			const providerProfiles = await this.load()
 			if (!providerProfiles) {
-				logger.warn("[ProviderSettingsManager] No provider profiles found")
+				logger.warn("[ProviderSettingsManager.updateApiKeysFromFirebase] No provider profiles found")
 				return
 			}
 
+			logger.info(
+				`[ProviderSettingsManager.updateApiKeysFromFirebase] Looking for configs - defaultConfigId='${this.defaultConfigId}', paidApiConfigId='${this.paidApiConfigId}'`,
+			)
+			logger.info(
+				`[ProviderSettingsManager.updateApiKeysFromFirebase] Available configs: ${Object.entries(
+					providerProfiles.apiConfigs,
+				)
+					.map(([name, cfg]) => `${name}(id=${cfg.id})`)
+					.join(", ")}`,
+			)
+
 			let isDirty = false
 
-			// Update all BASIC configs with the free tier API key
-			// Basic configs use OpenRouter with :free suffix models
-			const salesforceAgentBasicConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.salesforceAgentBasicId,
+			// Update default config with API key (uses free models)
+			const defaultConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.defaultConfigId,
 			)
-			if (salesforceAgentBasicConfig && freeApiKey) {
-				salesforceAgentBasicConfig.openRouterApiKey = freeApiKey
+			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Found default config: ${!!defaultConfig}`)
+			if (defaultConfig && (freeApiKey || paidApiKey)) {
+				const apiKey = freeApiKey || paidApiKey
+				defaultConfig.openRouterApiKey = apiKey
+				// Show first 4 and last 4 characters for verification
+				const maskedKey = apiKey
+					? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
+					: "[NOT SET]"
+				console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'default' config:`, {
+					id: defaultConfig.id,
+					apiProvider: defaultConfig.apiProvider,
+					openRouterModelId: defaultConfig.openRouterModelId,
+					openRouterApiKey: maskedKey,
+					fullKeyLength: apiKey?.length || 0,
+				})
+				logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated default config with API key`)
 				isDirty = true
 			}
 
-			const codeBasicConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.codeBasicId,
+			// Update paidApiConfig with API key (uses paid models)
+			const paidConfig = Object.values(providerProfiles.apiConfigs).find(
+				(config) => config.id === this.paidApiConfigId,
 			)
-			if (codeBasicConfig && freeApiKey) {
-				codeBasicConfig.openRouterApiKey = freeApiKey
-				isDirty = true
-			}
-
-			const orchestratorBasicConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.orchestratorBasicId,
-			)
-			if (orchestratorBasicConfig && freeApiKey) {
-				orchestratorBasicConfig.cerebrasApiKey = freeApiKey
-				isDirty = true
-			}
-
-			// Update all MEDIUM configs with the paid tier API key
-			// Medium configs use Anthropic and OpenRouter
-			const salesforceAgentMediumConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.salesforceAgentMediumId,
-			)
-			if (salesforceAgentMediumConfig && paidApiKey) {
-				salesforceAgentMediumConfig.apiKey = paidApiKey
-				isDirty = true
-			}
-
-			const codeMediumConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.codeMediumId,
-			)
-			if (codeMediumConfig && paidApiKey) {
-				codeMediumConfig.openRouterApiKey = paidApiKey
-				isDirty = true
-			}
-
-			const orchestratorMediumConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.orchestratorMediumId,
-			)
-			if (orchestratorMediumConfig && paidApiKey) {
-				orchestratorMediumConfig.openRouterApiKey = paidApiKey
-				isDirty = true
-			}
-
-			// Update all ADVANCED configs with the paid tier API key (same as MEDIUM)
-			// Advanced configs use GPT-5 which uses paid tier key
-			const salesforceAgentAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.salesforceAgentAdvancedId,
-			)
-			if (salesforceAgentAdvancedConfig && paidApiKey) {
-				salesforceAgentAdvancedConfig.openRouterApiKey = paidApiKey
-				isDirty = true
-			}
-
-			const codeAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.codeAdvancedId,
-			)
-			if (codeAdvancedConfig && paidApiKey) {
-				codeAdvancedConfig.openRouterApiKey = paidApiKey
-				isDirty = true
-			}
-
-			const orchestratorAdvancedConfig = Object.values(providerProfiles.apiConfigs).find(
-				(config) => config.id === this.orchestratorAdvancedId,
-			)
-			if (orchestratorAdvancedConfig && paidApiKey) {
-				orchestratorAdvancedConfig.openRouterApiKey = paidApiKey
+			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Found paidApiConfig: ${!!paidConfig}`)
+			if (paidConfig && paidApiKey) {
+				paidConfig.openRouterApiKey = paidApiKey
+				// Show first 4 and last 4 characters for verification
+				const maskedKey = paidApiKey
+					? `${paidApiKey.substring(0, 4)}...${paidApiKey.substring(paidApiKey.length - 4)}`
+					: "[NOT SET]"
+				console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'paidApiConfig':`, {
+					id: paidConfig.id,
+					apiProvider: paidConfig.apiProvider,
+					openRouterModelId: paidConfig.openRouterModelId,
+					openRouterApiKey: maskedKey,
+					fullKeyLength: paidApiKey?.length || 0,
+				})
+				logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated paidApiConfig with API key`)
 				isDirty = true
 			}
 
 			if (isDirty) {
-				await this.store(providerProfiles)
 				logger.info(
-					"[ProviderSettingsManager] Updated API configs with Firebase keys (basic, medium, and advanced tiers)",
+					`[ProviderSettingsManager.updateApiKeysFromFirebase] Changes detected, storing updated profiles`,
+				)
+				await this.store(providerProfiles)
+				console.log(
+					"[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Successfully stored configs with API keys",
+				)
+				logger.info(
+					"[ProviderSettingsManager.updateApiKeysFromFirebase] Successfully updated and stored API configs with Firebase keys",
 				)
 			} else if (!freeApiKey && !paidApiKey) {
-				logger.info("[ProviderSettingsManager] No API keys fetched from Firebase (using placeholders)")
+				console.log(
+					"[ProviderSettingsManager.updateApiKeysFromFirebase] ⚠ No API keys fetched from Firebase (user not authenticated or no key set)",
+				)
+				logger.info(
+					"[ProviderSettingsManager.updateApiKeysFromFirebase] No API keys fetched from Firebase (using placeholders)",
+				)
+			} else {
+				logger.info(
+					"[ProviderSettingsManager.updateApiKeysFromFirebase] No changes needed, configs already have keys",
+				)
 			}
 		} catch (error) {
-			logger.error(`[ProviderSettingsManager] Failed to update API keys: ${error}`)
+			console.error(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✗ Failed to update API keys:`, error)
+			logger.error(`[ProviderSettingsManager.updateApiKeysFromFirebase] Failed to update API keys: ${error}`)
 		}
 	}
 
@@ -630,6 +535,67 @@ export class ProviderSettingsManager {
 			}
 		} catch (error) {
 			console.error(`[MigrateUseFreeModels] Failed to migrate useFreeModels setting:`, error)
+		}
+	}
+
+	private async migrateTo2ConfigStructure(providerProfiles: ProviderProfiles) {
+		try {
+			logger.info("[Migrate2Config] Checking if migration to 2-config structure is needed...")
+
+			// Check if we already have the correct structure
+			const hasDefaultWithCorrectId = providerProfiles.apiConfigs["default"]?.id === this.defaultConfigId
+			const hasPaidWithCorrectId = providerProfiles.apiConfigs["paidApiConfig"]?.id === this.paidApiConfigId
+
+			if (hasDefaultWithCorrectId && hasPaidWithCorrectId) {
+				logger.info("[Migrate2Config] Already using 2-config structure with correct IDs, skipping migration")
+				return
+			}
+
+			logger.info("[Migrate2Config] Migrating to 2-config structure...")
+
+			// Find any existing config with API keys to preserve them
+			const existingConfigWithKeys = Object.values(providerProfiles.apiConfigs).find((config) => {
+				return (
+					(config as any).openRouterApiKey || (config as any).anthropicApiKey || (config as any).openAIApiKey
+				)
+			})
+
+			// Create new default config
+			const newDefaultConfig = {
+				...this.defaultProviderProfiles.apiConfigs["default"],
+				id: this.defaultConfigId,
+			}
+
+			// Create new paidApiConfig
+			const newPaidConfig = {
+				...this.defaultProviderProfiles.apiConfigs["paidApiConfig"],
+				id: this.paidApiConfigId,
+			}
+
+			// Copy API keys from existing config if found
+			if (existingConfigWithKeys) {
+				logger.info("[Migrate2Config] Copying API keys from existing config")
+				const keysToCopy = ["openRouterApiKey", "anthropicApiKey", "openAIApiKey"]
+				keysToCopy.forEach((key) => {
+					if ((existingConfigWithKeys as any)[key]) {
+						;(newDefaultConfig as any)[key] = (existingConfigWithKeys as any)[key]
+						;(newPaidConfig as any)[key] = (existingConfigWithKeys as any)[key]
+					}
+				})
+			}
+
+			// Replace all configs with just the 2 new ones
+			providerProfiles.apiConfigs = {
+				default: newDefaultConfig,
+				paidApiConfig: newPaidConfig,
+			}
+
+			// Ensure currentApiConfigName is set to 'default'
+			providerProfiles.currentApiConfigName = "default"
+
+			logger.info("[Migrate2Config] Successfully migrated to 2-config structure with fixed IDs")
+		} catch (error) {
+			console.error(`[Migrate2Config] Failed to migrate to 2-config structure:`, error)
 		}
 	}
 
@@ -777,44 +743,6 @@ export class ProviderSettingsManager {
 		}
 	}
 
-	/**
-	 * Set the API config for a specific mode.
-	 */
-	public async setModeConfig(mode: Mode, configId: string) {
-		try {
-			return await this.lock(async () => {
-				const providerProfiles = await this.load()
-				// Ensure the per-mode config map exists
-				if (!providerProfiles.modeApiConfigs) {
-					providerProfiles.modeApiConfigs = {}
-				}
-				// Assign the chosen config ID to this mode
-				providerProfiles.modeApiConfigs[mode] = configId
-				await this.store(providerProfiles)
-			})
-		} catch (error) {
-			throw new Error(`Failed to set mode config: ${error}`)
-		}
-	}
-
-	/**
-	 * Get the API config ID for a specific mode.
-	 */
-	public async getModeConfigId(mode: Mode) {
-		try {
-			return await this.lock(async () => {
-				const { modeApiConfigs } = await this.load()
-				const configId = modeApiConfigs?.[mode]
-				logger.info(
-					`ProviderSettingsManager.getModeConfigId: mode=${mode}, configId=${configId}, modeApiConfigs=${JSON.stringify(modeApiConfigs)}`,
-				)
-				return configId
-			})
-		} catch (error) {
-			throw new Error(`Failed to get mode config: ${error}`)
-		}
-	}
-
 	public async export() {
 		try {
 			return await this.lock(async () => {
@@ -854,11 +782,17 @@ export class ProviderSettingsManager {
 
 	private async load(): Promise<ProviderProfiles> {
 		try {
+			logger.info(`[ProviderSettingsManager.load] Loading configs from secrets...`)
 			const content = await this.context.secrets.get(this.secretsKey)
 
 			if (!content) {
-				logger.info("[ProviderSettingsManager] No saved configs, returning defaults")
-				return this.defaultProviderProfiles
+				logger.info(
+					"[ProviderSettingsManager.load] No saved configs, returning defaults with currentApiConfigName='default'",
+				)
+				logger.info(
+					"[ProviderSettingsManager.load] NOTE: Defaults will be stored by initialize() if this is first load",
+				)
+				return { ...this.defaultProviderProfiles }
 			}
 
 			const providerProfiles = providerProfilesSchema
@@ -898,6 +832,16 @@ export class ProviderSettingsManager {
 
 			logger.info(`[ProviderSettingsManager] After merge: ${Object.keys(mergedApiConfigs).length} total configs`)
 
+			// Ensure default and paidApiConfig always exist
+			if (!mergedApiConfigs["default"]) {
+				logger.warn("[ProviderSettingsManager] default config missing, using defaults")
+				mergedApiConfigs["default"] = this.defaultProviderProfiles.apiConfigs["default"]
+			}
+			if (!mergedApiConfigs["paidApiConfig"]) {
+				logger.warn("[ProviderSettingsManager] paidApiConfig missing, using defaults")
+				mergedApiConfigs["paidApiConfig"] = this.defaultProviderProfiles.apiConfigs["paidApiConfig"]
+			}
+
 			// Find a config with API keys to populate predefined configs
 			const configWithKeys = Object.values(mergedApiConfigs).find((config) => {
 				return (
@@ -917,29 +861,50 @@ export class ProviderSettingsManager {
 					"openAIModelId",
 				]
 				keysToCopy.forEach((key) => {
-					if ((configWithKeys as any)[key] && !(mergedApiConfigs["salesforce-agent-medium"] as any)[key]) {
-						;(mergedApiConfigs["salesforce-agent-medium"] as any)[key] = (configWithKeys as any)[key]
-						logger.info(`ProviderSettingsManager.load: copied ${key} to salesforce-agent-medium`)
+					// Copy keys to default config if not present
+					if (
+						mergedApiConfigs["default"] &&
+						(configWithKeys as any)[key] &&
+						!(mergedApiConfigs["default"] as any)[key]
+					) {
+						;(mergedApiConfigs["default"] as any)[key] = (configWithKeys as any)[key]
+						logger.info(`ProviderSettingsManager.load: copied ${key} to default`)
 					}
-					if ((configWithKeys as any)[key] && !(mergedApiConfigs["code-medium"] as any)[key]) {
-						;(mergedApiConfigs["code-medium"] as any)[key] = (configWithKeys as any)[key]
-						logger.info(`ProviderSettingsManager.load: copied ${key} to code-medium`)
+					// Copy keys to paidApiConfig if not present
+					if (
+						mergedApiConfigs["paidApiConfig"] &&
+						(configWithKeys as any)[key] &&
+						!(mergedApiConfigs["paidApiConfig"] as any)[key]
+					) {
+						;(mergedApiConfigs["paidApiConfig"] as any)[key] = (configWithKeys as any)[key]
+						logger.info(`ProviderSettingsManager.load: copied ${key} to paidApiConfig`)
 					}
 				})
 			} else {
 				logger.info(`ProviderSettingsManager.load: no config with keys found`)
 			}
 
-			logger.info(`ProviderSettingsManager.load: mergedApiConfigs keys: ${Object.keys(mergedApiConfigs)}`)
+			logger.info(`[ProviderSettingsManager.load] mergedApiConfigs keys: ${Object.keys(mergedApiConfigs)}`)
+
+			// Ensure currentApiConfigName is valid and points to an existing config
+			let currentApiConfigName = providerProfiles.currentApiConfigName
+			logger.info(`[ProviderSettingsManager.load] Original currentApiConfigName='${currentApiConfigName}'`)
+
+			if (!mergedApiConfigs[currentApiConfigName]) {
+				logger.warn(
+					`[ProviderSettingsManager.load] currentApiConfigName '${currentApiConfigName}' not found in configs, defaulting to 'default'`,
+				)
+				currentApiConfigName = "default"
+			}
+
+			logger.info(
+				`[ProviderSettingsManager.load] Final currentApiConfigName='${currentApiConfigName}', returning profiles`,
+			)
 
 			return {
 				...providerProfiles,
+				currentApiConfigName,
 				apiConfigs: mergedApiConfigs,
-				// Ensure modeApiConfigs includes defaults
-				modeApiConfigs: {
-					...this.defaultModeApiConfigs,
-					...providerProfiles.modeApiConfigs,
-				},
 			}
 		} catch (error) {
 			if (error instanceof ZodError) {

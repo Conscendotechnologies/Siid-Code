@@ -97,30 +97,60 @@ export async function getOpenRouterModels(options?: ApiHandlerOptions): Promise<
 	const models: Record<string, ModelInfo> = {}
 	const baseURL = options?.openRouterBaseUrl || "https://openrouter.ai/api/v1"
 
-	try {
-		const response = await axios.get<OpenRouterModelsResponse>(`${baseURL}/models`)
-		const result = openRouterModelsResponseSchema.safeParse(response.data)
-		const data = result.success ? result.data.data : response.data.data
+	const maxRetries = 3
+	const retryDelay = 1000 // 1 second
 
-		if (!result.success) {
-			console.error("OpenRouter models response is invalid", result.error.format())
-		}
-
-		for (const model of data) {
-			const { id, architecture, top_provider, supported_parameters = [] } = model
-
-			models[id] = parseOpenRouterModel({
-				id,
-				model,
-				modality: architecture?.modality,
-				maxTokens: top_provider?.max_completion_tokens,
-				supportedParameters: supported_parameters,
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			const response = await axios.get<OpenRouterModelsResponse>(`${baseURL}/models`, {
+				timeout: 10000, // 10 second timeout
 			})
+			const result = openRouterModelsResponseSchema.safeParse(response.data)
+			const data = result.success ? result.data.data : response.data.data
+
+			if (!result.success) {
+				console.error("OpenRouter models response is invalid", result.error.format())
+			}
+
+			for (const model of data) {
+				const { id, architecture, top_provider, supported_parameters = [] } = model
+
+				models[id] = parseOpenRouterModel({
+					id,
+					model,
+					modality: architecture?.modality,
+					maxTokens: top_provider?.max_completion_tokens,
+					supportedParameters: supported_parameters,
+				})
+			}
+
+			// Success - break retry loop
+			break
+		} catch (error) {
+			const isLastAttempt = attempt === maxRetries
+			const isNetworkError =
+				axios.isAxiosError(error) &&
+				(error.code === "ECONNRESET" ||
+					error.code === "ETIMEDOUT" ||
+					error.code === "ENOTFOUND" ||
+					error.code === "ECONNREFUSED")
+
+			if (isNetworkError && !isLastAttempt) {
+				console.warn(
+					`Network error fetching OpenRouter models (attempt ${attempt}/${maxRetries}): ${error.code || error.message}. Retrying in ${retryDelay}ms...`,
+				)
+				await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt)) // Exponential backoff
+			} else {
+				console.error(
+					`Error fetching OpenRouter models (attempt ${attempt}/${maxRetries}): ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+				)
+				if (isLastAttempt) {
+					console.error(
+						"Failed to fetch OpenRouter models after all retry attempts. Using fallback empty list.",
+					)
+				}
+			}
 		}
-	} catch (error) {
-		console.error(
-			`Error fetching OpenRouter models: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-		)
 	}
 
 	return models
@@ -137,29 +167,62 @@ export async function getOpenRouterModelEndpoints(
 	const models: Record<string, ModelInfo> = {}
 	const baseURL = options?.openRouterBaseUrl || "https://openrouter.ai/api/v1"
 
-	try {
-		const response = await axios.get<OpenRouterModelEndpointsResponse>(`${baseURL}/models/${modelId}/endpoints`)
-		const result = openRouterModelEndpointsResponseSchema.safeParse(response.data)
-		const data = result.success ? result.data.data : response.data.data
+	const maxRetries = 3
+	const retryDelay = 1000 // 1 second
 
-		if (!result.success) {
-			console.error("OpenRouter model endpoints response is invalid", result.error.format())
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			const response = await axios.get<OpenRouterModelEndpointsResponse>(
+				`${baseURL}/models/${modelId}/endpoints`,
+				{
+					timeout: 10000, // 10 second timeout
+				},
+			)
+			const result = openRouterModelEndpointsResponseSchema.safeParse(response.data)
+			const data = result.success ? result.data.data : response.data.data
+
+			if (!result.success) {
+				console.error("OpenRouter model endpoints response is invalid", result.error.format())
+			}
+
+			const { id, architecture, endpoints } = data
+
+			for (const endpoint of endpoints) {
+				models[endpoint.provider_name] = parseOpenRouterModel({
+					id,
+					model: endpoint,
+					modality: architecture?.modality,
+					maxTokens: endpoint.max_completion_tokens,
+				})
+			}
+
+			// Success - break retry loop
+			break
+		} catch (error) {
+			const isLastAttempt = attempt === maxRetries
+			const isNetworkError =
+				axios.isAxiosError(error) &&
+				(error.code === "ECONNRESET" ||
+					error.code === "ETIMEDOUT" ||
+					error.code === "ENOTFOUND" ||
+					error.code === "ECONNREFUSED")
+
+			if (isNetworkError && !isLastAttempt) {
+				console.warn(
+					`Network error fetching OpenRouter model endpoints (attempt ${attempt}/${maxRetries}): ${error.code || error.message}. Retrying in ${retryDelay}ms...`,
+				)
+				await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt)) // Exponential backoff
+			} else {
+				console.error(
+					`Error fetching OpenRouter model endpoints (attempt ${attempt}/${maxRetries}): ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+				)
+				if (isLastAttempt) {
+					console.error(
+						"Failed to fetch OpenRouter model endpoints after all retry attempts. Using fallback empty list.",
+					)
+				}
+			}
 		}
-
-		const { id, architecture, endpoints } = data
-
-		for (const endpoint of endpoints) {
-			models[endpoint.provider_name] = parseOpenRouterModel({
-				id,
-				model: endpoint,
-				modality: architecture?.modality,
-				maxTokens: endpoint.max_completion_tokens,
-			})
-		}
-	} catch (error) {
-		console.error(
-			`Error fetching OpenRouter model endpoints: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-		)
 	}
 
 	return models
