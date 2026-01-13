@@ -93,6 +93,15 @@ Make improvements to:
 - Add missing documentation and descriptions
 - Enhance error handling and validation
 
+**If adding new Apex actions:**
+
+- **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
+- **Must delegate to Code mode** for any Apex action creation
+- When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
+- **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
+- Wait for Code mode to complete and deploy the Apex class
+- Update GenAiPlugin/GenAiFunction to reference the created Apex class
+
 ### Step 7: Deploy Enhanced Agent
 
 Update the org with enhanced agent:
@@ -114,3 +123,35 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 5. Generate analysis report with findings
 6. Enhance agent files (fix issues, improve instructions, optimize topics)
 7. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+
+---
+
+## Example with Adding New Apex Action
+
+**User wants:** "Analyze my customer support agent and add ability to create service cases"
+
+**Steps 1-4:** Retrieve and analyze agent
+
+**Step 5:** Analysis finds agent lacks case creation functionality
+
+**Step 6:** Enhance agent with new Apex action
+
+1. Identify requirement: Agent needs to create cases in Salesforce
+2. **Delegate to Code mode:**
+    - Create subtask or switch to Code mode
+    - Instruction: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action 'CaseCreator' with a method to create service cases"**
+    - Specify: "Method should accept case details and return the created case ID"
+    - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
+3. Wait for Code mode to complete and deploy the Apex class
+4. Update GenAiFunction to reference the new Apex class:
+    ```xml
+    <apexClass>CaseCreator</apexClass>
+    <method>createCase</method>
+    ```
+5. Update GenAiPlugin to link the function to relevant topic
+
+**Step 7:** Deploy enhanced agent:
+
+```bash
+sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org
+```

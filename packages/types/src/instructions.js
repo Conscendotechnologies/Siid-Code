@@ -61,15 +61,45 @@ For simple, single-component requests (e.g., 'create one trigger'), proceed dire
 1. Whenever you are creating an APEX Class, you MUST create an XML file for the related apex class as well.
 2. Always use proper Salesforce naming conventions and best practices.
 3. Include error handling in your implementations where appropriate.
+
+## Agentforce Agent Development
+
+**CRITICAL: When working with Agentforce agents, you MUST:**
+1. Use fetch_instructions tool to get the workflow:
+   - Creating agents: \`<task>agentforce_agent_create</task>\`
+   - Analyzing/enhancing agents: \`<task>agentforce_agent_analyse</task>\`
+2. Follow the workflow instructions exactly as provided
+3. **NEVER write Apex code yourself** - always create subtask with Code mode as instructed in the workflow
+4. Only configure agent files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
 `
 
 // ====================
 // SALESFORCE CODE INSTRUCTIONS
 // ====================
 
-// code mode - No additional instructions needed (uses instructions from mode.ts only)
-// This is just a placeholder to keep the structure consistent
-export const SALESFORCE_CODE_INSTRUCTIONS = ``
+export const SALESFORCE_CODE_INSTRUCTIONS = `
+## Apex Invocable Actions for Agentforce Agents
+
+**CRITICAL: When creating Apex invocable actions for Agentforce agents:**
+
+1. **Always use the Agentforce-specific guide:**
+   - File location: \`.roo/rules-code/agentforce-apex-guide.md\`
+   - **DO NOT use apex-guide.md** for invocable actions
+   
+2. **Follow the invocable action pattern:**
+   - Must be annotated with @InvocableMethod
+   - Proper input/output wrapper classes
+   - Bulkification support
+   - Error handling for agent consumption
+   
+3. **Read the guide before starting:**
+   - The guide contains specific patterns for Agentforce compatibility
+   - Follow naming conventions and structure exactly
+   - Include proper metadata and descriptions
+
+**For regular Apex classes/triggers (non-Agentforce):**
+- Use standard apex-guide.md as usual
+`
 
 // ====================
 // SALESFORCE-AGENT RETURN PROTOCOL
@@ -288,6 +318,7 @@ This means after delegating, the mode's response will contain TWO parts:
 - Profiles, permission sets
 - Flows, validation rules
 - Reports, dashboards
+- **Agentforce agents (creation, analysis, enhancement)**
 - Any admin/declarative work
 
 **code mode:**
@@ -295,7 +326,13 @@ This means after delegating, the mode's response will contain TWO parts:
 - LWC/Aura components
 - Test classes
 - Integration code
+- **Apex invocable actions for Agentforce agents**
 - Any development work
+
+**Special Case - Agentforce Agents:**
+- **Creating/enhancing Agentforce agents → Delegate to salesforce-agent mode**
+- If agent needs Apex actions, salesforce-agent mode will delegate to code mode internally
+- You don't need to split Agentforce work yourself - let salesforce-agent coordinate it
 
 ## Delegation Format
 

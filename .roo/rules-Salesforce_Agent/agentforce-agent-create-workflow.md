@@ -17,7 +17,7 @@ Collect the following from user (if not in prompt):
 
 **Optional:**
 
-- Max Topics (default: 5)
+- Max Topics (default: 1)
 - Output File Path (default: `specs/<agentName>.yaml`)
 
 ### Step 2: Generate Agent Specification
@@ -48,27 +48,30 @@ Run command:
 sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --target-org <org>
 ```
 
-### Step 5: Customize Agent Files (Optional)
+### Step 5: Customize Agent Files
 
-**Note:** After creating the agent, GenAiPlannerBundle, GenAiPlugin, and GenAiFunction files are automatically generated in your project.
+**Note:** After creating the agent, GenAiPlannerBundle, GenAiPlugin, and GenAiFunction files are automatically generated in your project. Since we created the agent with max-topics=1 (minimum required), you MUST now customize it with your specific topics and actions.
 
-**If customization is needed:**
+**Required customization:**
 
 - Review and update GenAiPlannerBundle (agent configuration)
-- Remove AI-generated topics if not needed
-- Add custom topics and Apex actions based on user requirements
+- **Remove the AI-generated topic** (it was only created because max-topics can't be 0)
+- Add your custom topics based on user requirements
+- Add Apex actions for each topic
 - **Only Apex actions are supported** for customization
 - Maximum 1-2 actions per topic
 - Update instructions to match specific use case
 
 **Important - Apex Code Creation:**
 
-- **Do NOT write Apex code yourself**
-- Create a subtask for Code mode to handle Apex class creation
+- **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
+- **Must delegate to Code mode** for any Apex action creation
+- When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
+- **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - Wait for subtask completion before linking the Apex action to the agent
 - Update GenAiPlugin/GenAiFunction to reference the created Apex class
 
-**Deploy only if files were modified:**
+**Deploy customized agent:**
 
 ```bash
 sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
@@ -81,10 +84,10 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 **User wants:** "Create a resort manager agent"
 
 1. Collect: role, type, company name, company description, agent name, org
-2. Generate spec: `sf agent generate agent-spec --max-topics 5 --output-file specs/resortManagerAgent.yaml --type customer --role "Field customer complaints and manage employee schedules." --company-name "Coral Cloud Resorts" --company-description "Provide customers with exceptional destination activities, unforgettable experiences, and reservation services."`
+2. Generate spec: `sf agent generate agent-spec --max-topics 1 --output-file specs/resortManagerAgent.yaml --type customer --role "Field customer complaints and manage employee schedules." --company-name "Coral Cloud Resorts" --company-description "Provide customers with exceptional destination activities, unforgettable experiences, and reservation services."`
 3. Create agent: `sf agent create --name "Resort Manager" --api-name Resort_Manager --spec specs/resortManagerAgent.yaml --target-org my-org`
-4. (Optional) Customize generated agent files - add Apex actions if needed
-5. (Optional) Deploy only if customized: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+4. Remove the auto-generated topic and add custom topics with Apex actions
+5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
 
 ---
 
@@ -97,10 +100,12 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 **Step 4:** User needs custom Apex action to check inventory
 
 1. Identify requirement: Agent needs to query real-time stock levels from Inventory\_\_c object
-2. **Create subtask for Code mode:**
-    - "Create an Apex class 'InventoryChecker' with a method to check stock levels for a product ID"
-    - "Method should query Inventory\_\_c and return current stock count"
-3. Wait for Code mode to complete the Apex class creation
+2. **Delegate to Code mode:**
+    - Create subtask or switch to Code mode
+    - Instruction: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action 'InventoryChecker' with a method to check stock levels for a product ID"**
+    - Specify: "Method should query Inventory\_\_c and return current stock count"
+    - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
+3. Wait for Code mode to complete the Apex class creation and deployment
 4. After Apex is deployed, update GenAiFunction to reference:
     ```xml
     <apexClass>InventoryChecker</apexClass>
@@ -116,7 +121,8 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 
 **Key Points:**
 
-- Salesforce Agent mode identifies need for Apex
-- Creates subtask for Code mode to write the Apex class
-- After Apex is ready, Salesforce Agent mode configures the agent to use it
+- **Salesforce Agent mode NEVER writes Apex code** - it only configures agent files
+- **Must delegate to Code mode** with specific instruction to use .roo/rules-code/agentforce-apex-guide.md
+- Code mode follows agentforce-apex-guide.md to create invocable Apex actions
+- After Apex is ready and deployed, Salesforce Agent mode configures the agent to use it
 - Only then deploys the complete agent configuration
