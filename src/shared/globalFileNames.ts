@@ -7,6 +7,8 @@ export const GlobalFileNames = {
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
 	// Salesforce Agent Instructions
+	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
+	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
 	customObjectInstructions: "Salesforce_Agent/custom-object.md",

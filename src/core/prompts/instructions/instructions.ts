@@ -3,6 +3,8 @@ import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
 import {
+	agentforceAgentInstructions,
+	agentforceAnalyseInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -40,6 +42,12 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return await createApexInstructions(detail.context, detail.section)
 		}
 		// Salesforce Agent Instructions
+		case "agentforce_agent_create": {
+			return await agentforceAgentInstructions(detail.context)
+		}
+		case "agentforce_agent_analyse": {
+			return await agentforceAnalyseInstructions(detail.context)
+		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
 		}

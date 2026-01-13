@@ -10,6 +10,8 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_mode
   create_lwc
   create_apex
+  agentforce_agent_create
+  agentforce_agent_analyse
   assignment_rules
   custom_field
   custom_object
@@ -23,6 +25,8 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 			: `  create_mode
   create_lwc
   create_apex
+  agentforce_agent_create
+  agentforce_agent_analyse
   assignment_rules
   custom_field
   custom_object
@@ -54,6 +58,18 @@ Example: Requesting instructions to create an Apex class
 <task>create_apex</task>
 </fetch_instructions>
 
+Example: Requesting instructions for Agentforce Agent Creation
+
+<fetch_instructions>
+<task>agentforce_agent_create</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Agent Analysis
+
+<fetch_instructions>
+<task>agentforce_agent_analyse</task>
+</fetch_instructions>
+
 Example: Requesting instructions for Salesforce Assignment Rules
 
 <fetch_instructions>
@@ -75,6 +91,12 @@ Example: Requesting instructions to create a Lightning Web Component
 
 <fetch_instructions>
 <task>create_lwc</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Agent Analysis
+
+<fetch_instructions>
+<task>agentforce_agent_analyse</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object
