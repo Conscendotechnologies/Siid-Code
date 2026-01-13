@@ -126,3 +126,17 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 - Code mode follows agentforce-apex-guide.md to create invocable Apex actions
 - After Apex is ready and deployed, Salesforce Agent mode configures the agent to use it
 - Only then deploys the complete agent configuration
+
+---
+
+## Creating Topics and Actions
+
+When customizing agents with topics and actions, refer to:
+**`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`**
+
+This guide provides:
+
+- Detailed XML structure for local and global topics/actions
+- Best practices and naming conventions
+- Priority rule: Always prefer LOCAL over GLOBAL
+- Examples and deployment instructions

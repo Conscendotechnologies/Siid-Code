@@ -93,6 +93,14 @@ Make improvements to:
 - Add missing documentation and descriptions
 - Enhance error handling and validation
 
+**Creating/Modifying Topics and Actions:**
+
+Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** for:
+
+- Local vs global topics/actions structure
+- XML syntax and best practices
+- Priority rule: Always prefer LOCAL over GLOBAL
+
 **If adding new Apex actions:**
 
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
