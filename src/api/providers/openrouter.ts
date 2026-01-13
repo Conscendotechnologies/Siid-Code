@@ -71,6 +71,13 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 		const baseURL = this.options.openRouterBaseUrl || "https://openrouter.ai/api/v1"
 		const apiKey = this.options.openRouterApiKey ?? "not-provided"
 
+		// Log API key for debugging (masked)
+		const maskedKey =
+			apiKey && apiKey !== "not-provided"
+				? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
+				: "[NOT PROVIDED]"
+		console.log(`[OpenRouterHandler] Constructor - API Key: ${maskedKey}, Length: ${apiKey?.length || 0}`)
+
 		this.client = new OpenAI({ baseURL, apiKey, defaultHeaders: DEFAULT_HEADERS })
 	}
 
@@ -152,6 +159,20 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 				console.warn("Failed to write completionParams debug file:", err)
 			}
 		}
+
+		// Log request details for debugging
+		const apiKey = this.options.openRouterApiKey ?? "not-provided"
+		const maskedKey =
+			apiKey && apiKey !== "not-provided"
+				? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
+				: "[NOT PROVIDED]"
+		console.log(`[OpenRouterHandler.createMessage] Making request:`, {
+			model: completionParams.model,
+			apiKey: maskedKey,
+			apiKeyLength: apiKey?.length || 0,
+			baseURL: this.client.baseURL,
+			hasAuth: !!apiKey && apiKey !== "not-provided",
+		})
 
 		const stream = await this.client.chat.completions.create(completionParams)
 
