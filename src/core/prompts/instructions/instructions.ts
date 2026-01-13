@@ -14,6 +14,7 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
+import { invocableApexInstructions } from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -69,6 +70,10 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "validation_rules": {
 			return await validationRulesInstructions(detail.context)
+		}
+		// Code Instructions
+		case "invocable_apex": {
+			return await invocableApexInstructions(detail.context)
 		}
 		default: {
 			return ""
