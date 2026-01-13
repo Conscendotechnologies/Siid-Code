@@ -11,6 +11,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_lwc
   create_apex
   assignment_rules
+  invocable_apex
   custom_field
   custom_object
   field_permissions
@@ -24,6 +25,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_lwc
   create_apex
   assignment_rules
+  invocable_apex
   custom_field
   custom_object
   field_permissions
