@@ -27,6 +27,8 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
+		// Invocable Apex Instructions
+		invocable_apex: "Invocable Apex Instructions",
 	}
 
 	return taskNames[task] || task

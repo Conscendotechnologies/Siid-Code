@@ -6,6 +6,7 @@ export const GlobalFileNames = {
 	taskMetadata: "task_metadata.json",
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
+	invocableapexInstructions: "code/agentforce-apex-guide.md",
 	// Salesforce Agent Instructions
 	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
 	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",

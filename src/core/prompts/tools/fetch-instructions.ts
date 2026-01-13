@@ -13,6 +13,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   agentforce_agent_create
   agentforce_agent_analyse
   assignment_rules
+  invocable_apex
   custom_field
   custom_object
   field_permissions
@@ -28,6 +29,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   agentforce_agent_create
   agentforce_agent_analyse
   assignment_rules
+  invocable_apex
   custom_field
   custom_object
   field_permissions
