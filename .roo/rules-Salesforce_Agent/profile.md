@@ -46,18 +46,20 @@ When the user asks to "create a profile" or to "create from <source profile>", f
 
 6. Update the new profile XML content if needed (display name, permissions, layout assignments, etc.).
 
-## Dry Run and deployment for Profiles (Mandatory)
+## Deployment (Mandatory)
 
-- Before deploying the created Profiles into the org do the dry run first using below command
-- Do dry run for all profiles at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/Profiles/
-<profilename>`
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-- Do deploy all profiles at once.
-  `sf project deploy start --source-dir force-app/main/default/assignmentRules/
-<profilename>`
-- Replace <profilename> with the actual profiles that are created.
+After creating profiles, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
+
+- Runs dry-run validation first
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
+
+**Important Notes:**
+
+- **ONE tool call does everything** - You don't need separate dry-run and deploy calls
+- The tool handles validation and deployment in a single operation
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 8. Confirm deployment success and update `profiles.json` (rerun step 1) to keep the mapping file current.
 

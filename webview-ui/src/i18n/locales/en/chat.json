@@ -250,6 +250,12 @@
 		"defaultResult": "Please continue to the next task.",
 		"completionInstructions": "Subtask completed! You can review the results and suggest any corrections or next steps. If everything looks good, confirm to return the result to the parent task."
 	},
+	"salesforce": {
+		"wantsToDeploy": "SIID Code wants to deploy {{metadataType}}: {{metadataName}} to Salesforce",
+		"didDeploy": "SIID Code deployed {{metadataType}}: {{metadataName}} to Salesforce",
+		"wantsToRetrieve": "SIID Code wants to retrieve {{metadataType}}: {{metadataName}} from Salesforce",
+		"didRetrieve": "SIID Code retrieved {{metadataType}}: {{metadataName}} from Salesforce"
+	},
 	"questions": {
 		"hasQuestion": "SIID Code has a question:"
 	},

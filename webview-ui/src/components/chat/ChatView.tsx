@@ -306,8 +306,35 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							}
 							setSendingDisabled(isPartial)
 							setClineAsk("tool")
-							setEnableButtons(!isPartial)
-							const tool = JSON.parse(lastMessage.text || "{}") as ClineSayTool
+							let tool: ClineSayTool
+							try {
+								// Ensure we have a valid JSON string
+								const textToParse =
+									typeof lastMessage.text === "string"
+										? lastMessage.text
+										: JSON.stringify(lastMessage.text || {})
+								tool = JSON.parse(textToParse) as ClineSayTool
+							} catch (error) {
+								console.error("Failed to parse tool message:", error, "text:", lastMessage.text)
+								tool = {} as ClineSayTool
+							}
+
+							// Check if this is a deploySfMetadata final result (not approval preview) or loading state
+							const isDeploySfMetadataResult =
+								tool.tool === "deploySfMetadata" &&
+								tool.content &&
+								(tool.content.includes("DEPLOYMENT SUCCESSFUL") ||
+									tool.content.includes("Dry Run Validation") ||
+									tool.content.includes("Deployment Status:") ||
+									tool.content.includes("DEPLOYMENT FAILED") ||
+									tool.content.includes("Error:") ||
+									tool.content.includes("SF CLI"))
+							const isDeploySfMetadataLoading =
+								tool.tool === "deploySfMetadata" && tool.isLoading === true
+
+							// Disable buttons for deployment results/loading, enable for everything else
+							setEnableButtons(!isPartial && !isDeploySfMetadataResult && !isDeploySfMetadataLoading)
+
 							switch (tool.tool) {
 								case "editedExistingFile":
 								case "appliedDiff":
@@ -324,6 +351,16 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 									if (tool.batchFiles && Array.isArray(tool.batchFiles)) {
 										setPrimaryButtonText(t("chat:read-batch.approve.title"))
 										setSecondaryButtonText(t("chat:read-batch.deny.title"))
+									} else {
+										setPrimaryButtonText(t("chat:approve.title"))
+										setSecondaryButtonText(t("chat:reject.title"))
+									}
+									break
+								case "deploySfMetadata":
+									// For deployment results/loading, hide buttons; for approval preview, show them
+									if (isDeploySfMetadataResult || isDeploySfMetadataLoading) {
+										setPrimaryButtonText(undefined)
+										setSecondaryButtonText(undefined)
 									} else {
 										setPrimaryButtonText(t("chat:approve.title"))
 										setSecondaryButtonText(t("chat:reject.title"))
@@ -1936,6 +1973,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const [fileChanges, setFileChanges] = useState<FileChange[]>([])
 
+	// Helper to normalize paths for consistent comparison
+	const normalizePath = (path: string): string => {
+		if (!path) return ""
+		return path.toLowerCase().replace(/\\/g, "/").trim()
+	}
+
 	// Listen for file creation and task completion events (and a few common
 	// payload shapes that the extension might send describing files changed).
 	useEffect(() => {
@@ -1985,7 +2028,30 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							console.warn("ChatView: skipping file with undefined path", nf)
 							continue
 						}
-						if (!next.some((p) => p.path === nf.path)) next.push(nf)
+						// Use normalized path comparison to prevent duplicates
+						const normalizedNewPath = normalizePath(nf.path)
+						const existingIndex = next.findIndex((p) => normalizePath(p.path) === normalizedNewPath)
+
+						if (existingIndex === -1) {
+							next.push(nf)
+							console.debug("ChatView: added file", nf.path, "stats:", nf.additions, nf.deletions)
+						} else {
+							// Update existing entry if new one has more info
+							if (
+								(nf.additions !== undefined || nf.deletions !== undefined) &&
+								(next[existingIndex].additions === undefined ||
+									next[existingIndex].deletions === undefined)
+							) {
+								next[existingIndex] = { ...next[existingIndex], ...nf }
+								console.debug(
+									"ChatView: updated file stats",
+									nf.path,
+									"stats:",
+									nf.additions,
+									nf.deletions,
+								)
+							}
+						}
 					}
 					return next
 				})
@@ -2017,11 +2083,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 				const candidatePath = payload.path || payload.filePath || payload.fileName
 				if (typeof candidatePath === "string") {
-					setFileChanges((prev) =>
-						prev.some((f) => f.path === candidatePath)
-							? prev
-							: [...prev, { path: candidatePath, status: "created" }],
-					)
+					setFileChanges((prev) => {
+						const normalizedPath = normalizePath(candidatePath)
+						const exists = prev.some((f) => normalizePath(f.path) === normalizedPath)
+						return exists ? prev : [...prev, { path: candidatePath, status: "created" }]
+					})
 					return
 				}
 
@@ -2056,9 +2122,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				const p = payload.path || payload.filePath || payload.fileName
 				if (typeof p === "string") {
 					setFileCreated(true)
-					setFileChanges((prev) =>
-						prev.some((f) => f.path === p) ? prev : [...prev, { path: p, status: "created" }],
-					)
+					setFileChanges((prev) => {
+						const normalizedPath = normalizePath(p)
+						const exists = prev.some((f) => normalizePath(f.path) === normalizedPath)
+						return exists ? prev : [...prev, { path: p, status: "created" }]
+					})
 					return
 				}
 			}

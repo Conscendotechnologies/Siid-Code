@@ -91,19 +91,22 @@
      1. Save the XML first:
          Save XML to: force-app/main/default/objects/[ObjectName]/validationRules/[RuleName].validationRule-meta.xml
 
-     Important: create all required validation rule XML files first (for one object or across objects). Do NOT run dry runs or deployments per-rule.
-     Do dry run for all created validation rules at once
+     Important: create all required validation rule XML files first (for one object or across objects).
 
-     ## Dry Run and deployment for Assignment-Rules(Mandatory)
+     ## Deployment (Mandatory)
 
-    - Before deploying the created validaiton rules into the org do the dry run first using below command
-    - Do dry run for all validation rules at once.
-    `sf project deploy start --dry-run --source-dir force-app/main/default/objects/[ObjectName]/validationRules/[RuleName].validationRule-meta.xml`
-    - If got any errors after dry run solve them.
-    - After successful dry run then proceed with deloyment process.
-    - Do deploy  all validation rules at once.
-    `sf project deploy start --source-dir force-app/main/default/objects/[ObjectName]/validationRules/[RuleName].validationRule-meta.xml`
-    - Replace [RuleName] with the actual  rules that are created.
+After creating validation rules, use the `deploy_sf_metadata` tool to deploy them to the org. The tool automatically:
+
+- Runs dry-run validation first
+- If validation passes, proceeds with deployment automatically
+- If validation fails, returns detailed errors without deploying
+
+**Important Notes:**
+
+- **ONE tool call does everything** - You don't need separate dry-run and deploy calls
+- The tool handles validation and deployment in a single operation
+
+The AI has centralized deployment instructions and will use the `deploy_sf_metadata` tool automatically when you request deployment.
 
 ## Common Formula Patterns to Recognize
 
