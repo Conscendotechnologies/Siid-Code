@@ -479,3 +479,109 @@ input[cmdk-input]:focus {
 	transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 	transition-duration: 150ms;
 }
+
+/**
+ * Context Usage Indicator Styles
+ */
+
+.context-usage-indicator {
+	display: inline-flex;
+	align-items: center;
+}
+
+.context-usage-button {
+	display: flex !important;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px !important;
+	font-size: calc(var(--vscode-font-size) * 0.9);
+	min-height: unset !important;
+	height: auto !important;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.context-usage-button:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+.context-usage-bar-mini {
+	position: relative;
+	width: 32px;
+	height: 8px;
+	background-color: color-mix(in srgb, var(--vscode-editor-foreground) 15%, transparent);
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.context-usage-fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	transition:
+		width 0.3s ease,
+		background-color 0.3s ease;
+	border-radius: 2px;
+}
+
+.context-usage-text {
+	font-weight: 500;
+	min-width: 36px;
+	text-align: right;
+}
+
+.context-usage-spinner {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Color classes for usage levels */
+.context-usage-low .context-usage-fill {
+	background-color: var(--vscode-charts-green, #4caf50);
+}
+
+.context-usage-low .context-usage-text {
+	color: var(--vscode-charts-green, #4caf50);
+}
+
+.context-usage-medium .context-usage-fill {
+	background-color: var(--vscode-charts-yellow, #ffc107);
+}
+
+.context-usage-medium .context-usage-text {
+	color: var(--vscode-charts-yellow, #ffc107);
+}
+
+.context-usage-high .context-usage-fill {
+	background-color: var(--vscode-charts-orange, #ff9800);
+}
+
+.context-usage-high .context-usage-text {
+	color: var(--vscode-charts-orange, #ff9800);
+}
+
+.context-usage-critical .context-usage-fill {
+	background-color: var(--vscode-charts-red, #f44336);
+}
+
+.context-usage-critical .context-usage-text {
+	color: var(--vscode-charts-red, #f44336);
+}
+
+.context-usage-button:hover:not(:disabled) {
+	opacity: 0.85;
+}
+
+.context-usage-button:active:not(:disabled) {
+	transform: scale(0.98);
+}

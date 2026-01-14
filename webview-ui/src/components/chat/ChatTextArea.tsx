@@ -33,6 +33,7 @@ import { SlashCommandsPopover } from "./SlashCommandsPopover"
 import { cn } from "@/lib/utils"
 import { usePromptHistory } from "./hooks/usePromptHistory"
 import { EditModeControls } from "./EditModeControls"
+import ContextUsageIndicator from "./ContextUsageIndicator"
 
 interface ChatTextAreaProps {
 	inputValue: string
@@ -52,6 +53,12 @@ interface ChatTextAreaProps {
 	// Edit mode props
 	isEditMode?: boolean
 	onCancel?: () => void
+	// Context usage props
+	contextTokens?: number
+	contextWindow?: number
+	onCondenseContext?: () => void
+	isCondensing?: boolean
+	taskId?: string
 }
 
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -73,6 +80,11 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			modeShortcutText,
 			isEditMode = false,
 			onCancel,
+			contextTokens,
+			contextWindow,
+			onCondenseContext,
+			isCondensing = false,
+			taskId,
 		},
 		ref,
 	) => {
@@ -912,6 +924,19 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								title={t("chat:selectModel", { defaultValue: "Select model" })}
 								useFreeModels={useFreeModels}
 								developerMode={developerMode}
+							/>
+						</div>
+					)}
+
+					{contextTokens !== undefined && contextWindow !== undefined && onCondenseContext && (
+						<div className="shrink-0">
+							<ContextUsageIndicator
+								contextTokens={contextTokens}
+								contextWindow={contextWindow}
+								onCondense={onCondenseContext}
+								isCondensing={isCondensing}
+								disabled={sendingDisabled}
+								taskId={taskId}
 							/>
 						</div>
 					)}
