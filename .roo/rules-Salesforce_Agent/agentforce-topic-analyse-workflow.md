@@ -4,6 +4,28 @@
 
 **Important:** Always present findings and recommendations to the user for confirmation before making any changes.
 
+## Before Starting: Create Task-Specific Todo List
+
+**CRITICAL:** Before using any other tools, create a todo list specific to this topic analysis task:
+
+```
+[ ] Collect topic name and agent name
+[ ] Collect target org information
+[ ] Retrieve topic configuration files
+[ ] Analyze topic structure and naming
+[ ] Review instruction clarity and completeness
+[ ] Check action count and alignment
+[ ] Validate action configurations
+[ ] Verify schema files exist and are correct
+[ ] Check integration with agent
+[ ] Identify critical/high/medium/low issues
+[ ] Generate detailed findings report
+[ ] Present recommendations to user
+[ ] Wait for user confirmation
+```
+
+**Do NOT use generic template** - this is the actual sequence for topic analysis.
+
 ## Workflow Steps
 
 ### Step 1: Identify Topic to Analyze
@@ -32,7 +54,15 @@ sf project retrieve start --metadata GenAiPlugin:<TopicName> --target-org <org>
 **Or retrieve all agent components:**
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
+sf project retrieve start --metadata GenAiPlannerBundle --target-org <org>
+```
+
+```bash
+sf project retrieve start --metadata GenAiPlugin --target-org <org>
+```
+
+```bash
+sf project retrieve start --metadata GenAiFunction --target-org <org>
 ```
 
 ### Step 3: Locate Topic Files

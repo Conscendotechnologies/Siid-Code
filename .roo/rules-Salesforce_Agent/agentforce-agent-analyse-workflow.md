@@ -1,5 +1,45 @@
 # Agentforce Agent Analyse And Enhance Workflow
 
+**Purpose:** This workflow analyzes agent configuration, instructions, topics, and actions to identify quality issues and provide recommendations. Focus on **instruction quality and structure**, not basic metadata.
+
+**CRITICAL EXECUTION RULES:**
+
+1. **Execute the workflow completely** - don't stop after creating todo list
+2. **Ask for missing info immediately** and continue once you have it
+3. **Be proactive** - proceed through all steps without unnecessary pauses
+4. **Focus on analysis** - this is analysis-only, get user confirmation before making changes
+
+**What to analyze:**
+
+- ✅ Instruction clarity, completeness, and correctness
+- ✅ Topic structure and organization
+- ✅ Action configuration and bindings
+- ❌ NOT basic metadata (name, description counts, etc.)
+
+**Important:** This is analysis-only. Present findings to user for confirmation before making changes.
+
+## Before Starting: Create Task-Specific Todo List
+
+**CRITICAL:** Before using any other tools, create a todo list specific to this agent analysis task:
+
+```
+[ ] Collect agent name and target org
+[ ] Retrieve agent files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
+[ ] Review agent configuration structure
+[ ] Analyze instruction clarity and completeness
+[ ] Check topic organization and scope
+[ ] Review action configurations and bindings
+[ ] Identify critical/high/medium/low issues
+[ ] Document specific line numbers with issues
+[ ] Generate detailed analysis report
+[ ] Present findings to user
+[ ] Wait for user confirmation on fixes
+[ ] (If approved) Implement fixes
+[ ] (If approved) Deploy enhanced agent
+```
+
+**Do NOT use generic template** - this is the actual sequence for agent analysis.
+
 ## Workflow Steps
 
 ### Step 1: Locate Agent Files
@@ -8,6 +48,12 @@ Collect from user (if not in prompt):
 
 - Agent name or API name
 - Target org (to retrieve agent files)
+
+**CRITICAL:**
+
+- You MUST retrieve files from org. Do NOT try to list local files.
+- If target org is missing, **ask the user immediately** and then proceed to Step 2
+- Do NOT stop or wait unnecessarily - continue to next step as soon as you have the required information
 
 ### Step 2: Retrieve Agent Configuration
 
@@ -23,13 +69,12 @@ sf project retrieve start --metadata GenAiPlugin --target-org <org>
 sf project retrieve start --metadata GenAiFunction --target-org <org>
 ```
 
-**Or retrieve all at once:**
-
-```bash
-sf project retrieve start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
-```
-
 ### Step 3: Analyze and Understand Agent Files
+
+**FOCUS ON QUALITY, NOT METADATA:**
+
+- ❌ Don't report basic info: agent name, number of topics, simple descriptions
+- ✅ Do analyze: instruction quality, structure correctness, issues in topics/actions
 
 Review the following files:
 
@@ -84,18 +129,30 @@ Review the following files:
 
 ### Step 5: Generate Analysis Report
 
+**IMPORTANT:** Focus on actionable findings, not basic metadata.
+
 Summarize findings:
 
 - List identified issues with severity (critical/high/medium/low)
 - Provide specific line numbers or sections with issues
 - Explain impact of each issue
+- **Skip basic metadata** (agent name, topic count, simple descriptions)
 
 **If topic-specific issues found:**
 
 - Consider using **`agentforce-topic-analyse-workflow.md`** for deeper topic analysis
 - That workflow provides detailed topic structure, instruction, and action analysis
 
-### Step 6: Enhance Agent Configuration
+### Step 6: Wait for User Confirmation
+
+**After presenting the analysis report:**
+
+1. **Ask user:** "Would you like me to implement any of these fixes?"
+2. **Wait for explicit confirmation** before making changes
+3. **If user approves changes:** Proceed to Step 7
+4. **If user declines:** Analysis complete, no changes made
+
+### Step 7: Enhance Agent Configuration (Only if approved by user)
 
 Make improvements to:
 
@@ -126,12 +183,20 @@ Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** fo
 - Wait for Code mode to complete and deploy the Apex class
 - Update GenAiPlugin/GenAiFunction to reference the created Apex class
 
-### Step 7: Deploy Enhanced Agent
+### Step 8: Deploy Enhanced Agent
 
 Update the org with enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
+```
+
+```bash
+sf project deploy start --metadata GenAiPlugin --target-org <org>
+```
+
+```bash
+sf project deploy start --metadata GenAiFunction --target-org <org>
 ```
 
 ---
@@ -140,13 +205,14 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 
 **User wants:** "Analyze and enhance my resort manager agent"
 
-1. Get agent name and org
-2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+1. Get agent name (Resort_Manager) and org (my-org)
+2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager,GenAiPlugin,GenAiFunction --target-org my-org`
 3. Review files in `force-app/main/default/`
 4. Identify issues in configuration, instructions, topics, actions
 5. Generate analysis report with findings
-6. Enhance agent files (fix issues, improve instructions, optimize topics)
-7. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+6. Ask user for confirmation
+7. If approved, enhance agent files (fix issues, improve instructions, optimize topics)
+8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
 
 ---
 
@@ -154,11 +220,13 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 
 **User wants:** "Analyze my customer support agent and add ability to create service cases"
 
-**Steps 1-4:** Retrieve and analyze agent
+**Steps 1-2:** Retrieve agent using `GenAiPlannerBundle:Customer_Support,GenAiPlugin,GenAiFunction`
 
-**Step 5:** Analysis finds agent lacks case creation functionality
+**Steps 3-5:** Analyze agent and generate report
 
-**Step 6:** Enhance agent with new Apex action
+**Step 6:** User confirms they want to add case creation functionality
+
+**Step 7:** Enhance agent with new Apex action
 
 1. Identify requirement: Agent needs to create cases in Salesforce
 2. **Delegate to Code mode:**
@@ -174,7 +242,7 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
     ```
 5. Update GenAiPlugin to link the function to relevant topic
 
-**Step 7:** Deploy enhanced agent:
+**Step 8:** Deploy enhanced agent:
 
 ```bash
 sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org

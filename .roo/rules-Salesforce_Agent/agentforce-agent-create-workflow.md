@@ -2,6 +2,29 @@
 
 **Important:** This workflow creates a **template agent** with basic structure. After creation, you must customize and enhance the agent according to specific requirements.
 
+## Before Starting: Create Task-Specific Todo List
+
+**CRITICAL:** Before using any other tools, create a todo list specific to this agent creation task:
+
+```
+[ ] Collect agent requirements (role, type, company, org)
+[ ] Generate agent specification YAML
+[ ] Create agent in Salesforce org
+[ ] Retrieve created agent files (GenAiPlannerBundle)
+[ ] Review auto-generated structure
+[ ] Remove AI-generated placeholder topic
+[ ] Create custom local topic with clear instructions
+[ ] Delegate Apex action creation to Code mode (if needed)
+[ ] Create local action in topic with invocationTarget
+[ ] Create schema files (input/output) for action
+[ ] Link action to topic with localActionLinks
+[ ] Link topic to agent with localTopicLinks
+[ ] Deploy customized agent to org
+[ ] Test agent functionality
+```
+
+**Do NOT use generic template** - this is the actual sequence for agent creation.
+
 ## Workflow Steps
 
 ### Step 1: Collect Information for Agent Spec
@@ -52,12 +75,22 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 
 **Note:** After creating the agent, GenAiPlannerBundle, GenAiPlugin, and GenAiFunction files are automatically generated in your project. Since we created the agent with max-topics=1 (minimum required), you MUST now customize it with your specific topics and actions.
 
+**CRITICAL - CREATE ONLY LOCAL TOPICS AND ACTIONS:**
+
+- ✅ **DO:** Create topics in `<localTopics>` section of GenAiPlannerBundle
+- ✅ **DO:** Create actions in `<localActions>` section within local topics
+- ✅ **DO:** Link topics with `<localTopicLinks>` in GenAiPlannerBundle
+- ✅ **DO:** Link actions with `<localActionLinks>` within local topics
+- ❌ **DON'T:** Create new GenAiPlugin files (those are for global topics)
+- ❌ **DON'T:** Create new GenAiFunction files (those are for global actions)
+- ❌ **DON'T:** Modify auto-generated GenAiPlugin/GenAiFunction files
+
 **Required customization:**
 
 - Review and update GenAiPlannerBundle (agent configuration)
 - **Remove the AI-generated topic** (it was only created because max-topics can't be 0)
-- **Add your custom topics as LOCAL topics** (inside GenAiPlannerBundle)
-- **Add Apex actions as LOCAL actions** (inside local topics)
+- **Add your custom topics as LOCAL topics** (inside GenAiPlannerBundle `<localTopics>` section)
+- **Add Apex actions as LOCAL actions** (inside `<localActions>` section of local topics)
 - **IMPORTANT:** When adding new topics/actions to an agent, ALWAYS create them as LOCAL (not global)
 - **Only Apex actions are supported** for customization
 - Maximum 1-2 actions per topic
@@ -70,7 +103,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - Wait for subtask completion before linking the Apex action to the agent
-- Update GenAiPlugin/GenAiFunction to reference the created Apex class
+- **After Apex is deployed:** Update the LOCAL action in GenAiPlannerBundle to reference the Apex class (NOT GenAiPlugin/GenAiFunction files)
 
 **Deploy customized agent:**
 
@@ -107,12 +140,26 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
     - Specify: "Method should query Inventory\_\_c and return current stock count"
     - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
 3. Wait for Code mode to complete the Apex class creation and deployment
-4. After Apex is deployed, update GenAiFunction to reference:
+4. After Apex is deployed, add LOCAL action in GenAiPlannerBundle:
     ```xml
-    <apexClass>InventoryChecker</apexClass>
-    <method>checkStockLevel</method>
+    <localActions>
+        <fullName>Check_Stock_Level_123</fullName>
+        <description>Check inventory stock level for a product</description>
+        <developerName>Check_Stock_Level_123</developerName>
+        <invocationTarget>InventoryChecker</invocationTarget>
+        <invocationTargetType>apex</invocationTargetType>
+        <isConfirmationRequired>false</isConfirmationRequired>
+        <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+        <localDeveloperName>Check_Stock_Level</localDeveloperName>
+        <masterLabel>Check Stock Level</masterLabel>
+    </localActions>
     ```
-5. Update GenAiPlugin to link the function to relevant topic
+5. Link the action to local topic:
+    ```xml
+    <localActionLinks>
+        <functionName>Check_Stock_Level_123</functionName>
+    </localActionLinks>
+    ```
 
 **Step 5:** Deploy customized agent:
 
@@ -127,6 +174,126 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 - Code mode follows agentforce-apex-guide.md to create invocable Apex actions
 - After Apex is ready and deployed, Salesforce Agent mode configures the agent to use it
 - Only then deploys the complete agent configuration
+
+---
+
+## Complete Example: Adding Local Topic with Action
+
+Here's the EXACT structure to create a local topic with action in GenAiPlannerBundle:
+
+**Step 1: Add Local Topic in GenAiPlannerBundle XML:**
+
+```xml
+<GenAiPlanner xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>Your Agent Name</masterLabel>
+    <!-- ... other agent config ... -->
+
+    <!-- ADD LOCAL TOPIC HERE -->
+    <localTopics>
+        <fullName>Case_Creation_Topic_001</fullName>
+        <canEscalate>false</canEscalate>
+        <description>Handles creation of support cases</description>
+        <developerName>Case_Creation_Topic_001</developerName>
+        <genAiPluginInstructions>
+            <description>When user wants to create a support case, identify the issue clearly. Collect required information like subject and description. Call the CreateCase action to create the case. Confirm successful case creation to the user.</description>
+            <developerName>instructions_0</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+
+        <!-- LINK ACTION TO TOPIC -->
+        <localActionLinks>
+            <functionName>Create_Support_Case_001</functionName>
+        </localActionLinks>
+
+        <!-- DEFINE LOCAL ACTION -->
+        <localActions>
+            <fullName>Create_Support_Case_001</fullName>
+            <description>Creates a support case with given subject and description</description>
+            <developerName>Create_Support_Case_001</developerName>
+            <invocationTarget>CaseSupportHandler</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+            <localDeveloperName>Create_Support_Case</localDeveloperName>
+            <masterLabel>Create Support Case</masterLabel>
+        </localActions>
+
+        <localDeveloperName>Case_Creation_Topic</localDeveloperName>
+        <masterLabel>Case Creation</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Create and manage support cases for users</scope>
+    </localTopics>
+
+    <!-- LINK TOPIC TO AGENT -->
+    <localTopicLinks>
+        <genAiPluginName>Case_Creation_Topic_001</genAiPluginName>
+    </localTopicLinks>
+</GenAiPlanner>
+```
+
+**Step 2: Create Schema Files:**
+
+Create folder structure:
+
+```
+force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
+  localActions/
+    Create_Support_Case_001/
+      input/
+        schema
+      output/
+        schema
+```
+
+**File: `input/schema`** (no extension):
+
+```json
+{
+	"required": ["subject", "description"],
+	"unevaluatedProperties": false,
+	"properties": {
+		"subject": {
+			"title": "Case Subject",
+			"description": "Brief summary of the issue",
+			"lightning:type": "lightning_textType",
+			"lightning:isPII": false,
+			"copilotAction:isUserInput": true
+		},
+		"description": {
+			"title": "Case Description",
+			"description": "Detailed description of the issue",
+			"lightning:type": "lightning_textType",
+			"lightning:isPII": false,
+			"copilotAction:isUserInput": true
+		}
+	},
+	"lightning:type": "lightning_objectType"
+}
+```
+
+**File: `output/schema`** (no extension):
+
+```json
+{
+	"unevaluatedProperties": false,
+	"properties": {
+		"caseId": {
+			"title": "Case ID",
+			"description": "ID of the created case",
+			"lightning:type": "lightning_textType"
+		},
+		"caseNumber": {
+			"title": "Case Number",
+			"description": "Case number for reference",
+			"lightning:type": "lightning_textType"
+		}
+	},
+	"lightning:type": "lightning_objectType"
+}
+```
 
 ---
 
