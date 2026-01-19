@@ -45,36 +45,12 @@ Collect from user (if not in prompt):
 sf project retrieve start --metadata GenAiPlannerBundle:<AgentName> --target-org <org>
 ```
 
-**For Global Topics (separate GenAiPlugin files):**
-
-```bash
-sf project retrieve start --metadata GenAiPlugin:<TopicName> --target-org <org>
-```
-
-**Or retrieve all agent components:**
-
-```bash
-sf project retrieve start --metadata GenAiPlannerBundle --target-org <org>
-```
-
-```bash
-sf project retrieve start --metadata GenAiPlugin --target-org <org>
-```
-
-```bash
-sf project retrieve start --metadata GenAiFunction --target-org <org>
-```
-
 ### Step 3: Locate Topic Files
 
 **Local Topics:**
 
 - File: `force-app/main/default/genAiPlannerBundles/<AgentName>/<AgentName>.genAiPlannerBundle-meta.xml`
 - Look for `<localTopics>` section
-
-**Global Topics:**
-
-- File: `force-app/main/default/genAiPlugins/<TopicName>/<TopicName>.genAiPlugin-meta.xml`
 
 **Associated Actions:**
 
@@ -336,7 +312,7 @@ For each issue found:
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - Wait for Code mode to complete and deploy the Apex class
-- Update GenAiPlugin/GenAiFunction or local action to reference the created Apex class
+- Update local action to reference the created Apex class
 
 **Integration Improvements:**
 

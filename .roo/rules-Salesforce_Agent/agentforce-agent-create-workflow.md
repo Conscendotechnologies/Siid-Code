@@ -73,7 +73,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 
 ### Step 5: Customize Agent Files
 
-**Note:** After creating the agent, GenAiPlannerBundle, GenAiPlugin, and GenAiFunction files are automatically generated in your project. Since we created the agent with max-topics=1 (minimum required), you MUST now customize it with your specific topics and actions.
+**Note:** After creating the agent, GenAiPlannerBundle files are automatically generated in your project. Since we created the agent with max-topics=1 (minimum required), you MUST now customize it with your specific topics and actions.
 
 **CRITICAL - CREATE ONLY LOCAL TOPICS AND ACTIONS:**
 
@@ -108,7 +108,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 **Deploy customized agent:**
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 ```
 
 ---
@@ -121,7 +121,7 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 2. Generate spec: `sf agent generate agent-spec --max-topics 1 --output-file specs/resortManagerAgent.yaml --type customer --role "Field customer complaints and manage employee schedules." --company-name "Coral Cloud Resorts" --company-description "Provide customers with exceptional destination activities, unforgettable experiences, and reservation services."`
 3. Create agent: `sf agent create --name "Resort Manager" --api-name Resort_Manager --spec specs/resortManagerAgent.yaml --target-org my-org`
 4. Remove the auto-generated topic and add custom topics with Apex actions
-5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle --target-org my-org`
 
 ---
 
@@ -164,7 +164,7 @@ sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction 
 **Step 5:** Deploy customized agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org
+sf project deploy start --metadata GenAiPlannerBundle --target-org my-org
 ```
 
 **Key Points:**
@@ -241,12 +241,16 @@ Create folder structure:
 ```
 force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
   localActions/
-    Create_Support_Case_001/
+    Create_Support_topic_<TopicId>/Create_Support_Case_<ActionId>
       input/
         schema
       output/
         schema
 ```
+
+Note:
+TopicId: 16jKZ0000000(prefix)+(3char capital later)
+ActionId: 179KZ0000000(prefix)+(3char capital later)
 
 **File: `input/schema`** (no extension):
 
@@ -304,7 +308,7 @@ When customizing agents with topics and actions, refer to:
 
 This guide provides:
 
-- Detailed XML structure for local and global topics/actions
+- Detailed XML structure for local topics/actions
 - Best practices and naming conventions
 - Priority rule: Always prefer LOCAL over GLOBAL
 - Examples and deployment instructions

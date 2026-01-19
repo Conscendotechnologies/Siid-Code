@@ -2,7 +2,7 @@
 
 ## Overview
 
-Agentforce agents use **topics** to organize functionality and **actions** to perform operations. Both can be defined as **local** (agent-specific) or **global** (reusable across agents).
+Agentforce agents use **topics** to organize functionality and **actions** to perform operations. Both can be defined as **local** (agent-specific)
 
 ---
 
@@ -13,7 +13,6 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 - Local topics/actions are scoped to a specific agent
 - Better maintainability and isolation
 - Easier to customize per agent
-- Only use global when the topic/action needs to be shared across multiple agents
 
 ## Adding to Existing Agents
 
@@ -69,33 +68,6 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 <localTopicLinks>
     <genAiPluginName>Topic_Name_UniqueId</genAiPluginName>
 </localTopicLinks>
-```
-
-### Global Topics
-
-**Location:** Separate file in `genAiPlugins/` directory
-**File name:** `TopicName.genAiPlugin-meta.xml`
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<GenAiPlugin xmlns="http://soap.sforce.com/2006/04/metadata">
-    <canEscalate>false</canEscalate>
-    <description>Topic description</description>
-    <developerName>Topic_Name</developerName>
-    <genAiFunctions>
-        <functionName>GlobalActionName</functionName>
-    </genAiFunctions>
-    <genAiPluginInstructions>
-        <description>Instructions for using this topic</description>
-        <developerName>instruction_0</developerName>
-        <masterLabel>instruction_0</masterLabel>
-        <sortOrder>0</sortOrder>
-    </genAiPluginInstructions>
-    <language>en_US</language>
-    <masterLabel>Topic Display Name</masterLabel>
-    <pluginType>Topic</pluginType>
-    <scope>Topic scope and boundaries</scope>
-</GenAiPlugin>
 ```
 
 ---
@@ -294,24 +266,6 @@ public class ApexClassName {
 </localActionLinks>
 ```
 
-### Global Actions
-
-**Location:** Separate file in `genAiFunctions/` directory
-**File name:** `ActionName.genAiFunction-meta.xml`
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<GenAiFunction xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>What this action does</description>
-    <developerName>Action_Name</developerName>
-    <invocationTarget>ApexClassName</invocationTarget>
-    <invocationTargetType>apex</invocationTargetType>
-    <isConfirmationRequired>false</isConfirmationRequired>
-    <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
-    <masterLabel>Action Display Name</masterLabel>
-</GenAiFunction>
-```
-
 ---
 
 ## Invocation Target Types
@@ -329,7 +283,6 @@ Actions can invoke different types of functionality:
 1. **Use Local by Default**
 
     - Start with local topics and actions
-    - Only create global if needed across multiple agents
 
 2. **Naming Conventions**
 
@@ -379,12 +332,6 @@ See example files in:
 7. Link action to Apex invocable method
 8. Add `<localTopicLinks>` and `<localActionLinks>` at agent level
 
-**For Global (Only if reusable):**
-
-1. Create separate GenAiPlugin file for topic
-2. Create separate GenAiFunction file for action
-3. Reference global resources from multiple agents as needed
-
 ---
 
 ## Deployment
@@ -392,5 +339,5 @@ See example files in:
 After creating/modifying topics and actions:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 ```

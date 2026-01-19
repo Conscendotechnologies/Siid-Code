@@ -24,7 +24,8 @@
 
 ```
 [ ] Collect agent name and target org
-[ ] Retrieve agent files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
+[ ] Retrieve agent files (GenAiPlannerBundle only for modification)
+[ ] Review GenAiPlugin/GenAiFunction (read-only reference for existing global topics/actions)
 [ ] Review agent configuration structure
 [ ] Analyze instruction clarity and completeness
 [ ] Check topic organization and scope
@@ -34,8 +35,8 @@
 [ ] Generate detailed analysis report
 [ ] Present findings to user
 [ ] Wait for user confirmation on fixes
-[ ] (If approved) Implement fixes
-[ ] (If approved) Deploy enhanced agent
+[ ] (If approved) Modify ONLY GenAiPlannerBundle file
+[ ] (If approved) Deploy ONLY GenAiPlannerBundle
 ```
 
 **Do NOT use generic template** - this is the actual sequence for agent analysis.
@@ -61,13 +62,20 @@ Run command to get agent components:
 
 **Retrieve individual components:**
 
+**Retrieve agent (required for modification):**
+
 ```bash
 sf project retrieve start --metadata GenAiPlannerBundle --target-org <org>
+```
 
+**Retrieve GenAiPlugin/GenAiFunction (optional, reference only):**
+
+```bash
 sf project retrieve start --metadata GenAiPlugin --target-org <org>
-
 sf project retrieve start --metadata GenAiFunction --target-org <org>
 ```
+
+**IMPORTANT:** GenAiPlugin and GenAiFunction are for reading/understanding existing global topics/actions only. **Do not modify or deploy these files** unless explicitly working with shared global resources.
 
 ### Step 3: Analyze and Understand Agent Files
 
@@ -78,9 +86,9 @@ sf project retrieve start --metadata GenAiFunction --target-org <org>
 
 Review the following files:
 
-- **GenAiPlannerBundle** - Check agent configuration, topics, and overall structure
-- **GenAiPlugin** - Review plugin configurations and action definitions
-- **GenAiFunction** - Analyze function implementations and parameters
+- **GenAiPlannerBundle** - Main file to check and modify (local topics/actions)
+- **GenAiPlugin** - Reference only (existing global topics - DO NOT MODIFY)
+- **GenAiFunction** - Reference only (existing global actions - DO NOT MODIFY)
 - **Agent Instructions** - Review custom instructions for clarity and completeness
 
 **Note:** For detailed topic analysis (instructions, actions, schema), use **`agentforce-topic-analyse-workflow.md`**
@@ -181,7 +189,7 @@ Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** fo
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - Wait for Code mode to complete and deploy the Apex class
-- Update GenAiPlugin/GenAiFunction to reference the created Apex class
+- Update agent xml to reference the created Apex class
 
 ### Step 8: Deploy Enhanced Agent
 
@@ -191,14 +199,6 @@ Update the org with enhanced agent:
 sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 ```
 
-```bash
-sf project deploy start --metadata GenAiPlugin --target-org <org>
-```
-
-```bash
-sf project deploy start --metadata GenAiFunction --target-org <org>
-```
-
 ---
 
 ## Example
@@ -206,13 +206,13 @@ sf project deploy start --metadata GenAiFunction --target-org <org>
 **User wants:** "Analyze and enhance my resort manager agent"
 
 1. Get agent name (Resort_Manager) and org (my-org)
-2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager,GenAiPlugin,GenAiFunction --target-org my-org`
-3. Review files in `force-app/main/default/`
+2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --target-org my-org`
+3. Review files in `force-app/main/default/genAiPlannerBundles/`
 4. Identify issues in configuration, instructions, topics, actions
 5. Generate analysis report with findings
 6. Ask user for confirmation
-7. If approved, enhance agent files (fix issues, improve instructions, optimize topics)
-8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org`
+7. If approved, enhance GenAiPlannerBundle file (fix issues, improve instructions, optimize topics)
+8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle --target-org my-org`
 
 ---
 
@@ -220,7 +220,7 @@ sf project deploy start --metadata GenAiFunction --target-org <org>
 
 **User wants:** "Analyze my customer support agent and add ability to create service cases"
 
-**Steps 1-2:** Retrieve agent using `GenAiPlannerBundle:Customer_Support,GenAiPlugin,GenAiFunction`
+**Steps 1-2:** Retrieve agent using `GenAiPlannerBundle:Customer_Support`,`GenAiPlugin`,`GenAiFunction`
 
 **Steps 3-5:** Analyze agent and generate report
 
@@ -235,15 +235,11 @@ sf project deploy start --metadata GenAiFunction --target-org <org>
     - Specify: "Method should accept case details and return the created case ID"
     - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
 3. Wait for Code mode to complete and deploy the Apex class
-4. Update GenAiFunction to reference the new Apex class:
-    ```xml
-    <apexClass>CaseCreator</apexClass>
-    <method>createCase</method>
-    ```
-5. Update GenAiPlugin to link the function to relevant topic
+4. Update agent xml to reference the new Apex class:
+   in local action.
 
 **Step 8:** Deploy enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle,GenAiPlugin,GenAiFunction --target-org my-org
+sf project deploy start --metadata GenAiPlannerBundle --target-org my-org
 ```
