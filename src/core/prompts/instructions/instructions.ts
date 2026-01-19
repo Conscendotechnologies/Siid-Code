@@ -5,6 +5,7 @@ import { createApexInstructions } from "./create-apex"
 import {
 	agentforceAgentInstructions,
 	agentforceAnalyseInstructions,
+	agentforceTopicAnalyseInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -48,6 +49,9 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "agentforce_agent_analyse": {
 			return await agentforceAnalyseInstructions(detail.context)
+		}
+		case "agentforce_topic_analyse": {
+			return await agentforceTopicAnalyseInstructions(detail.context)
 		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)

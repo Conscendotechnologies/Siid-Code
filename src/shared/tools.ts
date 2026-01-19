@@ -67,6 +67,10 @@ export const toolParamNames = [
 	"todos",
 	"metadata_type",
 	"metadata_name",
+	"test_level",
+	"tests",
+	"ignore_warnings",
+	"source_dir",
 	"section",
 ] as const
 
@@ -166,6 +170,12 @@ export interface RetrieveSfMetadataToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "metadata_type" | "metadata_name">>
 }
 
+export interface DeploySFMetadataToolUse extends ToolUse {
+	name: "sf_deploy_metadata"
+	params: Required<Pick<Record<ToolParamName, string>, "metadata_type" | "metadata_name">> &
+		Partial<Pick<Record<ToolParamName, string>, "test_level" | "tests" | "ignore_warnings" | "source_dir">>
+}
+
 export interface SearchAndReplaceToolUse extends ToolUse {
 	name: "search_and_replace"
 	params: Required<Pick<Record<ToolParamName, string>, "path" | "search" | "replace">> &
@@ -199,6 +209,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	codebase_search: "codebase search",
 	update_todo_list: "update todo list",
 	retrieve_sf_metadata: "retrieve salesforce metadata",
+	sf_deploy_metadata: "deploy salesforce metadata",
 } as const
 
 // Define available tool groups.
@@ -215,7 +226,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 		],
 	},
 	edit: {
-		tools: ["apply_diff", "write_to_file", "insert_content", "search_and_replace"],
+		tools: ["apply_diff", "write_to_file", "insert_content", "search_and_replace", "sf_deploy_metadata"],
 	},
 	browser: {
 		tools: ["browser_action"],

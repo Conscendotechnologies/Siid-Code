@@ -1947,6 +1947,7 @@ export class ClineProvider
 			alwaysAllowSubtasks: stateValues.alwaysAllowSubtasks ?? false,
 			alwaysAllowFollowupQuestions: stateValues.alwaysAllowFollowupQuestions ?? false,
 			alwaysAllowUpdateTodoList: stateValues.alwaysAllowUpdateTodoList ?? false,
+			alwaysAllowDeploySfMetadata: stateValues.alwaysAllowDeploySfMetadata ?? false,
 			followupAutoApproveTimeoutMs: stateValues.followupAutoApproveTimeoutMs ?? 60000,
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,

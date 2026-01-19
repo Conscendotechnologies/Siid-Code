@@ -34,6 +34,7 @@ import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
 import { retrieveSfMetadataTool } from "../tools/retrieveSfMetadataTool"
+import { deploySfMetadataTool } from "../tools/sfDeployMetadataTool"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -216,6 +217,8 @@ export async function presentAssistantMessage(cline: Task) {
 					}
 					case "retrieve_sf_metadata":
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
+					case "sf_deploy_metadata":
+						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : ""}]`
 				}
 			}
 
@@ -538,6 +541,9 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
+					break
+				case "sf_deploy_metadata":
+					await deploySfMetadataTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 			}
 

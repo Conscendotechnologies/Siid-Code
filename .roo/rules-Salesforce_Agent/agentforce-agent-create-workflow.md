@@ -56,8 +56,9 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 
 - Review and update GenAiPlannerBundle (agent configuration)
 - **Remove the AI-generated topic** (it was only created because max-topics can't be 0)
-- Add your custom topics based on user requirements
-- Add Apex actions for each topic
+- **Add your custom topics as LOCAL topics** (inside GenAiPlannerBundle)
+- **Add Apex actions as LOCAL actions** (inside local topics)
+- **IMPORTANT:** When adding new topics/actions to an agent, ALWAYS create them as LOCAL (not global)
 - **Only Apex actions are supported** for customization
 - Maximum 1-2 actions per topic
 - Update instructions to match specific use case

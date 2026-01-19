@@ -25,6 +25,7 @@ import { getCodebaseSearchDescription } from "./codebase-search"
 import { getUpdateTodoListDescription } from "./update-todo-list"
 import { getRetrieveSfMetadataDescription } from "./retrieve-sf-metadata"
 import { CodeIndexManager } from "../../../services/code-index/manager"
+import { getSfDeployMetadataDescription } from "./sf-deploy-metadata"
 
 // Map of tool names to their description functions
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
@@ -49,6 +50,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 		args.diffStrategy ? args.diffStrategy.getToolDescription({ cwd: args.cwd, toolOptions: args.toolOptions }) : "",
 	update_todo_list: (args) => getUpdateTodoListDescription(args),
 	retrieve_sf_metadata: (args) => getRetrieveSfMetadataDescription(args),
+	sf_deploy_metadata: (args) => getSfDeployMetadataDescription(args),
 }
 
 export function getToolDescriptionsForMode(
@@ -154,4 +156,5 @@ export {
 	getInsertContentDescription,
 	getSearchAndReplaceDescription,
 	getCodebaseSearchDescription,
+	getSfDeployMetadataDescription,
 }

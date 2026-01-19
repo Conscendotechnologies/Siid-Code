@@ -12,6 +12,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_apex
   agentforce_agent_create
   agentforce_agent_analyse
+  agentforce_topic_analyse
   assignment_rules
   invocable_apex
   custom_field
@@ -28,6 +29,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_apex
   agentforce_agent_create
   agentforce_agent_analyse
+  agentforce_topic_analyse
   assignment_rules
   invocable_apex
   custom_field
@@ -70,6 +72,12 @@ Example: Requesting instructions for Agentforce Agent Analysis
 
 <fetch_instructions>
 <task>agentforce_agent_analyse</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Topic Analysis
+
+<fetch_instructions>
+<task>agentforce_topic_analyse</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Assignment Rules

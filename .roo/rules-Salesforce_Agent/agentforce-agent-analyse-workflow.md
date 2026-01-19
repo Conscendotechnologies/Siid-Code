@@ -38,6 +38,8 @@ Review the following files:
 - **GenAiFunction** - Analyze function implementations and parameters
 - **Agent Instructions** - Review custom instructions for clarity and completeness
 
+**Note:** For detailed topic analysis (instructions, actions, schema), use **`agentforce-topic-analyse-workflow.md`**
+
 ### Step 4: Check for Issues
 
 **Configuration Issues:**
@@ -59,6 +61,12 @@ Review the following files:
 - Missing essential topics for the agent's role
 - Topics too broad or too narrow
 - Insufficient topic descriptions
+
+**For detailed topic analysis:**
+
+- Use **`.roo/rules-Salesforce_Agent/agentforce-topic-analyse-workflow.md`** workflow
+- That workflow provides in-depth analysis of topic structure, instructions, actions, and integration
+- Use it when user requests specific topic analysis or when issues are found in topics
 
 **Action Issues:**
 
@@ -82,18 +90,26 @@ Summarize findings:
 - Provide specific line numbers or sections with issues
 - Explain impact of each issue
 
+**If topic-specific issues found:**
+
+- Consider using **`agentforce-topic-analyse-workflow.md`** for deeper topic analysis
+- That workflow provides detailed topic structure, instruction, and action analysis
+
 ### Step 6: Enhance Agent Configuration
 
 Make improvements to:
 
 - Fix identified issues (critical and high-priority first)
 - Optimize instructions for clarity and effectiveness
-- Add or refine topics based on agent's role
+- **Add or refine topics as LOCAL topics** (inside GenAiPlannerBundle)
+- **Add new actions as LOCAL actions** (inside local topics)
 - Improve action configurations and parameters
 - Add missing documentation and descriptions
 - Enhance error handling and validation
 
 **Creating/Modifying Topics and Actions:**
+
+**IMPORTANT:** When adding new topics/actions to an existing agent, ALWAYS create them as LOCAL (not global).
 
 Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** for:
 

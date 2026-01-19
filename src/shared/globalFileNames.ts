@@ -10,6 +10,7 @@ export const GlobalFileNames = {
 	// Salesforce Agent Instructions
 	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
 	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",
+	agentforceTopicAnalyseInstructions: "Salesforce_Agent/agentforce-topic-analyse-workflow.md",
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
 	customObjectInstructions: "Salesforce_Agent/custom-object.md",
