@@ -61,14 +61,13 @@ Collect the following from user:
 
 - Agent Name (display name)
 - API Name (e.g., `Agent_Name`)
-- Target Org (org alias or username)
 
 ### Step 4: Create Agent in Org
 
 Run command:
 
 ```bash
-sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --target-org <org>
+sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 ```
 
 ### Step 5: Customize Agent Files
@@ -108,7 +107,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --ta
 **Deploy customized agent:**
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle
 ```
 
 ---
@@ -119,9 +118,9 @@ sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 
 1. Collect: role, type, company name, company description, agent name, org
 2. Generate spec: `sf agent generate agent-spec --max-topics 1 --output-file specs/resortManagerAgent.yaml --type customer --role "Field customer complaints and manage employee schedules." --company-name "Coral Cloud Resorts" --company-description "Provide customers with exceptional destination activities, unforgettable experiences, and reservation services."`
-3. Create agent: `sf agent create --name "Resort Manager" --api-name Resort_Manager --spec specs/resortManagerAgent.yaml --target-org my-org`
+3. Create agent: `sf agent create --name "Resort Manager" --api-name Resort_Manager --spec specs/resortManagerAgent.yaml`
 4. Remove the auto-generated topic and add custom topics with Apex actions
-5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle --target-org my-org`
+5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle`
 
 ---
 
@@ -164,7 +163,7 @@ sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 **Step 5:** Deploy customized agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle --target-org my-org
+sf project deploy start --metadata GenAiPlannerBundle
 ```
 
 **Key Points:**

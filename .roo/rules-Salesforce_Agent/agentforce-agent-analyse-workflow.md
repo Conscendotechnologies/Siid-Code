@@ -23,7 +23,7 @@
 **CRITICAL:** Before using any other tools, create a todo list specific to this agent analysis task:
 
 ```
-[ ] Collect agent name and target org
+[ ] Collect agent name
 [ ] Retrieve agent files (GenAiPlannerBundle only for modification)
 [ ] Review GenAiPlugin/GenAiFunction (read-only reference for existing global topics/actions)
 [ ] Review agent configuration structure
@@ -48,12 +48,10 @@
 Collect from user (if not in prompt):
 
 - Agent name or API name
-- Target org (to retrieve agent files)
 
 **CRITICAL:**
 
 - You MUST retrieve files from org. Do NOT try to list local files.
-- If target org is missing, **ask the user immediately** and then proceed to Step 2
 - Do NOT stop or wait unnecessarily - continue to next step as soon as you have the required information
 
 ### Step 2: Retrieve Agent Configuration
@@ -65,14 +63,14 @@ Run command to get agent components:
 **Retrieve agent (required for modification):**
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle --target-org <org>
+sf project retrieve start --metadata GenAiPlannerBundle
 ```
 
 **Retrieve GenAiPlugin/GenAiFunction (optional, reference only):**
 
 ```bash
-sf project retrieve start --metadata GenAiPlugin --target-org <org>
-sf project retrieve start --metadata GenAiFunction --target-org <org>
+sf project retrieve start --metadata GenAiPlugin
+sf project retrieve start --metadata GenAiFunction
 ```
 
 **IMPORTANT:** GenAiPlugin and GenAiFunction are for reading/understanding existing global topics/actions only. **Do not modify or deploy these files** unless explicitly working with shared global resources.
@@ -196,7 +194,7 @@ Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** fo
 Update the org with enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle
 ```
 
 ---
@@ -205,14 +203,14 @@ sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 
 **User wants:** "Analyze and enhance my resort manager agent"
 
-1. Get agent name (Resort_Manager) and org (my-org)
-2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --target-org my-org`
+1. Get agent name (Resort_Manager)
+2. Retrieve: `sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager`
 3. Review files in `force-app/main/default/genAiPlannerBundles/`
 4. Identify issues in configuration, instructions, topics, actions
 5. Generate analysis report with findings
 6. Ask user for confirmation
 7. If approved, enhance GenAiPlannerBundle file (fix issues, improve instructions, optimize topics)
-8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle --target-org my-org`
+8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle`
 
 ---
 
@@ -241,5 +239,5 @@ sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 **Step 8:** Deploy enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle --target-org my-org
+sf project deploy start --metadata GenAiPlannerBundle
 ```

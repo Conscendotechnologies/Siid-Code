@@ -10,7 +10,6 @@
 
 ```
 [ ] Collect topic name and agent name
-[ ] Collect target org information
 [ ] Retrieve topic configuration files
 [ ] Analyze topic structure and naming
 [ ] Review instruction clarity and completeness
@@ -34,7 +33,6 @@ Collect from user (if not in prompt):
 
 - Topic name or API name
 - Agent name (if topic is local)
-- Target org (to retrieve configuration)
 - Analysis scope (single topic vs all topics in agent)
 
 ### Step 2: Retrieve Topic Configuration
@@ -42,7 +40,7 @@ Collect from user (if not in prompt):
 **For Local Topics (in GenAiPlannerBundle):**
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle:<AgentName> --target-org <org>
+sf project retrieve start --metadata GenAiPlannerBundle:<AgentName>
 ```
 
 ### Step 3: Locate Topic Files
@@ -350,7 +348,7 @@ For each issue found:
 **Step 2:** Retrieve agent configuration
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --target-org my-org
+sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager
 ```
 
 **Step 3:** Locate topic in `genAiPlannerBundles/Resort_Manager/Resort_Manager.genAiPlannerBundle-meta.xml`
@@ -418,7 +416,7 @@ MEDIUM PRIORITY:
 **Step 2:** Retrieve global topic
 
 ```bash
-sf project retrieve start --metadata GenAiPlugin:Check_Inventory --target-org my-org
+sf project retrieve start --metadata GenAiPlugin:Check_Inventory
 ```
 
 **Step 4:** Analyze:
