@@ -60,6 +60,22 @@ export async function fetchInstructionsTool(
 
 			cline.consecutiveMistakeCount = 0
 
+			// Warn if Orchestrator is fetching task-specific workflows (should delegate instead)
+			const provider = cline.providerRef.deref()
+			const currentMode = (await provider?.getState())?.mode
+			const agentforceWorkflows = [
+				"agentforce_agent_create",
+				"agentforce_agent_analyse",
+				"agentforce_topic_analyse",
+			]
+
+			if (agentforceWorkflows.includes(task) && currentMode === "orchestrator") {
+				// Add warning but allow reading for task understanding
+				console.warn(
+					`[Orchestrator] Fetching ${task} workflow. Orchestrator should typically delegate Agentforce tasks to Salesforce Agent mode instead of executing them directly.`,
+				)
+			}
+
 			// Extract optional section parameter
 			const section: string | undefined = block.params.section
 
@@ -75,7 +91,7 @@ export async function fetchInstructionsTool(
 			// Skip explicit approval prompt; we'll show the fetched content via pushToolResult below.
 
 			// Now fetch the content and provide it to the agent.
-			const provider = cline.providerRef.deref()
+			// const provider = cline.providerRef.deref()
 			const mcpHub = provider?.getMcpHub()
 
 			if (!mcpHub) {

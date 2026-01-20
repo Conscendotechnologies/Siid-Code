@@ -40,10 +40,10 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 
 ```xml
 <localTopics>
-    <fullName>Topic_Name_16jKZ0000000ABC</fullName>
+    <fullName>Topic_Name</fullName>
     <canEscalate>false</canEscalate>
     <description>Description of what this topic handles</description>
-    <developerName>Topic_Name_16jKZ0000000ABC</developerName>
+    <developerName>Topic_Name</developerName>
     <genAiPluginInstructions>
         <description>Instruction for the agent on how to use this topic</description>
         <developerName>instructions_0</developerName>
@@ -53,7 +53,7 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
     </genAiPluginInstructions>
     <language>en_US</language>
     <localActionLinks>
-        <functionName>Action_Name_179KZ0000000XYZ</functionName>
+        <functionName>Action_Name</functionName>
     </localActionLinks>
     <localDeveloperName>Topic_Name</localDeveloperName>
     <masterLabel>Topic Display Name</masterLabel>
@@ -62,11 +62,23 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 </localTopics>
 ```
 
+**CRITICAL - Topic Naming Consistency:**
+
+The following fields **MUST use the exact same name** (e.g., `Topic_Name`):
+
+- `<fullName>Topic_Name</fullName>`
+- `<developerName>Topic_Name</developerName>`
+- `<localDeveloperName>Topic_Name</localDeveloperName>`
+- `<localTopicLinks><genAiPluginName>Topic_Name</genAiPluginName></localTopicLinks>`
+- Folder path: `localActions/Topic_Name/`
+
+**Exception:** `<masterLabel>` can have spaces for display (e.g., `Topic Display Name`)
+
 **Link local topic to agent:**
 
 ```xml
 <localTopicLinks>
-    <genAiPluginName>Topic_Name_16jKZ0000000ABC</genAiPluginName>
+    <genAiPluginName>Topic_Name</genAiPluginName>
 </localTopicLinks>
 ```
 
@@ -83,17 +95,17 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 
 ```xml
 <localTopics>
-    <fullName>Topic_Name_16jKZ0000000ABC</fullName>
+    <fullName>Topic_Name</fullName>
     <!-- Topic configuration here -->
 
     <localActionLinks>
-        <functionName>Action_Name_179KZ0000000XYZ</functionName>
+        <functionName>Action_Name</functionName>
     </localActionLinks>
 
     <localActions>
-        <fullName>Action_Name_Action_Name_179KZ0000000XYZ</fullName>
+        <fullName>Action_Name</fullName>
         <description>What this action does</description>
-        <developerName>Action_Name_179KZ0000000XYZ</developerName>
+        <developerName>Action_Name</developerName>
         <invocationTarget>ApexClassName</invocationTarget>
         <invocationTargetType>apex</invocationTargetType>
         <isConfirmationRequired>false</isConfirmationRequired>
@@ -103,6 +115,18 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
     </localActions>
 </localTopics>
 ```
+
+**CRITICAL - Action Naming Consistency:**
+
+The following fields **MUST use the exact same name** (e.g., `Action_Name`):
+
+- `<fullName>Action_Name</fullName>`
+- `<developerName>Action_Name</developerName>`
+- `<localDeveloperName>Action_Name</localDeveloperName>`
+- `<localActionLinks><functionName>Action_Name</functionName></localActionLinks>`
+- Folder path: `localActions/Topic_Name/Action_Name/`
+
+**Exception:** `<masterLabel>` can have spaces for display (e.g., `Action Display Name`)
 
 #### Input and Output Schema Files
 
@@ -114,7 +138,7 @@ For each local action, you must create **separate schema files** in a folder str
 genAiPlannerBundles/
   YourAgentBundle/
     localActions/
-      Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/
+      Topic_Name/Action_Name/
         input/
           schema          <-- Input schema JSON file (no extension)
         output/
@@ -123,13 +147,13 @@ genAiPlannerBundles/
 
 **1. Input Schema (`input/schema.json` file):**
 
-- Physical JSON file located at: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Name_179KZ0000000XYZ/input/schema.json`
+- Physical JSON file located at: `localActions/Topic_Name/Action_Name/input/schema`
 - Contains the definition of input parameters
 - Must match the `@InvocableVariable` input parameters in your Apex class
 
 **2. Output Schema (`output/schema` file):**
 
-- Physical JSON file located at: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Name_179KZ0000000XYZ/output/schema`
+- Physical JSON file located at: `localActions/Topic_Name/Action_Name/output/schema`
 - Contains the definition of output/return values
 - Must match the `@InvocableVariable` output parameters in your Apex class
 
@@ -236,7 +260,7 @@ public class ApexClassName {
 
 **Step 3:** Create `input/schema.json` file from `@InvocableVariable` input parameters
 
-1. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/input/`
+1. Create folder structure: `localActions/Topic_Name/Action_Name/input/`
 2. Create file named `schema` (no extension) with JSON content
 3. Set `required` array with all parameters where `required=true`
 4. Add `"unevaluatedProperties": false`
@@ -251,7 +275,7 @@ public class ApexClassName {
 
 **Step 4:** Create `output/schema` file from `@InvocableVariable` output parameters
 
-1. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/output/`
+1. Create folder structure: `localActions/Topic_Name/Action_Name/output/`
 2. Create file named `schema` (no extension) with JSON content
 3. Add `"unevaluatedProperties": false`
 4. Map each output variable to a property (same as input)
@@ -262,7 +286,7 @@ public class ApexClassName {
 
 ```xml
 <localActionLinks>
-    <genAiFunctionName>Action_Name_179KZ0000000XYZ</genAiFunctionName>
+    <genAiFunctionName>Action_Name</genAiFunctionName>
 </localActionLinks>
 ```
 
@@ -286,9 +310,11 @@ Actions can invoke different types of functionality:
 
 2. **Naming Conventions**
 
-    - Topics: Descriptive name + ID suffix: `Topic_Name_16jKZ0000000ABC` (ID format: 16jKZ0000000 + 3 uppercase letters)
-    - Actions: Descriptive name + ID suffix: `Action_Name_179KZ0000000XYZ` (ID format: 179KZ0000000 + 3 uppercase letters)
-    - Use clear, descriptive names before the ID suffix
+    - Topics: Use clear, descriptive names: `Topic_Name`
+    - Actions: Use clear, descriptive names: `Action_Name`
+    - Use underscores to separate words in names
+    - **CRITICAL:** Use the EXACT same name across all XML fields and folder paths
+    - Only `<masterLabel>` can have spaces for display purposes
 
 3. **Topic Organization**
 
@@ -326,11 +352,13 @@ See example files in:
 1. Add `<localTopics>` section in GenAiPlannerBundle
 2. Define topic with description, scope, and instructions
 3. Add `<localActions>` within the topic
-4. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/`
-5. Create `input/schema.json` file with JSON input parameters
-6. Create `output/schema` file with JSON output parameters
-7. Link action to Apex invocable method
-8. Add `<localTopicLinks>` and `<localActionLinks>` at agent level
+4. Create folder structure: `localActions/Topic_Name/Action_Name/`
+5. **CRITICAL:** Folder names must EXACTLY match the `<fullName>` values in XML
+6. **CRITICAL:** Use identical names for `<fullName>`, `<developerName>`, `<localDeveloperName>`, and folder paths
+7. Create `input/schema.json` file with JSON input parameters
+8. Create `output/schema` file with JSON output parameters
+9. Link action to Apex invocable method
+10. Add `<localTopicLinks>` and `<localActionLinks>` at agent level
 
 ---
 

@@ -13,9 +13,10 @@
 [ ] Retrieve created agent files (GenAiPlannerBundle)
 [ ] Review auto-generated structure
 [ ] Remove AI-generated placeholder topic
-[ ] Create custom local topic with clear instructions
+[ ] Create custom local topic with clear instructions (WITHOUT actions yet)
 [ ] Delegate Apex action creation to Code mode (if needed)
-[ ] Create local action in topic with invocationTarget
+[ ] WAIT for Code mode to create AND deploy Apex
+[ ] AFTER Apex deployed: Create local action in topic with invocationTarget
 [ ] Create schema files (input/output) for action
 [ ] Link action to topic with localActionLinks
 [ ] Link topic to agent with localTopicLinks
@@ -97,12 +98,22 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 
 **Important - Apex Code Creation:**
 
+**⚠️ CRITICAL EXECUTION ORDER:**
+
+1. **FIRST:** Delegate to Code mode to create Apex action
+2. **SECOND:** Wait for Code mode to complete AND deploy the Apex class
+3. **THIRD:** ONLY AFTER Apex is deployed, add the local action XML that references it
+4. **FOURTH:** Deploy the GenAiPlannerBundle with the action reference
+
+**DO NOT add `<localActions>` XML before Apex exists and is deployed!**
+
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
 - **Must delegate to Code mode** for any Apex action creation
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
-- Wait for subtask completion before linking the Apex action to the agent
-- **After Apex is deployed:** Update the LOCAL action in GenAiPlannerBundle to reference the Apex class (NOT GenAiPlugin/GenAiFunction files)
+- **WAIT for Code mode to finish creating AND deploying the Apex class**
+- **After Apex is deployed:** THEN update the LOCAL action in GenAiPlannerBundle to reference the Apex class
+- **DO NOT create GenAiPlugin/GenAiFunction files** - only update GenAiPlannerBundle
 
 **Deploy customized agent:**
 
@@ -132,19 +143,21 @@ sf project deploy start --metadata GenAiPlannerBundle
 
 **Step 4:** User needs custom Apex action to check inventory
 
+**CORRECT SEQUENCE:**
+
 1. Identify requirement: Agent needs to query real-time stock levels from Inventory\_\_c object
-2. **Delegate to Code mode:**
+2. **FIRST - Delegate to Code mode to CREATE Apex:**
     - Create subtask or switch to Code mode
     - Instruction: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action 'InventoryChecker' with a method to check stock levels for a product ID"**
     - Specify: "Method should query Inventory\_\_c and return current stock count"
     - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
-3. Wait for Code mode to complete the Apex class creation and deployment
-4. After Apex is deployed, add LOCAL action in GenAiPlannerBundle:
+3. **WAIT for Code mode to complete the Apex class creation AND deployment**
+4. **AFTER Apex is deployed - Add LOCAL action reference in GenAiPlannerBundle:**
     ```xml
     <localActions>
-        <fullName>Check_Stock_Level_123</fullName>
+        <fullName>Check_Stock_Level</fullName>
         <description>Check inventory stock level for a product</description>
-        <developerName>Check_Stock_Level_123</developerName>
+        <developerName>Check_Stock_Level</developerName>
         <invocationTarget>InventoryChecker</invocationTarget>
         <invocationTargetType>apex</invocationTargetType>
         <isConfirmationRequired>false</isConfirmationRequired>
@@ -156,7 +169,7 @@ sf project deploy start --metadata GenAiPlannerBundle
 5. Link the action to local topic:
     ```xml
     <localActionLinks>
-        <functionName>Check_Stock_Level_179KZ0000000ABC</functionName>
+        <functionName>Check_Stock_Level</functionName>
     </localActionLinks>
     ```
 
@@ -189,10 +202,10 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
     <!-- ADD LOCAL TOPIC HERE -->
     <localTopics>
-        <fullName>Case_Creation_Topic_16jKZ0000000ABC</fullName>
+        <fullName>Case_Creation_Topic</fullName>
         <canEscalate>false</canEscalate>
         <description>Handles creation of support cases</description>
-        <developerName>Case_Creation_Topic_16jKZ0000000ABC</developerName>
+        <developerName>Case_Creation_Topic</developerName>
         <genAiPluginInstructions>
             <description>When user wants to create a support case, identify the issue clearly. Collect required information like subject and description. Call the CreateCase action to create the case. Confirm successful case creation to the user.</description>
             <developerName>instructions_0</developerName>
@@ -204,14 +217,14 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
         <!-- LINK ACTION TO TOPIC -->
         <localActionLinks>
-            <functionName>Create_Support_Case_179KZ0000000XYZ</functionName>
+            <functionName>Create_Support_Case</functionName>
         </localActionLinks>
 
         <!-- DEFINE LOCAL ACTION -->
         <localActions>
-            <fullName>Create_Support_Case_Create_Support_Case_179KZ0000000XYZ</fullName>
+            <fullName>Create_Support_Case</fullName>
             <description>Creates a support case with given subject and description</description>
-            <developerName>Create_Support_Case_179KZ0000000XYZ</developerName>
+            <developerName>Create_Support_Case</developerName>
             <invocationTarget>CaseSupportHandler</invocationTarget>
             <invocationTargetType>apex</invocationTargetType>
             <isConfirmationRequired>false</isConfirmationRequired>
@@ -228,7 +241,7 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
     <!-- LINK TOPIC TO AGENT -->
     <localTopicLinks>
-        <genAiPluginName>Case_Creation_Topic_16jKZ0000000ABC</genAiPluginName>
+        <genAiPluginName>Case_Creation_Topic</genAiPluginName>
     </localTopicLinks>
 </GenAiPlanner>
 ```
@@ -240,17 +253,34 @@ Create folder structure:
 ```
 force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
   localActions/
-    Topic_topic_Case_Creation_Topic_16jKZ0000000ABC/Action_Create_Support_Case_179KZ0000000XYZ/
+    Case_Creation_Topic/Create_Support_Case/
       input/
         schema
       output/
         schema
 ```
 
-Note:
-Format: Descriptive_Name + ID_Suffix
-Topic ID suffix: 16jKZ0000000 + 3 uppercase letters (e.g., 16jKZ0000000ABC)
-Action ID suffix: 179KZ0000000 + 3 uppercase letters (e.g., 179KZ0000000XYZ)
+**CRITICAL - Naming Consistency:**
+
+**For Topics**, these fields MUST use the EXACT same name (e.g., `Case_Creation_Topic`):
+
+- `<fullName>Case_Creation_Topic</fullName>`
+- `<developerName>Case_Creation_Topic</developerName>`
+- `<localDeveloperName>Case_Creation_Topic</localDeveloperName>`
+- `<localTopicLinks><genAiPluginName>Case_Creation_Topic</genAiPluginName></localTopicLinks>`
+- Folder path: `localActions/Case_Creation_Topic/`
+
+**For Actions**, these fields MUST use the EXACT same name (e.g., `Create_Support_Case`):
+
+- `<fullName>Create_Support_Case</fullName>`
+- `<developerName>Create_Support_Case</developerName>`
+- `<localDeveloperName>Create_Support_Case</localDeveloperName>`
+- `<localActionLinks><functionName>Create_Support_Case</functionName></localActionLinks>`
+- Folder path: `localActions/Case_Creation_Topic/Create_Support_Case/`
+
+**Exception:** `<masterLabel>` can have spaces for display (e.g., `Case Creation`, `Create Support Case`)
+
+**Format:** Use underscores to separate words in names (e.g., `Case_Creation_Topic`, `Create_Support_Case`)
 
 **File: `input/schema.json`**:
 
