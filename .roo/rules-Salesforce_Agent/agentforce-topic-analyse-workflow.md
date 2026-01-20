@@ -157,7 +157,7 @@ sf project retrieve start --metadata GenAiPlannerBundle:<AgentName> --target-org
 
     - Defined in `<localActions>` within topic
     - Linked via `<localActionLinks>` with correct `functionName`
-    - Schema files exist: `input/schema` and `output/schema`
+    - Schema files exist: `input/schema.json` and `output/schema.json`
     - Schemas match Apex `@InvocableVariable` parameters
 
 - **For Global Actions:**
@@ -358,7 +358,7 @@ sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --target-
 **Step 4:** Analyze:
 
 - Topic structure: Local topic ✅
-- Naming: `Complaint_Handling_123` ✅
+- Naming: `Complaint_Handling_16jKZ0000000ABC` ✅
 - Description: "Handle complaints" ⚠️ (too vague)
 - Scope: "Process customer complaints and escalate as needed" ✅
 - Instructions: Missing step-by-step procedure ❌
@@ -374,7 +374,7 @@ sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --target-
 
 ```
 EXECUTIVE SUMMARY:
-Topic: Complaint_Handling_123 (Local)
+Topic: Complaint_Handling_16jKZ0000000ABC (Local)
 Status: Critical Issues Found
 Total Issues: 3 (1 Critical, 1 High, 1 Medium)
 

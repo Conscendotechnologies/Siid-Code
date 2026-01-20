@@ -112,6 +112,43 @@ public with sharing class AgentforceAccountAction {
 
 ---
 
+## Annotation Syntax (CRITICAL)
+
+### @InvocableMethod Syntax
+
+**ALWAYS use commas to separate parameters:**
+
+```apex
+// ✅ CORRECT - Parameters separated by commas
+@InvocableMethod(label='Get Account Details', description='Retrieves account information')
+public static List<GetAccountResponse> getAccount(List<GetAccountRequest> requests) {
+```
+
+```apex
+// ❌ WRONG - Missing commas
+@InvocableMethod(label='Get Account Details' description='Retrieves account information')
+```
+
+### @InvocableVariable Syntax
+
+**ALWAYS use commas to separate parameters:**
+
+```apex
+// ✅ CORRECT - All parameters separated by commas
+@InvocableVariable(required=true, label='Account Name', description='The name of the account to retrieve')
+public String accountName;
+```
+
+```apex
+// ❌ WRONG - Missing commas
+@InvocableVariable(required=true label='Account Name' description='The name of the account to retrieve')
+public String accountName;
+```
+
+**Format Rule:** `parameter=value, parameter=value, parameter=value` (comma + space between each parameter)
+
+---
+
 ## File Creation Locations and XML Metadata
 
 ### Apex Class Location
@@ -144,7 +181,7 @@ Create the corresponding `.cls-meta.xml` file for every Apex class:
 
 ## InvocableVariable Parameters (Required for All Variables)
 
-Every `@InvocableVariable` annotation **MUST** include these 3 parameters:
+Every `@InvocableVariable` annotation **MUST** include these 3 parameters **separated by commas**:
 
 | Parameter     | Type    | Required | Example                                           | Purpose                                                  |
 | ------------- | ------- | -------- | ------------------------------------------------- | -------------------------------------------------------- |
@@ -152,9 +189,10 @@ Every `@InvocableVariable` annotation **MUST** include these 3 parameters:
 | `label`       | String  | ✅ Yes   | `label='Account Name'`                            | Display name shown in Agentforce UI and flows            |
 | `description` | String  | ✅ Yes   | `description='The name of the account to search'` | Explains what the variable is used for                   |
 
-### Correct Format
+### Correct Format (Note the commas)
 
 ```apex
+// ✅ Parameters separated by commas: required=true, label='...', description='...'
 @InvocableVariable(required=true, label='Search Term', description='The text to search for in account names')
 public String searchTerm;
 ```

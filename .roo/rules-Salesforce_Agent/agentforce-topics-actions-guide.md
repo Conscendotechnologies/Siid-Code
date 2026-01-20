@@ -40,10 +40,10 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 
 ```xml
 <localTopics>
-    <fullName>Topic_Name_UniqueId</fullName>
+    <fullName>Topic_Name_16jKZ0000000ABC</fullName>
     <canEscalate>false</canEscalate>
     <description>Description of what this topic handles</description>
-    <developerName>Topic_Name_UniqueId</developerName>
+    <developerName>Topic_Name_16jKZ0000000ABC</developerName>
     <genAiPluginInstructions>
         <description>Instruction for the agent on how to use this topic</description>
         <developerName>instructions_0</developerName>
@@ -53,7 +53,7 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
     </genAiPluginInstructions>
     <language>en_US</language>
     <localActionLinks>
-        <functionName>Action_Name_UniqueId</functionName>
+        <functionName>Action_Name_179KZ0000000XYZ</functionName>
     </localActionLinks>
     <localDeveloperName>Topic_Name</localDeveloperName>
     <masterLabel>Topic Display Name</masterLabel>
@@ -66,7 +66,7 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 
 ```xml
 <localTopicLinks>
-    <genAiPluginName>Topic_Name_UniqueId</genAiPluginName>
+    <genAiPluginName>Topic_Name_16jKZ0000000ABC</genAiPluginName>
 </localTopicLinks>
 ```
 
@@ -83,17 +83,17 @@ Agentforce agents use **topics** to organize functionality and **actions** to pe
 
 ```xml
 <localTopics>
-    <fullName>Topic_Name_UniqueId</fullName>
+    <fullName>Topic_Name_16jKZ0000000ABC</fullName>
     <!-- Topic configuration here -->
 
     <localActionLinks>
-        <functionName>Action_Name_UniqueId</functionName>
+        <functionName>Action_Name_179KZ0000000XYZ</functionName>
     </localActionLinks>
 
     <localActions>
-        <fullName>Action_Name_UniqueId</fullName>
+        <fullName>Action_Name_Action_Name_179KZ0000000XYZ</fullName>
         <description>What this action does</description>
-        <developerName>Action_Name_UniqueId</developerName>
+        <developerName>Action_Name_179KZ0000000XYZ</developerName>
         <invocationTarget>ApexClassName</invocationTarget>
         <invocationTargetType>apex</invocationTargetType>
         <isConfirmationRequired>false</isConfirmationRequired>
@@ -114,26 +114,26 @@ For each local action, you must create **separate schema files** in a folder str
 genAiPlannerBundles/
   YourAgentBundle/
     localActions/
-      Action_Name_UniqueId/
+      Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/
         input/
           schema          <-- Input schema JSON file (no extension)
         output/
           schema          <-- Output schema JSON file (no extension)
 ```
 
-**1. Input Schema (`input/schema` file):**
+**1. Input Schema (`input/schema.json` file):**
 
-- Physical JSON file located at: `localActions/Action_Name_UniqueId/input/schema`
+- Physical JSON file located at: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Name_179KZ0000000XYZ/input/schema.json`
 - Contains the definition of input parameters
 - Must match the `@InvocableVariable` input parameters in your Apex class
 
 **2. Output Schema (`output/schema` file):**
 
-- Physical JSON file located at: `localActions/Action_Name_UniqueId/output/schema`
+- Physical JSON file located at: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Name_179KZ0000000XYZ/output/schema`
 - Contains the definition of output/return values
 - Must match the `@InvocableVariable` output parameters in your Apex class
 
-**Input Schema File Structure (`input/schema`):**
+**Input Schema File Structure (`input/schema.json`):**
 
 ```json
 {
@@ -234,9 +234,9 @@ public class ApexClassName {
 | `Id` (Record ID)               | `lightning_recordIdType`                  |
 | Custom Object                  | `lightning_objectType`                    |
 
-**Step 3:** Create `input/schema` file from `@InvocableVariable` input parameters
+**Step 3:** Create `input/schema.json` file from `@InvocableVariable` input parameters
 
-1. Create folder structure: `localActions/Action_Name_UniqueId/input/`
+1. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/input/`
 2. Create file named `schema` (no extension) with JSON content
 3. Set `required` array with all parameters where `required=true`
 4. Add `"unevaluatedProperties": false`
@@ -251,7 +251,7 @@ public class ApexClassName {
 
 **Step 4:** Create `output/schema` file from `@InvocableVariable` output parameters
 
-1. Create folder structure: `localActions/Action_Name_UniqueId/output/`
+1. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/output/`
 2. Create file named `schema` (no extension) with JSON content
 3. Add `"unevaluatedProperties": false`
 4. Map each output variable to a property (same as input)
@@ -262,7 +262,7 @@ public class ApexClassName {
 
 ```xml
 <localActionLinks>
-    <genAiFunctionName>Action_Name_UniqueId</genAiFunctionName>
+    <genAiFunctionName>Action_Name_179KZ0000000XYZ</genAiFunctionName>
 </localActionLinks>
 ```
 
@@ -286,9 +286,9 @@ Actions can invoke different types of functionality:
 
 2. **Naming Conventions**
 
-    - Use descriptive names
-    - Include unique IDs to avoid conflicts
-    - Follow pattern: `ActionName_UniqueId`
+    - Topics: Descriptive name + ID suffix: `Topic_Name_16jKZ0000000ABC` (ID format: 16jKZ0000000 + 3 uppercase letters)
+    - Actions: Descriptive name + ID suffix: `Action_Name_179KZ0000000XYZ` (ID format: 179KZ0000000 + 3 uppercase letters)
+    - Use clear, descriptive names before the ID suffix
 
 3. **Topic Organization**
 
@@ -326,8 +326,8 @@ See example files in:
 1. Add `<localTopics>` section in GenAiPlannerBundle
 2. Define topic with description, scope, and instructions
 3. Add `<localActions>` within the topic
-4. Create folder structure: `localActions/Action_Name_UniqueId/`
-5. Create `input/schema` file with JSON input parameters
+4. Create folder structure: `localActions/Topic_topic_Topic_Name_16jKZ0000000ABC/Action_Action_Name_179KZ0000000XYZ/`
+5. Create `input/schema.json` file with JSON input parameters
 6. Create `output/schema` file with JSON output parameters
 7. Link action to Apex invocable method
 8. Add `<localTopicLinks>` and `<localActionLinks>` at agent level

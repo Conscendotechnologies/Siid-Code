@@ -157,7 +157,7 @@ sf project deploy start --metadata GenAiPlannerBundle --target-org <org>
 5. Link the action to local topic:
     ```xml
     <localActionLinks>
-        <functionName>Check_Stock_Level_123</functionName>
+        <functionName>Check_Stock_Level_179KZ0000000ABC</functionName>
     </localActionLinks>
     ```
 
@@ -190,10 +190,10 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
     <!-- ADD LOCAL TOPIC HERE -->
     <localTopics>
-        <fullName>Case_Creation_Topic_001</fullName>
+        <fullName>Case_Creation_Topic_16jKZ0000000ABC</fullName>
         <canEscalate>false</canEscalate>
         <description>Handles creation of support cases</description>
-        <developerName>Case_Creation_Topic_001</developerName>
+        <developerName>Case_Creation_Topic_16jKZ0000000ABC</developerName>
         <genAiPluginInstructions>
             <description>When user wants to create a support case, identify the issue clearly. Collect required information like subject and description. Call the CreateCase action to create the case. Confirm successful case creation to the user.</description>
             <developerName>instructions_0</developerName>
@@ -205,14 +205,14 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
         <!-- LINK ACTION TO TOPIC -->
         <localActionLinks>
-            <functionName>Create_Support_Case_001</functionName>
+            <functionName>Create_Support_Case_179KZ0000000XYZ</functionName>
         </localActionLinks>
 
         <!-- DEFINE LOCAL ACTION -->
         <localActions>
-            <fullName>Create_Support_Case_001</fullName>
+            <fullName>Create_Support_Case_Create_Support_Case_179KZ0000000XYZ</fullName>
             <description>Creates a support case with given subject and description</description>
-            <developerName>Create_Support_Case_001</developerName>
+            <developerName>Create_Support_Case_179KZ0000000XYZ</developerName>
             <invocationTarget>CaseSupportHandler</invocationTarget>
             <invocationTargetType>apex</invocationTargetType>
             <isConfirmationRequired>false</isConfirmationRequired>
@@ -229,7 +229,7 @@ Here's the EXACT structure to create a local topic with action in GenAiPlannerBu
 
     <!-- LINK TOPIC TO AGENT -->
     <localTopicLinks>
-        <genAiPluginName>Case_Creation_Topic_001</genAiPluginName>
+        <genAiPluginName>Case_Creation_Topic_16jKZ0000000ABC</genAiPluginName>
     </localTopicLinks>
 </GenAiPlanner>
 ```
@@ -241,7 +241,7 @@ Create folder structure:
 ```
 force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
   localActions/
-    Create_Support_topic_<TopicId>/Create_Support_Case_<ActionId>
+    Topic_topic_Case_Creation_Topic_16jKZ0000000ABC/Action_Create_Support_Case_179KZ0000000XYZ/
       input/
         schema
       output/
@@ -249,10 +249,11 @@ force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
 ```
 
 Note:
-TopicId: 16jKZ0000000(prefix)+(3char capital later)
-ActionId: 179KZ0000000(prefix)+(3char capital later)
+Format: Descriptive_Name + ID_Suffix
+Topic ID suffix: 16jKZ0000000 + 3 uppercase letters (e.g., 16jKZ0000000ABC)
+Action ID suffix: 179KZ0000000 + 3 uppercase letters (e.g., 179KZ0000000XYZ)
 
-**File: `input/schema`** (no extension):
+**File: `input/schema.json`**:
 
 ```json
 {
