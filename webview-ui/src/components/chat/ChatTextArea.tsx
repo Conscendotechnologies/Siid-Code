@@ -912,7 +912,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 		// Helper function to render non-edit mode controls
 		const renderNonEditModeControls = () => (
-			<div className={cn("flex", "items-center", "gap-1", "px-1.5", "mb-1")}>
+			<div className={cn("flex", "items-center", "justify-between", "gap-1", "px-1.5", "mb-1")}>
 				<div className={cn("flex", "items-center", "gap-1")}>
 					<div className="shrink-0">{renderModeSelector()}</div>
 
@@ -935,7 +935,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						(() => {
 							const { currentPercent } = calculateTokenDistribution(contextWindow, contextTokens)
 							return (
-								currentPercent > 50 && (
+								currentPercent > 0 && (
 									<div className="shrink-0">
 										<ContextUsageIndicator
 											contextTokens={contextTokens}

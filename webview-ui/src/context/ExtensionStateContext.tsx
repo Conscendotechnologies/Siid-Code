@@ -241,7 +241,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		organizationAllowList: ORGANIZATION_ALLOW_ALL,
 		organizationSettingsVersion: -1,
 		autoCondenseContext: true,
-		autoCondenseContextPercent: 100,
+		autoCondenseContextPercent: 80,
 		profileThresholds: {},
 		codebaseIndexConfig: {
 			codebaseIndexEnabled: true,

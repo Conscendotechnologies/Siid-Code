@@ -194,7 +194,7 @@ Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** fo
 Update the org with enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 ```
 
 ---
@@ -210,7 +210,7 @@ sf project deploy start --metadata GenAiPlannerBundle
 5. Generate analysis report with findings
 6. Ask user for confirmation
 7. If approved, enhance GenAiPlannerBundle file (fix issues, improve instructions, optimize topics)
-8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle`
+8. Deploy: `sf project deploy start --metadata GenAiPlannerBundle:Agent_Name`
 
 ---
 
@@ -239,5 +239,5 @@ sf project deploy start --metadata GenAiPlannerBundle
 **Step 8:** Deploy enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 ```

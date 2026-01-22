@@ -118,7 +118,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 **Deploy customized agent:**
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 ```
 
 ---
@@ -131,7 +131,7 @@ sf project deploy start --metadata GenAiPlannerBundle
 2. Generate spec: `sf agent generate agent-spec --max-topics 1 --output-file specs/resortManagerAgent.yaml --type customer --role "Field customer complaints and manage employee schedules." --company-name "Coral Cloud Resorts" --company-description "Provide customers with exceptional destination activities, unforgettable experiences, and reservation services."`
 3. Create agent: `sf agent create --name "Resort Manager" --api-name Resort_Manager --spec specs/resortManagerAgent.yaml`
 4. Remove the auto-generated topic and add custom topics with Apex actions
-5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle`
+5. Deploy: `sf project deploy start --metadata GenAiPlannerBundle:Agent_Name`
 
 ---
 
@@ -176,7 +176,7 @@ sf project deploy start --metadata GenAiPlannerBundle
 **Step 5:** Deploy customized agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 ```
 
 **Key Points:**

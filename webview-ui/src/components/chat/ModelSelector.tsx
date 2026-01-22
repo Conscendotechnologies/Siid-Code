@@ -81,7 +81,7 @@ export const ModelSelector = ({
 			disabled={disabled}
 			data-testid="model-selector-trigger"
 			className={cn(
-				"inline-flex items-center px-2 py-1 text-xs",
+				"w-[150px] inline-flex items-center px-2 py-1 text-xs",
 				"bg-transparent border border-[rgba(255,255,255,0.08)] rounded-md",
 				"text-vscode-foreground",
 				"transition-all duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-vscode-focusBorder focus-visible:ring-inset",
