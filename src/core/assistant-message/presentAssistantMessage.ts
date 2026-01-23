@@ -377,29 +377,12 @@ export async function presentAssistantMessage(cline: Task) {
 				const repetitionCheck = cline.toolRepetitionDetector.check(block)
 
 				// If execution is not allowed, notify user and break.
-				if (!repetitionCheck.allowExecution && repetitionCheck.askUser) {
-					// Handle repetition similar to mistake_limit_reached pattern.
-					const { response, text, images } = await cline.ask(
-						repetitionCheck.askUser.messageKey as ClineAsk,
-						repetitionCheck.askUser.messageDetail.replace("{toolName}", block.name),
-					)
-
-					if (response === "messageResponse") {
-						// Add user feedback to userContent.
-						cline.userMessageContent.push(
-							{
-								type: "text" as const,
-								text: `Tool repetition limit reached. User feedback: ${text}`,
-							},
-							...formatResponse.imageBlocks(images),
-						)
-
-						// Add user feedback to chat.
-						await cline.say("user_feedback", text, images)
-
-						// Track tool repetition in telemetry.
-						TelemetryService.instance.captureConsecutiveMistakeError(cline.taskId)
-					}
+				if (!repetitionCheck.allowExecution && repetitionCheck.agentHint) {
+					// Add user feedback to userContent.
+					cline.userMessageContent.push({
+						type: "text" as const,
+						text: `Tool repetition limit reached. Hint: repetitionCheck.agentHint`,
+					})
 
 					// Return tool result message about the repetition
 					pushToolResult(

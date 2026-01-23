@@ -2,97 +2,118 @@ import { ToolUse } from "../../shared/tools"
 import { t } from "../../i18n"
 
 /**
- * Class for detecting consecutive identical tool calls
- * to prevent the AI from getting stuck in a loop.
+ * Possible recovery actions when tool repetition is detected
+ */
+export type ToolRecoveryAction = "NONE" | "SWITCH_MODE" | "ASK_USER"
+
+/**
+ * Detects consecutive identical tool calls and
+ * provides internal guidance to help the agent recover.
  */
 export class ToolRepetitionDetector {
 	private previousToolCallJson: string | null = null
-	private consecutiveIdenticalToolCallCount: number = 0
+	private consecutiveIdenticalToolCallCount = 0
 	private readonly consecutiveIdenticalToolCallLimit: number
 
 	/**
-	 * Creates a new ToolRepetitionDetector
-	 * @param limit The maximum number of identical consecutive tool calls allowed
+	 * @param limit Maximum number of identical consecutive tool calls allowed
+	 *              (0 = unlimited)
 	 */
 	constructor(limit: number = 3) {
 		this.consecutiveIdenticalToolCallLimit = limit
 	}
 
 	/**
-	 * Checks if the current tool call is identical to the previous one
-	 * and determines if execution should be allowed
-	 *
-	 * @param currentToolCallBlock ToolUse object representing the current tool call
-	 * @returns Object indicating if execution is allowed and a message to show if not
+	 * Checks whether the current tool call can be executed
+	 * or whether recovery guidance should be applied.
 	 */
 	public check(currentToolCallBlock: ToolUse): {
 		allowExecution: boolean
-		askUser?: {
-			messageKey: string
-			messageDetail: string
-		}
+		recoveryAction: ToolRecoveryAction
+		reason?: string
+		agentHint?: string
 	} {
-		// Serialize the block to a canonical JSON string for comparison
-		const currentToolCallJson = this.serializeToolUse(currentToolCallBlock)
+		let currentToolCallJson: string
 
-		// Compare with previous tool call
+		try {
+			currentToolCallJson = this.serializeToolUse(currentToolCallBlock)
+		} catch (err: unknown) {
+			const e = err as Error
+			console.error("ToolRepetitionDetector: failed to serialize tool call", e, { toolUse: currentToolCallBlock })
+
+			return {
+				allowExecution: false,
+				recoveryAction: "SWITCH_MODE",
+				reason: `Failed to serialize tool call "${currentToolCallBlock.name}"`,
+			}
+		}
+
+		// Detect consecutive repetition
 		if (this.previousToolCallJson === currentToolCallJson) {
 			this.consecutiveIdenticalToolCallCount++
 		} else {
-			this.consecutiveIdenticalToolCallCount = 1 // Start with 1 for the first occurrence
+			this.consecutiveIdenticalToolCallCount = 1
 			this.previousToolCallJson = currentToolCallJson
 		}
 
-		// Check if limit is reached (0 means unlimited)
+		// Repetition limit reached → inject internal guidance
 		if (
 			this.consecutiveIdenticalToolCallLimit > 0 &&
 			this.consecutiveIdenticalToolCallCount >= this.consecutiveIdenticalToolCallLimit
 		) {
-			// Reset counters to allow recovery if user guides the AI past this point
-			this.consecutiveIdenticalToolCallCount = 0
-			this.previousToolCallJson = null
+			this.reset()
 
-			// Return result indicating execution should not be allowed
 			return {
 				allowExecution: false,
-				askUser: {
-					messageKey: "mistake_limit_reached",
-					messageDetail: t("tools:toolRepetitionLimitReached", { toolName: currentToolCallBlock.name }),
-				},
+				recoveryAction: "NONE",
+				reason: `Repeated identical calls to tool "${currentToolCallBlock.name}" detected`,
+				agentHint:
+					"No progress is being made with the current tool call. Pause execution, reassess the overall objective, and revise your plan. If the task is large or complex, break it into smaller, well-defined steps. Adjust your strategy by changing inputs, selecting a different tool, or approaching the problem incrementally before proceeding.",
 			}
 		}
 
-		// Execution is allowed
-		return { allowExecution: true }
+		return {
+			allowExecution: true,
+			recoveryAction: "NONE",
+		}
 	}
 
 	/**
-	 * Serializes a ToolUse object into a canonical JSON string for comparison
-	 *
-	 * @param toolUse The ToolUse object to serialize
-	 * @returns JSON string representation of the tool use with sorted parameter keys
+	 * Explicit fallback when autonomous recovery fails
+	 */
+	public buildAskUserResponse(toolName: string) {
+		return {
+			allowExecution: false,
+			recoveryAction: "ASK_USER" as ToolRecoveryAction,
+			reason: t("tools:toolRepetitionLimitReached", { toolName }),
+		}
+	}
+
+	/**
+	 * Resets internal repetition state
+	 */
+	private reset() {
+		this.consecutiveIdenticalToolCallCount = 0
+		this.previousToolCallJson = null
+	}
+
+	/**
+	 * Serializes a ToolUse object into a canonical JSON string
+	 * with sorted parameter keys for stable comparison.
 	 */
 	private serializeToolUse(toolUse: ToolUse): string {
-		// Create a new parameters object with alphabetically sorted keys
 		const sortedParams: Record<string, unknown> = {}
+		const sortedKeys = Object.keys(toolUse.params ?? {}).sort()
 
-		// Get parameter keys and sort them alphabetically
-		const sortedKeys = Object.keys(toolUse.params).sort()
-
-		// Populate the sorted parameters object in a type-safe way
 		for (const key of sortedKeys) {
 			if (Object.prototype.hasOwnProperty.call(toolUse.params, key)) {
 				sortedParams[key] = toolUse.params[key as keyof typeof toolUse.params]
 			}
 		}
 
-		// Create the object with the tool name and sorted parameters
-		const toolObject = {
+		return JSON.stringify({
 			name: toolUse.name,
 			parameters: sortedParams,
-		}
-
-		// Convert to a canonical JSON string
-		return JSON.stringify(toolObject)
+		})
 	}
 }
