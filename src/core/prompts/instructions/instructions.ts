@@ -16,8 +16,6 @@ import {
 	recordTypesInstructions,
 	roleCreationInstructions,
 	validationRulesInstructions,
-	workflowFieldUpdateCreationInstructions,
-	workflowEmailAlertCreationInstructions,
 } from "./salesforce-instructions"
 import {
 	invocableApexInstructions,
