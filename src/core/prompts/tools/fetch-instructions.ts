@@ -23,7 +23,11 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation
+  adaptive_response_agent
+  adaptive_response_agent_workflow`
 			: `  create_mode
   create_lwc
   create_apex
@@ -40,7 +44,11 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation
+  adaptive_response_agent
+  adaptive_response_agent_workflow`
 
 	const example =
 		enableMcpServerCreation !== false
@@ -90,6 +98,18 @@ Example: Requesting instructions for Salesforce Custom Field
 
 <fetch_instructions>
 <task>custom_field</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Adaptive Response Agent
+
+<fetch_instructions>
+<task>adaptive_response_agent</task>
+</fetch_instructions>
+
+Example: Requesting workflow for Adaptive Response Agent
+
+<fetch_instructions>
+<task>adaptive_response_agent_workflow</task>
 </fetch_instructions>`
 			: `Example: Requesting instructions to create a Mode
 

@@ -41,6 +41,8 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		preTask += `- create_lwc: Instructions for creating/updating Lightning Web Components\n`
 		preTask += `- create_apex: Instructions for creating/updating Apex classes\n`
 		preTask += `- invocable_apex: Instructions for creating/updating Invocable Apex classes actions for agentforce scenarios\n`
+		preTask += `- adaptive_response_agent: Instructions for creating/updating Adaptive Response Agents\n`
+		preTask += `- adaptive_response_agent_workflow: Workflow instructions for Adaptive Response Agents\n\n`
 		preTask += `\n**Salesforce Agent Instructions:**\n`
 		preTask += `- assignment_rules: Instructions for creating/updating Assignment Rules\n`
 		preTask += `- custom_field: Instructions for creating/updating Custom Fields\n`

@@ -7,6 +7,8 @@ export const GlobalFileNames = {
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
 	invocableapexInstructions: "code/agentforce-apex-guide.md",
+	adaptiveResponseAgentInstructions: "code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md",
+	adaptiveResponseAgentWorkflow: "code/ADAPTIVE_RESPONSE_AGENT_WORKFLOW.md",
 	// Salesforce Agent Instructions
 	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
 	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",

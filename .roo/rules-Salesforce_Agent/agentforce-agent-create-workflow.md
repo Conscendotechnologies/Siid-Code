@@ -98,9 +98,48 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 
 **Important - Apex Code Creation:**
 
+**⚠️ CRITICAL: Determine if Adaptive Response is Needed**
+
+Before delegating to Code mode, analyze if Adaptive Response should be used:
+
+**Detection Criteria - Adaptive Response is applicable when:**
+
+- Action returns a **list of items** (products, recommendations, cases, options)
+- Data includes **rich content** (images, descriptions, multiple fields)
+- Use case involves **browsing, comparing, or selecting** from options
+- Visual presentation would enhance user experience
+
+**When Detected - ALWAYS Ask Developer:**
+
+```
+I've analyzed your requirements. This action can be implemented in two ways:
+
+1. **Adaptive Response** (Recommended)
+   - Visual cards with images and rich UI
+   - Interactive browsing experience
+   - Better for displaying multiple options
+
+2. **Plain Text Response**
+   - Simple text-based output
+   - Straightforward implementation
+
+Which approach would you prefer?
+```
+
+**After Developer Decides:**
+
+When creating subtask for Code mode, include the decision:
+
+- Add property: `useAdaptiveResponse: true` (if developer chose Adaptive Response)
+- Add property: `useAdaptiveResponse: false` (if developer chose Plain Text)
+- Specify guides for Adaptive Response: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base), .roo/rules-code/agentforce-apex-guide.md, AND .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md (adaptive-specific)"**
+- Specify guides for Plain Text: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base) and .roo/rules-code/agentforce-apex-guide.md"**
+
+**CRITICAL:** The base guide (agentforce-topics-actions-guide.md) is ALWAYS required - it contains schema structure, naming conventions, permissions. The adaptive guide only adds wrapper class field names.
+
 **⚠️ CRITICAL EXECUTION ORDER:**
 
-1. **FIRST:** Delegate to Code mode to create Apex action
+1. **FIRST:** Delegate to Code mode to create Apex action (with `useAdaptiveResponse` property)
 2. **SECOND:** Wait for Code mode to complete AND deploy the Apex class
 3. **THIRD:** ONLY AFTER Apex is deployed, add the local action XML that references it
 4. **FOURTH:** Deploy the GenAiPlannerBundle with the action reference
@@ -110,6 +149,7 @@ sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
 - **Must delegate to Code mode** for any Apex action creation
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
+- **If Adaptive Response:** Also specify: **"Check useAdaptiveResponse property and follow .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - **WAIT for Code mode to finish creating AND deploying the Apex class**
 - **After Apex is deployed:** THEN update the LOCAL action in GenAiPlannerBundle to reference the Apex class
@@ -135,19 +175,25 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 
 ---
 
-## Example with Apex Action
+## Example with Apex Action (Plain Text)
 
 **User wants:** "Create an inventory management agent that can check stock levels"
 
 **Step 1-3:** Create basic agent (same as above)
 
-**Step 4:** User needs custom Apex action to check inventory
+**Step 4:** Analyze and ask about Adaptive Response
+
+**Analysis:** This action returns a simple stock count (number), not a list of items with images.
+**Decision:** Plain text is appropriate (no need to ask developer - clearly not adaptive response scenario)
+
+**Step 5:** User needs custom Apex action to check inventory
 
 **CORRECT SEQUENCE:**
 
 1. Identify requirement: Agent needs to query real-time stock levels from Inventory\_\_c object
 2. **FIRST - Delegate to Code mode to CREATE Apex:**
     - Create subtask or switch to Code mode
+    - Add property: `useAdaptiveResponse: false`
     - Instruction: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action 'InventoryChecker' with a method to check stock levels for a product ID"**
     - Specify: "Method should query Inventory\_\_c and return current stock count"
     - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
@@ -186,6 +232,86 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 - Code mode follows agentforce-apex-guide.md to create invocable Apex actions
 - After Apex is ready and deployed, Salesforce Agent mode configures the agent to use it
 - Only then deploys the complete agent configuration
+
+---
+
+## Example with Adaptive Response
+
+**User wants:** "Create a product recommendation agent that shows products with images"
+
+**Step 1-3:** Create basic agent (same as above)
+
+**Step 4:** Analyze and ask about Adaptive Response
+
+**Analysis:**
+
+- Action returns a **list of products**
+- Data includes **images, names, descriptions** (rich content)
+- Use case: **browsing and selecting** products
+- **✅ Adaptive Response is applicable**
+
+**Ask Developer:**
+
+```
+I've analyzed your requirements. This action can be implemented in two ways:
+
+1. **Adaptive Response** (Recommended)
+   - Visual cards with product images and descriptions
+   - Interactive browsing experience
+   - Better for displaying multiple product options
+
+2. **Plain Text Response**
+   - Simple text list of product names
+   - Straightforward implementation
+
+Which approach would you prefer?
+```
+
+**Developer chooses:** "Adaptive Response"
+
+**Step 5:** Delegate to Code mode with Adaptive Response flag
+
+**CORRECT SEQUENCE:**
+
+1. **FIRST - Delegate to Code mode to CREATE Apex:**
+    - Create subtask or switch to Code mode
+    - **Add property:** `useAdaptiveResponse: true`
+    - Instruction: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base guide for schema structure), .roo/rules-code/agentforce-apex-guide.md (Apex patterns), and .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md (exact field names) to create an invocable Apex action 'ProductRecommendationAction'"**
+    - Specify: "Method should query Product2 records and return as visual cards"
+    - Specify: "Use base guide for schema structure, adaptive guide for exact wrapper class field names (name, imageUrl, mimeType, description)"
+2. **WAIT for Code mode to complete the Apex class creation AND deployment**
+3. **AFTER Apex is deployed - Add LOCAL action reference in GenAiPlannerBundle:**
+    ```xml
+    <localActions>
+        <fullName>Get_Product_Recommendations</fullName>
+        <description>Get product recommendations with images</description>
+        <developerName>Get_Product_Recommendations</developerName>
+        <invocationTarget>ProductRecommendationAction</invocationTarget>
+        <invocationTargetType>apex</invocationTargetType>
+        <isConfirmationRequired>false</isConfirmationRequired>
+        <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+        <localDeveloperName>Get_Product_Recommendations</localDeveloperName>
+        <masterLabel>Get Product Recommendations</masterLabel>
+    </localActions>
+    ```
+4. **Create schema files** (input/output) with `lightning__listType`:
+    - See `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md` for schema structure
+    - Use `lightning__listType` for products output
+    - Add `maxItems: 2000` and `items` with Apex class reference
+
+**Step 6:** Deploy customized agent:
+
+```bash
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+```
+
+**Key Differences for Adaptive Response:**
+
+- ✅ Set `useAdaptiveResponse: true` property
+- ✅ Include both agentforce-apex-guide.md AND ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md
+- ✅ Code mode uses EXACT field names: `name`, `imageUrl`, `mimeType`, `description`
+- ✅ Schema uses `lightning__listType` with Apex class reference
+- ✅ Specify LIMIT 5 for Chat channel (or LIMIT 10 for Facebook)
 
 ---
 

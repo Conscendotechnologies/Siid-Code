@@ -324,6 +324,180 @@ public class ApexClassName {
 | `Id` (Record ID)               | `lightning__recordIdType`                  |
 | Custom Object                  | `lightning__objectType`                    |
 
+---
+
+### Adaptive Response Types
+
+**⚠️ IMPORTANT:** Use these types **ONLY** when implementing Adaptive Response features. Do not use them for standard actions.
+
+**Adaptive Response** enables the agent to return rich, interactive UI components (like visual cards with images) instead of plain text responses. This is always enabled when you use these types.
+
+#### `lightning__listType` - For List/Array Returns
+
+**When to use:** When your Apex action returns a `List<CustomObject>` or `List<WrapperClass>` that should be displayed as interactive visual cards.
+
+**Apex Type Mapping:**
+
+| Apex Type            | Lightning Schema Type |
+| -------------------- | --------------------- |
+| `List<CustomObject>` | `lightning__listType` |
+| `List<WrapperClass>` | `lightning__listType` |
+
+**Required Additional Properties:**
+
+1. **`maxItems`**: Maximum number of items allowed in the list (e.g., `2000`)
+2. **`items`**: Object defining the type of each item in the list
+    - Must include `lightning:type` pointing to the Apex wrapper class
+
+**Apex Class Reference Syntax:**
+
+```
+@apexClassType/c__ApexClassName$WrapperClassName
+```
+
+**Format Breakdown:**
+
+- `@apexClassType/` - Fixed prefix for Apex class references
+- `c__` - Namespace prefix (`c__` for default/custom namespace)
+- `ApexClassName` - Your main Apex invocable class name
+- `$` - Separator (dollar sign)
+- `WrapperClassName` - Inner wrapper/choice class name
+
+**Complete Example:**
+
+```json
+{
+	"products": {
+		"title": "products",
+		"description": "List of product recommendations displayed as visual cards. Each card shows the product image, name, and description. This creates an interactive, visual browsing experience instead of plain text.",
+		"maxItems": 2000,
+		"items": {
+			"lightning:type": "@apexClassType/c__ProductRecommendationAction$ProductChoiceWrapper"
+		},
+		"lightning:type": "lightning__listType",
+		"lightning:isPII": false,
+		"copilotAction:isDisplayable": true,
+		"copilotAction:isUsedByPlanner": true,
+		"copilotAction:useHydratedPrompt": false
+	}
+}
+```
+
+**Apex Class Structure Example:**
+
+```apex
+public class ProductRecommendationAction {
+
+    public class OutputParameters {
+        @InvocableVariable(label='products' description='List of product recommendations')
+        public List<ProductChoiceWrapper> products;
+    }
+
+    public class ProductChoiceWrapper {
+        @InvocableVariable
+        public String name;
+
+        @InvocableVariable
+        public String description;
+
+        @InvocableVariable
+        public String imageUrl;
+    }
+
+    @InvocableMethod
+    public static List<OutputParameters> execute(List<InputParameters> inputs) {
+        // Implementation
+    }
+}
+```
+
+**Reference Format:**
+
+- Apex Class: `ProductRecommendationAction`
+- Wrapper Class: `ProductChoiceWrapper`
+- Schema Reference: `@apexClassType/c__ProductRecommendationAction$ProductChoiceWrapper`
+
+**⚠️ When NOT to Use:**
+
+- Don't use `lightning__listType` for simple text lists - use `lightning__textType` instead
+- Don't use Adaptive Response types if you only need plain text output
+- Only use when you want rich, interactive visual components
+
+---
+
+### Decision Guide: When to Use Adaptive Response
+
+**For AI Agents (Orchestration/Planning Phase):**
+
+When a developer requests an Agentforce agent implementation, analyze if Adaptive Response is applicable:
+
+**Detection Criteria - Adaptive Response is applicable when:**
+
+- Action returns a **list of items** (products, cases, recommendations, options)
+- Data includes **rich content** (images, descriptions, multiple fields)
+- Use case involves **browsing, comparing, or selecting** from options
+- Visual presentation would enhance user experience
+
+**When Detected - ALWAYS Ask Developer:**
+
+Present both options to the developer:
+
+```
+I can implement this action in two ways:
+
+1. **Adaptive Response** (Recommended for this use case)
+   - Visual cards with images and rich UI
+   - Interactive browsing experience
+   - Better for displaying multiple options
+   - Requires: lightning__listType, wrapper classes with specific fields
+
+2. **Plain Text Response**
+   - Simple text-based output
+   - Straightforward implementation
+   - Uses: standard lightning__textType
+
+Which approach would you prefer?
+```
+
+**Documenting the Decision:**
+
+When creating subtasks for the Code Agent, include a property indicating the choice:
+
+- `useAdaptiveResponse: true` - Implement with `lightning__listType` and wrapper classes
+- `useAdaptiveResponse: false` - Implement with standard types
+
+**For Code Agent (Implementation Phase):**
+
+When implementing the action, check the subtask properties:
+
+- If `useAdaptiveResponse: true` → Follow **THIS GUIDE** (base instructions) + `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md` (adaptive-specific)
+- If `useAdaptiveResponse: false` → Follow **THIS GUIDE** (base instructions) only
+
+**IMPORTANT:** `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md` contains **ONLY** adaptive response-specific requirements (exact field names, wrapper classes). It does NOT replace this base guide - always use both together for Adaptive Response.
+
+**Examples of When to Offer Adaptive Response:**
+
+✅ **Offer Adaptive Response:**
+
+- "Create an agent that recommends products"
+- "Build an agent to show case suggestions"
+- "Agent to display course options"
+- "Agent to browse available inventory"
+
+❌ **Don't Offer Adaptive Response:**
+
+- "Create an agent that counts total products"
+- "Build an agent to update case status"
+- "Agent to return a single account name"
+- "Agent to calculate total revenue"
+
+**Cross-References:**
+
+- Orchestration workflow: `.roo/rules-Salesforce_Agent/agentforce-agent-create-workflow.md`
+- Code implementation: `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md`
+
+---
+
 **Remember:** This rule applies to **EVERY** lightning type in your schemas, not just the ones shown above.
 
 **❌ WRONG:** `"lightning:type": "lightning_textType"` (single underscore - no clear error!)

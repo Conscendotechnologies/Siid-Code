@@ -436,6 +436,147 @@ public static List<SearchResponse> searchAccounts(List<SearchRequest> requests) 
 
 ---
 
+## Dynamic SOQL Query Patterns - CRITICAL
+
+### SOQL Bind Variables with Request Wrapper Properties
+
+**⚠️ CRITICAL BUG TO AVOID:**
+
+You CANNOT use request wrapper properties directly in SOQL bind variables.
+
+**❌ WRONG - This will cause compilation errors:**
+
+```apex
+@InvocableMethod(label='Search Courses')
+public static List<SearchResponse> searchCourses(List<SearchRequest> requests) {
+    List<SearchResponse> responses = new List<SearchResponse>();
+
+    for (SearchRequest req : requests) {
+        String query = 'SELECT Id, Name FROM Course__c WHERE IsActive = true';
+
+        // ❌ WRONG - Cannot use req.courseLevel directly in bind variable
+        if (String.isNotBlank(req.courseLevel)) {
+            query += ' AND Course_Level__c = :req.courseLevel';  // ❌ ERROR!
+        }
+
+        List<Course__c> courses = Database.query(query);
+        // ...
+    }
+    return responses;
+}
+```
+
+**Error Message You'll See:**
+
+```
+Variable does not exist: req.courseLevel
+```
+
+**✅ CORRECT - Create standalone variables first:**
+
+```apex
+@InvocableMethod(label='Search Courses')
+public static List<SearchResponse> searchCourses(List<SearchRequest> requests) {
+    List<SearchResponse> responses = new List<SearchResponse>();
+
+    for (SearchRequest req : requests) {
+        // Step 1: Extract values to standalone variables FIRST
+        String level = req.courseLevel;
+        String category = req.category;
+        String department = req.department;
+
+        // Step 2: Build dynamic query
+        String query = 'SELECT Id, Name, Course_Level__c FROM Course__c WHERE IsActive = true';
+
+        // Step 3: Use standalone variables in bind syntax
+        if (String.isNotBlank(level)) {
+            query += ' AND Course_Level__c = :level';  // ✅ CORRECT
+        }
+        if (String.isNotBlank(category)) {
+            query += ' AND Category__c = :category';  // ✅ CORRECT
+        }
+        if (String.isNotBlank(department)) {
+            query += ' AND Department__c = :department';  // ✅ CORRECT
+        }
+
+        query += ' WITH USER_MODE LIMIT 10';
+
+        // Step 4: Execute query
+        List<Course__c> courses = Database.query(query);
+
+        SearchResponse res = new SearchResponse();
+        res.courses = courses;
+        res.success = true;
+        responses.add(res);
+    }
+    return responses;
+}
+```
+
+**Why This Matters:**
+
+- SOQL bind variables (`:variableName`) can only reference standalone variables, NOT object properties
+- Using `:req.property` or `:request.field` syntax will cause "Variable does not exist" errors
+- Always extract wrapper properties to local variables before using in dynamic SOQL
+
+**The Pattern:**
+
+1. **Extract** all needed values from request wrapper to standalone variables
+2. **Build** your dynamic query string
+3. **Use** the standalone variables in bind variable syntax (`:variableName`)
+4. **Execute** the query with `Database.query()`
+
+**Complete Working Example:**
+
+```apex
+public class SearchCoursesRequest {
+    @InvocableVariable(required=false, label='Course Level', description='Filter by course level')
+    public String courseLevel;
+
+    @InvocableVariable(required=false, label='Category', description='Filter by category')
+    public String category;
+}
+
+@InvocableMethod(label='Search Courses')
+public static List<SearchResponse> searchCourses(List<SearchCoursesRequest> requests) {
+    List<SearchResponse> responses = new List<SearchResponse>();
+
+    for (SearchCoursesRequest req : requests) {
+        try {
+            // CRITICAL: Extract to standalone variables FIRST
+            String level = req.courseLevel;
+            String category = req.category;
+
+            // Build query with standalone variable binds
+            String query = 'SELECT Id, Name FROM Course__c WHERE IsActive = true';
+            if (String.isNotBlank(level)) {
+                query += ' AND Course_Level__c = :level';
+            }
+            if (String.isNotBlank(category)) {
+                query += ' AND Category__c = :category';
+            }
+            query += ' WITH USER_MODE LIMIT 10';
+
+            List<Course__c> courses = Database.query(query);
+
+            SearchResponse res = new SearchResponse();
+            res.resultCount = courses.size();
+            res.success = true;
+            responses.add(res);
+
+        } catch (Exception e) {
+            SearchResponse res = new SearchResponse();
+            res.success = false;
+            res.message = 'Error: ' + e.getMessage();
+            responses.add(res);
+        }
+    }
+    return responses;
+}
+```
+
+---
+
 ## Security Requirements (MANDATORY)
 
 ```apex

@@ -82,20 +82,37 @@ export const SALESFORCE_CODE_INSTRUCTIONS = `
 
 **CRITICAL: When creating Apex invocable actions for Agentforce agents:**
 
-1. **Always use the Agentforce-specific guide:**
-   - File location: \`.roo/rules-code/agentforce-apex-guide.md\`
+1. **Determine the type of invocable action:**
+   - **Adaptive Response Actions** (Rich Choice/Rich Link formats) → Use adaptive response workflow
+   - **Standard Invocable Actions** (basic data operations) → Use agentforce-apex-guide.md
+
+2. **For Adaptive Response Actions (Cards/Carousels/Links):**
+   - **ALWAYS fetch the workflow first:**
+     \`\`\`xml
+     <fetch_instructions>
+     <task>adaptive_response_agent_workflow</task>
+     </fetch_instructions>
+     \`\`\`
+   - This workflow will guide you to:
+     - Retrieve metadata (Apex classes, custom objects, fields)
+     - Choose the correct format (Rich Choice vs Rich Link)
+     - Fetch both invocable_apex AND adaptive_response_agent instructions
+     - Follow exact field naming requirements (case-sensitive!)
+     - Deploy properly (dry-run then deploy)
+
+3. **For Standard Invocable Actions:**
+   - Use: \`.roo/rules-code/agentforce-apex-guide.md\`
    - **DO NOT use apex-guide.md** for invocable actions
-   
-2. **Follow the invocable action pattern:**
+
+4. **Key differences:**
+   - Adaptive Response: Returns rich UI components (cards, links) with EXACT field names
+   - Standard Invocable: Returns simple data with flexible field names
+
+5. **Follow the invocable action pattern:**
    - Must be annotated with @InvocableMethod
    - Proper input/output wrapper classes
    - Bulkification support
    - Error handling for agent consumption
-   
-3. **Read the guide before starting:**
-   - The guide contains specific patterns for Agentforce compatibility
-   - Follow naming conventions and structure exactly
-   - Include proper metadata and descriptions
 
 **For regular Apex classes/triggers (non-Agentforce):**
 - Use standard apex-guide.md as usual

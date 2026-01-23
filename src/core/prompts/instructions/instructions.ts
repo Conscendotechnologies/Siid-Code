@@ -16,8 +16,14 @@ import {
 	recordTypesInstructions,
 	roleCreationInstructions,
 	validationRulesInstructions,
+	workflowFieldUpdateCreationInstructions,
+	workflowEmailAlertCreationInstructions,
 } from "./salesforce-instructions"
-import { invocableApexInstructions } from "./code-instructions"
+import {
+	invocableApexInstructions,
+	adaptiveResponseAgentInstructions,
+	adaptiveResponseAgentWorkflow,
+} from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -86,6 +92,19 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		// Code Instructions
 		case "invocable_apex": {
 			return await invocableApexInstructions(detail.context)
+		} // Workflow Action Creation Instructions
+		case "workflow_field_update_creation": {
+			return await workflowFieldUpdateCreationInstructions(detail.context)
+		}
+		case "workflow_email_alert_creation": {
+			return await workflowEmailAlertCreationInstructions(detail.context)
+		}
+		// Adaptive Response Agent Instructions
+		case "adaptive_response_agent": {
+			return await adaptiveResponseAgentInstructions(detail.context)
+		}
+		case "adaptive_response_agent_workflow": {
+			return await adaptiveResponseAgentWorkflow(detail.context)
 		}
 		default: {
 			return ""

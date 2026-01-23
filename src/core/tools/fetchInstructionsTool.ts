@@ -29,6 +29,12 @@ function getTaskDisplayName(task: string): string {
 		validation_rules: "Validation Rules Instructions",
 		// Invocable Apex Instructions
 		invocable_apex: "Invocable Apex Instructions",
+		// Workflow Action Creation Instructions
+		workflow_field_update_creation: "Workflow Field Update Creation Instructions",
+		workflow_email_alert_creation: "Workflow Email Alert Creation Instructions",
+		// Adaptive Response Agent Instructions
+		adaptive_response_agent: "Adaptive Response Agent Instructions",
+		adaptive_response_agent_workflow: "Adaptive Response Agent Workflow",
 	}
 
 	return taskNames[task] || task
