@@ -116,6 +116,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		developerMode,
 	} = useExtensionState()
 
+	const selectedModel = useSelectedModel(apiConfiguration)
+	const contextWindow = selectedModel?.info?.contextWindow || 1
+
 	const messagesRef = useRef(messages)
 	useEffect(() => {
 		messagesRef.current = messages
@@ -2434,6 +2437,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				mode={mode}
 				setMode={setMode}
 				modeShortcutText={modeShortcutText}
+				contextTokens={apiMetrics.contextTokens}
+				contextWindow={contextWindow}
+				onCondenseContext={() => currentTaskItem && handleCondenseContext(currentTaskItem.id)}
+				isCondensing={isCondensing}
+				taskId={currentTaskItem?.id}
 			/>
 
 			{isProfileDisabled && (

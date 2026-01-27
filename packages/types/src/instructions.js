@@ -61,15 +61,62 @@ For simple, single-component requests (e.g., 'create one trigger'), proceed dire
 1. Whenever you are creating an APEX Class, you MUST create an XML file for the related apex class as well.
 2. Always use proper Salesforce naming conventions and best practices.
 3. Include error handling in your implementations where appropriate.
+
+## Agentforce Agent Development
+
+**CRITICAL: When working with Agentforce agents, you MUST:**
+1. Use fetch_instructions tool to get the workflow:
+   - Creating agents: \`<task>agentforce_agent_create</task>\`
+   - Analyzing/enhancing agents: \`<task>agentforce_agent_analyse</task>\`
+2. Follow the workflow instructions exactly as provided
+3. **NEVER write Apex code yourself** - always create subtask with Code mode as instructed in the workflow
+4. Only configure agent files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
 `
 
 // ====================
 // SALESFORCE CODE INSTRUCTIONS
 // ====================
 
-// code mode - No additional instructions needed (uses instructions from mode.ts only)
-// This is just a placeholder to keep the structure consistent
-export const SALESFORCE_CODE_INSTRUCTIONS = ``
+export const SALESFORCE_CODE_INSTRUCTIONS = `
+## Apex Invocable Actions for Agentforce Agents
+
+**CRITICAL: When creating Apex invocable actions for Agentforce agents:**
+
+1. **Determine the type of invocable action:**
+   - **Adaptive Response Actions** (Rich Choice/Rich Link formats) → Use adaptive response workflow
+   - **Standard Invocable Actions** (basic data operations) → Use agentforce-apex-guide.md
+
+2. **For Adaptive Response Actions (Cards/Carousels/Links):**
+   - **ALWAYS fetch the workflow first:**
+     \`\`\`xml
+     <fetch_instructions>
+     <task>adaptive_response_agent_workflow</task>
+     </fetch_instructions>
+     \`\`\`
+   - This workflow will guide you to:
+     - Retrieve metadata (Apex classes, custom objects, fields)
+     - Choose the correct format (Rich Choice vs Rich Link)
+     - Fetch both invocable_apex AND adaptive_response_agent instructions
+     - Follow exact field naming requirements (case-sensitive!)
+     - Deploy properly (dry-run then deploy)
+
+3. **For Standard Invocable Actions:**
+   - Use: \`.roo/rules-code/agentforce-apex-guide.md\`
+   - **DO NOT use apex-guide.md** for invocable actions
+
+4. **Key differences:**
+   - Adaptive Response: Returns rich UI components (cards, links) with EXACT field names
+   - Standard Invocable: Returns simple data with flexible field names
+
+5. **Follow the invocable action pattern:**
+   - Must be annotated with @InvocableMethod
+   - Proper input/output wrapper classes
+   - Bulkification support
+   - Error handling for agent consumption
+
+**For regular Apex classes/triggers (non-Agentforce):**
+- Use standard apex-guide.md as usual
+`
 
 // ====================
 // SALESFORCE-AGENT RETURN PROTOCOL
@@ -288,6 +335,7 @@ This means after delegating, the mode's response will contain TWO parts:
 - Profiles, permission sets
 - Flows, validation rules
 - Reports, dashboards
+- **Agentforce agents (creation, analysis, enhancement)**
 - Any admin/declarative work
 
 **code mode:**
@@ -295,7 +343,25 @@ This means after delegating, the mode's response will contain TWO parts:
 - LWC/Aura components
 - Test classes
 - Integration code
+- **Apex invocable actions for Agentforce agents**
 - Any development work
+
+**Special Case - Agentforce Agents:**
+- **Creating/enhancing Agentforce agents → Delegate to salesforce-agent mode**
+- If agent needs Apex actions, salesforce-agent mode will delegate to code mode internally
+- You don't need to split Agentforce work yourself - let salesforce-agent coordinate it
+- **DO NOT fetch Agentforce workflows** (agentforce_agent_create, agentforce_agent_analyse, agentforce_topic_analyse) - these are task-specific instructions for salesforce-agent mode AFTER delegation. You only need high-level understanding to delegate properly.
+
+## fetch_instructions Tool Usage
+
+**IMPORTANT:** The fetch_instructions tool provides task-specific workflows for specialized modes to EXECUTE tasks.
+
+**As Orchestrator:**
+- ❌ **DO NOT fetch Agentforce workflows** - You don't execute these tasks, you delegate them
+- ✅ **DO delegate Agentforce work** to salesforce-agent mode, which will then fetch and follow the workflows
+- If you need to understand a task for delegation, read this context but recognize your role is coordination, not execution
+
+**Remember:** Orchestrator = Coordinate & Delegate | Specialized Modes = Fetch workflows & Execute
 
 ## Delegation Format
 

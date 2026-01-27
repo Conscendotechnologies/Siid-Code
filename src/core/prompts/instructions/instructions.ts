@@ -3,6 +3,9 @@ import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
 import {
+	agentforceAgentInstructions,
+	agentforceAnalyseInstructions,
+	agentforceTopicAnalyseInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -14,7 +17,11 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
-import { invocableApexInstructions } from "./code-instructions"
+import {
+	invocableApexInstructions,
+	adaptiveResponseAgentInstructions,
+	adaptiveResponseAgentWorkflow,
+} from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -41,6 +48,15 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return await createApexInstructions(detail.context, detail.section)
 		}
 		// Salesforce Agent Instructions
+		case "agentforce_agent_create": {
+			return await agentforceAgentInstructions(detail.context)
+		}
+		case "agentforce_agent_analyse": {
+			return await agentforceAnalyseInstructions(detail.context)
+		}
+		case "agentforce_topic_analyse": {
+			return await agentforceTopicAnalyseInstructions(detail.context)
+		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
 		}
@@ -74,6 +90,13 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		// Code Instructions
 		case "invocable_apex": {
 			return await invocableApexInstructions(detail.context)
+		}
+		// Adaptive Response Agent Instructions
+		case "adaptive_response_agent": {
+			return await adaptiveResponseAgentInstructions(detail.context)
+		}
+		case "adaptive_response_agent_workflow": {
+			return await adaptiveResponseAgentWorkflow(detail.context)
 		}
 		default: {
 			return ""

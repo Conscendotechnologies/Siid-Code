@@ -31,6 +31,7 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 		setAlwaysApproveResubmit,
 		setAlwaysAllowFollowupQuestions,
 		setAlwaysAllowUpdateTodoList,
+		setAlwaysAllowDeploySfMetadata,
 	} = useExtensionState()
 
 	const { t } = useAppTranslation()
@@ -84,9 +85,11 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 				case "alwaysAllowUpdateTodoList":
 					setAlwaysAllowUpdateTodoList(value)
 					break
+				case "alwaysAllowDeploySfMetadata":
+					setAlwaysAllowDeploySfMetadata(value)
+					break
 			}
 
-			// Check if we need to update the master auto-approval state
 			// Create a new toggles state with the updated value
 			const updatedToggles = {
 				...toggles,
@@ -119,6 +122,7 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 			setAlwaysApproveResubmit,
 			setAlwaysAllowFollowupQuestions,
 			setAlwaysAllowUpdateTodoList,
+			setAlwaysAllowDeploySfMetadata,
 			setAutoApprovalEnabled,
 		],
 	)

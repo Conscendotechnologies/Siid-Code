@@ -931,6 +931,60 @@ export const ChatRowContent = ({
 						</div>
 					</>
 				)
+			case "deploySfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-upload")}
+							<span style={{ fontWeight: "bold" }}>
+								Deploy Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
+					</>
+				)
+			case "retrieveSfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-download")}
+							<span style={{ fontWeight: "bold" }}>
+								Retrieve Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
+					</>
+				)
 			default:
 				return null
 		}

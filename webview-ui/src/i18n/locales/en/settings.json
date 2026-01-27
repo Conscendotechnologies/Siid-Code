@@ -190,6 +190,10 @@
 			"label": "Todo",
 			"description": "Automatically update the to-do list without requiring approval"
 		},
+		"deploySfMetadata": {
+			"label": "Deploy Salesforce Metadata",
+			"description": "Automatically deploy Salesforce metadata to orgs without requiring approval (dry-run validation still runs)"
+		},
 		"apiRequestLimit": {
 			"title": "Max Requests",
 			"description": "Automatically make this many API requests before asking for approval to continue with the task.",

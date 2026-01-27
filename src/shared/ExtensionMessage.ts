@@ -226,7 +226,9 @@ export type ExtensionState = Pick<
 	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowExecute"
+	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
+	| "alwaysAllowDeploySfMetadata"
 	| "allowedCommands"
 	| "deniedCommands"
 	| "allowedMaxRequests"
@@ -352,9 +354,15 @@ export interface ClineSayTool {
 		| "finishTask"
 		| "searchAndReplace"
 		| "insertContent"
+		| "deploySfMetadata"
+		| "retrieveSfMetadata"
 	path?: string
 	diff?: string
 	content?: string
+	metadataType?: string
+	metadataName?: string
+	testLevel?: string
+	sourceDir?: string
 	regex?: string
 	filePattern?: string
 	mode?: string

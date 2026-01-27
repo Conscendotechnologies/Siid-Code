@@ -16,6 +16,7 @@ type AutoApproveToggles = Pick<
 	| "alwaysAllowExecute"
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
+	| "alwaysAllowDeploySfMetadata"
 >
 
 export type AutoApproveSetting = keyof AutoApproveToggles
@@ -98,6 +99,13 @@ export const autoApproveSettingsConfig: Record<AutoApproveSetting, AutoApproveCo
 		descriptionKey: "settings:autoApprove.updateTodoList.description",
 		icon: "checklist",
 		testId: "always-allow-update-todo-list-toggle",
+	},
+	alwaysAllowDeploySfMetadata: {
+		key: "alwaysAllowDeploySfMetadata",
+		labelKey: "settings:autoApprove.deploySfMetadata.label",
+		descriptionKey: "settings:autoApprove.deploySfMetadata.description",
+		icon: "cloud-upload",
+		testId: "always-allow-deploy-sf-metadata-toggle",
 	},
 }
 
