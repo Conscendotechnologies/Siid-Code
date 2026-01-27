@@ -418,23 +418,23 @@ force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
 		"subject": {
 			"title": "Case Subject",
 			"description": "Brief summary of the issue",
-			"lightning:type": "lightning_textType",
+			"lightning:type": "lightning__textType",
 			"lightning:isPII": false,
 			"copilotAction:isUserInput": true
 		},
 		"description": {
 			"title": "Case Description",
 			"description": "Detailed description of the issue",
-			"lightning:type": "lightning_textType",
+			"lightning:type": "lightning__textType",
 			"lightning:isPII": false,
 			"copilotAction:isUserInput": true
 		}
 	},
-	"lightning:type": "lightning_objectType"
+	"lightning:type": "lightning__objectType"
 }
 ```
 
-**File: `output/schema`** (no extension):
+**File: `output/schema.json`**:
 
 ```json
 {
@@ -443,15 +443,15 @@ force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
 		"caseId": {
 			"title": "Case ID",
 			"description": "ID of the created case",
-			"lightning:type": "lightning_textType"
+			"lightning:type": "lightning__textType"
 		},
 		"caseNumber": {
 			"title": "Case Number",
 			"description": "Case number for reference",
-			"lightning:type": "lightning_textType"
+			"lightning:type": "lightning__textType"
 		}
 	},
-	"lightning:type": "lightning_objectType"
+	"lightning:type": "lightning__objectType"
 }
 ```
 

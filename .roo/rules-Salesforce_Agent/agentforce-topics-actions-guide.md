@@ -151,9 +151,9 @@ genAiPlannerBundles/
 - Contains the definition of input parameters
 - Must match the `@InvocableVariable` input parameters in your Apex class
 
-**2. Output Schema (`output/schema` file):**
+**2. Output Schema (`output/schema.json` file):**
 
-- Physical JSON file located at: `localActions/Topic_Name/Action_Name/output/schema`
+- Physical JSON file located at: `localActions/Topic_Name/Action_Name/output/schema.json`
 - Contains the definition of output/return values
 - Must match the `@InvocableVariable` output parameters in your Apex class
 
@@ -183,7 +183,7 @@ genAiPlannerBundles/
 }
 ```
 
-**Output Schema File Structure (`output/schema`):**
+**Output Schema File Structure (`output/schema.json`):**
 
 ```json
 {
@@ -235,8 +235,22 @@ genAiPlannerBundles/
 
     **EVERY lightning type requires double underscore:**
 
-    - ❌ WRONG: `lightning_textType`, `lightning_booleanType`, `lightning_numberType`, `lightning_dateType`, `lightning_dateTimeType`, `lightning_recordIdType`, `lightning_objectType`
-    - ✅ CORRECT: `lightning__textType`, `lightning__booleanType`, `lightning__numberType`, `lightning__dateType`, `lightning__dateTimeType`, `lightning__recordIdType`, `lightning__objectType`
+    - ❌ WRONG: `lightning_textType`, `lightning_integerType`, `lightning_numberType`, `lightning_booleanType`, `lightning_dateType`, `lightning_dateTimeStringType`, `lightning_timeType`, `lightning_objectType`
+    - ✅ CORRECT: `lightning__textType`, `lightning__integerType`, `lightning__numberType`, `lightning__booleanType`, `lightning__dateType`, `lightning__dateTimeStringType`, `lightning__timeType`, `lightning__objectType`
+
+    **ONLY these 7 property-level types are supported:**
+
+    - `lightning__textType`
+    - `lightning__integerType`
+    - `lightning__numberType`
+    - `lightning__booleanType`
+    - `lightning__dateType`
+    - `lightning__dateTimeStringType`
+    - `lightning__timeType`
+
+    **Plus root-level type:**
+
+    - `lightning__objectType` (ONLY for root-level schema type)
 
     **Rule applies to:**
 
@@ -313,16 +327,7 @@ public class ApexClassName {
 
 ⚠️ **WARNING**: Single underscore will NOT produce clear errors! Always use double underscore for ALL lightning types.
 
-| Apex Type                      | Lightning Schema Type ✅                   |
-| ------------------------------ | ------------------------------------------ |
-| `String`                       | `lightning__textType`                      |
-| `Boolean`                      | `lightning__booleanType`                   |
-| `Integer`, `Decimal`, `Double` | `lightning__numberType`                    |
-| `Date`                         | `lightning__dateType`                      |
-| `DateTime`                     | `lightning__dateTimeType`                  |
-| `List<String>`                 | `lightning__textType` (with array wrapper) |
-| `Id` (Record ID)               | `lightning__recordIdType`                  |
-| Custom Object                  | `lightning__objectType`                    |
+**STRICTLY SUPPORTED LIGHTNING TYPES ONLY:**
 
 ---
 
@@ -499,6 +504,30 @@ When implementing the action, check the subtask properties:
 ---
 
 **Remember:** This rule applies to **EVERY** lightning type in your schemas, not just the ones shown above.
+The following are the **ONLY** supported `lightning:type` values. Do not use any other types:
+
+| Apex Type              | Lightning Schema Type ✅        | Notes                              |
+| ---------------------- | ------------------------------- | ---------------------------------- |
+| `String`               | `lightning__textType`           | For text/string values             |
+| `Integer`              | `lightning__integerType`        | For whole numbers only             |
+| `Decimal`, `Double`    | `lightning__numberType`         | For decimal/floating-point numbers |
+| `Boolean`              | `lightning__booleanType`        | For true/false values              |
+| `Date`                 | `lightning__dateType`           | For date values (no time)          |
+| `DateTime`, `String`\* | `lightning__dateTimeStringType` | For date-time as string format     |
+| `Time`                 | `lightning__timeType`           | For time values                    |
+| Custom Object (root)   | `lightning__objectType`         | For root-level schema type only    |
+
+**IMPORTANT NOTES:**
+
+1. **`lightning__objectType`** is ONLY used as the root-level `"lightning:type"` for action schemas
+2. **Do NOT use:**
+    - ❌ `lightning__recordIdType` (not supported)
+    - ❌ `lightning__dateTimeType` (use `lightning__dateTimeStringType` instead)
+    - ❌ Any other lightning type not listed above
+3. **`lightning__integerType`** must be used for whole numbers (not `lightning__numberType`)
+4. **`lightning__numberType`** is only for decimal/floating-point values
+
+**Remember:** This rule applies to **EVERY** lightning type in your schemas - use ONLY the 7 supported types listed above.
 
 **❌ WRONG:** `"lightning:type": "lightning_textType"` (single underscore - no clear error!)
 **✅ CORRECT:** `"lightning:type": "lightning__textType"` (double underscore)
@@ -518,7 +547,7 @@ When implementing the action, check the subtask properties:
     - Set `"copilotAction:isUserInput": false` (or true if user provides directly)
 6. Set root `"lightning:type": "lightning__objectType"` (⚠️ **double underscore**)
 
-**Step 4:** Create `output/schema` file from `@InvocableVariable` output parameters
+**Step 4:** Create `output/schema.json` file from `@InvocableVariable` output parameters
 
 1. Create folder structure: `localActions/Topic_Name/Action_Name/output/`
 2. Create file named `schema` (no extension) with JSON content
