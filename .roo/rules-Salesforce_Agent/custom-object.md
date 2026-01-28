@@ -4,6 +4,12 @@
 
 This mode assists the AI model in creating Salesforce objects by generating the necessary XML files in the objects directory. It ensures that object names follow Salesforce conventions. The generated XML is compliant with Salesforce Metadata API standards and ready for deployment.
 
+**IMPORTANT: This workflow supports MULTIPLE OBJECTS AND FIELDS**
+
+- If user requests creation of 3 objects with 3 fields each, this workflow handles all 9 field creations
+- ALL steps (creation, dry run, deployment, tabs, permissions, page layout) are executed for EACH object and EACH field
+- This is a COMPLETE end-to-end workflow that ensures all objects and fields are fully configured
+
 **Instructions(IMPORTANT!!)**
 
 # Strict Rules for Salesforce Object Creation
@@ -78,29 +84,29 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 
 - Ensure the tab file name and the object API name match the custom object. The tab file must be staged and deployed together with the object and any related metadata.
 
-## System Administrator Profile Tab Permission Assignment (!!IMPORTANT - MANDATORY)
+## Admin Profile Tab Permission Assignment (!!IMPORTANT - MANDATORY)
 
-- **After creating the tab, MUST assign permission to System Administrator profile with default settings**
-- Fetch or locate the System Administrator profile file at:
-  `force-app/main/default/profiles/System Administrator.profile-meta.xml`
+- **After creating the tab, MUST assign permission to Admin profile with default settings**
+- Retrieve the Admin profile using `<retrieve_sf_metadata>` tool with:
+    - metadata_type: "Profile"
+    - metadata_name: "Admin"
+- File location: `force-app/main/default/profiles/Admin.profile-meta.xml`
 - Add tab visibility permission with **default settings** (MANDATORY):
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<Profile xmlns="http://soap.sforce.com/2006/04/metadata">
-    <tabVisibilities>
-        <tab><ObjectApiName></tab>
-        <visibility>DefaultOn</visibility>
-    </tabVisibilities>
-</Profile>
+<tabVisibilities>
+  <tab>{ObjectApiName}</tab>
+  <visibility>DefaultOn</visibility>
+</tabVisibilities>
 ```
 
 **Important:**
 
 - **visibility MUST be set to `DefaultOn`** (mandatory default setting)
-- This makes the tab visible by default for System Admin
+- This makes the tab visible by default for Admin users
 - Tab API name must match the tab's fullName (e.g., Invoice\_\_c)
 - Profile must be deployed together with the tab for complete setup
+- Profile metadata name is exactly: "Admin"
 
 ## Dry Run and deployment for objects(Mandatory)
 
