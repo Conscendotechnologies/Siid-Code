@@ -1659,6 +1659,7 @@ export class ClineProvider
 			fuzzyMatchThreshold,
 			mcpEnabled,
 			enableMcpServerCreation,
+			enablePmdRules,
 			alwaysApproveResubmit,
 			requestDelaySeconds,
 			currentApiConfigName,
@@ -1769,6 +1770,7 @@ export class ClineProvider
 			fuzzyMatchThreshold: fuzzyMatchThreshold ?? 1.0,
 			mcpEnabled: mcpEnabled ?? true,
 			enableMcpServerCreation: enableMcpServerCreation ?? true,
+			enablePmdRules: enablePmdRules ?? true,
 			alwaysApproveResubmit: alwaysApproveResubmit ?? false,
 			requestDelaySeconds: requestDelaySeconds ?? 10,
 			currentApiConfigName: currentApiConfigName ?? "default",
@@ -1987,6 +1989,7 @@ export class ClineProvider
 			language: stateValues.language ?? formatLanguage(vscode.env.language),
 			mcpEnabled: stateValues.mcpEnabled ?? true,
 			enableMcpServerCreation: stateValues.enableMcpServerCreation ?? true,
+			enablePmdRules: stateValues.enablePmdRules ?? true,
 			alwaysApproveResubmit: stateValues.alwaysApproveResubmit ?? false,
 			requestDelaySeconds: Math.max(0, stateValues.requestDelaySeconds ?? 2), // Reduced to 2s default, 0s minimum for maximum speed
 			currentApiConfigName: stateValues.currentApiConfigName ?? "default",

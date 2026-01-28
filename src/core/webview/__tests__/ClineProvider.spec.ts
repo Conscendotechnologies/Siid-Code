@@ -524,6 +524,7 @@ describe("ClineProvider", () => {
 			fuzzyMatchThreshold: 1.0,
 			mcpEnabled: true,
 			enableMcpServerCreation: false,
+			enablePmdRules: true,
 			requestDelaySeconds: 5,
 			mode: defaultModeSlug,
 			customModes: [],
@@ -1332,6 +1333,7 @@ describe("ClineProvider", () => {
 				},
 				mcpEnabled: true,
 				enableMcpServerCreation: false,
+				enablePmdRules: true,
 				mode: "code" as const,
 				experiments: experimentDefault,
 			} as any)
@@ -1357,6 +1359,7 @@ describe("ClineProvider", () => {
 				},
 				mcpEnabled: false,
 				enableMcpServerCreation: false,
+				enablePmdRules: true,
 				mode: "code" as const,
 				experiments: experimentDefault,
 			} as any)
@@ -1425,6 +1428,7 @@ describe("ClineProvider", () => {
 				customModePrompts: {},
 				mode: "code",
 				enableMcpServerCreation: true,
+				enablePmdRules: true,
 				mcpEnabled: false,
 				browserViewportSize: "900x600",
 				diffEnabled: true,
@@ -1459,6 +1463,7 @@ describe("ClineProvider", () => {
 				customModePrompts: {},
 				mode: "code",
 				mcpEnabled: false,
+				enablePmdRules: true,
 				browserViewportSize: "900x600",
 				diffEnabled: false,
 				fuzzyMatchThreshold: 0.8,
@@ -1495,6 +1500,7 @@ describe("ClineProvider", () => {
 				mode: "architect",
 				enableMcpServerCreation: false,
 				mcpEnabled: false,
+				enablePmdRules: true,
 				browserViewportSize: "900x600",
 				experiments: experimentDefault,
 			} as any)

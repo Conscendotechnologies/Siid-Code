@@ -1117,6 +1117,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("enableMcpServerCreation", message.bool ?? true)
 			await provider.postStateToWebview()
 			break
+		case "enablePmdRules":
+			await updateGlobalState("enablePmdRules", message.bool ?? true)
+			await provider.postStateToWebview()
+			break
 		case "refreshAllMcpServers": {
 			const mcpHub = provider.getMcpHub()
 			if (mcpHub) {
