@@ -121,5 +121,39 @@ Example: Retrieve a Sales Path
 Example: List all Sales Paths
 <retrieve_sf_metadata>
 <metadata_type>PathAssistant</metadata_type>
+</retrieve_sf_metadata>
+
+Example: Retrieve all Visualforce pages (MANDATORY before creating new pages)
+<retrieve_sf_metadata>
+<metadata_type>ApexPage</metadata_type>
+</retrieve_sf_metadata>
+
+Example: Retrieve a specific Visualforce page
+<retrieve_sf_metadata>
+<metadata_type>ApexPage</metadata_type>
+<metadata_name>ContactForm</metadata_name>
+</retrieve_sf_metadata>
+
+Example: Retrieve a specific Apex controller for a Visualforce page (ONLY if needed)
+<retrieve_sf_metadata>
+<metadata_type>ApexClass</metadata_type>
+<metadata_name>ContactController</metadata_name>
+</retrieve_sf_metadata>
+
+Example: Retrieve a specific Visualforce component
+<retrieve_sf_metadata>
+<metadata_type>ApexComponent</metadata_type>
+<metadata_name>MyCustomComponent</metadata_name>
+</retrieve_sf_metadata>
+
+Example: Retrieve all Aura components (MANDATORY before creating new Aura components)
+<retrieve_sf_metadata>
+<metadata_type>AuraDefinitionBundle</metadata_type>
+</retrieve_sf_metadata>
+
+Example: Retrieve a specific Aura component
+<retrieve_sf_metadata>
+<metadata_type>AuraDefinitionBundle</metadata_type>
+<metadata_name>contactForm</metadata_name>
 </retrieve_sf_metadata>`
 }
