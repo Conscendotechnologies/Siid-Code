@@ -325,6 +325,8 @@ description        (String, optional)
 
 **Before Deployment:**
 
+**Apex Class:**
+
 - [ ] Used EXACT field names (check casing!)
 - [ ] ALL fields have `@InvocableVariable`
 - [ ] List initialized before populating
@@ -333,6 +335,24 @@ description        (String, optional)
 - [ ] Never return null lists/responses
 - [ ] Image URLs are publicly accessible
 - [ ] URLs have file extensions (.jpg, .png) OR mimeType specified
+
+**🚨 Schema Files (CRITICAL - see base guide for details):**
+
+**Input Schema - EVERY property MUST have:**
+
+- [ ] `lightning:isPII` (boolean)
+- [ ] `copilotAction:isUserInput` (boolean)
+
+**Output Schema - EVERY property MUST have:**
+
+- [ ] `lightning:isPII` (boolean)
+- [ ] `copilotAction:isDisplayable` (boolean)
+- [ ] `copilotAction:isUsedByPlanner` (boolean)
+- [ ] `copilotAction:useHydratedPrompt` (boolean)
+
+**⚠️ Missing schema properties = silent deployment failure!**
+
+Refer to `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md` for complete schema requirements.
 
 ---
 

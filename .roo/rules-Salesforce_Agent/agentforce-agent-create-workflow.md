@@ -9,15 +9,14 @@
 ```
 [ ] Collect agent requirements (role, type, company, org)
 [ ] Generate agent specification YAML
-[ ] Create agent in Salesforce org
-[ ] Retrieve created agent files (GenAiPlannerBundle)
-[ ] Review auto-generated structure
+[ ] Create agent in Salesforce org (automatically retrieves GenAiPlannerBundle)
+[ ] Review auto-generated structure in local project
 [ ] Remove AI-generated placeholder topic
 [ ] Create custom local topic with clear instructions (WITHOUT actions yet)
 [ ] Delegate Apex action creation to Code mode (if needed)
-[ ] WAIT for Code mode to create AND deploy Apex
+[ ] WAIT for Code mode to create AND deploy Apex (verify deployment, do NOT retrieve)
 [ ] AFTER Apex deployed: Create local action in topic with invocationTarget
-[ ] Create schema files (input/output) for action
+[ ] Create schema files (input/output) for action - VERIFY ALL REQUIRED PROPERTIES
 [ ] Link action to topic with localActionLinks
 [ ] Link topic to agent with localTopicLinks
 [ ] Deploy customized agent to org
@@ -70,6 +69,14 @@ Run command:
 ```bash
 sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
 ```
+
+**⚠️ IMPORTANT:** This command automatically:
+
+1. Creates the agent in the Salesforce org
+2. **Retrieves the GenAiPlannerBundle files to your local project** (NO separate retrieve step needed!)
+3. Downloads all auto-generated files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
+
+After this command completes, check your `force-app/main/default/genAiPlannerBundles/` folder - the agent files are already there.
 
 ### Step 5: Customize Agent Files
 
@@ -141,10 +148,16 @@ When creating subtask for Code mode, include the decision:
 
 1. **FIRST:** Delegate to Code mode to create Apex action (with `useAdaptiveResponse` property)
 2. **SECOND:** Wait for Code mode to complete AND deploy the Apex class
-3. **THIRD:** ONLY AFTER Apex is deployed, add the local action XML that references it
-4. **FOURTH:** Deploy the GenAiPlannerBundle with the action reference
+3. **THIRD:** **VERIFY deployment success** (do NOT retrieve - just check `sf project deploy report`)
+4. **FOURTH:** ONLY AFTER Apex is deployed and verified, add the local action XML that references it
+5. **FIFTH:** Deploy the GenAiPlannerBundle with the action reference
 
 **DO NOT add `<localActions>` XML before Apex exists and is deployed!**
+
+**⚠️ VERIFICATION vs RETRIEVAL:**
+
+- ✅ **VERIFY:** Use `sf project deploy report --job-id <id>` to confirm deployment succeeded
+- ❌ **DON'T RETRIEVE:** Do NOT run `sf project retrieve` after deploying - just verify status
 
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
 - **Must delegate to Code mode** for any Apex action creation
@@ -436,6 +449,8 @@ force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
 
 **File: `output/schema.json`**:
 
+⚠️ **CRITICAL: Every output property MUST have ALL required fields!**
+
 ```json
 {
 	"unevaluatedProperties": false,
@@ -443,17 +458,27 @@ force-app/main/default/genAiPlannerBundles/Your_Agent_Name/
 		"caseId": {
 			"title": "Case ID",
 			"description": "ID of the created case",
-			"lightning:type": "lightning__textType"
+			"lightning:type": "lightning__textType",
+			"lightning:isPII": false,
+			"copilotAction:isDisplayable": true,
+			"copilotAction:isUsedByPlanner": true,
+			"copilotAction:useHydratedPrompt": false
 		},
 		"caseNumber": {
 			"title": "Case Number",
 			"description": "Case number for reference",
-			"lightning:type": "lightning__textType"
+			"lightning:type": "lightning__textType",
+			"lightning:isPII": false,
+			"copilotAction:isDisplayable": true,
+			"copilotAction:isUsedByPlanner": true,
+			"copilotAction:useHydratedPrompt": false
 		}
 	},
 	"lightning:type": "lightning__objectType"
 }
 ```
+
+**🚨 Missing any of these properties will cause silent deployment failures!**
 
 ---
 

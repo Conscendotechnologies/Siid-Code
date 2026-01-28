@@ -282,22 +282,28 @@ sf project deploy start --source-dir force-app/main/default/classes
 
 ### Step 4: Verify Deployment
 
-After successful deployment:
+After successful deployment, **VERIFY** the deployment status (do NOT retrieve):
 
 ```bash
-# Check deployment status
+# Check deployment status - DO NOT RETRIEVE
 sf project deploy report --job-id <deploy-id>
 ```
 
 **Replace `<deploy-id>` with the deployment ID from the deploy command output**
 
+**⚠️ IMPORTANT: VERIFY, DON'T RETRIEVE**
+
+- ✅ **DO:** Check deployment status with `sf project deploy report`
+- ✅ **DO:** Confirm the deploy completed successfully (Status: Succeeded)
+- ❌ **DON'T:** Run `sf project retrieve` after deploying - unnecessary and wastes time
+- ❌ **DON'T:** Re-download files that you just deployed
+
 **Post-deployment verification:**
 
-1. ✅ Verify action appears in Agentforce UI
-2. ✅ Test the action in flow builder
-3. ✅ Confirm invocable method is callable
-4. ✅ Check all input/output variables are exposed correctly
-5. ✅ Document any known issues or limitations
+1. ✅ Confirm deploy status shows "Succeeded"
+2. ✅ Verify no errors in deployment output
+3. ✅ Check test coverage meets 75% threshold
+4. ✅ Report back to orchestrator/parent task that deployment is complete
 
 ---
 

@@ -34,7 +34,6 @@ import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
 import { retrieveSfMetadataTool } from "../tools/retrieveSfMetadataTool"
-import { deploySfMetadataTool } from "../tools/sfDeployMetadataTool"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -217,8 +216,8 @@ export async function presentAssistantMessage(cline: Task) {
 					}
 					case "retrieve_sf_metadata":
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
-					case "sf_deploy_metadata":
-						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : ""}]`
+					default:
+						return `[${block.name}]`
 				}
 			}
 
@@ -380,29 +379,12 @@ export async function presentAssistantMessage(cline: Task) {
 				const repetitionCheck = cline.toolRepetitionDetector.check(block)
 
 				// If execution is not allowed, notify user and break.
-				if (!repetitionCheck.allowExecution && repetitionCheck.askUser) {
-					// Handle repetition similar to mistake_limit_reached pattern.
-					const { response, text, images } = await cline.ask(
-						repetitionCheck.askUser.messageKey as ClineAsk,
-						repetitionCheck.askUser.messageDetail.replace("{toolName}", block.name),
-					)
-
-					if (response === "messageResponse") {
-						// Add user feedback to userContent.
-						cline.userMessageContent.push(
-							{
-								type: "text" as const,
-								text: `Tool repetition limit reached. User feedback: ${text}`,
-							},
-							...formatResponse.imageBlocks(images),
-						)
-
-						// Add user feedback to chat.
-						await cline.say("user_feedback", text, images)
-
-						// Track tool repetition in telemetry.
-						TelemetryService.instance.captureConsecutiveMistakeError(cline.taskId)
-					}
+				if (!repetitionCheck.allowExecution && repetitionCheck.agentHint) {
+					// Add user feedback to userContent.
+					cline.userMessageContent.push({
+						type: "text" as const,
+						text: `Tool repetition limit reached. Hint: repetitionCheck.agentHint`,
+					})
 
 					// Return tool result message about the repetition
 					pushToolResult(
@@ -541,9 +523,6 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
-					break
-				case "sf_deploy_metadata":
-					await deploySfMetadataTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 			}
 

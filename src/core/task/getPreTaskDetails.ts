@@ -9,30 +9,59 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		preTask += `\n\n**IMPORTANT: Before proceeding with any task, you MUST use the 'fetch_instructions' tool to read the relevant instructions.**\n\n`
 		preTask += `Do NOT attempt to read instruction files directly. Always use the fetch_instructions tool.\n\n`
 
-		// Enforce Todo Workflow
+		// Enforce Orchestrator Planning Workflow
 		preTask += `---\n\n`
-		preTask += `### Required Todo Workflow\n`
-		preTask += `You MUST create and maintain a todo list for every non-trivial task before using any other tools. Use the 'update_todo_list' tool to create or update the checklist. Keep steps small to avoid losing context.\n\n`
-		preTask += `#### How to create/update the todo list\n`
+		preTask += `### Required Orchestrator Planning Workflow\n\n`
+		preTask += `For multi-phase tasks, you MUST follow this planning protocol:\n\n`
+
+		preTask += `#### Step 1: Create Planning File\n`
+		preTask += `Create a planning file at \`.siid-code/planning/[descriptive-name]-plan.md\` with:\n`
+		preTask += `**Use meaningful names** (e.g., \`invoice-trigger-plan.md\`, \`case-automation-plan.md\`) - NOT timestamps!\n`
+		preTask += `- Original user request\n`
+		preTask += `- Components identified with mode assignments\n`
+		preTask += `- Phase plan with deliverables\n`
+		preTask += `- Execution log for tracking\n`
+		preTask += `**Note:** Planning files are shown in environment_details and auto-deleted on task completion.\n\n`
+
+		preTask += `#### Step 2: Create Phase-Based Todo List\n`
+		preTask += `Use 'update_todo_list' with DYNAMIC phases based on task analysis:\n\n`
 		preTask += `<update_todo_list>\n`
 		preTask += `<todos>\n`
-		preTask += `[ ] Capture task requirements\n`
-		preTask += `[ ] Locate relevant code areas\n`
-		preTask += `[ ] Break task into subtasks (identify phases)\n`
-		preTask += `[ ] Define assumptions & risks\n`
-		preTask += `[ ] Plan tool batches\n`
-		preTask += `[ ] Delegate Phase 1 (MUST call runSubagent/fetch_instructions before marking complete)\n`
-		preTask += `[ ] Review Phase 1 results (read created files/outputs, verify work done)\n`
-		preTask += `[ ] Delegate Phase 2 (MUST call runSubagent/fetch_instructions before marking complete)\n`
-		preTask += `[ ] Review Phase 2 results (read created files/outputs, verify work done)\n`
-		preTask += `[ ] Continue phases as needed...\n`
-		preTask += `[ ] Finalize & summarize\n`
+		preTask += `[ ] Phase 1/N: [Description] ([mode-name])\n`
+		preTask += `[ ] Phase 2/N: [Description] ([mode-name])\n`
+		preTask += `[ ] Phase 3/N: [Description] ([mode-name])\n`
+		preTask += `...additional phases as needed...\n`
 		preTask += `</todos>\n`
 		preTask += `</update_todo_list>\n\n`
-		preTask += `Status legend: [ ] pending, [-] in_progress, [x] completed. Update statuses as you progress.\n\n`
-		preTask += `**CRITICAL:** Only mark a delegation step [x] complete AFTER you have actually called the required tool (runSubagent/fetch_instructions) AND received results. Do NOT mark complete based on planning or intention alone.\n\n`
-		preTask += `**SEQUENTIAL WORKFLOW:** Work through todos IN ORDER from top to bottom. Do NOT skip tasks - complete or explicitly address each todo before moving to the next. Only ONE task should be [-] in_progress at a time. If you need to work on a later task first, reorder the list.\n\n`
-		preTask += `The checklist must be updated at each step and summarized at the end. If a failure occurs, add a brief note and retry up to three targeted fixes before escalating.\n\n`
+
+		preTask += `**Status legend:** [ ] pending, [-] in_progress, [x] completed\n\n`
+
+		preTask += `#### Step 3: Execute & Validate Each Phase\n`
+		preTask += `For each phase:\n`
+		preTask += `1. Delegate to appropriate mode (salesforce-agent or code)\n`
+		preTask += `2. Mode reports status: SUCCESS | PARTIAL | FAILED\n`
+		preTask += `3. Validate deliverables before proceeding\n`
+		preTask += `4. If FAILED: Re-delegate with error context (max 2 retries)\n`
+		preTask += `5. Update planning file and todo list\n\n`
+
+		preTask += `#### Step 4: Final Summary\n`
+		preTask += `After all phases complete:\n`
+		preTask += `- Update planning file with final status\n`
+		preTask += `- Provide summary of all deliverables\n`
+		preTask += `- Mark all todos complete\n\n`
+
+		preTask += `**CRITICAL RULES:**\n`
+		preTask += `- ALWAYS create planning file BEFORE any delegation\n`
+		preTask += `- ALWAYS validate phase status before next phase\n`
+		preTask += `- ALWAYS re-delegate with error context if issues found\n`
+		preTask += `- NEVER exceed 2 retries without user input\n`
+		preTask += `- ONE task [-] in_progress at a time\n\n`
+
+		preTask += `---\n\n`
+		preTask += `### Mode Selection Guide\n\n`
+		preTask += `**salesforce-agent mode:** Objects, fields, profiles, flows, Agentforce agents, admin work\n`
+		preTask += `**code mode:** Apex, LWC, triggers, test classes, development work\n\n`
+
 		preTask += `---\n\n`
 		preTask += `Available instruction tasks:\n`
 		preTask += `\n**General Instructions:**\n`

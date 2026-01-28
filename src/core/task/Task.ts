@@ -413,6 +413,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	/**
 	 * Ensure the task's todo list is restored from messages or seeded with a default checklist.
 	 * This provides a simple, non-intrusive enforcement: the checklist always exists.
+	 *
+	 * For orchestrator mode: Uses phase-based planning workflow
+	 * For other modes: Uses standard task workflow
 	 */
 	private ensureTodoListInitialized(): void {
 		try {
@@ -420,18 +423,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			restoreTodoListForTask(this)
 			const hasTodos = Array.isArray(this.todoList) && this.todoList.length > 0
 			if (!hasTodos) {
-				// Seed with the default minimal workflow checklist.
+				// Seed with a starter checklist that encourages proper planning
+				// The orchestrator will replace this with dynamic phase-based todos
 				const defaultMd = [
-					"[ ] Capture task requirements",
-					"[ ] Locate relevant code areas",
-					"[ ] Break task into subtasks",
-					"[ ] Define assumptions & risks",
-					"[ ] Plan tool batches",
-					"[ ] Execute first subtask",
-					"[ ] Run build/lint/tests",
-					"[ ] Iterate on errors",
-					"[ ] Execute remaining subtasks",
-					"[ ] Finalize & summarize",
+					"[ ] Analyze request & identify components",
+					"[ ] Create planning file (.siid-code/planning/)",
+					"[ ] Define phases with mode assignments",
+					"[ ] Execute phases sequentially",
+					"[ ] Validate & finalize",
 				].join("\n")
 				// Use the same parser as the updateTodoListTool via its interface by reusing setTodoListForTask with parsed items.
 				// Minimal parsing: mirror updateTodoListTool's parser by synthesizing ids and pending status.

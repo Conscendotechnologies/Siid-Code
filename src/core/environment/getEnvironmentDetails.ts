@@ -1,5 +1,6 @@
 import path from "path"
 import os from "os"
+import fs from "fs/promises"
 
 import * as vscode from "vscode"
 import pWaitFor from "p-wait-for"
@@ -249,6 +250,31 @@ export async function getEnvironmentDetails(
 		if (modeDetails.customInstructions) {
 			details += `<custom_instructions>${modeDetails.customInstructions}</custom_instructions>\n`
 		}
+	}
+
+	// Add active planning files reference section
+	const planningDir = path.join(cline.cwd, ".siid-code", "planning")
+	try {
+		const planningDirExists = await fs
+			.access(planningDir)
+			.then(() => true)
+			.catch(() => false)
+		if (planningDirExists) {
+			const planningFiles = await fs.readdir(planningDir)
+			const mdFiles = planningFiles.filter((f) => f.endsWith("-plan.md"))
+
+			if (mdFiles.length > 0) {
+				details += `\n\n# Active Planning Files`
+				details += `\n**IMPORTANT:** Read and maintain these planning files during multi-phase tasks.`
+				details += `\n**Location:** \`.siid-code/planning/\``
+				for (const file of mdFiles) {
+					details += `\n- \`${file}\` - Read with read_file tool when needed`
+				}
+				details += `\n\n**Note:** Update the relevant planning file after each phase completion using write_to_file tool.`
+			}
+		}
+	} catch {
+		// Planning directory doesn't exist or can't be read - that's fine
 	}
 
 	if (includeFileDetails) {

@@ -130,6 +130,65 @@ The following fields **MUST use the exact same name** (e.g., `Action_Name`):
 
 #### Input and Output Schema Files
 
+## 🚨🚨🚨 CRITICAL: REQUIRED SCHEMA PROPERTIES - DEPLOYMENT WILL FAIL WITHOUT THESE! 🚨🚨🚨
+
+**⚠️ EVERY SINGLE PROPERTY in your schema MUST have these fields or deployment will fail silently!**
+
+### Input Schema - REQUIRED Properties for EVERY Field:
+
+```json
+{
+	"fieldName": {
+		"title": "...",
+		"description": "...",
+		"lightning:type": "lightning__textType",
+		"lightning:isPII": false, // ⚠️ REQUIRED - always include!
+		"copilotAction:isUserInput": false // ⚠️ REQUIRED - always include!
+	}
+}
+```
+
+### Output Schema - REQUIRED Properties for EVERY Field:
+
+```json
+{
+	"fieldName": {
+		"title": "...",
+		"description": "...",
+		"lightning:type": "lightning__textType",
+		"lightning:isPII": false, // ⚠️ REQUIRED - always include!
+		"copilotAction:isDisplayable": false, // ⚠️ REQUIRED - always include!
+		"copilotAction:isUsedByPlanner": true, // ⚠️ REQUIRED - always include!
+		"copilotAction:useHydratedPrompt": false // ⚠️ REQUIRED - always include!
+	}
+}
+```
+
+### ❌ WHAT HAPPENS IF YOU MISS THESE:
+
+- Agent will deploy BUT actions will NOT work
+- No clear error messages - silent failure
+- Agent won't be able to call the action properly
+- Debugging is extremely difficult
+
+### ✅ SCHEMA VALIDATION CHECKLIST (Verify BEFORE Deployment):
+
+**For EVERY Input Property:**
+
+- [ ] Has `lightning:isPII` (boolean)
+- [ ] Has `copilotAction:isUserInput` (boolean)
+
+**For EVERY Output Property:**
+
+- [ ] Has `lightning:isPII` (boolean)
+- [ ] Has `copilotAction:isDisplayable` (boolean)
+- [ ] Has `copilotAction:isUsedByPlanner` (boolean)
+- [ ] Has `copilotAction:useHydratedPrompt` (boolean)
+
+**DO NOT PROCEED WITH DEPLOYMENT until every property has ALL required fields!**
+
+---
+
 For each local action, you must create **separate schema files** in a folder structure:
 
 **Folder Structure:**
