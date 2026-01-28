@@ -251,11 +251,6 @@ describe("ProviderSettingsManager", () => {
 						id: "test-id",
 					},
 				},
-				modeApiConfigs: {
-					code: "default",
-					architect: "default",
-					ask: "default",
-				},
 				migrations: {
 					rateLimitSecondsMigrated: false,
 				},
@@ -274,11 +269,6 @@ describe("ProviderSettingsManager", () => {
 			const emptyConfig: ProviderProfiles = {
 				currentApiConfigName: "default",
 				apiConfigs: {},
-				modeApiConfigs: {
-					code: "default",
-					architect: "default",
-					ask: "default",
-				},
 				migrations: {
 					rateLimitSecondsMigrated: false,
 				},

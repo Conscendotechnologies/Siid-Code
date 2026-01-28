@@ -8,6 +8,7 @@ export const GlobalFileNames = {
 	apexInstructions: "code/apex-guide.md",
 	visualForceInstructions: "code/visual-force.md",
 	auraComponentsInstructions: "code/aura-components.md",
+	invocableapexInstructions: "code/agentforce-apex-guide.md",
 	// Salesforce Agent Instructions
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
@@ -19,4 +20,10 @@ export const GlobalFileNames = {
 	recordTypesInstructions: "Salesforce_Agent/record-types.md",
 	roleCreationInstructions: "Salesforce_Agent/role-creation.md",
 	validationRulesInstructions: "Salesforce_Agent/validation-rules.md",
+	// PMD Rules Instructions
+	pmdApexInstructions: "pmd/PMD_Apex_Rules.md",
+	pmdHtmlInstructions: "pmd/PMD_HTML_Rules.md",
+	pmdJavaScriptInstructions: "pmd/PMD_JavaScript_Rules.md",
+	pmdVisualforceInstructions: "pmd/PMD_Visualforce_Rules.md",
+	pmdXmlInstructions: "pmd/PMD_XML_Rules.md",
 }

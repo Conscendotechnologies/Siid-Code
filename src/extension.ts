@@ -182,6 +182,60 @@ export async function activate(context: vscode.ExtensionContext) {
 	)
 	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
 
+	// Load initial provider config into contextProxy (run in background, don't block activation)
+	Promise.resolve().then(async () => {
+		const initialConfigStart = Date.now()
+		try {
+			// Wait for ProviderSettingsManager to finish initializing (started in constructor)
+			// Poll until initialization completes (max 5 seconds)
+			let attempts = 0
+			const maxAttempts = 50 // 50 * 100ms = 5 seconds
+			while (attempts < maxAttempts) {
+				try {
+					// Try to load the config - if initialization is done, this will succeed
+					const providerProfiles = await provider.providerSettingsManager.export()
+					const currentProviderName = providerProfiles.currentApiConfigName
+					const currentProvider = providerProfiles.apiConfigs[currentProviderName]
+
+					// Check if we have a valid API key
+					const hasApiKey =
+						currentProvider &&
+						currentProvider.apiProvider === "openrouter" &&
+						currentProvider.openRouterApiKey &&
+						currentProvider.openRouterApiKey.length > 20
+
+					if (currentProvider) {
+						await contextProxy.setValue("currentApiConfigName", currentProviderName)
+						await contextProxy.setProviderSettings(currentProvider)
+						await contextProxy.setValue(
+							"listApiConfigMeta",
+							await provider.providerSettingsManager.listConfig(),
+						)
+						outputChannel.appendLine(
+							`⏱️ Loaded initial provider config '${currentProviderName}' (${currentProvider.apiProvider}, hasApiKey=${hasApiKey}) in ${Date.now() - initialConfigStart}ms`,
+						)
+						break
+					}
+				} catch (error) {
+					// Initialization not complete yet, wait and retry
+				}
+
+				await new Promise((resolve) => setTimeout(resolve, 100))
+				attempts++
+			}
+
+			if (attempts >= maxAttempts) {
+				outputChannel.appendLine(
+					`[InitialConfig] Warning: Timed out waiting for provider config initialization after ${maxAttempts * 100}ms`,
+				)
+			}
+		} catch (error) {
+			outputChannel.appendLine(
+				`[InitialConfig] Error loading initial provider config: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	})
+
 	// Auto-import configuration if specified in settings
 	try {
 		await autoImportSettings(outputChannel, {
