@@ -21,6 +21,7 @@ import {
 	pmdVisualforceInstructions,
 	pmdXmlInstructions,
 } from "./pmd-instructions"
+import { invocableApexInstructions } from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -92,6 +93,9 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
+		// Code Instructions
+		case "invocable_apex": {
+			return await invocableApexInstructions(detail.context)
 		}
 		default: {
 			return ""

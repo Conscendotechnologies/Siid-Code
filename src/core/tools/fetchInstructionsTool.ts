@@ -31,6 +31,8 @@ function getTaskDisplayName(task: string): string {
 		pmd_javascript: "PMD JavaScript Rules Instructions",
 		pmd_visualforce: "PMD Visualforce Rules Instructions",
 		pmd_xml: "PMD XML Rules Instructions",
+		// Invocable Apex Instructions
+		invocable_apex: "Invocable Apex Instructions",
 	}
 
 	return taskNames[task] || task

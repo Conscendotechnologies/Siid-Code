@@ -7,9 +7,29 @@
  */
 export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean, enablePmdRules?: boolean): string {
 	const baseTasks = `  create_mode
+export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean): string {
+	const tasks =
+		enableMcpServerCreation !== false
+			? `  create_mcp_server
+  create_mode
   create_lwc
   create_apex
   assignment_rules
+  invocable_apex
+  custom_field
+  custom_object
+  field_permissions
+  object_permissions
+  path_creation
+  profile
+  record_types
+  role_creation
+  validation_rules`
+			: `  create_mode
+  create_lwc
+  create_apex
+  assignment_rules
+  invocable_apex
   custom_field
   custom_object
   field_permissions

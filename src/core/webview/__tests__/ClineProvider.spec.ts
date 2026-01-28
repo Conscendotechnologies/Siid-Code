@@ -879,37 +879,14 @@ describe("ClineProvider", () => {
 			getModeConfigId: vi.fn().mockResolvedValue("test-id"),
 			listConfig: vi.fn().mockResolvedValue([profile]),
 			activateProfile: vi.fn().mockResolvedValue(profile),
-			setModeConfig: vi.fn(),
 		} as any
 
 		// Switch to architect mode
 		await messageHandler({ type: "mode", text: "architect" })
 
-		// Should load the saved config for architect mode
-		expect(provider.providerSettingsManager.getModeConfigId).toHaveBeenCalledWith("architect")
-		expect(provider.providerSettingsManager.activateProfile).toHaveBeenCalledWith({ name: "test-config" })
-		expect(mockContext.globalState.update).toHaveBeenCalledWith("currentApiConfigName", "test-config")
-	})
-
-	it("saves current config when switching to mode without config", async () => {
-		await provider.resolveWebviewView(mockWebviewView)
-		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as any).mock.calls[0][0]
-
-		;(provider as any).providerSettingsManager = {
-			getModeConfigId: vi.fn().mockResolvedValue(undefined),
-			listConfig: vi
-				.fn()
-				.mockResolvedValue([{ name: "current-config", id: "current-id", apiProvider: "anthropic" }]),
-			setModeConfig: vi.fn(),
-		} as any
-
-		provider.setValue("currentApiConfigName", "current-config")
-
-		// Switch to architect mode
-		await messageHandler({ type: "mode", text: "architect" })
-
-		// Should save current config as default for architect mode
-		expect(provider.providerSettingsManager.setModeConfig).toHaveBeenCalledWith("architect", "current-id")
+		// Note: Mode switching no longer loads per-mode configs
+		// Only model auto-switching happens now
+		expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "architect")
 	})
 
 	it("saves config as default for current mode when loading config", async () => {
@@ -921,8 +898,6 @@ describe("ClineProvider", () => {
 		;(provider as any).providerSettingsManager = {
 			activateProfile: vi.fn().mockResolvedValue(profile),
 			listConfig: vi.fn().mockResolvedValue([profile]),
-			setModeConfig: vi.fn(),
-			getModeConfigId: vi.fn().mockResolvedValue(undefined),
 		} as any
 
 		// First set the mode
@@ -931,8 +906,8 @@ describe("ClineProvider", () => {
 		// Then load the config
 		await messageHandler({ type: "loadApiConfiguration", text: "new-config" })
 
-		// Should save new config as default for architect mode
-		expect(provider.providerSettingsManager.setModeConfig).toHaveBeenCalledWith("architect", "new-id")
+		// Config is loaded and activated
+		expect(provider.providerSettingsManager.activateProfile).toHaveBeenCalledWith({ name: "new-config" })
 	})
 
 	it("load API configuration by ID works and updates mode config", async () => {
@@ -948,8 +923,6 @@ describe("ClineProvider", () => {
 		;(provider as any).providerSettingsManager = {
 			activateProfile: vi.fn().mockResolvedValue(profile),
 			listConfig: vi.fn().mockResolvedValue([profile]),
-			setModeConfig: vi.fn(),
-			getModeConfigId: vi.fn().mockResolvedValue(undefined),
 		} as any
 
 		// First set the mode
@@ -957,9 +930,6 @@ describe("ClineProvider", () => {
 
 		// Then load the config by ID
 		await messageHandler({ type: "loadApiConfigurationById", text: "config-id-123" })
-
-		// Should save new config as default for architect mode
-		expect(provider.providerSettingsManager.setModeConfig).toHaveBeenCalledWith("architect", "config-id-123")
 
 		// Ensure the `activateProfile` method was called with the correct ID
 		expect(provider.providerSettingsManager.activateProfile).toHaveBeenCalledWith({ id: "config-id-123" })
@@ -1149,7 +1119,6 @@ describe("ClineProvider", () => {
 		;(provider as any).providerSettingsManager = {
 			listConfig: vi.fn().mockResolvedValue([{ name: "test-config", id: "test-id", apiProvider: "anthropic" }]),
 			saveConfig: vi.fn().mockResolvedValue("test-id"),
-			setModeConfig: vi.fn(),
 		} as any
 
 		// Update API configuration
@@ -1159,8 +1128,8 @@ describe("ClineProvider", () => {
 			apiConfiguration: { apiProvider: "anthropic" },
 		})
 
-		// Should save config as default for current mode
-		expect(provider.providerSettingsManager.setModeConfig).toHaveBeenCalledWith("code", "test-id")
+		// Config is saved
+		expect(provider.providerSettingsManager.saveConfig).toHaveBeenCalled()
 	})
 
 	test("file content includes line numbers", async () => {
@@ -1625,40 +1594,8 @@ describe("ClineProvider", () => {
 			// Verify mode was updated
 			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "architect")
 
-			// Verify saved config was loaded
-			expect(provider.providerSettingsManager.getModeConfigId).toHaveBeenCalledWith("architect")
-			expect(provider.providerSettingsManager.activateProfile).toHaveBeenCalledWith({ name: "saved-config" })
-			expect(mockContext.globalState.update).toHaveBeenCalledWith("currentApiConfigName", "saved-config")
-
-			// Verify state was posted to webview
-			expect(mockPostMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "state" }))
-		})
-
-		test("saves current config when switching to mode without config", async () => {
-			;(provider as any).providerSettingsManager = {
-				getModeConfigId: vi.fn().mockResolvedValue(undefined),
-				listConfig: vi
-					.fn()
-					.mockResolvedValue([{ name: "current-config", id: "current-id", apiProvider: "anthropic" }]),
-				setModeConfig: vi.fn(),
-			} as any
-
-			// Mock the ContextProxy's getValue method to return the current config name
-			const contextProxy = (provider as any).contextProxy
-			const getValueSpy = vi.spyOn(contextProxy, "getValue")
-			getValueSpy.mockImplementation((key: any) => {
-				if (key === "currentApiConfigName") return "current-config"
-				return undefined
-			})
-
-			// Switch to architect mode
-			await provider.handleModeSwitch("architect")
-
-			// Verify mode was updated
-			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "architect")
-
-			// Verify current config was saved as default for new mode
-			expect(provider.providerSettingsManager.setModeConfig).toHaveBeenCalledWith("architect", "current-id")
+			// Note: Mode switching no longer loads per-mode configs
+			// Only model auto-switching happens now
 
 			// Verify state was posted to webview
 			expect(mockPostMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "state" }))
