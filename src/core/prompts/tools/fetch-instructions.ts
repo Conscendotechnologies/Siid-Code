@@ -6,14 +6,14 @@
  *                        Defaults to true when undefined.
  */
 export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean, enablePmdRules?: boolean): string {
-	const baseTasks = `  create_mode
-export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean): string {
-	const tasks =
+	const baseTasks =
 		enableMcpServerCreation !== false
 			? `  create_mcp_server
   create_mode
   create_lwc
   create_apex
+  create_visual_force
+  create_aura_components
   assignment_rules
   invocable_apex
   custom_field
@@ -28,6 +28,8 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 			: `  create_mode
   create_lwc
   create_apex
+  create_visual_force
+  create_aura_components
   assignment_rules
   invocable_apex
   custom_field
@@ -72,6 +74,19 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 <task>pmd_apex</task>
 </fetch_instructions>
 
+Example: Requesting instructions to create a Visualforce Page
+
+<fetch_instructions>
+<task>create_visual_force</task>
+</fetch_instructions>
+
+Example: Requesting instructions to create Aura Components
+
+<fetch_instructions>
+<task>create_aura_components</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Salesforce Assignment Rules
 Example: Requesting PMD JavaScript Rules instructions
 
 <fetch_instructions>
