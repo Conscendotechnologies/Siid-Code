@@ -209,49 +209,9 @@ public String searchTerm;
 
 ---
 
-## (**!! IMPORTANT**) Dry Run and Deployment Workflow
+## Deployment
 
-After creation of all required Apex classes, execute the following steps:
-
-### Step 1: Dry Run - Validate Apex Classes
-
-Test your changes without applying them to the org:
-
-```bash
-# Dry run for a single Apex class
-sf project deploy start --dry-run --source-dir force-app/main/default/classes/AgentforceAccountAction.cls
-```
-
-**Replace `AgentforceAccountAction.cls` with your actual class name(s)**
-
-**What happens in dry run:**
-
-- ✅ Validates syntax
-- ✅ Runs all unit tests
-- ✅ Checks code coverage (must be 75%+)
-- ✅ Verifies security settings
-- ✅ **Does NOT make any changes to the org**
-
-**Expected output:**
-
-```
-Deploy ID: 0Afxx0000000000
-Status: Done
-Tests: 5 passed, 0 failed
-Code Coverage: 87%
-```
-
-### Step 2: Fix Issues (If Needed)
-
-If dry run fails:
-
-1. Review error messages carefully
-2. Fix the Apex code or tests
-3. Repeat dry run until it passes completely
-
-### Step 3: Deploy - Apply Changes
-
-Once dry run succeeds, immediately proceed with actual deployment:
+Deploy your Apex invocable action class using the Salesforce CLI:
 
 ```bash
 # Deploy a single Apex class
@@ -273,37 +233,6 @@ sf project deploy start --source-dir force-app/main/default/classes/AgentforceAc
 # Deploy all Apex classes in the classes directory
 sf project deploy start --source-dir force-app/main/default/classes
 ```
-
-**Order of deployment (if multiple classes have dependencies):**
-
-1. Deploy base utility/helper classes first
-2. Deploy main Apex invocable action classes
-3. Deploy any dependent classes
-
-### Step 4: Verify Deployment
-
-After successful deployment, **VERIFY** the deployment status (do NOT retrieve):
-
-```bash
-# Check deployment status - DO NOT RETRIEVE
-sf project deploy report --job-id <deploy-id>
-```
-
-**Replace `<deploy-id>` with the deployment ID from the deploy command output**
-
-**⚠️ IMPORTANT: VERIFY, DON'T RETRIEVE**
-
-- ✅ **DO:** Check deployment status with `sf project deploy report`
-- ✅ **DO:** Confirm the deploy completed successfully (Status: Succeeded)
-- ❌ **DON'T:** Run `sf project retrieve` after deploying - unnecessary and wastes time
-- ❌ **DON'T:** Re-download files that you just deployed
-
-**Post-deployment verification:**
-
-1. ✅ Confirm deploy status shows "Succeeded"
-2. ✅ Verify no errors in deployment output
-3. ✅ Check test coverage meets 75% threshold
-4. ✅ Report back to orchestrator/parent task that deployment is complete
 
 ---
 
@@ -648,42 +577,6 @@ public class ActionResponse {
 
 ---
 
-## Testing Example
-
-```apex
-@isTest
-public class AgentforceAccountAction_Test {
-
-    @isTest
-    static void testGetAccountSuccess() {
-        Account acc = new Account(Name = 'Test', Industry = 'Tech');
-        insert acc;
-
-        AgentforceAccountAction.GetAccountRequest req = new AgentforceAccountAction.GetAccountRequest();
-        req.accountName = 'Test';
-
-        List<AgentforceAccountAction.GetAccountResponse> responses =
-            AgentforceAccountAction.getAccount(new List<AgentforceAccountAction.GetAccountRequest>{req});
-
-        System.assertEquals(1, responses.size());
-        System.assertEquals(true, responses[0].success);
-    }
-
-    @isTest
-    static void testGetAccountNotFound() {
-        AgentforceAccountAction.GetAccountRequest req = new AgentforceAccountAction.GetAccountRequest();
-        req.accountName = 'NonExistent';
-
-        List<AgentforceAccountAction.GetAccountResponse> responses =
-            AgentforceAccountAction.getAccount(new List<AgentforceAccountAction.GetAccountRequest>{req});
-
-        System.assertEquals(false, responses[0].success);
-    }
-}
-```
-
----
-
 ## Deployment Checklist
 
 Before deploying:
@@ -694,8 +587,6 @@ Before deploying:
 - [ ] ✅ Validates all inputs
 - [ ] ✅ Response class has success/message fields
 - [ ] ✅ Has JSDoc comments
-- [ ] ✅ 75%+ test coverage
-- [ ] ✅ Tests pass locally
 - [ ] ✅ No hardcoded values
 - [ ] ✅ Naming conventions followed
 
@@ -710,8 +601,6 @@ Before deploying:
 **Always validate input**: Check for null/empty before processing
 
 **Always use WITH USER_MODE**: Enforces FLS and sharing
-
-**Always test**: Minimum 75% code coverage required
 
 ---
 
