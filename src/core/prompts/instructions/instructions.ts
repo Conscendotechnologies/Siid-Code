@@ -2,6 +2,8 @@ import { createMCPServerInstructions } from "./create-mcp-server"
 import { createModeInstructions } from "./create-mode"
 import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
+import { createVisualForceInstructions } from "./create-visual-force"
+import { createAuraComponentsInstructions } from "./create-aura-components"
 import {
 	assignmentRulesInstructions,
 	customFieldInstructions,
@@ -46,6 +48,18 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "create_apex": {
 			return await createApexInstructions(detail.context, detail.section)
+		}
+		case "create_visual_force": {
+			console.log("[INSTRUCTIONS] Matched task: create_visual_force")
+			const result = await createVisualForceInstructions(detail.context, detail.section)
+			console.log("[INSTRUCTIONS] Visual Force instructions fetched successfully")
+			return result
+		}
+		case "create_aura_components": {
+			console.log("[INSTRUCTIONS] Matched task: create_aura_components")
+			const result = await createAuraComponentsInstructions(detail.context, detail.section)
+			console.log("[INSTRUCTIONS] Aura Components instructions fetched successfully")
+			return result
 		}
 		// Salesforce Agent Instructions
 		case "assignment_rules": {
@@ -93,7 +107,7 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
-		// Code Instructions
+		} // Code Instructions
 		case "invocable_apex": {
 			return await invocableApexInstructions(detail.context)
 		}
