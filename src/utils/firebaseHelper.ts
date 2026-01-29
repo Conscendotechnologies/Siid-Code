@@ -83,14 +83,11 @@ export async function isAuthenticated(outputChannel?: vscode.OutputChannel): Pro
 	const log = outputChannel ? createOutputChannelLogger(outputChannel) : () => {}
 
 	try {
-		log("Checking authentication status")
-
 		// Check for dev bypass mode first
 		const context = (global as any).__rooCodeExtensionContext as vscode.ExtensionContext | undefined
 		if (context) {
 			const devBypassActive = context.globalState.get<boolean>("devBypassActive")
 			if (devBypassActive) {
-				log("Dev bypass mode active - returning authenticated")
 				return true
 			}
 		}

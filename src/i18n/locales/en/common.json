@@ -31,6 +31,7 @@
 		"git_not_installed": "Git is required for the checkpoints feature. Please install Git to enable checkpoints.",
 		"no_workspace": "Please open a project folder first",
 		"update_support_prompt": "Failed to update support prompt",
+		"update_model": "Failed to update model",
 		"reset_support_prompt": "Failed to reset support prompt",
 		"enhance_prompt": "Failed to enhance prompt",
 		"get_system_prompt": "Failed to get system prompt",

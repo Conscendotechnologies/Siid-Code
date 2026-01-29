@@ -14,6 +14,14 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
+import {
+	pmdApexInstructions,
+	pmdHtmlInstructions,
+	pmdJavaScriptInstructions,
+	pmdVisualforceInstructions,
+	pmdXmlInstructions,
+} from "./pmd-instructions"
+import { invocableApexInstructions } from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -69,6 +77,25 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "validation_rules": {
 			return await validationRulesInstructions(detail.context)
+		}
+		// PMD Rules Instructions
+		case "pmd_apex": {
+			return await pmdApexInstructions(detail.context)
+		}
+		case "pmd_html": {
+			return await pmdHtmlInstructions(detail.context)
+		}
+		case "pmd_javascript": {
+			return await pmdJavaScriptInstructions(detail.context)
+		}
+		case "pmd_visualforce": {
+			return await pmdVisualforceInstructions(detail.context)
+		}
+		case "pmd_xml": {
+			return await pmdXmlInstructions(detail.context)
+		// Code Instructions
+		case "invocable_apex": {
+			return await invocableApexInstructions(detail.context)
 		}
 		default: {
 			return ""

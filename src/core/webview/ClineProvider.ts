@@ -43,6 +43,7 @@ import { supportPrompt } from "../../shared/support-prompt"
 import { GlobalFileNames } from "../../shared/globalFileNames"
 import { ExtensionMessage, MarketplaceInstalledMetadata } from "../../shared/ExtensionMessage"
 import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
+import { getDefaultModelForMode, getModelsForMode } from "../../shared/mode-models"
 import { experimentDefault } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
 import { WebviewMessage } from "../../shared/WebviewMessage"
@@ -703,42 +704,13 @@ export class ClineProvider
 			await this.updateGlobalState("mode", historyItem.mode)
 
 			// Load the saved API config for the restored mode if it exists
-			// First check if the mode definition specifies a direct API config ID
+			// Note: Modes no longer have associated API configs - configs are selected manually
 			const modeConfig = getModeBySlug(historyItem.mode, customModes)
-
-			let savedConfigId: string | undefined
-
-			if (modeConfig?.apiConfigId) {
-				// Mode has a direct API config reference
-				savedConfigId = modeConfig.apiConfigId
-			} else {
-				// Fall back to the existing ProviderSettingsManager lookup
-				savedConfigId = await this.providerSettingsManager.getModeConfigId(historyItem.mode)
-			}
 
 			const listApiConfig = await this.providerSettingsManager.listConfig()
 
 			// Update listApiConfigMeta first to ensure UI has latest data
 			await this.updateGlobalState("listApiConfigMeta", listApiConfig)
-
-			// If this mode has a saved config, use it
-			if (savedConfigId) {
-				const profile = listApiConfig.find(({ id }) => id === savedConfigId)
-
-				if (profile?.name) {
-					try {
-						await this.activateProviderProfile({ name: profile.name })
-					} catch (error) {
-						// Log the error but continue with task restoration
-						this.log(
-							`Failed to restore API configuration for mode '${historyItem.mode}': ${
-								error instanceof Error ? error.message : String(error)
-							}. Continuing with default configuration.`,
-						)
-						// The task will continue with the current/default configuration
-					}
-				}
-			}
 		}
 
 		const {
@@ -977,7 +949,7 @@ export class ClineProvider
 	}
 
 	/**
-	 * Handle switching to a new mode, including updating the associated API configuration
+	 * Handle switching to a new mode
 	 * @param newMode The mode to switch to
 	 */
 	public async handleModeSwitch(newMode: Mode) {
@@ -1016,82 +988,95 @@ export class ClineProvider
 
 		await this.updateGlobalState("mode", newMode)
 
-		// Load the saved API config for the new mode if it exists
-		// First check if the mode definition specifies a direct API config ID
-		const customModes = await this.customModesManager.getCustomModes()
-		const modeConfig = getModeBySlug(newMode, customModes)
+		// Auto-switch model to the default/recommended model for this mode
+		// Respect useFreeModels setting when selecting the model
+		const { useFreeModels } = await this.getState()
+		const allModels = getModelsForMode(newMode)
 
-		logger.info(`ClineProvider.handleModeSwitch: newMode=${newMode}, modeConfig=${JSON.stringify(modeConfig)}`)
+		console.log("[ClineProvider.handleModeSwitch] Mode:", newMode)
+		console.log("[ClineProvider.handleModeSwitch] useFreeModels:", useFreeModels)
+		console.log(
+			"[ClineProvider.handleModeSwitch] All models:",
+			allModels.map((m) => ({ id: m.modelId, tier: m.tier })),
+		)
 
-		let savedConfigId: string | undefined
-
-		if (modeConfig?.apiConfigId) {
-			// Mode has a direct API config reference
-			savedConfigId = modeConfig.apiConfigId
-			logger.info(`ClineProvider.handleModeSwitch: using modeConfig.apiConfigId=${savedConfigId}`)
-
-			// Check if we need to swap between free and paid configs based on useFreeModels setting
-			const useFreeModels = this.getGlobalState("useFreeModels")
-			logger.info(
-				`ClineProvider.handleModeSwitch: useFreeModels=${useFreeModels}, original savedConfigId=${savedConfigId}`,
+		// Filter models based on useFreeModels setting
+		let availableModels = allModels
+		if (useFreeModels === true) {
+			// Only include free models when useFreeModels is true
+			availableModels = allModels.filter((model) => model.tier === "free")
+			console.log(
+				"[ClineProvider.handleModeSwitch] Filtered to free models only:",
+				availableModels.map((m) => ({ id: m.modelId, tier: m.tier })),
 			)
-
-			if (useFreeModels !== undefined) {
-				// Swap between free and paid configs
-				if (useFreeModels && savedConfigId.endsWith("-paid")) {
-					// User wants free models, but config is paid - swap to free
-					savedConfigId = savedConfigId.replace("-paid", "-free")
-					logger.info(`ClineProvider.handleModeSwitch: swapped to free config: ${savedConfigId}`)
-				} else if (!useFreeModels && savedConfigId.endsWith("-free")) {
-					// User wants paid models, but config is free - swap to paid
-					savedConfigId = savedConfigId.replace("-free", "-paid")
-					logger.info(`ClineProvider.handleModeSwitch: swapped to paid config: ${savedConfigId}`)
-				}
-			}
 		} else {
-			// Fall back to the existing ProviderSettingsManager lookup
-			savedConfigId = await this.providerSettingsManager.getModeConfigId(newMode)
-			logger.info(
-				`ClineProvider.handleModeSwitch: using ProviderSettingsManager.getModeConfigId=${savedConfigId}`,
-			)
+			// Show all models when useFreeModels is false
+			console.log("[ClineProvider.handleModeSwitch] Showing all models (useFreeModels=false)")
 		}
 
-		const listApiConfig = await this.providerSettingsManager.listConfig()
+		const defaultModel = availableModels[0] // Pick first available model after filtering
 
-		// Update listApiConfigMeta first to ensure UI has latest data
-		await this.updateGlobalState("listApiConfigMeta", listApiConfig) // If this mode has a saved config, use it.
-
-		if (savedConfigId) {
-			const profile = listApiConfig.find(({ id }) => id === savedConfigId)
-
+		if (defaultModel) {
+			console.log(
+				"[ClineProvider.handleModeSwitch] Selected model:",
+				defaultModel.modelId,
+				"tier:",
+				defaultModel.tier,
+			)
 			logger.info(
-				`ClineProvider.handleModeSwitch: savedConfigId=${savedConfigId}, found profile=${JSON.stringify(profile)}`,
+				`ClineProvider.handleModeSwitch: auto-switching to model ${defaultModel.modelId} (tier=${defaultModel.tier}) for mode ${newMode} with useFreeModels=${useFreeModels}`,
 			)
 
-			if (profile?.name) {
-				logger.info(`ClineProvider.handleModeSwitch: activating profile ${profile.name}`)
-				await this.activateProviderProfile({ name: profile.name })
-			} else {
-				logger.info(`ClineProvider.handleModeSwitch: no profile found for configId ${savedConfigId}`)
-			}
-		} else {
-			// If no saved config for this mode, save current config as default.
-			const currentApiConfigName = this.getGlobalState("currentApiConfigName")
+			const { apiConfiguration, currentApiConfigName } = await this.getState()
 
-			logger.info(
-				`ClineProvider.handleModeSwitch: no savedConfigId, currentApiConfigName=${currentApiConfigName}`,
-			)
-
-			if (currentApiConfigName) {
-				const config = listApiConfig.find((c) => c.name === currentApiConfigName)
-
-				if (config?.id) {
-					logger.info(
-						`ClineProvider.handleModeSwitch: saving current config ${config.id} for mode ${newMode}`,
+			// Update the correct model field based on the provider
+			let newConfiguration: ProviderSettings
+			switch (apiConfiguration.apiProvider) {
+				case "openrouter":
+					newConfiguration = { ...apiConfiguration, openRouterModelId: defaultModel.modelId }
+					break
+				case "anthropic":
+				case "vertex":
+				case "bedrock":
+				case "gemini":
+				case "gemini-cli":
+				case "openai-native":
+				case "mistral":
+				case "deepseek":
+				case "doubao":
+				case "moonshot":
+				case "claude-code":
+					newConfiguration = { ...apiConfiguration, apiModelId: defaultModel.modelId }
+					break
+				case "openai":
+					newConfiguration = { ...apiConfiguration, openAiModelId: defaultModel.modelId }
+					break
+				case "ollama":
+					newConfiguration = { ...apiConfiguration, ollamaModelId: defaultModel.modelId }
+					break
+				case "lmstudio":
+					newConfiguration = { ...apiConfiguration, lmStudioModelId: defaultModel.modelId }
+					break
+				case "glama":
+					newConfiguration = { ...apiConfiguration, glamaModelId: defaultModel.modelId }
+					break
+				case "unbound":
+					newConfiguration = { ...apiConfiguration, unboundModelId: defaultModel.modelId }
+					break
+				case "requesty":
+					newConfiguration = { ...apiConfiguration, requestyModelId: defaultModel.modelId }
+					break
+				default:
+					logger.warn(
+						`ClineProvider.handleModeSwitch: Unknown provider ${apiConfiguration.apiProvider}, using apiModelId`,
 					)
-					await this.providerSettingsManager.setModeConfig(newMode, config.id)
-				}
+					newConfiguration = { ...apiConfiguration, apiModelId: defaultModel.modelId }
 			}
+
+			// Save the updated configuration
+			// Note: upsertProviderProfile already calls postStateToWebview, so we don't need to call it again
+			await this.upsertProviderProfile(currentApiConfigName, newConfiguration, true)
+			return // Early return since state is already posted
 		}
 
 		await this.postStateToWebview()
@@ -1144,7 +1129,6 @@ export class ClineProvider
 				await Promise.all([
 					this.updateGlobalState("listApiConfigMeta", await this.providerSettingsManager.listConfig()),
 					this.updateGlobalState("currentApiConfigName", name),
-					this.providerSettingsManager.setModeConfig(mode, id),
 					this.contextProxy.setProviderSettings(providerSettings),
 				])
 				logger.info(`[upsertProviderProfile] Activated profile for mode: ${mode}`)
@@ -1211,9 +1195,7 @@ export class ClineProvider
 
 		const { mode } = await this.getState()
 
-		if (id) {
-			await this.providerSettingsManager.setModeConfig(mode, id)
-		}
+		// Note: No longer saving mode-to-config mapping
 
 		// Change the provider for the current task.
 		const task = this.getCurrentCline()
@@ -1521,6 +1503,15 @@ export class ClineProvider
 	 */
 	public setFirebaseAuthState(isAuthenticated: boolean) {
 		this.cachedFirebaseAuthState = isAuthenticated
+
+		// When user logs in, fetch and update API keys from Firebase
+		if (isAuthenticated) {
+			this.providerSettingsManager.updateApiKeysFromFirebase().catch((error) => {
+				this.outputChannel.appendLine(
+					`[setFirebaseAuthState] Error updating API keys after login: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			})
+		}
 	}
 
 	/**
@@ -1668,6 +1659,7 @@ export class ClineProvider
 			fuzzyMatchThreshold,
 			mcpEnabled,
 			enableMcpServerCreation,
+			enablePmdRules,
 			alwaysApproveResubmit,
 			requestDelaySeconds,
 			currentApiConfigName,
@@ -1778,6 +1770,7 @@ export class ClineProvider
 			fuzzyMatchThreshold: fuzzyMatchThreshold ?? 1.0,
 			mcpEnabled: mcpEnabled ?? true,
 			enableMcpServerCreation: enableMcpServerCreation ?? true,
+			enablePmdRules: enablePmdRules ?? true,
 			alwaysApproveResubmit: alwaysApproveResubmit ?? false,
 			requestDelaySeconds: requestDelaySeconds ?? 10,
 			currentApiConfigName: currentApiConfigName ?? "default",
@@ -1996,6 +1989,7 @@ export class ClineProvider
 			language: stateValues.language ?? formatLanguage(vscode.env.language),
 			mcpEnabled: stateValues.mcpEnabled ?? true,
 			enableMcpServerCreation: stateValues.enableMcpServerCreation ?? true,
+			enablePmdRules: stateValues.enablePmdRules ?? true,
 			alwaysApproveResubmit: stateValues.alwaysApproveResubmit ?? false,
 			requestDelaySeconds: Math.max(0, stateValues.requestDelaySeconds ?? 2), // Reduced to 2s default, 0s minimum for maximum speed
 			currentApiConfigName: stateValues.currentApiConfigName ?? "default",

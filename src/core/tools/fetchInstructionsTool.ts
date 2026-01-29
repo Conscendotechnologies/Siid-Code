@@ -25,6 +25,14 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
+		// PMD Rules Instructions
+		pmd_apex: "PMD Apex Rules Instructions",
+		pmd_html: "PMD HTML Rules Instructions",
+		pmd_javascript: "PMD JavaScript Rules Instructions",
+		pmd_visualforce: "PMD Visualforce Rules Instructions",
+		pmd_xml: "PMD XML Rules Instructions",
+		// Invocable Apex Instructions
+		invocable_apex: "Invocable Apex Instructions",
 	}
 
 	return taskNames[task] || task
