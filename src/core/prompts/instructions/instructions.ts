@@ -107,7 +107,7 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
-		// Code Instructions
+		} // Code Instructions
 		case "invocable_apex": {
 			return await invocableApexInstructions(detail.context)
 		}

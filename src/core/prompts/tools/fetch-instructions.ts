@@ -6,9 +6,7 @@
  *                        Defaults to true when undefined.
  */
 export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean, enablePmdRules?: boolean): string {
-	const baseTasks = `  create_mode
-export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean): string {
-	const tasks =
+	const baseTasks =
 		enableMcpServerCreation !== false
 			? `  create_mcp_server
   create_mode
