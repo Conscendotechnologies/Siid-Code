@@ -50,7 +50,7 @@ Note: no of topics can't be zero in this command, so if user fully custom agent,
 Run command:
 
 ```bash
-sf agent generate agent-spec --max-topics <number> --output-file <path> --type <customer|internal> --role "<role>" --company-name "<name>" --company-description "<description>"
+sf agent generate agent-spec --max-topics <number> --output-file <path> --type <customer|internal> --role "<role>" --company-name "<name>" --company-description "<description>" --json
 ```
 
 ### Step 3: Collect Information for Agent Creation
@@ -67,7 +67,7 @@ Collect the following from user:
 Run command:
 
 ```bash
-sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec>
+sf agent create --name "<name>" --api-name <API_Name> --spec <path-to-spec> --json
 ```
 
 **⚠️ IMPORTANT:** This command automatically:
@@ -171,7 +171,7 @@ When creating subtask for Code mode, include the decision:
 **Deploy customized agent:**
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 ```
 
 ---
@@ -235,7 +235,7 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
 **Step 5:** Deploy customized agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 ```
 
 **Key Points:**
@@ -315,7 +315,7 @@ Which approach would you prefer?
 **Step 6:** Deploy customized agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 ```
 
 **Key Differences for Adaptive Response:**

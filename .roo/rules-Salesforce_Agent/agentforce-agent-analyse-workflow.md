@@ -64,10 +64,10 @@
 **Immediately run these 4 retrieval commands in sequence:**
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle:Agent_Name
-sf project retrieve start --metadata Bot:Agent_Name
-sf project retrieve start --metadata GenAiPlugin
-sf project retrieve start --metadata GenAiFunction
+sf project retrieve start --metadata GenAiPlannerBundle:Agent_Name --json
+sf project retrieve start --metadata Bot:Agent_Name --json
+sf project retrieve start --metadata GenAiPlugin --json
+sf project retrieve start --metadata GenAiFunction --json
 ```
 
 **Why retrieve even if agent exists in workspace?**
@@ -115,13 +115,13 @@ git diff force-app/main/default/genAiPlannerBundles/Agent_Name.xml
 - Retrieve those apex classes immediately:
 
 ```bash
-sf project retrieve start --metadata ApexClass:ClassName
+sf project retrieve start --metadata ApexClass:ClassName --json
 ```
 
 - Retrieve flows if referenced:
 
 ```bash
-sf project retrieve start --metadata Flow:FlowName
+sf project retrieve start --metadata Flow:FlowName --json
 ```
 
 **IMPORTANT:**
@@ -528,7 +528,7 @@ Refer to **`.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`** fo
 Update the org with enhanced agent:
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 ```
 
 **Deployment checklist:**

@@ -40,7 +40,7 @@ Collect from user (if not in prompt):
 **For Local Topics (in GenAiPlannerBundle):**
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle:<AgentName>
+sf project retrieve start --metadata GenAiPlannerBundle:<AgentName> --json
 ```
 
 ### Step 3: Locate Topic Files
@@ -348,7 +348,7 @@ For each issue found:
 **Step 2:** Retrieve agent configuration
 
 ```bash
-sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager
+sf project retrieve start --metadata GenAiPlannerBundle:Resort_Manager --json
 ```
 
 **Step 3:** Locate topic in `genAiPlannerBundles/Resort_Manager/Resort_Manager.genAiPlannerBundle-meta.xml`
@@ -416,7 +416,7 @@ MEDIUM PRIORITY:
 **Step 2:** Retrieve global topic
 
 ```bash
-sf project retrieve start --metadata GenAiPlugin:Check_Inventory
+sf project retrieve start --metadata GenAiPlugin:Check_Inventory --json
 ```
 
 **Step 4:** Analyze:

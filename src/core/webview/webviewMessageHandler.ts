@@ -553,6 +553,13 @@ export const webviewMessageHandler = async (
 				provider.exportTaskWithId(currentTaskId)
 			}
 			break
+		case "exportCurrentTaskDebugJson": {
+			const debugTaskId = provider.getCurrentCline()?.taskId
+			if (debugTaskId) {
+				provider.exportTaskDebugJsonWithId(debugTaskId)
+			}
+			break
+		}
 		case "shareCurrentTask":
 			const shareTaskId = provider.getCurrentCline()?.taskId
 			const clineMessages = provider.getCurrentCline()?.clineMessages
@@ -646,6 +653,9 @@ export const webviewMessageHandler = async (
 		}
 		case "exportTaskWithId":
 			provider.exportTaskWithId(message.text!)
+			break
+		case "exportTaskDebugJson":
+			provider.exportTaskDebugJsonWithId(message.text!)
 			break
 		case "importSettings": {
 			await importSettingsWithFeedback({

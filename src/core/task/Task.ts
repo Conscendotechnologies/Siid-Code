@@ -1680,6 +1680,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			await this.diffViewProvider.reset()
 
+			// Check if multiple tool calls experiment is enabled
+			const providerForExperiment = this.providerRef.deref()
+			const stateForExperiment = providerForExperiment ? await providerForExperiment.getState() : undefined
+			const isMultipleToolCallsEnabled = stateForExperiment
+				? experiments.isEnabled(stateForExperiment.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
+				: false
+
 			// Yields only if the first chunk is successful, otherwise will
 			// allow the user to retry the request (most likely due to rate
 			// limit error, which gets thrown on the first chunk).
@@ -1761,7 +1768,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// get generation details.
 					// UPDATE: It's better UX to interrupt the request at the
 					// cost of the API cost not being retrieved.
-					if (this.didAlreadyUseTool) {
+					if (this.didAlreadyUseTool && !isMultipleToolCallsEnabled) {
 						assistantMessage +=
 							"\n\n[Response interrupted by a tool use result. Only one tool may be used at a time and should be placed at the end of the message.]"
 						break
@@ -1933,7 +1940,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
-	private async getSystemPrompt(): Promise<string> {
+	public async getSystemPrompt(): Promise<string> {
 		const { mcpEnabled } = (await this.providerRef.deref()?.getState()) ?? {}
 		let mcpHub: McpHub | undefined
 		if (mcpEnabled ?? true) {
@@ -2162,6 +2169,46 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					{ isNonInteractive: true } /* options */,
 					contextCondense,
 				)
+			}
+		}
+		console.log(`[Task]apiConversationHistory: ${JSON.stringify(this.apiConversationHistory)}`)
+
+		// Strip <pre-task> and <environment_details> sections from all user messages
+		// except the last one, mutating the original array in-place to reduce context size.
+		// Replace stripped content with a short continuation hint so the model knows to proceed.
+		const lastUserMsgIndex = findLastIndex(this.apiConversationHistory, (m) => m.role === "user")
+		for (let i = 0; i < this.apiConversationHistory.length; i++) {
+			const msg = this.apiConversationHistory[i]
+			if (msg.role !== "user" || i === lastUserMsgIndex) {
+				continue
+			}
+			if (Array.isArray(msg.content)) {
+				let hadStrippedContent = false
+				msg.content = msg.content.filter((block) => {
+					if (block.type === "text") {
+						const text = block.text.trim()
+						if (text.startsWith("<pre-task>") || text.startsWith("<environment_details>")) {
+							hadStrippedContent = true
+							return false
+						}
+					}
+					return true
+				})
+				if (hadStrippedContent) {
+					msg.content.push({
+						type: "text",
+						text: "[Tool executed successfully. Please continue with the next step.]",
+					})
+				}
+			} else if (typeof msg.content === "string") {
+				const original = msg.content
+				msg.content = msg.content
+					.replace(/<pre-task>[\s\S]*?<\/pre-task>/g, "")
+					.replace(/<environment_details>[\s\S]*?<\/environment_details>/g, "")
+					.trim()
+				if (msg.content !== original.trim()) {
+					msg.content += "\n[Tool executed successfully. Please continue with the next step.]"
+				}
 			}
 		}
 

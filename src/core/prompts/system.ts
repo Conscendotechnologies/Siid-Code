@@ -108,7 +108,7 @@ ${customInstructionIndexs}
 
 ${markdownFormattingSection()}
 
-${getSharedToolUseSection()}
+${getSharedToolUseSection(experiments)}
 
 ${getToolDescriptionsForMode(
 	mode,
@@ -125,7 +125,7 @@ ${getToolDescriptionsForMode(
 	enableMcpServerCreation,
 )}
 
-${getToolUseGuidelinesSection(codeIndexManager)}
+${getToolUseGuidelinesSection(codeIndexManager, experiments)}
 
 ${mcpServersSection}
 

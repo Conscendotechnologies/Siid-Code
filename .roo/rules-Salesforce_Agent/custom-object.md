@@ -183,16 +183,16 @@ When creating a custom object named "Test", follow these steps:
 
 For Objects:
 bash# Dry run
-sf project deploy start --dry-run --source-dir force-app/main/default/objects/Test\_\_c
+sf project deploy start --dry-run --source-dir force-app/main/default/objects/Test\_\_c --json
 
 # Actual deployment (after successful dry run)
 
-sf project deploy start --source-dir force-app/main/default/objects/Test\_\_c
+sf project deploy start --source-dir force-app/main/default/objects/Test\_\_c --json
 
 For Tabs:
 bash# Dry run
-sf project deploy start --dry-run --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
+sf project deploy start --dry-run --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml --json
 
 # Actual deployment (after successful dry run)
 
-sf project deploy start --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
+sf project deploy start --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml --json

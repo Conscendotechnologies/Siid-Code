@@ -1,6 +1,11 @@
 import { CodeIndexManager } from "../../../services/code-index/manager"
+import { experiments, EXPERIMENT_IDS } from "../../../shared/experiments"
 
-export function getToolUseGuidelinesSection(codeIndexManager?: CodeIndexManager): string {
+export function getToolUseGuidelinesSection(
+	codeIndexManager?: CodeIndexManager,
+	experimentFlags?: Record<string, boolean>,
+): string {
+	const isMultipleToolCallsEnabled = experiments.isEnabled(experimentFlags ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
 	const isCodebaseSearchAvailable =
 		codeIndexManager &&
 		codeIndexManager.isFeatureEnabled &&
@@ -31,9 +36,15 @@ export function getToolUseGuidelinesSection(codeIndexManager?: CodeIndexManager)
 	}
 
 	// Remaining guidelines
-	guidelinesList.push(
-		`${itemNumber++}. If multiple actions are needed, use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.`,
-	)
+	if (isMultipleToolCallsEnabled) {
+		guidelinesList.push(
+			`${itemNumber++}. If multiple independent actions are needed, you may use multiple tools in a single message. However, if actions depend on each other, use tools sequentially with each tool use informed by the result of the previous one. Do not assume the outcome of any tool use. Each dependent step must be informed by the previous step's result.`,
+		)
+	} else {
+		guidelinesList.push(
+			`${itemNumber++}. If multiple actions are needed, use one tool at a time per message to accomplish the task iteratively, with each tool use being informed by the result of the previous tool use. Do not assume the outcome of any tool use. Each step must be informed by the previous step's result.`,
+		)
+	}
 	guidelinesList.push(`${itemNumber++}. Formulate your tool use using the XML format specified for each tool.`)
 	guidelinesList.push(`${itemNumber++}. After each tool use, the user will respond with the result of that tool use. This result will provide you with the necessary information to continue your task or make further decisions. This response may include:
   - Information about whether the tool succeeded or failed, along with any reasons for failure.
@@ -45,15 +56,25 @@ export function getToolUseGuidelinesSection(codeIndexManager?: CodeIndexManager)
 	)
 
 	// Join guidelines and add the footer
-	return `# Tool Use Guidelines
+	const footer = isMultipleToolCallsEnabled
+		? `It is crucial to proceed thoughtfully, reviewing the results of tool uses before moving forward with the task. When using multiple tools in a single message, ensure they are independent actions. For dependent actions, wait for the user's message after each tool use. This approach allows you to:
+1. Confirm the success of each step before proceeding with dependent actions.
+2. Address any issues or errors that arise immediately.
+3. Adapt your approach based on new information or unexpected results.
+4. Ensure that each action builds correctly on the previous ones.
 
-${guidelinesList.join("\n")}
-
-It is crucial to proceed step-by-step, waiting for the user's message after each tool use before moving forward with the task. This approach allows you to:
+By carefully considering tool results, you can react accordingly and make informed decisions about how to proceed with the task.`
+		: `It is crucial to proceed step-by-step, waiting for the user's message after each tool use before moving forward with the task. This approach allows you to:
 1. Confirm the success of each step before proceeding.
 2. Address any issues or errors that arise immediately.
 3. Adapt your approach based on new information or unexpected results.
 4. Ensure that each action builds correctly on the previous ones.
 
 By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.`
+
+	return `# Tool Use Guidelines
+
+${guidelinesList.join("\n")}
+
+${footer}`
 }

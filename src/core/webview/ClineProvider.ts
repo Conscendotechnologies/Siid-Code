@@ -53,6 +53,7 @@ import { perfLog } from "../../utils/performanceLogger"
 
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { downloadTask } from "../../integrations/misc/export-markdown"
+import { exportTaskDebugJson } from "../../integrations/misc/export-debug-json"
 import { getTheme } from "../../integrations/theme/getTheme"
 import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker"
 
@@ -1415,6 +1416,30 @@ export class ClineProvider
 	async exportTaskWithId(id: string) {
 		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
 		await downloadTask(historyItem.ts, apiConversationHistory)
+	}
+
+	async exportTaskDebugJsonWithId(id: string) {
+		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
+
+		// Try to get the system prompt from the active task if it matches
+		let systemPrompt: string | undefined
+		const activeTask = this.clineStack.find((t) => t.taskId === id)
+		if (activeTask) {
+			try {
+				systemPrompt = await activeTask.getSystemPrompt()
+			} catch {
+				// Task may not be in a state to generate system prompt
+			}
+		}
+
+		await exportTaskDebugJson(apiConversationHistory as any, {
+			taskId: historyItem.id,
+			timestamp: historyItem.ts,
+			taskNumber: historyItem.number,
+			workspace: historyItem.workspace,
+			mode: historyItem.mode,
+			systemPrompt,
+		})
 	}
 
 	/* Condenses a task's message history to use fewer tokens. */

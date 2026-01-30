@@ -3000,16 +3000,16 @@ for(Account acc : accountList) {
 ### 9. (**!! IMPORTANT**)Dry run and Deployment:
 
 After creation of all required apex classes and LWC components then first do dry run on apex using this command:
-`sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls>`
+`sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls> --json`
 Replace <classname.cls> with the actual classes.
 
 - If got any errors after dry run solve them.
 - After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
-  `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls>`
+  `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls> --json`
 - Replace <classname.cls> with the all classes that are created like below format for multiple apex classes deployment:
     # Deploy multiple specific Apex classes in order
     ```
-    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger
+    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger --json
     ```
 - (**!IMPORTANT**)Before Going for LWC first dry-run and deploy Apex Classes.
 

@@ -125,13 +125,13 @@ objects/
 **Always dry-run first:**
 
 ```bash
-sf project deploy start --dry-run --source-dir force-app/main/default/classes/YourClassName.cls
+sf project deploy start --dry-run --source-dir force-app/main/default/classes/YourClassName.cls --json
 ```
 
 **If dry-run succeeds, deploy:**
 
 ```bash
-sf project deploy start --source-dir force-app/main/default/classes/YourClassName.cls
+sf project deploy start --source-dir force-app/main/default/classes/YourClassName.cls --json
 ```
 
 **Verify deployment:**

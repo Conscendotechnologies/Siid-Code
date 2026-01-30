@@ -192,15 +192,13 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 			const result = jsonOutput.result
 
 			if (!metadataName) {
-				// Listing mode - show retrieved files
+				// Listing mode - show count and status only to reduce context size
 				const files = result?.files || []
 				if (files.length === 0) {
 					return `No ${metadataType} metadata found in the org.`
 				}
 
-				const fileList = files.map((f: any) => `  - ${f.fullName || f.fileName}`).join("\n")
-
-				return `Successfully retrieved ${files.length} ${metadataType} component(s):\n${fileList}\n\nFiles have been retrieved to your local project directory.`
+				return `Successfully retrieved ${files.length} ${metadataType} component(s). Files have been retrieved to your local project directory.`
 			}
 
 			// Specific component retrieval
@@ -209,15 +207,7 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 				return `${metadataType} '${metadataName}' was retrieved but no files were found. The component may not exist in the org.`
 			}
 
-			const fileDetails = files
-				.map((f: any) => {
-					const filePath = f.filePath || f.fileName || "Unknown path | details: " + JSON.stringify(f)
-					const state = f.state || "Retrieved"
-					return `  - ${filePath} (${state})`
-				})
-				.join("\n")
-
-			return `Successfully retrieved ${metadataType} '${metadataName}':\n${fileDetails}\n\nThe metadata has been saved to your local project directory. You can now read the files to inspect the metadata content.`
+			return `Successfully retrieved ${metadataType} '${metadataName}'\nThe metadata has been saved to your local project directory. You can now read the files to inspect the metadata content.`
 		} else {
 			// Error in SF CLI response
 			const errorMessage = jsonOutput.message || jsonOutput.result?.message || "Unknown error occurred"
@@ -314,6 +304,7 @@ export async function retrieveSfMetadataTool(
 
 			// Format and return the result
 			const formattedResult = formatSfOutput(output, metadataType, metadataName)
+			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. ${formattedResult}`)
 			pushToolResult(formattedResult)
 		} catch (execError: any) {
 			// Handle execution errors
@@ -326,6 +317,7 @@ export async function retrieveSfMetadataTool(
 			} else if (execError.stdout) {
 				// Sometimes SF CLI returns error info in stdout with non-zero exit
 				const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
+				cline.say("error", `Retrieved ${metadataType} metadata successfully, Result:${formattedResult}`)
 				pushToolResult(formattedResult)
 				return
 			} else if (execError.message) {
@@ -343,7 +335,7 @@ export async function retrieveSfMetadataTool(
 				errorMessage =
 					"Salesforce CLI (sf) is not installed. Please install it from https://developer.salesforce.com/tools/salesforcecli"
 			}
-
+			cline.say("error", formatResponse.toolError(`SF CLI Error: ${errorMessage}`))
 			pushToolResult(formatResponse.toolError(`SF CLI Error: ${errorMessage}`))
 		}
 	} catch (error) {

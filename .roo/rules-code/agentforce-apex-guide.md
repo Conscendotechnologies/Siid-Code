@@ -215,7 +215,7 @@ Deploy your Apex invocable action class using the Salesforce CLI:
 
 ```bash
 # Deploy a single Apex class
-sf project deploy start --source-dir force-app/main/default/classes/AgentforceAccountAction.cls
+sf project deploy start --source-dir force-app/main/default/classes/AgentforceAccountAction.cls --json
 ```
 
 ### Deploying Multiple Apex Classes
@@ -224,14 +224,14 @@ When deploying multiple Apex classes, use this format:
 
 ```bash
 # Deploy multiple specific Apex classes (replace with actual class names)
-sf project deploy start --source-dir force-app/main/default/classes/AgentforceAccountAction.cls force-app/main/default/classes/AgentforceContactAction.cls force-app/main/default/classes/AgentforceOpportunityAction.cls
+sf project deploy start --source-dir force-app/main/default/classes/AgentforceAccountAction.cls force-app/main/default/classes/AgentforceContactAction.cls force-app/main/default/classes/AgentforceOpportunityAction.cls --json
 ```
 
 **Or deploy all classes at once:**
 
 ```bash
 # Deploy all Apex classes in the classes directory
-sf project deploy start --source-dir force-app/main/default/classes
+sf project deploy start --source-dir force-app/main/default/classes --json
 ```
 
 ---

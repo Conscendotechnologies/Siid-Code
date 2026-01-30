@@ -14,7 +14,7 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 - **This step is mandatory and must be executed every time to ensure accurate field information.**
 - **Use this command to fetch object and field metadata:**
     ```
-    sf sobject describe --sobject <ObjectName> --json
+    sf sobject describe --sobject <ObjectName> --json --json
     ```
 - Replace `<ObjectName>` with the actual object API name (e.g., Account, Contact, Custom_Object\_\_c).
 - **For multiple objects, run this command for each object separately.**
@@ -147,7 +147,7 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 - **After updating the profile XML with field permissions, you MUST immediately deploy it to the default Salesforce org.**
 - **Deployment Command:**
     ```
-    sf project deploy start --source-dir force-app/main/default/profiles/<ProfileName>.profile-meta.xml
+    sf project deploy start --source-dir force-app/main/default/profiles/<ProfileName>.profile-meta.xml --json
     ```
 - Replace `<ProfileName>` with the actual profile name.
 - **MANDATORY: Execute the deployment command immediately after updating the profile. Do not skip this step.**

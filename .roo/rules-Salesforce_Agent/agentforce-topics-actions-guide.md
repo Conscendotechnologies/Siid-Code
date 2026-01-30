@@ -737,7 +737,7 @@ Add this block to the existing profile metadata file:
 **Note:** Add this `<classAccesses>` block inside the existing `<Profile>` tags. If the profile file doesn't exist, retrieve it first:
 
 ```bash
-sf project retrieve start --metadata Profile:"Einstein Agent User" --target-org <org>
+sf project retrieve start --metadata Profile:"Einstein Agent User" --target-org <org> --json
 ```
 
 **Option 3: Via Permission Set (Alternative approach)**
@@ -767,23 +767,23 @@ After creating/modifying topics, actions, and permissions:
 **1. Deploy the Agent Bundle:**
 
 ```bash
-sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --target-org <org>
+sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --target-org <org> --json
 ```
 
 **2. Deploy Apex Classes (if created/modified):**
 
 ```bash
-sf project deploy start --metadata ApexClass:YourApexClassName --target-org <org>
+sf project deploy start --metadata ApexClass:YourApexClassName --target-org <org> --json
 ```
 
 **3. Deploy Permissions:**
 
 ```bash
 # If using profile metadata
-sf project deploy start --metadata Profile:"Einstein Agent User" --target-org <org>
+sf project deploy start --metadata Profile:"Einstein Agent User" --target-org <org> --json
 
 # If using permission set (recommended)
-sf project deploy start --metadata PermissionSet:Agent_Actions_Permission_Set --target-org <org>
+sf project deploy start --metadata PermissionSet:Agent_Actions_Permission_Set --target-org <org> --json
 ```
 
 **4. Verify Deployment:**
