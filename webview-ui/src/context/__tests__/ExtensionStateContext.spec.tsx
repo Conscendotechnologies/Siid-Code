@@ -231,6 +231,7 @@ describe("mergeExtensionState", () => {
 				multiFileApplyDiff: true,
 				preventFocusDisruption: false,
 				assistantMessageParser: false,
+				multipleToolCalls: false,
 			} as Record<ExperimentId, boolean>,
 		}
 
