@@ -392,9 +392,15 @@ public class ApexClassName {
 
 ### Adaptive Response Types
 
-**⚠️ IMPORTANT:** Use these types **ONLY** when implementing Adaptive Response features. Do not use them for standard actions.
+---
 
-**Adaptive Response** enables the agent to return rich, interactive UI components (like visual cards with images) instead of plain text responses. This is always enabled when you use these types.
+## 🚨 ADAPTIVE RESPONSE IMPLEMENTATION - MANDATORY RULES 🚨
+
+**⛔ STOP! READ THIS ENTIRE SECTION BEFORE IMPLEMENTING ADAPTIVE RESPONSE ⛔**
+
+**Adaptive Response** enables the agent to return rich, interactive UI components (like visual cards with images) instead of plain text responses.
+
+**⚠️ CRITICAL:** Use these types **ONLY** when implementing Adaptive Response features. Do not use them for standard actions.
 
 #### `lightning__listType` - For List/Array Returns
 
@@ -489,6 +495,315 @@ public class ProductRecommendationAction {
 
 ---
 
+### 🚨 ADAPTIVE RESPONSE: TOPIC & ACTION CONFIGURATION (MANDATORY) 🚨
+
+**⛔ When creating topics and actions for Adaptive Response, follow these EXACT requirements:**
+
+#### Topic Configuration for Adaptive Response
+
+The topic XML is the same as standard topics, but the **instructions** should mention the visual card display:
+
+```xml
+<localTopics>
+    <fullName>Course_Browsing_Topic</fullName>
+    <description>Helps users browse and discover training courses</description>
+    <genAiPluginInstructions>
+        <description>When user wants to browse courses, ask for their preferred skill level (Beginner, Intermediate, Advanced) or offer to show all courses. Use the Get_Courses action to retrieve courses and display them as visual cards with images. After showing results, offer to filter by different levels or answer questions about specific courses.</description>
+        <developerName>instructions_0</developerName>
+        <language>en_US</language>
+        <masterLabel>instructions_0</masterLabel>
+        <sortOrder>0</sortOrder>
+    </genAiPluginInstructions>
+    <!-- ... rest of topic config ... -->
+</localTopics>
+```
+
+#### Action Configuration for Adaptive Response
+
+The action XML is **identical** to standard actions - the adaptive response magic happens in the **Apex class** and **output schema**:
+
+```xml
+<localActions>
+    <fullName>Get_Courses</fullName>
+    <description>Retrieves training courses based on skill level filter</description>
+    <developerName>Get_Courses</developerName>
+    <invocationTarget>CourseRecommendationAction</invocationTarget>  <!-- Apex class name -->
+    <invocationTargetType>apex</invocationTargetType>
+    <isConfirmationRequired>false</isConfirmationRequired>
+    <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+    <localDeveloperName>Get_Courses</localDeveloperName>
+    <masterLabel>Get Courses</masterLabel>
+</localActions>
+```
+
+#### Output Schema for Adaptive Response (CRITICAL)
+
+**⚠️ THIS IS WHERE ADAPTIVE RESPONSE IS ENABLED - USE EXACT STRUCTURE:**
+
+**Adaptive Response Output Schema Structure:**
+
+```json
+{
+	"unevaluatedProperties": false,
+	"properties": {
+		"listFieldName": {
+			"title": "listFieldName",
+			"description": "List of items displayed as visual cards with images",
+			"maxItems": 2000,
+			"items": {
+				"lightning:type": "@apexClassType/c__ApexClassName$WrapperClassName"
+			},
+			"lightning:type": "lightning__listType",
+			"lightning:isPII": false,
+			"copilotAction:isDisplayable": true,
+			"copilotAction:isUsedByPlanner": true,
+			"copilotAction:useHydratedPrompt": false
+		},
+		"message": {
+			"title": "message",
+			"description": "Message to display with the results",
+			"lightning:type": "lightning__textType",
+			"lightning:isPII": false,
+			"copilotAction:isDisplayable": false,
+			"copilotAction:isUsedByPlanner": true,
+			"copilotAction:useHydratedPrompt": false
+		}
+	},
+	"lightning:type": "lightning__objectType"
+}
+```
+
+**Adaptive Response Properties REQUIRED for Each Field:**
+
+**List Field (Rich Choice/Card Carousel):**
+
+- `maxItems` - Maximum items (e.g., 2000)
+- `items.lightning:type` - Apex wrapper reference: `@apexClassType/c__ApexClassName$WrapperClassName`
+- `lightning:type` - **MUST be** `lightning__listType`
+- `copilotAction:isDisplayable` - **MUST be** `true`
+- `copilotAction:isUsedByPlanner` - **MUST be** `true`
+- `lightning:isPII` - `false` (or true if contains PII)
+- `copilotAction:useHydratedPrompt` - `false`
+
+**Message/Supporting Field:**
+
+- `lightning:type` - `lightning__textType`
+- `lightning:isPII` - `false`
+- `copilotAction:isDisplayable` - `false` or `true` (depends on if user sees it)
+- `copilotAction:isUsedByPlanner` - `true`
+- `copilotAction:useHydratedPrompt` - `false`
+
+#### Input Schema for Adaptive Response
+
+**Input Schema Structure (for parameters user provides):**
+
+```json
+{
+	"required": ["filterParameter"],
+	"unevaluatedProperties": false,
+	"properties": {
+		"filterParameter": {
+			"title": "Filter Parameter",
+			"description": "User-provided filter for the search",
+			"lightning:type": "lightning__textType",
+			"lightning:isPII": false,
+			"copilotAction:isUserInput": true
+		},
+		"optionalParameter": {
+			"title": "Optional Parameter",
+			"description": "Optional parameter",
+			"lightning:type": "lightning__textType",
+			"lightning:isPII": false,
+			"copilotAction:isUserInput": false
+		}
+	},
+	"lightning:type": "lightning__objectType"
+}
+```
+
+**Adaptive Response Input Properties REQUIRED for Each Field:**
+
+- `title` - Display name
+- `description` - Field description
+- `lightning:type` - Data type with DOUBLE underscore (e.g., `lightning__textType`)
+- `lightning:isPII` - `false` (or true if contains PII)
+- `copilotAction:isUserInput` - `true` if user provides directly, `false` otherwise
+- `required` array - List of required parameters
+
+#### 🚨 Schema Validation Checklist for Adaptive Response
+
+**Before deploying, verify ALL checkboxes:**
+
+**List Output Field (Rich Choice):**
+
+- [ ] Uses `lightning__listType` (double underscore)
+- [ ] Has `maxItems` property (e.g., 2000)
+- [ ] Has `items.lightning:type` with `@apexClassType/c__ClassName$WrapperName`
+- [ ] `copilotAction:isDisplayable` = `true`
+- [ ] `copilotAction:isUsedByPlanner` = `true`
+- [ ] `lightning:isPII` = `false` (or true if applicable)
+- [ ] `copilotAction:useHydratedPrompt` = `false`
+
+**All Input Properties:**
+
+- [ ] Have `lightning:isPII`
+- [ ] Have `copilotAction:isUserInput`
+- [ ] Use DOUBLE underscore in `lightning:type` (e.g., `lightning__textType`)
+
+**All Output Properties:**
+
+- [ ] Have `lightning:isPII`
+- [ ] Have `copilotAction:isDisplayable`
+- [ ] Have `copilotAction:isUsedByPlanner`
+- [ ] Have `copilotAction:useHydratedPrompt`
+- [ ] Use DOUBLE underscore in `lightning:type`
+
+**Root Level:**
+
+- [ ] Root `lightning:type` = `lightning__objectType` (double underscore)
+- [ ] Has `unevaluatedProperties: false`
+
+#### Apex Wrapper Class Reference for Adaptive Response
+
+**CRITICAL - Exact Apex to Schema Mapping:**
+
+**Apex Class Structure (example):**
+
+```apex
+public class ProductRecommendationAction {
+    public class ProductChoiceWrapper {
+        @InvocableVariable(required=true)
+        public String name;  // ⚠️ EXACT field name
+
+        @InvocableVariable(required=true)
+        public String imageUrl;  // ⚠️ EXACT field name (camelCase)
+
+        @InvocableVariable(required=false)
+        public String mimeType;  // ⚠️ EXACT field name (camelCase)
+
+        @InvocableVariable(required=false)
+        public String description;  // ⚠️ EXACT field name
+    }
+
+    public class OutputWrapper {
+        @InvocableVariable(label='products')
+        public List<ProductChoiceWrapper> products;  // List of wrapper objects
+
+        @InvocableVariable(label='message')
+        public String message;
+    }
+}
+```
+
+**Schema Reference Format:**
+
+- **Apex Class:** `ProductRecommendationAction`
+- **Wrapper Class:** `ProductChoiceWrapper`
+- **Schema Reference:** `@apexClassType/c__ProductRecommendationAction$ProductChoiceWrapper`
+
+**Rules:**
+
+- Use `@apexClassType/` prefix
+- Use `c__` for default namespace
+- Use `$` to separate main class and wrapper
+- Must EXACTLY match Apex class and wrapper names (case-sensitive)
+
+#### Post-Deployment Steps for Adaptive Response
+
+**After Apex class is deployed:**
+
+1. **Add local action XML** referencing the Apex class in GenAiPlannerBundle:
+
+    ```xml
+    <localActions>
+        <fullName>Get_Products</fullName>
+        <description>Get product recommendations as visual cards</description>
+        <developerName>Get_Products</developerName>
+        <invocationTarget>ProductRecommendationAction</invocationTarget>
+        <invocationTargetType>apex</invocationTargetType>
+        <isConfirmationRequired>false</isConfirmationRequired>
+        <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+        <localDeveloperName>Get_Products</localDeveloperName>
+        <masterLabel>Get Products</masterLabel>
+    </localActions>
+    ```
+
+2. **Create input schema file:**
+
+    - Path: `localActions/Topic_Name/Action_Name/input/schema`
+    - Map Apex input parameters
+    - Ensure ALL properties have `lightning:isPII` and `copilotAction:isUserInput`
+
+3. **Create output schema file:**
+
+    - Path: `localActions/Topic_Name/Action_Name/output/schema`
+    - Use `lightning__listType` for list output
+    - Include `maxItems` (typically 2000)
+    - Reference Apex wrapper: `@apexClassType/c__ApexClassName$WrapperClassName`
+    - Ensure ALL properties have required fields: `lightning:isPII`, `copilotAction:isDisplayable`, `copilotAction:isUsedByPlanner`, `copilotAction:useHydratedPrompt`
+
+4. **Link action to topic:**
+
+    ```xml
+    <localActionLinks>
+        <functionName>Get_Products</functionName>
+    </localActionLinks>
+    ```
+
+5. **Deploy the GenAiPlannerBundle:**
+
+    ```bash
+    sf project deploy start --metadata GenAiPlannerBundle:Agent_Name
+    ```
+
+6. **Verify deployment:**
+    - Check Setup → Einstein → Agents → verify agent appears
+    - Test agent to ensure visual cards render correctly
+    - Verify images display and links work
+
+#### CRITICAL - Adaptive Response Field Names
+
+**Rich Choice Wrapper - EXACT field names REQUIRED:**
+
+```
+name          (String, required)   — Card display name
+imageUrl      (String, required)   — Card image URL (camelCase, NOT imageURL)
+mimeType      (String, optional)   — Image MIME type (camelCase)
+description   (String, optional)   — Card description text
+```
+
+**⚠️ Common Mistakes:**
+
+- ❌ `productName` instead of `name`
+- ❌ `imageURL` (wrong casing)
+- ❌ `image_url` (underscore format)
+- ❌ Missing `@InvocableVariable` annotations
+
+**Rich Link Wrapper - EXACT field names REQUIRED:**
+
+```
+linkTitle          (String, required)   — Link display title
+linkUrl            (String, required)   — Link URL (lowercase 'u')
+linkImageUrl       (String, required)   — Link image URL (lowercase 'u')
+linkImageMimeType  (String, optional)   — Image MIME type
+description        (String, optional)   — Link description
+```
+
+⚠️ THIS IS WHERE ADAPTIVE RESPONSE IS ENABLED - USE EXACT STRUCTURE:
+
+| Component              | Requirement                         | Example                                                                  |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------------------------ |
+| **Apex Wrapper Class** | EXACT field names                   | `name`, `imageUrl`, `mimeType`, `description`                            |
+| **Output Schema**      | Use `lightning__listType`           | `"lightning:type": "lightning__listType"`                                |
+| **Output Schema**      | Include `maxItems`                  | `"maxItems": 2000`                                                       |
+| **Output Schema**      | Include `items` with Apex reference | `"items": {"lightning:type": "@apexClassType/c__ClassName$WrapperName"}` |
+| **Output Schema**      | Set `isDisplayable: true`           | For the list field only                                                  |
+| **SOQL Query**         | Use channel-appropriate LIMIT       | `LIMIT 5` for Chat, `LIMIT 10` for Facebook                              |
+
+**⛔ If ANY requirement is missing, visual cards will NOT render ⛔**
+
+---
+
 ### Decision Guide: When to Use Adaptive Response
 
 **For AI Agents (Orchestration/Planning Phase):**
@@ -532,12 +847,47 @@ When creating subtasks for the Code Agent, include a property indicating the cho
 
 **For Code Agent (Implementation Phase):**
 
+---
+
+### 🚨 MANDATORY INSTRUCTION CHAIN FOR CODE AGENT 🚨
+
+**⛔ STOP! You MUST follow the correct instruction chain based on subtask properties ⛔**
+
 When implementing the action, check the subtask properties:
 
-- If `useAdaptiveResponse: true` → Follow **THIS GUIDE** (base instructions) + `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md` (adaptive-specific)
-- If `useAdaptiveResponse: false` → Follow **THIS GUIDE** (base instructions) only
+#### IF `useAdaptiveResponse: true`:
 
-**IMPORTANT:** `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md` contains **ONLY** adaptive response-specific requirements (exact field names, wrapper classes). It does NOT replace this base guide - always use both together for Adaptive Response.
+**⚠️ MANDATORY: Read and follow ALL THREE files IN ORDER:**
+
+| Order | File                                                      | What It Provides                                                     |
+| ----- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| 1️⃣    | **THIS GUIDE** (agentforce-topics-actions-guide.md)       | Schema structure, `lightning__listType`, `@apexClassType` reference  |
+| 2️⃣    | `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_WORKFLOW.md`     | Step-by-step implementation workflow                                 |
+| 3️⃣    | `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md` | **EXACT field names**: `name`, `imageUrl`, `mimeType`, `description` |
+
+**⛔ DO NOT write any Apex code until you have read ALL THREE files**
+**⛔ DO NOT use different field names - they MUST be exact**
+
+#### IF `useAdaptiveResponse: false`:
+
+**Read:** THIS GUIDE (base instructions) only - use standard `lightning__textType`
+
+---
+
+### ADAPTIVE RESPONSE CHECKLIST (Before Implementation)
+
+**⛔ Verify ALL checkboxes before writing code:**
+
+- [ ] ✅ Read this guide (agentforce-topics-actions-guide.md)
+- [ ] ✅ Read ADAPTIVE_RESPONSE_AGENT_WORKFLOW.md
+- [ ] ✅ Read ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md
+- [ ] ✅ Understand wrapper class MUST use: `name`, `imageUrl`, `mimeType`, `description`
+- [ ] ✅ Understand schema MUST use: `lightning__listType` with `@apexClassType/c__ClassName$WrapperName`
+- [ ] ✅ Understand SOQL MUST use: `LIMIT 5` for Chat, `LIMIT 10` for Facebook
+
+**⛔ If any checkbox is incomplete, STOP and complete it before proceeding ⛔**
+
+---
 
 **Examples of When to Offer Adaptive Response:**
 
@@ -558,7 +908,7 @@ When implementing the action, check the subtask properties:
 **Cross-References:**
 
 - Orchestration workflow: `.roo/rules-Salesforce_Agent/agentforce-agent-create-workflow.md`
-- Code implementation: `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md`
+- Code implementation details: `.roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md`
 
 ---
 

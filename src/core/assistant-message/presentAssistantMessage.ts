@@ -240,22 +240,13 @@ export async function presentAssistantMessage(cline: Task) {
 			}
 
 			if (cline.didAlreadyUseTool) {
-				// Check if multiple tool calls are enabled
-				const provider = cline.providerRef.deref()
-				const state = provider ? await provider.getState() : undefined
-				const isMultipleToolCallsEnabled = state
-					? experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
-					: false
+				// Ignore any content after a tool has already been used.
+				cline.userMessageContent.push({
+					type: "text",
+					text: `Tool [${block.name}] was not executed because a tool has already been used in this message. Only one tool may be used per message. You must assess the first tool's result before proceeding to use the next tool.`,
+				})
 
-				if (!isMultipleToolCallsEnabled) {
-					// Ignore any content after a tool has already been used.
-					cline.userMessageContent.push({
-						type: "text",
-						text: `Tool [${block.name}] was not executed because a tool has already been used in this message. Only one tool may be used per message. You must assess the first tool's result before proceeding to use the next tool.`,
-					})
-
-					break
-				}
+				break
 			}
 
 			const pushToolResult = (content: ToolResponse) => {
@@ -388,29 +379,12 @@ export async function presentAssistantMessage(cline: Task) {
 				const repetitionCheck = cline.toolRepetitionDetector.check(block)
 
 				// If execution is not allowed, notify user and break.
-				if (!repetitionCheck.allowExecution && repetitionCheck.askUser) {
-					// Handle repetition similar to mistake_limit_reached pattern.
-					const { response, text, images } = await cline.ask(
-						repetitionCheck.askUser.messageKey as ClineAsk,
-						repetitionCheck.askUser.messageDetail.replace("{toolName}", block.name),
-					)
-
-					if (response === "messageResponse") {
-						// Add user feedback to userContent.
-						cline.userMessageContent.push(
-							{
-								type: "text" as const,
-								text: `Tool repetition limit reached. User feedback: ${text}`,
-							},
-							...formatResponse.imageBlocks(images),
-						)
-
-						// Add user feedback to chat.
-						await cline.say("user_feedback", text, images)
-
-						// Track tool repetition in telemetry.
-						TelemetryService.instance.captureConsecutiveMistakeError(cline.taskId)
-					}
+				if (!repetitionCheck.allowExecution && repetitionCheck.agentHint) {
+					// Add user feedback to userContent.
+					cline.userMessageContent.push({
+						type: "text" as const,
+						text: `Tool repetition limit reached. Hint: repetitionCheck.agentHint`,
+					})
 
 					// Return tool result message about the repetition
 					pushToolResult(

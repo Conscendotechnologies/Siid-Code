@@ -14,16 +14,7 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		preTask += `### Required Orchestrator Planning Workflow\n\n`
 		preTask += `For multi-phase tasks, you MUST follow this planning protocol:\n\n`
 
-		preTask += `#### Step 1: Create Planning File\n`
-		preTask += `Create a planning file at \`.siid-code/planning/[descriptive-name]-plan.md\` with:\n`
-		preTask += `**Use meaningful names** (e.g., \`invoice-trigger-plan.md\`, \`case-automation-plan.md\`) - NOT timestamps!\n`
-		preTask += `- Original user request\n`
-		preTask += `- Components identified with mode assignments\n`
-		preTask += `- Phase plan with deliverables\n`
-		preTask += `- Execution log for tracking\n`
-		preTask += `**Note:** Planning files are shown in environment_details and auto-deleted on task completion.\n\n`
-
-		preTask += `#### Step 2: Create Phase-Based Todo List\n`
+		preTask += `#### Step 1: Create Phase-Based Todo List\n`
 		preTask += `Use 'update_todo_list' with DYNAMIC phases based on task analysis:\n\n`
 		preTask += `<update_todo_list>\n`
 		preTask += `<todos>\n`
@@ -42,16 +33,16 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		preTask += `2. Mode reports status: SUCCESS | PARTIAL | FAILED\n`
 		preTask += `3. Validate deliverables before proceeding\n`
 		preTask += `4. If FAILED: Re-delegate with error context (max 2 retries)\n`
-		preTask += `5. Update planning file and todo list\n\n`
+		preTask += `5. Update todo list with phase status\n\n`
 
 		preTask += `#### Step 4: Final Summary\n`
 		preTask += `After all phases complete:\n`
-		preTask += `- Update planning file with final status\n`
+		preTask += `- Update todo list with final status\n`
 		preTask += `- Provide summary of all deliverables\n`
 		preTask += `- Mark all todos complete\n\n`
 
 		preTask += `**CRITICAL RULES:**\n`
-		preTask += `- ALWAYS create planning file BEFORE any delegation\n`
+		preTask += `- ALWAYS create phase plan BEFORE any delegation\n`
 		preTask += `- ALWAYS validate phase status before next phase\n`
 		preTask += `- ALWAYS re-delegate with error context if issues found\n`
 		preTask += `- NEVER exceed 2 retries without user input\n`
@@ -73,6 +64,10 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		preTask += `- adaptive_response_agent: Instructions for creating/updating Adaptive Response Agents\n`
 		preTask += `- adaptive_response_agent_workflow: Workflow instructions for Adaptive Response Agents\n\n`
 		preTask += `\n**Salesforce Agent Instructions:**\n`
+		preTask += `- agentforce_agent_create: Instructions for creating Agentforce agents from scratch\n`
+		preTask += `- agentforce_agent_analyse: Instructions for analyzing and enhancing existing Agentforce agents\n`
+		preTask += `- agentforce_topic_analyse: Instructions for analyzing and optimizing Agentforce topics\n`
+		preTask += `- agentforce_topics_actions: Instructions for configuring topics and actions in Agentforce\n`
 		preTask += `- assignment_rules: Instructions for creating/updating Assignment Rules\n`
 		preTask += `- custom_field: Instructions for creating/updating Custom Fields\n`
 		preTask += `- custom_object: Instructions for creating/updating Custom Objects\n`

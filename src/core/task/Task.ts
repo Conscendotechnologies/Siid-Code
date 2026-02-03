@@ -427,7 +427,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// The orchestrator will replace this with dynamic phase-based todos
 				const defaultMd = [
 					"[ ] Analyze request & identify components",
-					"[ ] Create planning file (.siid-code/planning/)",
 					"[ ] Define phases with mode assignments",
 					"[ ] Execute phases sequentially",
 					"[ ] Validate & finalize",

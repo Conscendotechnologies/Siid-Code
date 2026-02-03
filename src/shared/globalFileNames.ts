@@ -8,11 +8,11 @@ export const GlobalFileNames = {
 	apexInstructions: "code/apex-guide.md",
 	invocableapexInstructions: "code/agentforce-apex-guide.md",
 	adaptiveResponseAgentInstructions: "code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md",
-	adaptiveResponseAgentWorkflow: "code/ADAPTIVE_RESPONSE_AGENT_WORKFLOW.md",
 	// Salesforce Agent Instructions
 	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
 	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",
 	agentforceTopicAnalyseInstructions: "Salesforce_Agent/agentforce-topic-analyse-workflow.md",
+	agentforceTopicsActionsInstructions: "Salesforce_Agent/agentforce-topics-actions-guide.md",
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
 	customObjectInstructions: "Salesforce_Agent/custom-object.md",

@@ -1,106 +1,243 @@
-# Adaptive Response Agent Instructions - Salesforce Agentforce
+# Adaptive Response Agent Instructions
 
-**⚠️ CRITICAL:** This guide covers ONLY the adaptive response-specific requirements (exact field names, wrapper classes, channel limits).
-
-**You MUST also follow the base guide:** `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`
-
-**Base guide covers:**
-
-- Schema structure and syntax (lightning types with double underscore)
-- Topic and action naming conventions
-- Local vs global topics/actions
-- Schema file creation (input/output folders)
-- Permissions and deployment
-
-**This guide adds:**
-
-- Exact field names for adaptive response wrapper classes
-- Channel-specific limits
-- SOQL query patterns for adaptive responses
-
-**Always use BOTH guides together for Adaptive Response implementations.**
+Comprehensive guide for implementing Salesforce Agentforce Adaptive Response actions with rich visual cards (carousels, links).
 
 ---
 
-## For Code Agent: Reading Adaptive Response Decision
+## Decision: Is This an Adaptive Response?
 
-**IMPORTANT:** Before implementing, check if Adaptive Response should be used.
+**Check subtask properties:**
 
-### How to Determine Implementation Approach
+- `useAdaptiveResponse: true` → Follow this guide
+- `useAdaptiveResponse: false` → Use standard types (`lightning__textType`) with `agentforce-apex-guide.md` only
 
-**Check subtask properties for:**
+**If property not specified, analyze the requirement:**
 
-- `useAdaptiveResponse: true` → Implement Adaptive Response (this guide)
-- `useAdaptiveResponse: false` → Implement standard action (use standard `lightning__textType`)
+| Criteria                        | Examples                                                |
+| ------------------------------- | ------------------------------------------------------- |
+| Returns a **list of items**     | products, courses, recommendations, cases               |
+| Includes **rich content**       | images, descriptions, multiple fields per item          |
+| Involves **browsing/selecting** | "show courses", "display products", "recommend options" |
+| Visual presentation enhances UX | card carousels, image galleries                         |
 
-**If `useAdaptiveResponse: true`:**
-
-1. Create wrapper class with **EXACT field names**: `name`, `imageUrl`, `mimeType`, `description`
-2. Use `lightning__listType` in output schema
-3. Add `maxItems` and `items` properties to schema
-4. Reference wrapper class using: `@apexClassType/c__ApexClassName$WrapperClassName`
-5. Follow all patterns in this guide
-
-**If `useAdaptiveResponse: false`:**
-
-1. Use standard types: `lightning__textType`, `lightning__booleanType`, etc.
-2. No special wrapper classes needed
-3. Standard schema format (no `maxItems` or `items`)
-
-**If property not specified:**
-
-- Analyze the action requirements
-- If returning a list for visual display → Assume Adaptive Response
-- If returning simple data → Use standard types
+**If ANY criteria matches → Use Adaptive Response (this guide).**
+**If none match → Use standard types with `agentforce-apex-guide.md` only.**
 
 ---
 
-## Rich Choice (Card Carousel) Format
+## AI Workflow Checklist — MANDATORY SEQUENCE
 
-### Item Wrapper Class - EXACT Field Names Required
+**⚠️ CRITICAL:** Follow this exact sequence. Do NOT skip or reorder steps.
 
-```apex
-public class ProductChoiceWrapper {
-    @InvocableVariable(required=true)
-    public String name;              // ⚠️ EXACT: "name"
+### Phase 1: Apex Class Implementation (Code Mode)
 
-    @InvocableVariable(required=true)
-    public String imageUrl;          // ⚠️ EXACT: "imageUrl" (camelCase)
+- [ ] **STEP 1:** Retrieve ALL custom objects and fields
 
-    @InvocableVariable(required=false)
-    public String mimeType;          // ⚠️ EXACT: "mimeType" (camelCase)
+    ```xml
+    <retrieve_sf_metadata>
+    <metadata_type>CustomObject</metadata_type>
+    </retrieve_sf_metadata>
+    ```
 
-    @InvocableVariable(required=false)
-    public String description;       // ⚠️ EXACT: "description"
-}
+    Find relevant object folder and examine fields in `fields/` subfolder
+
+- [ ] **STEP 2:** Fetch invocable Apex instructions
+
+    ```xml
+    <fetch_instructions>
+    <task>invocable_apex</task>
+    </fetch_instructions>
+    ```
+
+- [ ] **STEP 3:** Read adaptive response patterns (sections 2b-2f above)
+
+    - Rich Choice vs Rich Link format
+    - EXACT field names (name, imageUrl, mimeType, description, etc.)
+    - SOQL query patterns and bind variable rules
+    - Channel limits (LIMIT 5 for Chat, LIMIT 10 for Facebook)
+
+- [ ] **STEP 4:** Create invocable Apex class
+
+    - Follow invocable Apex guide structure
+    - Apply adaptive response wrapper patterns
+    - Use EXACT field names with @InvocableVariable annotations
+    - Extract bind variables from wrappers to local variables
+    - Include try-catch error handling
+
+- [ ] **STEP 5:** Dry-run deploy
+
+    ```bash
+    sf project deploy start --dry-run --source-dir force-app/main/default/classes/YourClassName.cls
+    ```
+
+- [ ] **STEP 6:** Deploy to Salesforce org
+
+    ```bash
+    sf project deploy start --source-dir force-app/main/default/classes/YourClassName.cls
+    ```
+
+- [ ] **STEP 7:** Verify deployment succeeded
+    - Check Setup → Apex Classes → confirm class appears
+
+### Phase 2: Agent Configuration (Salesforce Agent Mode)
+
+**⚠️ MANDATORY:** After Apex is deployed, SWITCH TO SALESFORCE AGENT MODE
+
+- [ ] **STEP 8:** Fetch agentforce topics and actions guide
+    ```xml
+    <fetch_instructions>
+    <task>agentforce_topics_actions</task>
+    </fetch_instructions>
+    ```
+    This guide contains complete instructions for:
+    - Creating local topics in GenAiPlannerBundle
+    - Creating local actions referencing the Apex class
+    - Creating input/output schema files
+    - Linking actions to topics
+    - Linking topics to agent
+    - Deploying the GenAiPlannerBundle
+
+**⚠️ After Apex deployment:**
+
+1. Switch to **Salesforce Agent Mode**
+2. Fetch the `agentforce_topic_analyse` instructions
+3. Follow those instructions to configure agent topics and actions
+4. Deploy the GenAiPlannerBundle to complete the agent setup
+
+---
+
+## Implementation Workflow
+
+```
+1. Retrieve Objects → 2. Implement Apex → 3. Deploy → 4. Configure Agent
 ```
 
-**⚠️ Common Mistakes:**
+---
+
+## Step 1: Retrieve Objects and Fields
+
+**ALWAYS retrieve ALL custom objects first:**
+
+```xml
+<retrieve_sf_metadata>
+<metadata_type>CustomObject</metadata_type>
+</retrieve_sf_metadata>
+```
+
+This retrieves ALL objects to: `force-app/main/default/objects/`
+
+**After retrieval, find the relevant object:**
+
+1. Navigate to `force-app/main/default/objects/`
+2. Search for the object folder matching the user's request (e.g., `Product2`, `Course__c`)
+3. Open the `fields/` subfolder — each `.field-meta.xml` = one field
+4. Field API name = filename without `.field-meta.xml`
+5. Use these exact API names in SOQL queries
+
+**Why this is critical:**
+
+- See all available fields before writing SOQL
+- Use correct field API names (avoid query errors)
+- Identify which fields have image URLs, descriptions, etc.
+
+---
+
+## Step 2: Implement Apex Class
+
+### 2a. Fetch the Invocable Apex Guide
+
+**MANDATORY — fetch this first:**
+
+```xml
+<fetch_instructions>
+<task>invocable_apex</task>
+</fetch_instructions>
+```
+
+This provides: invocable Apex structure, `@InvocableMethod` / `@InvocableVariable` annotations, file creation locations, XML metadata, and deployment patterns.
+
+**Follow the invocable Apex guide for the base class structure, then apply the adaptive response patterns below.**
+
+---
+
+### 2b. Adaptive Response Variables
+
+#### Rich Choice (Card Carousel) — EXACT Field Names
+
+```
+name          (String, required)   — ⚠️ EXACT: "name" not "productName"
+imageUrl      (String, required)   — ⚠️ EXACT: "imageUrl" (camelCase, not "imageURL")
+mimeType      (String, optional)   — ⚠️ EXACT: "mimeType" (camelCase)
+description   (String, optional)   — ⚠️ EXACT: "description"
+```
+
+#### Rich Link (Single Link Card) — EXACT Field Names
+
+```
+linkTitle          (String, required)   — ⚠️ EXACT: "linkTitle"
+linkUrl            (String, required)   — ⚠️ EXACT: "linkUrl" (lowercase 'u')
+linkImageUrl       (String, required)   — ⚠️ EXACT: "linkImageUrl" (lowercase 'u')
+linkImageMimeType  (String, optional)   — ⚠️ EXACT: "linkImageMimeType"
+description        (String, optional)   — ⚠️ EXACT: "description"
+```
+
+**Common Mistakes:**
 
 - ❌ `productName` instead of `name`
 - ❌ `imageURL` instead of `imageUrl` (wrong casing)
 - ❌ `image_url` instead of `imageUrl` (underscore)
+- ❌ `linkURL` instead of `linkUrl` (wrong casing)
+- ❌ `linkDescriptionText` instead of `description`
 - ❌ Missing `@InvocableVariable` on any field
 
-### Response Wrapper Class
+---
+
+### 2c. SOQL Query Patterns
+
+**⚠️ CRITICAL BUG TO AVOID:** You CANNOT use request wrapper properties directly in SOQL bind variables.
+
+**❌ WRONG:**
 
 ```apex
-public class ResponseWrapper {
-    @InvocableVariable(required=true)
-    public List<ProductChoiceWrapper> products;  // ✅ Name IS flexible: products, items, choices, etc.
-
-    @InvocableVariable(required=false)
-    public String message;
-}
+query += ' AND Course_Level__c = :req.courseLevel';  // ❌ WRONG!
 ```
 
-**Key Points:**
+**✅ CORRECT — Extract to standalone variables first:**
 
-- List field name (e.g., `products`) is FLEXIBLE - choose any descriptive name
-- List items MUST use exact field names: `name`, `imageUrl`, `mimeType`, `description`
-- ALWAYS initialize list: `res.products = new List<ProductChoiceWrapper>();`
+```apex
+String level = req.courseLevel;
+String category = req.category;
 
-### Complete Example
+String query = 'SELECT Id, Name FROM Course__c WHERE IsActive = true';
+if (String.isNotBlank(level)) {
+    query += ' AND Course_Level__c = :level';  // ✅ CORRECT
+}
+if (String.isNotBlank(category)) {
+    query += ' AND Category__c = :category';  // ✅ CORRECT
+}
+List<Course__c> courses = Database.query(query);
+```
+
+**Rule:** Always extract ALL wrapper properties to local variables before using in dynamic SOQL bind syntax (`:variableName`).
+
+---
+
+### 2d. Channel Support & Limits
+
+| Format                      | Channel            | Limit                        |
+| --------------------------- | ------------------ | ---------------------------- |
+| Rich Choice (Card Carousel) | Chat               | Max **5** cards              |
+| Rich Choice (Card Carousel) | Facebook Messenger | Max **10** cards             |
+| Rich Choice (Card Carousel) | LINE               | Supported                    |
+| Rich Link (Single Card)     | Chat               | Supported (single card only) |
+| Rich Link (Single Card)     | Apple Messages     | Supported (single card only) |
+
+- Use `LIMIT 5` in SOQL for Chat deployments, `LIMIT 10` for Facebook
+- If channel doesn't support the format, it automatically converts to plain text
+
+---
+
+### 2e. Complete Example — Rich Choice (Card Carousel)
 
 ```apex
 public with sharing class ProductRecommendationAction {
@@ -120,7 +257,7 @@ public with sharing class ProductRecommendationAction {
     }
 
     public class RequestWrapper {
-        @InvocableVariable(required=true, label='Customer Category')
+        @InvocableVariable(required=true label='Customer Category')
         public String customerCategory;
     }
 
@@ -132,26 +269,27 @@ public with sharing class ProductRecommendationAction {
         public String message;
     }
 
-    @InvocableMethod(label='Get Product Recommendations', category='Agentforce Actions')
+    @InvocableMethod(label='Get Product Recommendations' category='Agentforce Actions')
     public static List<ResponseWrapper> getProductRecommendations(List<RequestWrapper> requests) {
         List<ResponseWrapper> responses = new List<ResponseWrapper>();
 
         try {
             for (RequestWrapper req : requests) {
                 ResponseWrapper res = new ResponseWrapper();
-                res.products = new List<ProductChoiceWrapper>(); // Initialize first!
+                res.products = new List<ProductChoiceWrapper>();
 
-                // Query data
+                // Extract bind variables from wrapper
+                String category = req.customerCategory;
+
                 List<Product2> productRecords = [
                     SELECT Id, Name, Image_URL1__c, Description
                     FROM Product2
-                    WHERE Customer_Category__c = :req.customerCategory
+                    WHERE Customer_Category__c = :category
                     AND IsActive = true
                     AND Image_URL1__c != null
-                    LIMIT 5  // Chat channel supports max 5 cards
+                    LIMIT 5
                 ];
 
-                // Map to wrapper with EXACT field names
                 for (Product2 prod : productRecords) {
                     ProductChoiceWrapper choice = new ProductChoiceWrapper();
                     choice.name = prod.Name;
@@ -169,7 +307,7 @@ public with sharing class ProductRecommendationAction {
             }
         } catch (Exception e) {
             ResponseWrapper errorRes = new ResponseWrapper();
-            errorRes.products = new List<ProductChoiceWrapper>(); // Never null!
+            errorRes.products = new List<ProductChoiceWrapper>();
             errorRes.message = 'Sorry, an error occurred. Please try again.';
             responses.add(errorRes);
             System.debug('Error: ' + e.getMessage());
@@ -180,192 +318,158 @@ public with sharing class ProductRecommendationAction {
 }
 ```
 
+**Key Points:**
+
+- Item wrapper uses EXACT field names: `name`, `imageUrl`, `mimeType`, `description`
+- Response wrapper list field name (e.g., `products`) is FLEXIBLE
+- ALWAYS initialize list before populating: `res.products = new List<ProductChoiceWrapper>();`
+- Never return null lists or responses
+
 ---
 
-## Rich Link (Single Link Card) Format
-
-### Link Wrapper Class - EXACT Field Names Required
+### 2f. Complete Example — Rich Link (Single Link Card)
 
 ```apex
-public class LinkWrapper {
-    @InvocableVariable(required=true)
-    public String linkTitle;         // ⚠️ EXACT: "linkTitle"
+public with sharing class ResourceLinkAction {
 
-    @InvocableVariable(required=true)
-    public String linkUrl;           // ⚠️ EXACT: "linkUrl" (lowercase 'u')
+    public class LinkWrapper {
+        @InvocableVariable(required=true)
+        public String linkTitle;
 
-    @InvocableVariable(required=true)
-    public String linkImageUrl;      // ⚠️ EXACT: "linkImageUrl" (lowercase 'u')
+        @InvocableVariable(required=true)
+        public String linkUrl;
 
-    @InvocableVariable(required=false)
-    public String linkImageMimeType; // ⚠️ EXACT: "linkImageMimeType"
+        @InvocableVariable(required=true)
+        public String linkImageUrl;
 
-    @InvocableVariable(required=false)
-    public String description;       // ⚠️ EXACT: "description" (NOT linkDescriptionText)
+        @InvocableVariable(required=false)
+        public String linkImageMimeType;
+
+        @InvocableVariable(required=false)
+        public String description;
+    }
+
+    public class RequestWrapper {
+        @InvocableVariable(required=true label='Resource Type')
+        public String resourceType;
+    }
+
+    public class ResponseWrapper {
+        @InvocableVariable(required=true)
+        public LinkWrapper link;
+
+        @InvocableVariable(required=false)
+        public String message;
+    }
+
+    @InvocableMethod(label='Get Resource Link' category='Agentforce Actions')
+    public static List<ResponseWrapper> getResourceLink(List<RequestWrapper> requests) {
+        List<ResponseWrapper> responses = new List<ResponseWrapper>();
+
+        try {
+            for (RequestWrapper req : requests) {
+                ResponseWrapper res = new ResponseWrapper();
+                String resType = req.resourceType;
+
+                Resource__c resource = [
+                    SELECT Name, URL__c, Image_URL__c, Description__c
+                    FROM Resource__c
+                    WHERE Type__c = :resType
+                    AND IsActive__c = true
+                    LIMIT 1
+                ];
+
+                LinkWrapper lw = new LinkWrapper();
+                lw.linkTitle = resource.Name;
+                lw.linkUrl = resource.URL__c;
+                lw.linkImageUrl = resource.Image_URL__c;
+                lw.linkImageMimeType = 'image/png';
+                lw.description = resource.Description__c;
+                res.link = lw;
+
+                res.message = 'Here is the resource you requested:';
+                responses.add(res);
+            }
+        } catch (Exception e) {
+            ResponseWrapper errorRes = new ResponseWrapper();
+            errorRes.message = 'Sorry, could not find the requested resource.';
+            responses.add(errorRes);
+            System.debug('Error: ' + e.getMessage());
+        }
+
+        return responses;
+    }
 }
 ```
 
-**⚠️ Common Mistakes:**
+**Key Points:**
 
-- ❌ `linkURL` instead of `linkUrl` (wrong casing)
-- ❌ `linkDescriptionText` instead of `description`
-- ❌ `title` instead of `linkTitle`
-
-### Response Wrapper Class
-
-```apex
-public class ResponseWrapper {
-    @InvocableVariable(required=true)
-    public LinkWrapper link;  // ✅ Name IS flexible: link, linkDetails, etc.
-}
-```
+- Link wrapper uses EXACT field names: `linkTitle`, `linkUrl`, `linkImageUrl`, `linkImageMimeType`, `description`
+- Response wrapper field name (e.g., `link`) is FLEXIBLE
+- Single card only — no list needed
 
 ---
 
-## Channel Support & Limits
+## Step 3: Deploy
 
-### Rich Choice (Card Carousel)
+**Always dry-run first:**
 
-- **Chat**: Max 5 cards
-- **Facebook Messenger**: Max 10 cards
-- **LINE**: Supported
-- Use `LIMIT 5` in SOQL for Chat deployments
+```bash
+sf project deploy start --dry-run --source-dir force-app/main/default/classes/YourClassName.cls
+```
 
-### Rich Link (Single Card)
+**If dry-run succeeds, deploy:**
 
-- **Chat**: Supported
-- **Apple Messages for Business**: Supported
-- Single card only
+```bash
+sf project deploy start --source-dir force-app/main/default/classes/YourClassName.cls
+```
 
-### Text Fallback
+**Verify deployment:**
 
-- If channel doesn't support format, automatically converts to plain text
+- Check Setup → Apex Classes → confirm class appears
 
 ---
 
-## SOQL Query Patterns - CRITICAL
+## Switch to Salesforce Agent Mode
 
-### SOQL Bind Variables with Request Wrapper Properties
+**After Apex class is deployed:**
 
-**⚠️ CRITICAL BUG TO AVOID:**
-
-You CANNOT use request wrapper properties directly in SOQL bind variables.
-
-**❌ WRONG - This will cause errors:**
-
-```apex
-String query = 'SELECT Id, Name FROM Course__c WHERE IsActive = true';
-if (String.isNotBlank(req.courseLevel)) {
-    query += ' AND Course_Level__c = :req.courseLevel';  // ❌ WRONG!
-}
-List<Course__c> courses = Database.query(query);
-```
-
-**✅ CORRECT - Create standalone variables first:**
-
-```apex
-// Step 1: Extract values to standalone variables
-String level = req.courseLevel;
-String category = req.category;
-
-// Step 2: Build query
-String query = 'SELECT Id, Name FROM Course__c WHERE IsActive = true';
-
-// Step 3: Use standalone variables in bind
-if (String.isNotBlank(level)) {
-    query += ' AND Course_Level__c = :level';  // ✅ CORRECT
-}
-if (String.isNotBlank(category)) {
-    query += ' AND Category__c = :category';  // ✅ CORRECT
-}
-
-// Step 4: Execute query
-List<Course__c> courses = Database.query(query);
-```
-
-**Why This Matters:**
-
-- SOQL bind variables can only reference standalone variables, not object properties
-- Using `:req.property` syntax will cause "Variable does not exist" errors
-- Always extract wrapper properties to local variables before using in dynamic SOQL
-
-**Pattern to Follow:**
-
-1. Extract ALL needed values from request wrapper to standalone variables
-2. Build your dynamic query string
-3. Use the standalone variables in bind variable syntax (`:variableName`)
-4. Execute the query
+1. **Switch to Salesforce Agent Mode**
+2. **Fetch agentforce topics and actions guide:**
+    ```xml
+    <fetch_instructions>
+    <task>agentforce_topics_actions</task>
+    </fetch_instructions>
+    ```
+3. **Follow the fetched guide** to create topics, actions, schemas, and deploy the GenAiPlannerBundle
 
 ---
 
-## Field Name Quick Reference
+## Step 4: Configure Agent
 
-### Rich Choice Item Fields (EXACT)
+After the Apex class is deployed:
 
-```
-name          (String, required)
-imageUrl      (String, required)
-mimeType      (String, optional)
-description   (String, optional)
-```
-
-### Rich Link Fields (EXACT)
-
-```
-linkTitle          (String, required)
-linkUrl            (String, required)
-linkImageUrl       (String, required)
-linkImageMimeType  (String, optional)
-description        (String, optional)
-```
+1. Add the local action XML referencing the Apex class in the GenAiPlannerBundle
+2. Create input/output schema files for the action
+3. For schema structure and requirements, refer to: `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md`
+    - Use `lightning__listType` for Rich Choice output
+    - Add `maxItems` and `items` properties with Apex class reference: `@apexClassType/c__ApexClassName$WrapperClassName`
+4. Deploy the GenAiPlannerBundle
 
 ---
 
-## Checklist
-
-**Before Deployment:**
+## Pre-Deployment Checklist
 
 **Apex Class:**
 
 - [ ] Used EXACT field names (check casing!)
 - [ ] ALL fields have `@InvocableVariable`
 - [ ] List initialized before populating
-- [ ] SOQL LIMIT matches channel (5 for Chat)
+- [ ] SOQL LIMIT matches channel (5 for Chat, 10 for Facebook)
+- [ ] SOQL bind variables use standalone local variables (not `req.property`)
 - [ ] Try-catch error handling
-- [ ] Never return null lists/responses
+- [ ] Never return null lists or responses
 - [ ] Image URLs are publicly accessible
-- [ ] URLs have file extensions (.jpg, .png) OR mimeType specified
-
-**🚨 Schema Files (CRITICAL - see base guide for details):**
-
-**Input Schema - EVERY property MUST have:**
-
-- [ ] `lightning:isPII` (boolean)
-- [ ] `copilotAction:isUserInput` (boolean)
-
-**Output Schema - EVERY property MUST have:**
-
-- [ ] `lightning:isPII` (boolean)
-- [ ] `copilotAction:isDisplayable` (boolean)
-- [ ] `copilotAction:isUsedByPlanner` (boolean)
-- [ ] `copilotAction:useHydratedPrompt` (boolean)
-
-**⚠️ Missing schema properties = silent deployment failure!**
-
-Refer to `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md` for complete schema requirements.
-
----
-
-## Common Mistakes - Quick Fixes
-
-| Issue                      | Fix                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Cards not rendering        | Verify EXACT field names: `name`, `imageUrl`, `mimeType`, `description`                                           |
-| Missing @InvocableVariable | Add to ALL wrapper fields                                                                                         |
-| Wrong casing               | `imageUrl` not `imageURL`, `linkUrl` not `linkURL`                                                                |
-| Too many cards             | LIMIT 5 for Chat, LIMIT 10 for Facebook                                                                           |
-| Null list error            | Initialize: `res.products = new List<>()`                                                                         |
-| Images not loading         | Check URL is public, has extension, or add mimeType                                                               |
-| SOQL bind variable error   | Never use `:req.property` - create standalone variable first: `String level = req.courseLevel;` then use `:level` |
+- [ ] URLs have file extensions (.jpg, .png) OR mimeType is specified
 
 ---

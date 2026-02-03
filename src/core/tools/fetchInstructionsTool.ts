@@ -17,6 +17,8 @@ function getTaskDisplayName(task: string): string {
 		// Salesforce Agent Instructions
 		agentforce_agent_create: "Agentforce Agent Creation Workflow",
 		agentforce_agent_analyse: "Agentforce Agent Analysis & Enhancement Workflow",
+		agentforce_topic_analyse: "Agentforce Topic Analysis Workflow",
+		agentforce_topics_actions: "Agentforce Topics and Actions Guide",
 		assignment_rules: "Assignment Rules Instructions",
 		custom_field: "Custom Field Instructions",
 		custom_object: "Custom Object Instructions",
@@ -34,7 +36,6 @@ function getTaskDisplayName(task: string): string {
 		workflow_email_alert_creation: "Workflow Email Alert Creation Instructions",
 		// Adaptive Response Agent Instructions
 		adaptive_response_agent: "Adaptive Response Agent Instructions",
-		adaptive_response_agent_workflow: "Adaptive Response Agent Workflow",
 	}
 
 	return taskNames[task] || task
@@ -73,6 +74,7 @@ export async function fetchInstructionsTool(
 				"agentforce_agent_create",
 				"agentforce_agent_analyse",
 				"agentforce_topic_analyse",
+				"agentforce_topics_actions",
 			]
 
 			if (agentforceWorkflows.includes(task) && currentMode === "orchestrator") {

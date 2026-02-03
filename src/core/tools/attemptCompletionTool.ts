@@ -97,11 +97,6 @@ export async function attemptCompletionTool(
 			TelemetryService.instance.captureTaskCompleted(cline.taskId)
 			cline.emit(RooCodeEventName.TaskCompleted, cline.taskId, cline.getTokenUsage(), cline.toolUsage)
 
-			// Clean up planning files after task completion (only for root tasks, not subtasks)
-			if (!cline.parentTask) {
-				await cleanupPlanningFiles(cline.cwd)
-			}
-
 			if (cline.parentTask) {
 				const didApprove = await askFinishSubTaskApproval()
 
@@ -144,42 +139,5 @@ export async function attemptCompletionTool(
 	} catch (error) {
 		await handleError("inspecting site", error)
 		return
-	}
-}
-
-/**
- * Clean up planning files in .siid-code/planning/ directory after task completion.
- * Deletes all *-plan.md files to keep the workspace clean.
- */
-async function cleanupPlanningFiles(cwd: string): Promise<void> {
-	const planningDir = path.join(cwd, ".siid-code", "planning")
-	try {
-		const dirExists = await fs
-			.access(planningDir)
-			.then(() => true)
-			.catch(() => false)
-
-		if (!dirExists) {
-			return
-		}
-
-		const files = await fs.readdir(planningDir)
-		const planFiles = files.filter((f) => f.endsWith("-plan.md"))
-
-		for (const file of planFiles) {
-			try {
-				await fs.unlink(path.join(planningDir, file))
-			} catch {
-				// Ignore errors for individual file deletions
-			}
-		}
-
-		// Try to remove the planning directory if empty
-		const remainingFiles = await fs.readdir(planningDir)
-		if (remainingFiles.length === 0) {
-			await fs.rmdir(planningDir)
-		}
-	} catch {
-		// Silently ignore cleanup errors - not critical
 	}
 }

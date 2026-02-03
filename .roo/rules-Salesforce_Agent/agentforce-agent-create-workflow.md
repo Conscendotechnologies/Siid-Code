@@ -13,6 +13,7 @@
 [ ] Review auto-generated structure in local project
 [ ] Remove AI-generated placeholder topic
 [ ] Create custom local topic with clear instructions (WITHOUT actions yet)
+[ ] **ANALYZE if Adaptive Response is applicable** - IF YES, ASK USER!
 [ ] Delegate Apex action creation to Code mode (if needed)
 [ ] WAIT for Code mode to create AND deploy Apex (verify deployment, do NOT retrieve)
 [ ] AFTER Apex deployed: Create local action in topic with invocationTarget
@@ -22,6 +23,8 @@
 [ ] Deploy customized agent to org
 [ ] Test agent functionality
 ```
+
+**⚠️ CRITICAL REMINDER:** If the action can be Adaptive Response (returns list of items with images), you MUST ask the user before proceeding. Do NOT skip this step.
 
 **Do NOT use generic template** - this is the actual sequence for agent creation.
 
@@ -105,23 +108,46 @@ After this command completes, check your `force-app/main/default/genAiPlannerBun
 
 **Important - Apex Code Creation:**
 
-**⚠️ CRITICAL: Determine if Adaptive Response is Needed**
+---
 
-Before delegating to Code mode, analyze if Adaptive Response should be used:
+## 🚨 MANDATORY CHECKPOINT: ADAPTIVE RESPONSE DETECTION 🚨
 
-**Detection Criteria - Adaptive Response is applicable when:**
+**⛔ STOP! DO NOT PROCEED WITHOUT COMPLETING THIS CHECKPOINT ⛔**
 
-- Action returns a **list of items** (products, recommendations, cases, options)
-- Data includes **rich content** (images, descriptions, multiple fields)
-- Use case involves **browsing, comparing, or selecting** from options
-- Visual presentation would enhance user experience
+Before ANY code creation or delegation to Code mode, you MUST complete these steps IN ORDER:
 
-**When Detected - ALWAYS Ask Developer:**
+---
+
+### STEP A: ANALYZE THE REQUIREMENT (MANDATORY)
+
+**Check if ANY of these criteria apply to the user's request:**
+
+| Criteria                           | Examples                                                |
+| ---------------------------------- | ------------------------------------------------------- |
+| ✅ Returns a **list of items**     | products, courses, recommendations, cases, options      |
+| ✅ Includes **rich content**       | images, descriptions, multiple fields per item          |
+| ✅ Involves **browsing/selecting** | "show courses", "display products", "recommend options" |
+| ✅ Visual presentation enhances UX | card carousels, image galleries                         |
+
+**If ANY criteria matches → Adaptive Response is APPLICABLE**
+
+---
+
+### STEP B: ASK THE USER (MANDATORY - DO NOT SKIP - BLOCKING STEP)
+
+**⚠️ YOU MUST ASK THIS QUESTION - NO EXCEPTIONS - THIS IS A BLOCKING STEP ⚠️**
+
+**CRITICAL RULE:** If Adaptive Response is applicable (ANY criteria from STEP A matches), you MUST STOP and ask the user before proceeding. Do not continue until you receive an explicit choice from the user.
+
+**What to do:**
+
+1. **PAUSE your implementation**
+2. **Explicitly ask the user** the following question (use exact wording):
 
 ```
 I've analyzed your requirements. This action can be implemented in two ways:
 
-1. **Adaptive Response** (Recommended)
+1. **Adaptive Response** (Recommended for your use case)
    - Visual cards with images and rich UI
    - Interactive browsing experience
    - Better for displaying multiple options
@@ -133,16 +159,105 @@ I've analyzed your requirements. This action can be implemented in two ways:
 Which approach would you prefer?
 ```
 
-**After Developer Decides:**
+3. **WAIT for explicit user response** before proceeding
+4. **DOCUMENT the user's choice** in your task notes
+5. **Proceed with the chosen approach**
 
-When creating subtask for Code mode, include the decision:
+**⛔ CRITICAL BLOCKING RULES:**
 
-- Add property: `useAdaptiveResponse: true` (if developer chose Adaptive Response)
-- Add property: `useAdaptiveResponse: false` (if developer chose Plain Text)
-- Specify guides for Adaptive Response: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base), .roo/rules-code/agentforce-apex-guide.md, AND .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md (adaptive-specific)"**
-- Specify guides for Plain Text: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base) and .roo/rules-code/agentforce-apex-guide.md"**
+- ❌ DO NOT skip asking if Adaptive Response is applicable
+- ❌ DO NOT assume which approach the user wants
+- ❌ DO NOT proceed to code creation without explicit user response
+- ❌ DO NOT continue to next steps until user answers
 
-**CRITICAL:** The base guide (agentforce-topics-actions-guide.md) is ALWAYS required - it contains schema structure, naming conventions, permissions. The adaptive guide only adds wrapper class field names.
+**✅ REQUIRED ACTIONS:**
+
+- ✅ Always ask if ANY adaptive response criteria match
+- ✅ Use the exact question template provided above
+- ✅ Wait for and document user's explicit choice
+- ✅ Include the choice in subtask properties
+- ✅ Only proceed after receiving response
+
+**If user does NOT respond:**
+
+- Remind them: "I'm waiting for your choice between Adaptive Response or Plain Text Response. Which would you prefer?"
+- Do NOT assume or guess
+- Do NOT skip this step
+
+**If user is unclear:**
+
+- Provide brief examples of the difference
+- Explain the visual benefits of Adaptive Response
+- Help them decide, but ultimately let them choose
+
+---
+
+### STEP C: FOLLOW THE CORRECT INSTRUCTION CHAIN (MANDATORY)
+
+**Based on user's choice, you MUST follow the exact instruction chain:**
+
+#### IF USER CHOOSES: ADAPTIVE RESPONSE
+
+**⚠️ MANDATORY: Fetch ADAPTIVE RESPONSE AGENT Instructions before any code creation:**
+
+- **Fetch:** `adaptive_response_agent` instructions
+    - This contains: workflow steps, exact field names, examples, and references to base guides
+
+**⛔ DO NOT create any Apex code until you have fetched adaptive_response_agent instructions**
+
+**When delegating to Code mode, include:**
+
+- Property: `useAdaptiveResponse: true`
+- **FIRST STEP:** Fetch adaptive_response_agent instructions using:
+    ```xml
+    <fetch_instructions>
+      <task>adaptive_response_agent</task>
+    </fetch_instructions>
+    ```
+- **SECOND STEP:** Follow the fetched instructions which include references to base guides for schema structure and field names
+
+#### IF USER CHOOSES: PLAIN TEXT RESPONSE
+
+**Read:** `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md` (base guide only)
+
+**When delegating to Code mode, include:**
+
+- Property: `useAdaptiveResponse: false`
+- Instruction: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base) and .roo/rules-code/agentforce-apex-guide.md"**
+
+---
+
+### CHECKPOINT VERIFICATION
+
+**⚠️ MANDATORY CHECKPOINT - VERIFY ALL STEPS COMPLETED ⚠️**
+
+Before proceeding to code creation, verify you have completed ALL of the following:
+
+- [ ] ✅ **STEP A:** Analyzed requirement against detection criteria
+- [ ] ✅ **STEP B:** Asked user for Adaptive Response vs Plain Text choice (if applicable)
+    - If Adaptive Response is applicable, you MUST have asked the user
+    - You MUST have received an explicit response (not skipped)
+    - You MUST have documented their choice
+- [ ] ✅ **STEP C:** Received explicit user response
+    - Do NOT proceed if user has not answered
+    - If no response, ask again
+- [ ] ✅ Followed correct instruction chain based on user's choice
+- [ ] ✅ Read required instruction files for the chosen approach
+- [ ] ✅ Documented the choice in subtask properties (`useAdaptiveResponse: true/false`)
+
+**⛔ CHECKPOINT FAILURE RULES - STOP IF ANY ARE TRUE:**
+
+- ⛔ Adaptive Response is applicable BUT you didn't ask the user
+- ⛔ You asked but user didn't respond
+- ⛔ You skipped asking to save time
+- ⛔ You assumed the user's preference without asking
+- ⛔ User response is unclear and needs clarification
+
+**If ANY checkbox is incomplete or ANY failure rule applies, STOP and DO NOT PROCEED ⛔**
+
+**You must complete this checkpoint BEFORE delegating to Code mode**
+
+---
 
 **⚠️ CRITICAL EXECUTION ORDER:**
 
@@ -162,7 +277,7 @@ When creating subtask for Code mode, include the decision:
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
 - **Must delegate to Code mode** for any Apex action creation
 - When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
-- **If Adaptive Response:** Also specify: **"Check useAdaptiveResponse property and follow .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md"**
+- **If Adaptive Response:** Also specify: **"Check useAdaptiveResponse property and fetch adaptive_response_agent instructions via fetch_instructions tool"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - **WAIT for Code mode to finish creating AND deploying the Apex class**
 - **After Apex is deployed:** THEN update the LOCAL action in GenAiPlannerBundle to reference the Apex class
@@ -289,9 +404,13 @@ Which approach would you prefer?
 1. **FIRST - Delegate to Code mode to CREATE Apex:**
     - Create subtask or switch to Code mode
     - **Add property:** `useAdaptiveResponse: true`
-    - Instruction: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base guide for schema structure), .roo/rules-code/agentforce-apex-guide.md (Apex patterns), and .roo/rules-code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md (exact field names) to create an invocable Apex action 'ProductRecommendationAction'"**
-    - Specify: "Method should query Product2 records and return as visual cards"
-    - Specify: "Use base guide for schema structure, adaptive guide for exact wrapper class field names (name, imageUrl, mimeType, description)"
+    - **STEP 1:** Fetch adaptive_response_agent instructions:
+        ```xml
+        <fetch_instructions>
+          <task>adaptive_response_agent</task>
+        </fetch_instructions>
+        ```
+    - **STEP 2:** Follow the fetched instructions to create invocable Apex action 'ProductRecommendationAction'. The fetched instructions contain all required field names and schema structure guidance. Method should query Product2 records and return as visual cards with LIMIT 5 for Chat channel.
 2. **WAIT for Code mode to complete the Apex class creation AND deployment**
 3. **AFTER Apex is deployed - Add LOCAL action reference in GenAiPlannerBundle:**
     ```xml
@@ -308,7 +427,7 @@ Which approach would you prefer?
     </localActions>
     ```
 4. **Create schema files** (input/output) with `lightning__listType`:
-    - See `.roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md` for schema structure
+    - Refer to the adaptive_response_agent instructions for schema structure
     - Use `lightning__listType` for products output
     - Add `maxItems: 2000` and `items` with Apex class reference
 
@@ -321,8 +440,8 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 **Key Differences for Adaptive Response:**
 
 - ✅ Set `useAdaptiveResponse: true` property
-- ✅ Include both agentforce-apex-guide.md AND ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md
-- ✅ Code mode uses EXACT field names: `name`, `imageUrl`, `mimeType`, `description`
+- ✅ Switch to Code mode and fetch `adaptive_response_agent` instructions using the XML structure shown above
+- ✅ Code mode uses EXACT field names from instructions: `name`, `imageUrl`, `mimeType`, `description`
 - ✅ Schema uses `lightning__listType` with Apex class reference
 - ✅ Specify LIMIT 5 for Chat channel (or LIMIT 10 for Facebook)
 

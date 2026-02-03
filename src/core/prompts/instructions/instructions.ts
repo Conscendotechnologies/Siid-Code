@@ -6,6 +6,7 @@ import {
 	agentforceAgentInstructions,
 	agentforceAnalyseInstructions,
 	agentforceTopicAnalyseInstructions,
+	agentforceTopicsActionsInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -17,11 +18,7 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
-import {
-	invocableApexInstructions,
-	adaptiveResponseAgentInstructions,
-	adaptiveResponseAgentWorkflow,
-} from "./code-instructions"
+import { invocableApexInstructions, adaptiveResponseAgentInstructions } from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"
@@ -56,6 +53,9 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "agentforce_topic_analyse": {
 			return await agentforceTopicAnalyseInstructions(detail.context)
+		}
+		case "agentforce_topics_actions": {
+			return await agentforceTopicsActionsInstructions(detail.context)
 		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
@@ -94,9 +94,6 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		// Adaptive Response Agent Instructions
 		case "adaptive_response_agent": {
 			return await adaptiveResponseAgentInstructions(detail.context)
-		}
-		case "adaptive_response_agent_workflow": {
-			return await adaptiveResponseAgentWorkflow(detail.context)
 		}
 		default: {
 			return ""

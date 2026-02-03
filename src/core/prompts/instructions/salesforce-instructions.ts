@@ -57,6 +57,15 @@ export async function agentforceTopicAnalyseInstructions(
 }
 
 /**
+ * Loads Agentforce Topics and Actions Guide instructions
+ */
+export async function agentforceTopicsActionsInstructions(
+	context: vscode.ExtensionContext | undefined,
+): Promise<string> {
+	return loadSalesforceInstruction(context, GlobalFileNames.agentforceTopicsActionsInstructions)
+}
+
+/**
  * Loads Assignment Rules instructions
  */
 export async function assignmentRulesInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {

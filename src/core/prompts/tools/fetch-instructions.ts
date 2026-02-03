@@ -13,6 +13,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   agentforce_agent_create
   agentforce_agent_analyse
   agentforce_topic_analyse
+  agentforce_topics_actions
   assignment_rules
   invocable_apex
   custom_field
@@ -26,14 +27,14 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   validation_rules
   workflow_field_update_creation
   workflow_email_alert_creation
-  adaptive_response_agent
-  adaptive_response_agent_workflow`
+  adaptive_response_agent`
 			: `  create_mode
   create_lwc
   create_apex
   agentforce_agent_create
   agentforce_agent_analyse
   agentforce_topic_analyse
+  agentforce_topics_actions
   assignment_rules
   invocable_apex
   custom_field
@@ -47,8 +48,7 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   validation_rules
   workflow_field_update_creation
   workflow_email_alert_creation
-  adaptive_response_agent
-  adaptive_response_agent_workflow`
+  adaptive_response_agent`
 
 	const example =
 		enableMcpServerCreation !== false
@@ -88,6 +88,12 @@ Example: Requesting instructions for Agentforce Topic Analysis
 <task>agentforce_topic_analyse</task>
 </fetch_instructions>
 
+Example: Requesting instructions for Agentforce Topics and Actions Guide
+
+<fetch_instructions>
+<task>agentforce_topics_actions</task>
+</fetch_instructions>
+
 Example: Requesting instructions for Salesforce Assignment Rules
 
 <fetch_instructions>
@@ -104,12 +110,6 @@ Example: Requesting instructions for Adaptive Response Agent
 
 <fetch_instructions>
 <task>adaptive_response_agent</task>
-</fetch_instructions>
-
-Example: Requesting workflow for Adaptive Response Agent
-
-<fetch_instructions>
-<task>adaptive_response_agent_workflow</task>
 </fetch_instructions>`
 			: `Example: Requesting instructions to create a Mode
 
@@ -127,6 +127,12 @@ Example: Requesting instructions for Agentforce Agent Analysis
 
 <fetch_instructions>
 <task>agentforce_agent_analyse</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Topics and Actions Guide
+
+<fetch_instructions>
+<task>agentforce_topics_actions</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object
