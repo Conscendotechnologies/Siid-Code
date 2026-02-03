@@ -345,6 +345,7 @@ export interface ClineSayTool {
 		| "codebaseSearch"
 		| "readFile"
 		| "fetchInstructions"
+		| "getTaskGuides"
 		| "listFilesTopLevel"
 		| "listFilesRecursive"
 		| "listCodeDefinitionNames"
@@ -380,6 +381,7 @@ export interface ClineSayTool {
 	query?: string
 	linesAdded?: number // Number of lines added in the diff
 	linesRemoved?: number // Number of lines removed in the diff
+	loadedGuides?: string[] // List of loaded guide names for getTaskGuides tool
 	batchFiles?: Array<{
 		path: string
 		lineSnippet: string

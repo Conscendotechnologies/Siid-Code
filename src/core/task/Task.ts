@@ -88,6 +88,7 @@ import { FileContextTracker } from "../context-tracking/FileContextTracker"
 import { RooIgnoreController } from "../ignore/RooIgnoreController"
 import { RooProtectedController } from "../protect/RooProtectedController"
 import { type AssistantMessageContent, presentAssistantMessage, parseAssistantMessage } from "../assistant-message"
+import { parseReasoningForTool, isToolAllowedInReasoning } from "../reasoning"
 import { AssistantMessageParser } from "../assistant-message/AssistantMessageParser"
 import { truncateConversationIfNeeded } from "../sliding-window"
 import { ClineProvider } from "../webview/ClineProvider"
@@ -242,6 +243,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	consecutiveMistakeLimit: number
 	consecutiveMistakeCountForApplyDiff: Map<string, number> = new Map()
 	toolUsage: ToolUsage = {}
+	taskGuidesFetched: boolean = false
 
 	// Checkpoints
 	enableCheckpoints: boolean
@@ -1556,7 +1558,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			includeFileDetails,
 		)
 
-		const preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, includeFileDetails)
+		const hasTodoList = Array.isArray(this.todoList) && this.todoList.length > 0
+		const state = await provider?.getState()
+		const preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, {
+			taskGuidesFetched: this.taskGuidesFetched,
+			hasTodoList,
+			cwd: this.cwd,
+			experiments: state?.experiments,
+		})
 
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
 		const finalUserContent = [
@@ -1912,10 +1921,50 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 				const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
 				didEndLoop = recDidEndLoop
+			} else if (reasoningMessage.length > 0) {
+				// Model provided reasoning content without text response.
+				// Check if there are tool calls in the reasoning that we need to execute.
+				const reasoningToolResult = parseReasoningForTool(reasoningMessage)
+
+				if (reasoningToolResult.toolUse && reasoningToolResult.isComplete) {
+					// Found a complete tool call in reasoning - execute it
+					const toolName = reasoningToolResult.toolUse.name
+
+					if (isToolAllowedInReasoning(toolName)) {
+						// Add the reasoning with tool to conversation history
+						await this.addToApiConversationHistory({
+							role: "assistant",
+							content: [{ type: "text", text: `[Reasoning with tool call: ${toolName}]` }],
+						})
+
+						// Add tool use to assistant message content for execution
+						this.assistantMessageContent.push(reasoningToolResult.toolUse)
+						this.userMessageContentReady = false
+
+						// Present and execute the tool through normal flow
+						presentAssistantMessage(this)
+						await pWaitFor(() => this.userMessageContentReady)
+
+						// Continue with next request including tool results
+						const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
+						didEndLoop = recDidEndLoop
+					} else if (reasoningToolResult.error) {
+						// Tool not allowed in reasoning
+						await this.say("error", reasoningToolResult.error)
+					}
+				} else {
+					// No tool or incomplete tool - model is still thinking, continue silently
+					// Prompt the model to continue
+					this.userMessageContent.push({
+						type: "text",
+						text: "Please continue and provide your response with the appropriate tool use.",
+					})
+					const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
+					didEndLoop = recDidEndLoop
+				}
 			} else {
-				// If there's no assistant_responses, that means we got no text
-				// or tool_use content blocks from API which we should assume is
-				// an error.
+				// If there's no assistant_responses and no reasoning, that means we got
+				// no content at all from API which we should assume is an error.
 				await this.say(
 					"error",
 					"Unexpected API Response: The language model did not provide any assistant messages. This may indicate an issue with the API or the model's output.",
@@ -2174,7 +2223,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Strip <pre-task> and <environment_details> sections from all user messages
 		// except the last one, mutating the original array in-place to reduce context size.
-		// Replace stripped content with a short continuation hint so the model knows to proceed.
+		// Preserve tool_result blocks and only add placeholder if ALL content was removed.
 		const lastUserMsgIndex = findLastIndex(this.apiConversationHistory, (m) => m.role === "user")
 		for (let i = 0; i < this.apiConversationHistory.length; i++) {
 			const msg = this.apiConversationHistory[i]
@@ -2183,7 +2232,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 			if (Array.isArray(msg.content)) {
 				let hadStrippedContent = false
+				const originalLength = msg.content.length
+
 				msg.content = msg.content.filter((block) => {
+					// Always keep tool_result blocks - they contain important context
+					if (block.type === "tool_result") {
+						return true
+					}
+
+					// Always keep tool_use blocks
+					if (block.type === "tool_use") {
+						return true
+					}
+
+					// Filter out pre-task and environment_details from text blocks
 					if (block.type === "text") {
 						const text = block.text.trim()
 						if (text.startsWith("<pre-task>") || text.startsWith("<environment_details>")) {
@@ -2191,13 +2253,24 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 							return false
 						}
 					}
+
 					return true
 				})
-				if (hadStrippedContent) {
-					msg.content.push({
-						type: "text",
-						text: "[Tool executed successfully. Please continue with the next step.]",
-					})
+
+				// Only add placeholder if we removed content AND no other content remains
+				// This preserves tool results and other important context
+				if (hadStrippedContent && msg.content.length === 0) {
+					// Check if placeholder already exists to avoid duplicates
+					const placeholderText = "[Tool executed successfully. Please continue with the next step.]"
+					const hasPlaceholder = msg.content.some(
+						(block) => block.type === "text" && block.text === placeholderText,
+					)
+					if (!hasPlaceholder) {
+						msg.content.push({
+							type: "text",
+							text: placeholderText,
+						})
+					}
 				}
 			} else if (typeof msg.content === "string") {
 				const original = msg.content
@@ -2205,8 +2278,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					.replace(/<pre-task>[\s\S]*?<\/pre-task>/g, "")
 					.replace(/<environment_details>[\s\S]*?<\/environment_details>/g, "")
 					.trim()
-				if (msg.content !== original.trim()) {
-					msg.content += "\n[Tool executed successfully. Please continue with the next step.]"
+				// Only add placeholder if we stripped content and nothing remains
+				const placeholderText = "[Tool executed successfully. Please continue with the next step.]"
+				if (msg.content.length === 0 && original.trim().length > 0 && msg.content !== placeholderText) {
+					msg.content = placeholderText
 				}
 			}
 		}

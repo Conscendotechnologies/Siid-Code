@@ -54,14 +54,13 @@ export async function fetchInstructionsTool(
 
 	try {
 		if (block.partial) {
-			const partialMessage = JSON.stringify({ ...sharedMessageProps, content: undefined } satisfies ClineSayTool)
-			await cline.ask("tool", partialMessage, block.partial).catch(() => {})
+			// Skip partial messages - we'll show the complete message with the instruction name
 			return
 		} else {
 			if (!task) {
 				cline.consecutiveMistakeCount++
-				cline.recordToolError("fetch_instructions")
-				pushToolResult(await cline.sayAndCreateMissingParamError("fetch_instructions", "task"))
+				// cline.recordToolError("fetch_instructions")
+				// pushToolResult(await cline.sayAndCreateMissingParamError("fetch_instructions", "task"))
 				return
 			}
 
@@ -96,7 +95,8 @@ export async function fetchInstructionsTool(
 				...sharedMessageProps,
 				content: displayMessage,
 			} satisfies ClineSayTool)
-			// Skip explicit approval prompt; we'll show the fetched content via pushToolResult below.
+			// Send the message to show which instruction was used
+			await cline.say("tool", completeMessage)
 
 			// Now fetch the content and provide it to the agent.
 			// const provider = cline.providerRef.deref()

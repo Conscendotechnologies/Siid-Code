@@ -7,7 +7,7 @@ import { Mode, getModeConfig, isToolAllowedForMode, getGroupName } from "../../.
 import { ToolArgs } from "./types"
 import { getExecuteCommandDescription } from "./execute-command"
 import { getReadFileDescription } from "./read-file"
-import { getFetchInstructionsDescription } from "./fetch-instructions"
+import { getGetTaskGuidesDescription } from "./get-task-guides"
 import { getWriteToFileDescription } from "./write-to-file"
 import { getSearchFilesDescription } from "./search-files"
 import { getListFilesDescription } from "./list-files"
@@ -31,7 +31,7 @@ import { getSfDeployMetadataDescription } from "./sf-deploy-metadata"
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
 	execute_command: (args) => getExecuteCommandDescription(args),
 	read_file: (args) => getReadFileDescription(args),
-	fetch_instructions: (args) => getFetchInstructionsDescription(args.settings?.enableMcpServerCreation),
+	get_task_guides: () => getGetTaskGuidesDescription(),
 	write_to_file: (args) => getWriteToFileDescription(args),
 	search_files: (args) => getSearchFilesDescription(args),
 	list_files: (args) => getListFilesDescription(args),
@@ -142,7 +142,7 @@ export function getToolDescriptionsForMode(
 export {
 	getExecuteCommandDescription,
 	getReadFileDescription,
-	getFetchInstructionsDescription,
+	getGetTaskGuidesDescription,
 	getWriteToFileDescription,
 	getSearchFilesDescription,
 	getListFilesDescription,

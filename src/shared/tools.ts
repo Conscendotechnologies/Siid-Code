@@ -72,6 +72,7 @@ export const toolParamNames = [
 	"ignore_warnings",
 	"source_dir",
 	"section",
+	"task_type",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -95,9 +96,14 @@ export interface ReadFileToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "args" | "path" | "start_line" | "end_line">>
 }
 
-export interface FetchInstructionsToolUse extends ToolUse {
-	name: "fetch_instructions"
-	params: Partial<Pick<Record<ToolParamName, string>, "task" | "section">>
+// export interface FetchInstructionsToolUse extends ToolUse {
+// 	name: "fetch_instructions"
+// 	params: Partial<Pick<Record<ToolParamName, string>, "task" | "section">>
+// }
+
+export interface GetTaskGuidesToolUse extends ToolUse {
+	name: "get_task_guides"
+	params: Partial<Pick<Record<ToolParamName, string>, "task_type">>
 }
 
 export interface WriteToFileToolUse extends ToolUse {
@@ -191,7 +197,7 @@ export type ToolGroupConfig = {
 export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	execute_command: "run commands",
 	read_file: "read files",
-	fetch_instructions: "fetch instructions",
+	get_task_guides: "get task guides",
 	write_to_file: "write files",
 	apply_diff: "apply changes",
 	search_files: "search files",
@@ -217,7 +223,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 	read: {
 		tools: [
 			"read_file",
-			"fetch_instructions",
+			"get_task_guides",
 			"search_files",
 			"list_files",
 			"list_code_definition_names",

@@ -204,7 +204,7 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 			// Specific component retrieval
 			const files = result?.files || []
 			if (files.length === 0) {
-				return `${metadataType} '${metadataName}' was retrieved but no files were found. The component may not exist in the org.`
+				return `${metadataType} '${metadataName}' does not exist in the org. No files were retrieved.`
 			}
 
 			return `Successfully retrieved ${metadataType} '${metadataName}'\nThe metadata has been saved to your local project directory. You can now read the files to inspect the metadata content.`
@@ -303,9 +303,9 @@ export async function retrieveSfMetadataTool(
 			})
 
 			// Format and return the result
-			const formattedResult = formatSfOutput(output, metadataType, metadataName)
-			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. ${formattedResult}`)
-			pushToolResult(formattedResult)
+			// const formattedResult = formatSfOutput(output, metadataType, metadataName)
+			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. output: ${output}`)
+			pushToolResult(output)
 		} catch (execError: any) {
 			// Handle execution errors
 			let errorMessage = "Failed to execute SF CLI command"
@@ -316,9 +316,9 @@ export async function retrieveSfMetadataTool(
 				errorMessage = execError.stderr
 			} else if (execError.stdout) {
 				// Sometimes SF CLI returns error info in stdout with non-zero exit
-				const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
-				cline.say("error", `Retrieved ${metadataType} metadata successfully, Result:${formattedResult}`)
-				pushToolResult(formattedResult)
+				// const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
+				cline.say("error", `SF CLI command failed, Result: ${execError.stdout}`)
+				pushToolResult(execError.stdout)
 				return
 			} else if (execError.message) {
 				errorMessage = execError.message

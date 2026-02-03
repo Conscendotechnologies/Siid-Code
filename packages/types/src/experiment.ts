@@ -12,6 +12,7 @@ export const experimentIds = [
 	"preventFocusDisruption",
 	"assistantMessageParser",
 	"multipleToolCalls",
+	"planningWorkflow",
 ] as const
 
 export const experimentIdsSchema = z.enum(experimentIds)
@@ -28,6 +29,7 @@ export const experimentsSchema = z.object({
 	preventFocusDisruption: z.boolean().optional(),
 	assistantMessageParser: z.boolean().optional(),
 	multipleToolCalls: z.boolean().optional(),
+	planningWorkflow: z.boolean().optional(),
 })
 
 export type Experiments = z.infer<typeof experimentsSchema>
