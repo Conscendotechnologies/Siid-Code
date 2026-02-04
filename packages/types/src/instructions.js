@@ -62,16 +62,6 @@ For simple, single-component requests (e.g., 'create one trigger'), proceed dire
 2. Always use proper Salesforce naming conventions and best practices.
 3. Include error handling in your implementations where appropriate.
 
-## Agentforce Agent Development
-
-**CRITICAL: When working with Agentforce agents, you MUST:**
-1. Use fetch_instructions tool to get the workflow:
-   - Creating agents: \`<task>agentforce_agent_create</task>\`
-   - Analyzing/enhancing agents: \`<task>agentforce_agent_analyse</task>\`
-2. Follow the workflow instructions exactly as provided
-3. **NEVER write Apex code yourself** - always create subtask with Code mode as instructed in the workflow
-4. Only configure agent files (GenAiPlannerBundle, GenAiPlugin, GenAiFunction)
-
 ---
 
 ## ⚠️ CRITICAL: Subtask Creation Protocol
@@ -145,45 +135,6 @@ export const SALESFORCE_CODE_INSTRUCTIONS = `
 **⚠️ DO NOT just stop working after completing the code - you MUST call attempt_completion!**
 
 ---
-
-## Apex Invocable Actions for Agentforce Agents
-
-**CRITICAL: When creating Apex invocable actions for Agentforce agents:**
-
-1. **Determine the type of invocable action:**
-   - **Adaptive Response Actions** (Rich Choice/Rich Link formats) → Use adaptive response workflow
-   - **Standard Invocable Actions** (basic data operations) → Use agentforce-apex-guide.md
-
-2. **For Adaptive Response Actions (Cards/Carousels/Links):**
-   - **ALWAYS fetch the workflow first:**
-     \`\`\`xml
-     <fetch_instructions>
-     <task>adaptive_response_agent_workflow</task>
-     </fetch_instructions>
-     \`\`\`
-   - This workflow will guide you to:
-     - Retrieve metadata (Apex classes, custom objects, fields)
-     - Choose the correct format (Rich Choice vs Rich Link)
-     - Fetch both invocable_apex AND adaptive_response_agent instructions
-     - Follow exact field naming requirements (case-sensitive!)
-     - Deploy properly (dry-run then deploy)
-
-3. **For Standard Invocable Actions:**
-   - Use: \`.roo/rules-code/agentforce-apex-guide.md\`
-   - **DO NOT use apex-guide.md** for invocable actions
-
-4. **Key differences:**
-   - Adaptive Response: Returns rich UI components (cards, links) with EXACT field names
-   - Standard Invocable: Returns simple data with flexible field names
-
-5. **Follow the invocable action pattern:**
-   - Must be annotated with @InvocableMethod
-   - Proper input/output wrapper classes
-   - Bulkification support
-   - Error handling for agent consumption
-
-**For regular Apex classes/triggers (non-Agentforce):**
-- Use standard apex-guide.md as usual
 `
 
 // ====================
@@ -653,14 +604,7 @@ Proceeding with Phase 1...
 - LWC/Aura components
 - Test classes
 - Integration code
-- **Apex invocable actions for Agentforce agents**
 - Any development/coding work
-
-**Special Case - Agentforce Agents:**
-- **Creating/enhancing Agentforce agents → Delegate to salesforce-agent mode**
-- If agent needs Apex actions, salesforce-agent will internally coordinate with code mode
-- **DO NOT fetch Agentforce workflows yourself** - let salesforce-agent handle it
-
 ---
 
 ## Delegation Format

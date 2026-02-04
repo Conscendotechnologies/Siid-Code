@@ -2288,8 +2288,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		const messagesSinceLastSummary = getMessagesSinceLastSummary(this.apiConversationHistory)
-		const cleanConversationHistory = maybeRemoveImageBlocks(messagesSinceLastSummary, this.api).map(
+		const cleanConversationHistory = maybeRemoveImageBlocks(this.apiConversationHistory, this.api).map(
 			({ role, content }) => ({ role, content }),
 		)
 

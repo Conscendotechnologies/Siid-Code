@@ -34,38 +34,6 @@ async function loadSalesforceInstruction(
 }
 
 /**
- * Loads Agentforce Agent Creation Workflow instructions
- */
-export async function agentforceAgentInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
-	return loadSalesforceInstruction(context, GlobalFileNames.agentforceAgentInstructions)
-}
-
-/**
- * Loads Agentforce Agent Analysis Workflow instructions
- */
-export async function agentforceAnalyseInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
-	return loadSalesforceInstruction(context, GlobalFileNames.agentforceAnalyseInstructions)
-}
-
-/**
- * Loads Agentforce Topic Analysis Workflow instructions
- */
-export async function agentforceTopicAnalyseInstructions(
-	context: vscode.ExtensionContext | undefined,
-): Promise<string> {
-	return loadSalesforceInstruction(context, GlobalFileNames.agentforceTopicAnalyseInstructions)
-}
-
-/**
- * Loads Agentforce Topics and Actions Guide instructions
- */
-export async function agentforceTopicsActionsInstructions(
-	context: vscode.ExtensionContext | undefined,
-): Promise<string> {
-	return loadSalesforceInstruction(context, GlobalFileNames.agentforceTopicsActionsInstructions)
-}
-
-/**
  * Loads Assignment Rules instructions
  */
 export async function assignmentRulesInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
