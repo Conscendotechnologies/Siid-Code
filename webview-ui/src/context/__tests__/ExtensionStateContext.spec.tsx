@@ -185,6 +185,7 @@ describe("mergeExtensionState", () => {
 			version: "",
 			mcpEnabled: false,
 			enableMcpServerCreation: false,
+			enablePmdRules: true,
 			clineMessages: [],
 			taskHistory: [],
 			shouldShowAnnouncement: false,

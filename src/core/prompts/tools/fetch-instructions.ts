@@ -2,9 +2,11 @@
  * Generates the fetch_instructions tool description.
  * @param enableMcpServerCreation - Whether to include MCP server creation task.
  *                                  Defaults to true when undefined.
+ * @param enablePmdRules - Whether to include PMD rules tasks.
+ *                        Defaults to true when undefined.
  */
-export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean): string {
-	const tasks =
+export function getFetchInstructionsDescription(enableMcpServerCreation?: boolean, enablePmdRules?: boolean): string {
+	const baseTasks =
 		enableMcpServerCreation !== false
 			? `  create_mcp_server
   create_mode
@@ -14,6 +16,8 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   agentforce_agent_analyse
   agentforce_topic_analyse
   agentforce_topics_actions
+  create_visual_force
+  create_aura_components
   assignment_rules
   invocable_apex
   custom_field
@@ -35,6 +39,8 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   agentforce_agent_analyse
   agentforce_topic_analyse
   agentforce_topics_actions
+  create_visual_force
+  create_aura_components
   assignment_rules
   invocable_apex
   custom_field
@@ -50,7 +56,20 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   workflow_email_alert_creation
   adaptive_response_agent`
 
-	const example =
+	const pmdTasks =
+		enablePmdRules !== false
+			? `  pmd_apex
+  pmd_html
+  pmd_javascript
+  pmd_visualforce
+  pmd_xml`
+			: ``
+
+	const mcpTask = enableMcpServerCreation !== false ? `  create_mcp_server` : ``
+
+	const tasks = [mcpTask, baseTasks, pmdTasks].filter((t) => t.trim()).join("\n")
+
+	const mcpExample =
 		enableMcpServerCreation !== false
 			? `Example: Requesting instructions to create an MCP Server
 
@@ -58,16 +77,21 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 <task>create_mcp_server</task>
 </fetch_instructions>
 
-Example: Requesting instructions to create a Lightning Web Component
+`
+			: ``
+
+	const pmdExample =
+		enablePmdRules !== false
+			? `Example: Requesting PMD Apex Rules instructions
 
 <fetch_instructions>
-<task>create_lwc</task>
+<task>pmd_apex</task>
 </fetch_instructions>
 
-Example: Requesting instructions to create an Apex class
+Example: Requesting instructions to create a Visualforce Page
 
 <fetch_instructions>
-<task>create_apex</task>
+<task>create_visual_force</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Agentforce Agent Creation
@@ -95,12 +119,14 @@ Example: Requesting instructions for Agentforce Topics and Actions Guide
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Assignment Rules
+Example: Requesting instructions to create Aura Components
 
 <fetch_instructions>
-<task>assignment_rules</task>
+<task>create_aura_components</task>
 </fetch_instructions>
 
-Example: Requesting instructions for Salesforce Custom Field
+Example: Requesting instructions for Salesforce Assignment Rules
+Example: Requesting PMD JavaScript Rules instructions
 
 <fetch_instructions>
 <task>custom_field</task>
@@ -112,15 +138,22 @@ Example: Requesting instructions for Adaptive Response Agent
 <task>adaptive_response_agent</task>
 </fetch_instructions>`
 			: `Example: Requesting instructions to create a Mode
-
-<fetch_instructions>
-<task>create_mode</task>
+<task>pmd_javascript</task>
 </fetch_instructions>
 
-Example: Requesting instructions to create a Lightning Web Component
+`
+			: ``
+
+	const example = `${mcpExample}Example: Requesting instructions to create a Lightning Web Component
 
 <fetch_instructions>
 <task>create_lwc</task>
+</fetch_instructions>
+
+Example: Requesting instructions to create an Apex class
+
+<fetch_instructions>
+<task>create_apex</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Agentforce Agent Analysis
@@ -136,10 +169,13 @@ Example: Requesting instructions for Agentforce Topics and Actions Guide
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object
+Example: Requesting instructions for Salesforce Custom Field
 
 <fetch_instructions>
-<task>custom_object</task>
-</fetch_instructions>`
+<task>custom_field</task>
+</fetch_instructions>
+
+${pmdExample}`
 
 	return `## fetch_instructions
 Description: Request to fetch instructions to perform a task

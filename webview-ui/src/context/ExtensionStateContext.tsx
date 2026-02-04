@@ -100,6 +100,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setMcpEnabled: (value: boolean) => void
 	enableMcpServerCreation: boolean
 	setEnableMcpServerCreation: (value: boolean) => void
+	enablePmdRules: boolean
+	setEnablePmdRules: (value: boolean) => void
 	alwaysApproveResubmit?: boolean
 	setAlwaysApproveResubmit: (value: boolean) => void
 	requestDelaySeconds: number
@@ -203,6 +205,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		terminalShellIntegrationTimeout: 4000,
 		mcpEnabled: true,
 		enableMcpServerCreation: false,
+		enablePmdRules: true,
 		alwaysApproveResubmit: false,
 		requestDelaySeconds: 5,
 		currentApiConfigName: "default",
@@ -491,6 +494,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setMcpEnabled: (value) => setState((prevState) => ({ ...prevState, mcpEnabled: value })),
 		setEnableMcpServerCreation: (value) =>
 			setState((prevState) => ({ ...prevState, enableMcpServerCreation: value })),
+		setEnablePmdRules: (value) => setState((prevState) => ({ ...prevState, enablePmdRules: value })),
 		setAlwaysApproveResubmit: (value) => setState((prevState) => ({ ...prevState, alwaysApproveResubmit: value })),
 		setRequestDelaySeconds: (value) => setState((prevState) => ({ ...prevState, requestDelaySeconds: value })),
 		setCurrentApiConfigName: (value) => setState((prevState) => ({ ...prevState, currentApiConfigName: value })),

@@ -14,6 +14,9 @@ function getTaskDisplayName(task: string): string {
 		create_mode: "Custom Mode Instructions",
 		create_lwc: "Lightning Web Component Instructions",
 		create_apex: "Apex Class Instructions",
+		create_visual_force: "Visual Force Page Instructions",
+		create_aura_components: "Aura Components Instructions",
+
 		// Salesforce Agent Instructions
 		agentforce_agent_create: "Agentforce Agent Creation Workflow",
 		agentforce_agent_analyse: "Agentforce Agent Analysis & Enhancement Workflow",
@@ -29,6 +32,12 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
+		// PMD Rules Instructions
+		pmd_apex: "PMD Apex Rules Instructions",
+		pmd_html: "PMD HTML Rules Instructions",
+		pmd_javascript: "PMD JavaScript Rules Instructions",
+		pmd_visualforce: "PMD Visualforce Rules Instructions",
+		pmd_xml: "PMD XML Rules Instructions",
 		// Invocable Apex Instructions
 		invocable_apex: "Invocable Apex Instructions",
 		// Workflow Action Creation Instructions
