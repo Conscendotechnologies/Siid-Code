@@ -16,7 +16,7 @@ Every invocable action follows this pattern:
  */
 public with sharing class AgentforceAccountAction {
 
-    @InvocableMethod(label='Get Account Details', description='Retrieves account information')
+    @InvocableMethod(label='Get Account Details' description='Retrieves account information')
     public static List<GetAccountResponse> getAccount(List<GetAccountRequest> requests) {
         List<GetAccountResponse> responses = new List<GetAccountResponse>();
 
@@ -66,30 +66,30 @@ public with sharing class AgentforceAccountAction {
     }
 
     public class GetAccountRequest {
-        @InvocableVariable(required=true, label='Account Name', description='The name of the account to retrieve')
+        @InvocableVariable(required=true label='Account Name' description='The name of the account to retrieve')
         public String accountName;
     }
 
     public class GetAccountResponse {
-        @InvocableVariable(required=false, label='Account ID', description='Unique identifier of the account')
+        @InvocableVariable(required=false label='Account ID' description='Unique identifier of the account')
         public String accountId;
 
-        @InvocableVariable(required=false, label='Account Name', description='Name of the account')
+        @InvocableVariable(required=false label='Account Name' description='Name of the account')
         public String name;
 
-        @InvocableVariable(required=false, label='Industry', description='Industry classification of the account')
+        @InvocableVariable(required=false label='Industry' description='Industry classification of the account')
         public String industry;
 
-        @InvocableVariable(required=false, label='Rating', description='Account rating (Hot, Warm, Cold)')
+        @InvocableVariable(required=false label='Rating' description='Account rating (Hot, Warm, Cold)')
         public String rating;
 
-        @InvocableVariable(required=false, label='Annual Revenue', description='Annual revenue amount')
+        @InvocableVariable(required=false label='Annual Revenue' description='Annual revenue amount')
         public Decimal revenue;
 
-        @InvocableVariable(required=false, label='Success', description='Whether the action succeeded')
+        @InvocableVariable(required=false label='Success' description='Whether the action succeeded')
         public Boolean success;
 
-        @InvocableVariable(required=false, label='Error Message', description='Error message if action failed')
+        @InvocableVariable(required=false label='Error Message' description='Error message if action failed')
         public String message;
     }
 }
@@ -134,7 +134,7 @@ public static List<GetAccountResponse> getAccount(List<GetAccountRequest> reques
 **ALWAYS use space to separate parameters:**
 
 ```apex
-// ✅ CORRECT - All parameters separated by commas
+// ✅ CORRECT - All parameters separated by spaces
 @InvocableVariable(required=true label='Account Name' description='The name of the account to retrieve')
 public String accountName;
 ```
@@ -181,7 +181,7 @@ Create the corresponding `.cls-meta.xml` file for every Apex class:
 
 ## InvocableVariable Parameters (Required for All Variables)
 
-Every `@InvocableVariable` annotation **MUST** include these 3 parameters **separated by commas**:
+Every `@InvocableVariable` annotation **MUST** include these 3 parameters **separated by spaces**:
 
 | Parameter     | Type    | Required | Example                                           | Purpose                                                  |
 | ------------- | ------- | -------- | ------------------------------------------------- | -------------------------------------------------------- |
@@ -465,10 +465,10 @@ public static List<SearchResponse> searchCourses(List<SearchRequest> requests) {
 
 ```apex
 public class SearchCoursesRequest {
-    @InvocableVariable(required=false, label='Course Level', description='Filter by course level')
+    @InvocableVariable(required=false label='Course Level' description='Filter by course level')
     public String courseLevel;
 
-    @InvocableVariable(required=false, label='Category', description='Filter by category')
+    @InvocableVariable(required=false label='Category' description='Filter by category')
     public String category;
 }
 
