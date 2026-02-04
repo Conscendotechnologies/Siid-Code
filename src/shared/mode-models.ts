@@ -18,25 +18,39 @@ export interface ModeModelInfo {
 export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 	"salesforce-agent": [
 		{
+			modelId: "openai/gpt-oss-120b:free",
+			displayName: "OpenAI: gpt-oss-120b (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 1, // Primary
+		},
+		{
+			modelId: "openai/gpt-oss-20b:free",
+			displayName: "OpenAI: gpt-oss-20b (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 2, // Fallback 1
+		},
+		{
 			modelId: "z-ai/glm-4.5-air:free",
 			displayName: "GLM 4.5 Air (Free, Recommended)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 1, // Primary
+			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:free",
 			displayName: "Llama 3.3 70B (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 2, // Fallback 1
+			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 3, // Fallback 2
+			priority: 5, // Fallback 4
 		},
 		{
 			modelId: "z-ai/glm-4.6",
@@ -69,25 +83,39 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 	],
 	code: [
 		{
+			modelId: "openai/gpt-oss-120b:free",
+			displayName: "OpenAI: gpt-oss-120b (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 1, // Primary
+		},
+		{
+			modelId: "openai/gpt-oss-20b:free",
+			displayName: "OpenAI: gpt-oss-20b (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 2, // Fallback 1
+		},
+		{
 			modelId: "qwen/qwen3-coder:free",
 			displayName: "Qwen3 Coder (Free, Recommended)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 1, // Primary
+			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "z-ai/glm-4.5-air:free",
 			displayName: "GLM 4.5 Air (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 2, // Fallback 1
+			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 3, // Fallback 2
+			priority: 5, // Fallback 4
 		},
 		{
 			modelId: "z-ai/glm-4.5",
@@ -129,6 +157,20 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 3, // Fallback 2
+		},
+		{
+			modelId: "openai/gpt-oss-120b:free",
+			displayName: "OpenAI: gpt-oss-120b (Free)",
+			provider: "openrouter",
+			tier: "free",
+			priority: 3, // Fallback 2
+		},
+		{
+			modelId: "openai/gpt-oss-20b:free",
+			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
 			tier: "free",
 			priority: 3, // Fallback 2

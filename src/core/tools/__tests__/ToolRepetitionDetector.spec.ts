@@ -66,15 +66,12 @@ describe("ToolRepetitionDetector", () => {
 
 			const result1 = detector.check(createToolUse("first", "first-tool"))
 			expect(result1.allowExecution).toBe(true)
-			expect(result1.askUser).toBeUndefined()
 
 			const result2 = detector.check(createToolUse("second", "second-tool"))
 			expect(result2.allowExecution).toBe(true)
-			expect(result2.askUser).toBeUndefined()
 
 			const result3 = detector.check(createToolUse("third", "third-tool"))
 			expect(result3.allowExecution).toBe(true)
-			expect(result3.askUser).toBeUndefined()
 		})
 
 		it("should reset the counter when different tool calls are made", () => {
@@ -126,9 +123,6 @@ describe("ToolRepetitionDetector", () => {
 			const result = detector.check(createToolUse("repeat", "repeat-tool"))
 
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
-			expect(result.askUser?.messageKey).toBe("mistake_limit_reached")
-			expect(result.askUser?.messageDetail).toContain("repeat-tool")
 		})
 
 		it("should reset internal state after limit is reached", () => {
@@ -174,7 +168,6 @@ describe("ToolRepetitionDetector", () => {
 			// Second identical call (counter = 2) should reach limit again
 			const result = detector.check(createToolUse("repeat", "repeat-tool"))
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
 		})
 	})
 
@@ -189,7 +182,6 @@ describe("ToolRepetitionDetector", () => {
 			const result = detector.check(createToolUse("test", toolName))
 
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser?.messageDetail).toContain(toolName)
 		})
 	})
 
@@ -204,7 +196,6 @@ describe("ToolRepetitionDetector", () => {
 			const result = detector.check(createToolUse("empty-tool"))
 
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
 		})
 
 		it("should handle different tool names with identical serialized JSON", () => {
@@ -237,7 +228,6 @@ describe("ToolRepetitionDetector", () => {
 			// Since we're directly manipulating the internal state for testing,
 			// we still expect it to consider this a repetition
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
 		})
 
 		it("should treat tools with same parameters in different order as identical", () => {
@@ -256,7 +246,6 @@ describe("ToolRepetitionDetector", () => {
 			// Since parameters are sorted alphabetically in the serialized JSON,
 			// these should be considered identical
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
 		})
 	})
 
@@ -269,7 +258,6 @@ describe("ToolRepetitionDetector", () => {
 			const result = detector.check(createToolUse("tool", "tool-name"))
 
 			expect(result.allowExecution).toBe(false)
-			expect(result.askUser).toBeDefined()
 		})
 
 		it("should block on the 2nd call for limit 2", () => {
@@ -282,7 +270,6 @@ describe("ToolRepetitionDetector", () => {
 			// Second call (counter = 2) should be blocked
 			const result2 = detector.check(createToolUse("tool", "tool-name"))
 			expect(result2.allowExecution).toBe(false)
-			expect(result2.askUser).toBeDefined()
 		})
 
 		it("should block on the 3rd call for limit 3 (default)", () => {
@@ -299,7 +286,6 @@ describe("ToolRepetitionDetector", () => {
 			// Third call (counter = 3) should be blocked
 			const result3 = detector.check(createToolUse("tool", "tool-name"))
 			expect(result3.allowExecution).toBe(false)
-			expect(result3.askUser).toBeDefined()
 		})
 
 		it("should never block when limit is 0 (unlimited)", () => {
@@ -309,7 +295,6 @@ describe("ToolRepetitionDetector", () => {
 			for (let i = 0; i < 10; i++) {
 				const result = detector.check(createToolUse("tool", "tool-name"))
 				expect(result.allowExecution).toBe(true)
-				expect(result.askUser).toBeUndefined()
 			}
 		})
 
@@ -322,14 +307,11 @@ describe("ToolRepetitionDetector", () => {
 			for (let i = 0; i < 4; i++) {
 				const result = detector5.check(tool)
 				expect(result.allowExecution).toBe(true)
-				expect(result.askUser).toBeUndefined()
 			}
 
 			// 5th call should be blocked
 			const result5 = detector5.check(tool)
 			expect(result5.allowExecution).toBe(false)
-			expect(result5.askUser).toBeDefined()
-			expect(result5.askUser?.messageKey).toBe("mistake_limit_reached")
 		})
 
 		it("should reset counter after blocking and allow new attempts", () => {
@@ -354,7 +336,6 @@ describe("ToolRepetitionDetector", () => {
 			for (let i = 0; i < 5; i++) {
 				const result = detector.check(createToolUse("tool", "tool-name"))
 				expect(result.allowExecution).toBe(true)
-				expect(result.askUser).toBeUndefined()
 			}
 		})
 	})

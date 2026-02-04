@@ -31,7 +31,12 @@ Replace the entire TODO list with an updated checklist reflecting the current st
 - Only mark a task as completed when it is fully accomplished (no partials, no unresolved dependencies).
 - If a task is blocked, keep it as in_progress and add a new todo describing what needs to be resolved.
 - Remove tasks only if they are no longer relevant or if the user requests deletion.
-
+**CRITICAL - Sequential Workflow:**
+- Work through todos IN ORDER from top to bottom. Do NOT skip ahead to later tasks.
+- Only ONE todo should be marked as in_progress at a time.
+- You MUST complete (or explicitly decide to skip) the current in_progress task before moving to the next.
+- If you need to work on a later task first, you must reorganize the todo list to reflect the actual execution order.
+- Tasks listed earlier are dependencies for tasks listed later - respect this ordering.
 **Usage Example:**
 <update_todo_list>
 <todos>
@@ -69,8 +74,11 @@ Replace the entire TODO list with an updated checklist reflecting the current st
 
 **Task Management Guidelines:**
 - Mark task as completed immediately after all work of the current task is done.
-- Start the next task by marking it as in_progress.
+- Start the NEXT task in sequence by marking it as in_progress (do not skip tasks).
 - Add new todos as soon as they are identified.
 - Use clear, descriptive task names.
+- If you find yourself wanting to jump to task #6 while task #3 is in_progress, either:
+  1. Complete tasks #3, #4, #5 first, OR
+  2. Reorder the list so task #6 comes next
 `
 }

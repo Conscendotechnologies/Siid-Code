@@ -8,6 +8,7 @@ import { defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import type { ToolParamName, ToolResponse } from "../../shared/tools"
 
 import { fetchInstructionsTool } from "../tools/fetchInstructionsTool"
+import { getTaskGuidesTool } from "../tools/getTaskGuidesTool"
 import { listFilesTool } from "../tools/listFilesTool"
 import { getReadFileToolDescription, readFileTool } from "../tools/readFileTool"
 import { writeToFileTool } from "../tools/writeToFileTool"
@@ -157,8 +158,10 @@ export async function presentAssistantMessage(cline: Task) {
 						return `[${block.name} for '${block.params.command}']`
 					case "read_file":
 						return getReadFileToolDescription(block.name, block.params)
-					case "fetch_instructions":
-						return `[${block.name} for '${block.params.task}']`
+					// case "fetch_instructions":
+					// 	return `[${block.name} for '${block.params.task}']`
+					case "get_task_guides":
+						return `[${block.name} for '${block.params.task_type}']`
 					case "write_to_file":
 						return `[${block.name} for '${block.params.path}']`
 					case "apply_diff":
@@ -216,6 +219,8 @@ export async function presentAssistantMessage(cline: Task) {
 					}
 					case "retrieve_sf_metadata":
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
+					default:
+						return `[${block.name}]`
 				}
 			}
 
@@ -377,29 +382,11 @@ export async function presentAssistantMessage(cline: Task) {
 				const repetitionCheck = cline.toolRepetitionDetector.check(block)
 
 				// If execution is not allowed, notify user and break.
-				if (!repetitionCheck.allowExecution && repetitionCheck.askUser) {
-					// Handle repetition similar to mistake_limit_reached pattern.
-					const { response, text, images } = await cline.ask(
-						repetitionCheck.askUser.messageKey as ClineAsk,
-						repetitionCheck.askUser.messageDetail.replace("{toolName}", block.name),
-					)
-
-					if (response === "messageResponse") {
-						// Add user feedback to userContent.
-						cline.userMessageContent.push(
-							{
-								type: "text" as const,
-								text: `Tool repetition limit reached. User feedback: ${text}`,
-							},
-							...formatResponse.imageBlocks(images),
-						)
-
-						// Add user feedback to chat.
-						await cline.say("user_feedback", text, images)
-
-						// Track tool repetition in telemetry.
-						TelemetryService.instance.captureConsecutiveMistakeError(cline.taskId)
-					}
+				if (!repetitionCheck.allowExecution && repetitionCheck.agentHint) {
+					cline.userMessageContent.push({
+						type: "text" as const,
+						text: `Tool repetition limit reached. Hint: repetitionCheck.agentHint`,
+					})
 
 					// Return tool result message about the repetition
 					pushToolResult(
@@ -460,8 +447,11 @@ export async function presentAssistantMessage(cline: Task) {
 					await readFileTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 
 					break
-				case "fetch_instructions":
-					await fetchInstructionsTool(cline, block, askApproval, handleError, pushToolResult)
+				// case "fetch_instructions":
+				// 	await fetchInstructionsTool(cline, block, askApproval, handleError, pushToolResult)
+				// 	break
+				case "get_task_guides":
+					await getTaskGuidesTool(cline, block, askApproval, handleError, pushToolResult)
 					break
 				case "list_files":
 					await listFilesTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)

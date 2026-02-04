@@ -146,12 +146,12 @@ force-app/main/default/objects/<ObjectName>/
     - **If user chooses DELETE:**
         - Execute the delete command:
             ```bash
-            sf project delete source --metadata PathAssistant:<ObjectName>_<FieldName>
+            sf project delete source --metadata PathAssistant:<ObjectName>_<FieldName> --json
             ```
         - **WAIT for command completion**
         - Or use destructive changes:
             ```bash
-            sf project deploy start --metadata-dir force-app/main/default/pathAssistants/<ObjectName>_<FieldName>.pathAssistant-meta.xml --pre-destructive-changes destructiveChanges.xml
+            sf project deploy start --metadata-dir force-app/main/default/pathAssistants/<ObjectName>_<FieldName>.pathAssistant-meta.xml --pre-destructive-changes destructiveChanges.xml --json
             ```
         - Confirm deletion was successful
         - Proceed with creating the new path
@@ -519,22 +519,22 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
 
 - **After creating the complete path XML file with all customizations, deploy it immediately:**
     ```bash
-    sf project deploy start --source-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml
+    sf project deploy start --source-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml --json
     ```
 - **CRITICAL: Use underscores (\_) in the file name, NOT dots (.)**
 - **CRITICAL: Remove `__c` from custom object and field names to avoid consecutive underscores**
 - **Examples:**
     ```bash
-    sf project deploy start --source-dir force-app/main/default/pathAssistants/Opportunity_StageName.pathAssistant-meta.xml
+    sf project deploy start --source-dir force-app/main/default/pathAssistants/Opportunity_StageName.pathAssistant-meta.xml --json
     ```
     ```bash
-    sf project deploy start --source-dir force-app/main/default/pathAssistants/Account_Rating.pathAssistant-meta.xml
+    sf project deploy start --source-dir force-app/main/default/pathAssistants/Account_Rating.pathAssistant-meta.xml --json
     ```
     ```bash
-    sf project deploy start --source-dir force-app/main/default/pathAssistants/Nineteen_Mic_Color.pathAssistant-meta.xml
+    sf project deploy start --source-dir force-app/main/default/pathAssistants/Nineteen_Mic_Color.pathAssistant-meta.xml --json
     ```
     ```bash
-    sf project deploy start --source-dir force-app/main/default/pathAssistants/Custom_Object_Stage.pathAssistant-meta.xml
+    sf project deploy start --source-dir force-app/main/default/pathAssistants/Custom_Object_Stage.pathAssistant-meta.xml --json
     ```
 - **MANDATORY: Execute this command immediately after file creation. Do not skip this step.**
 - **Deploy ONLY ONCE with the complete, finalized path XML.**
@@ -559,21 +559,21 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
 - **To delete a path:**
     - Execute the delete command:
         ```bash
-        sf project delete source --metadata PathAssistant:<CleanObjectName>_<CleanFieldName>
+        sf project delete source --metadata PathAssistant:<CleanObjectName>_<CleanFieldName> --json
         ```
     - **WAIT for command completion**
     - Or use destructive changes:
         ```bash
-        sf project deploy start --metadata-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml --pre-destructive-changes destructiveChanges.xml
+        sf project deploy start --metadata-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml --pre-destructive-changes destructiveChanges.xml --json
         ```
     - **IMPORTANT: Use underscores (\_) in the metadata name, NOT dots (.)**
     - **IMPORTANT: Remove `__c` from custom object and field names**
     - **Examples:**
         ```bash
-        sf project delete source --metadata PathAssistant:Nineteen_Mic_Color
+        sf project delete source --metadata PathAssistant:Nineteen_Mic_Color --json
         ```
         ```bash
-        sf project delete source --metadata PathAssistant:Custom_Object_Stage
+        sf project delete source --metadata PathAssistant:Custom_Object_Stage --json
         ```
     - Confirm: "Path has been deleted successfully."
 - **Note:** Deactivating a path (setting `<active>false</active>`) does not allow creation of a new path. You must either delete the existing path or update it.
@@ -650,7 +650,7 @@ Step 6: sf project deploy start --source-dir force-app/main/default/pathAssistan
       **Step 10: Deploy Automatically (MANDATORY - CANNOT BE SKIPPED)**
     - Execute deployment command immediately using the cleaned file name:
         ```bash
-        sf project deploy start --source-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml
+        sf project deploy start --source-dir force-app/main/default/pathAssistants/<CleanObjectName>_<CleanFieldName>.pathAssistant-meta.xml --json
         ```
     - **WAIT for deployment completion**
     - **Deploy ONLY ONCE with the complete path**

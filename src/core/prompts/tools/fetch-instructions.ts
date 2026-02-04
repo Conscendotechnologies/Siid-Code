@@ -12,6 +12,10 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_mode
   create_lwc
   create_apex
+  agentforce_agent_create
+  agentforce_agent_analyse
+  agentforce_topic_analyse
+  agentforce_topics_actions
   create_visual_force
   create_aura_components
   assignment_rules
@@ -24,10 +28,17 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation
+  adaptive_response_agent`
 			: `  create_mode
   create_lwc
   create_apex
+  agentforce_agent_create
+  agentforce_agent_analyse
+  agentforce_topic_analyse
+  agentforce_topics_actions
   create_visual_force
   create_aura_components
   assignment_rules
@@ -40,7 +51,10 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation
+  adaptive_response_agent`
 
 	const pmdTasks =
 		enablePmdRules !== false
@@ -80,6 +94,31 @@ Example: Requesting instructions to create a Visualforce Page
 <task>create_visual_force</task>
 </fetch_instructions>
 
+Example: Requesting instructions for Agentforce Agent Creation
+
+<fetch_instructions>
+<task>agentforce_agent_create</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Agent Analysis
+
+<fetch_instructions>
+<task>agentforce_agent_analyse</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Topic Analysis
+
+<fetch_instructions>
+<task>agentforce_topic_analyse</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Topics and Actions Guide
+
+<fetch_instructions>
+<task>agentforce_topics_actions</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Salesforce Assignment Rules
 Example: Requesting instructions to create Aura Components
 
 <fetch_instructions>
@@ -90,6 +129,15 @@ Example: Requesting instructions for Salesforce Assignment Rules
 Example: Requesting PMD JavaScript Rules instructions
 
 <fetch_instructions>
+<task>custom_field</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Adaptive Response Agent
+
+<fetch_instructions>
+<task>adaptive_response_agent</task>
+</fetch_instructions>`
+			: `Example: Requesting instructions to create a Mode
 <task>pmd_javascript</task>
 </fetch_instructions>
 
@@ -108,6 +156,19 @@ Example: Requesting instructions to create an Apex class
 <task>create_apex</task>
 </fetch_instructions>
 
+Example: Requesting instructions for Agentforce Agent Analysis
+
+<fetch_instructions>
+<task>agentforce_agent_analyse</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Agentforce Topics and Actions Guide
+
+<fetch_instructions>
+<task>agentforce_topics_actions</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Salesforce Custom Object
 Example: Requesting instructions for Salesforce Custom Field
 
 <fetch_instructions>

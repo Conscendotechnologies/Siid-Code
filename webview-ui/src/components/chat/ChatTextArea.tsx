@@ -33,6 +33,8 @@ import { SlashCommandsPopover } from "./SlashCommandsPopover"
 import { cn } from "@/lib/utils"
 import { usePromptHistory } from "./hooks/usePromptHistory"
 import { EditModeControls } from "./EditModeControls"
+import ContextUsageIndicator from "./ContextUsageIndicator"
+import { calculateTokenDistribution } from "@/utils/model-utils"
 
 interface ChatTextAreaProps {
 	inputValue: string
@@ -52,6 +54,12 @@ interface ChatTextAreaProps {
 	// Edit mode props
 	isEditMode?: boolean
 	onCancel?: () => void
+	// Context usage props
+	contextTokens?: number
+	contextWindow?: number
+	onCondenseContext?: () => void
+	isCondensing?: boolean
+	taskId?: string
 }
 
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -73,6 +81,11 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			modeShortcutText,
 			isEditMode = false,
 			onCancel,
+			contextTokens,
+			contextWindow,
+			onCondenseContext,
+			isCondensing = false,
+			taskId,
 		},
 		ref,
 	) => {
@@ -899,7 +912,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 		// Helper function to render non-edit mode controls
 		const renderNonEditModeControls = () => (
-			<div className={cn("flex", "items-center", "gap-1", "px-1.5", "mb-1")}>
+			<div className={cn("flex", "items-center", "justify-between", "gap-1", "px-1.5", "mb-1")}>
 				<div className={cn("flex", "items-center", "gap-1")}>
 					<div className="shrink-0">{renderModeSelector()}</div>
 
@@ -915,6 +928,27 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							/>
 						</div>
 					)}
+
+					{contextTokens !== undefined &&
+						contextWindow !== undefined &&
+						onCondenseContext &&
+						(() => {
+							const { currentPercent } = calculateTokenDistribution(contextWindow, contextTokens)
+							return (
+								currentPercent > 0 && (
+									<div className="shrink-0">
+										<ContextUsageIndicator
+											contextTokens={contextTokens}
+											contextWindow={contextWindow}
+											onCondense={onCondenseContext}
+											isCondensing={isCondensing}
+											disabled={sendingDisabled}
+											taskId={taskId}
+										/>
+									</div>
+								)
+							)
+						})()}
 				</div>
 
 				<div className={cn("flex", "items-center", "gap-0.5", "shrink-0")}>
