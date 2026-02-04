@@ -2128,9 +2128,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				state?.listApiConfigMeta.find((profile) => profile.name === state?.currentApiConfigName)?.id ??
 				"default"
 
+			// Count system prompt tokens and add to contextTokens for accurate threshold checking
+			const systemPromptTokens = await this.api.countTokens([{ type: "text", text: systemPrompt }])
+			const totalTokensWithSystemPrompt = contextTokens + systemPromptTokens
+
 			const truncateResult = await truncateConversationIfNeeded({
 				messages: this.apiConversationHistory,
-				totalTokens: contextTokens,
+				totalTokens: totalTokensWithSystemPrompt,
 				maxTokens,
 				contextWindow,
 				apiHandler: this.api,
