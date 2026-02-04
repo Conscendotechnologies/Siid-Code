@@ -7,7 +7,7 @@ import { TelemetryService } from "@siid-code/telemetry"
 import { ApiHandler } from "../../../api"
 import { ApiMessage } from "../../task-persistence/apiMessages"
 import { maybeRemoveImageBlocks } from "../../../api/transform/image-cleaning"
-import { summarizeConversation, getMessagesSinceLastSummary, N_MESSAGES_TO_KEEP } from "../index"
+import { summarizeConversation, N_MESSAGES_TO_KEEP } from "../index"
 
 vi.mock("../../../api/transform/image-cleaning", () => ({
 	maybeRemoveImageBlocks: vi.fn((messages: ApiMessage[], _apiHandler: ApiHandler) => [...messages]),
@@ -23,59 +23,6 @@ vi.mock("@siid-code/telemetry", () => ({
 
 const taskId = "test-task-id"
 const DEFAULT_PREV_CONTEXT_TOKENS = 1000
-
-describe("getMessagesSinceLastSummary", () => {
-	it("should return all messages when there is no summary", () => {
-		const messages: ApiMessage[] = [
-			{ role: "user", content: "Hello", ts: 1 },
-			{ role: "assistant", content: "Hi there", ts: 2 },
-			{ role: "user", content: "How are you?", ts: 3 },
-		]
-
-		const result = getMessagesSinceLastSummary(messages)
-		expect(result).toEqual(messages)
-	})
-
-	it("should return messages since the last summary with prepended user message", () => {
-		const messages: ApiMessage[] = [
-			{ role: "user", content: "Hello", ts: 1 },
-			{ role: "assistant", content: "Hi there", ts: 2 },
-			{ role: "assistant", content: "Summary of conversation", ts: 3, isSummary: true },
-			{ role: "user", content: "How are you?", ts: 4 },
-			{ role: "assistant", content: "I'm good", ts: 5 },
-		]
-
-		const result = getMessagesSinceLastSummary(messages)
-		expect(result).toEqual([
-			{ role: "user", content: "Please continue from the following summary:", ts: 0 },
-			{ role: "assistant", content: "Summary of conversation", ts: 3, isSummary: true },
-			{ role: "user", content: "How are you?", ts: 4 },
-			{ role: "assistant", content: "I'm good", ts: 5 },
-		])
-	})
-
-	it("should handle multiple summary messages and return since the last one with prepended user message", () => {
-		const messages: ApiMessage[] = [
-			{ role: "user", content: "Hello", ts: 1 },
-			{ role: "assistant", content: "First summary", ts: 2, isSummary: true },
-			{ role: "user", content: "How are you?", ts: 3 },
-			{ role: "assistant", content: "Second summary", ts: 4, isSummary: true },
-			{ role: "user", content: "What's new?", ts: 5 },
-		]
-
-		const result = getMessagesSinceLastSummary(messages)
-		expect(result).toEqual([
-			{ role: "user", content: "Please continue from the following summary:", ts: 0 },
-			{ role: "assistant", content: "Second summary", ts: 4, isSummary: true },
-			{ role: "user", content: "What's new?", ts: 5 },
-		])
-	})
-
-	it("should handle empty messages array", () => {
-		const result = getMessagesSinceLastSummary([])
-		expect(result).toEqual([])
-	})
-})
 
 describe("summarizeConversation", () => {
 	// Mock ApiHandler
