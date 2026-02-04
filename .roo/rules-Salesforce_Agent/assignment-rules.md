@@ -41,7 +41,7 @@ When user enters to prompt gather
 
 When he want to assign to users (U)
 Run:
-sf data query --query "SELECT Id, Name, Username, Email FROM User WHERE IsActive = true ORDER BY Name" --json
+sf data query --query "SELECT Id, Name, Username, Email FROM User WHERE IsActive = true ORDER BY Name" --json --json
 
 Parse the JSON output.  
 Build a `users[]` array and display a numbered list showing Name, Username, Email, and Id.  
@@ -51,7 +51,7 @@ Show the total record count at the top.
 
 When he wants to assign to Queue(Q)
 Run:
-sf data query --query "SELECT Id, QueueName, DeveloperName FROM Group WHERE Type = 'Queue' ORDER BY QueueName" --json
+sf data query --query "SELECT Id, QueueName, DeveloperName FROM Group WHERE Type = 'Queue' ORDER BY QueueName" --json --json
 
 Parse the JSON output.  
 Build a `queues[]` array and display a numbered list showing QueueName, DeveloperName, and Id.  
@@ -85,12 +85,12 @@ For each chosen type:
 
 Fetch all users by
 Run:
-sf data query --query "SELECT Id, Name, Username, Email FROM User WHERE IsActive = true ORDER BY Name" --json
+sf data query --query "SELECT Id, Name, Username, Email FROM User WHERE IsActive = true ORDER BY Name" --json --json
 
 ## If Public Groups,
 
 query:
-sf data query --query "SELECT Id, Name, DeveloperName FROM Group WHERE Type = 'Regular'" --json
+sf data query --query "SELECT Id, Name, DeveloperName FROM Group WHERE Type = 'Regular'" --json --json
 Display numbered list, prompt for one or more group numbers.
 
 ## If Roles,
@@ -158,7 +158,7 @@ Each member block:
 ** Immediatly after creating the queue deploy it to current authorized org( WITHOUT ANY DELAY) **
 Deploy the queue before creating the assignment rule:
 
-sf project deploy start --source-dir force-app/main/default/queues/<DeveloperName>.queue-meta.xml
+sf project deploy start --source-dir force-app/main/default/queues/<DeveloperName>.queue-meta.xml --json
 On successful deployment:
 Set assignedToType = "Queue"
 Set assignedToValue = DeveloperName
@@ -169,7 +169,7 @@ If deployment fails, display the full CLI error and stop execution.
 When user says yes to include email template then :
 Ask user wheather he want to assign an email template or not if he wants to then retreive all of them and show to user in numbering format so that user cna select one.
 If the user selected “yes” for including an Email Template, run:
-sf data query --query "SELECT Id, DeveloperName, FolderName FROM EmailTemplate ORDER BY FolderName, DeveloperName" --json
+sf data query --query "SELECT Id, DeveloperName, FolderName FROM EmailTemplate ORDER BY FolderName, DeveloperName" --json --json
 
 Parse the output into `templates[]` and display a numbered list showing FolderName and DeveloperName.
 

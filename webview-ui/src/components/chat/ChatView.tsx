@@ -69,6 +69,98 @@ export const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
+// Component to render grouped fetchInstructions/getTaskGuides messages
+interface InstructionsGroupRowProps {
+	messages: ClineMessage[]
+	isExpanded: boolean
+	onToggleExpand: () => void
+}
+
+const InstructionsGroupRow: React.FC<InstructionsGroupRowProps> = ({ messages, isExpanded, onToggleExpand }) => {
+	// Extract instruction/guide names from messages
+	const instructionNames = messages.map((msg) => {
+		try {
+			const tool = JSON.parse(msg.text || "{}")
+			// Handle both fetchInstructions and getTaskGuides
+			if (tool.tool === "getTaskGuides") {
+				return `Task Guides: ${tool.content || "Unknown"}`
+			}
+			return tool.content || "Instruction"
+		} catch {
+			return "Instruction"
+		}
+	})
+
+	return (
+		<div className="px-[15px] py-[10px] pr-[6px]">
+			<div
+				style={{
+					margin: "6px 0 6px 0",
+					display: "flex",
+					flexDirection: "column",
+					gap: 4,
+				}}>
+				{/* Collapsible header */}
+				<div
+					onClick={onToggleExpand}
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 6,
+						cursor: "pointer",
+						userSelect: "none",
+					}}>
+					<span
+						className={`codicon codicon-chevron-${isExpanded ? "down" : "right"}`}
+						style={{
+							fontSize: "12px",
+							color: "var(--vscode-descriptionForeground)",
+						}}
+					/>
+					<span
+						style={{
+							fontSize: "11px",
+							color: "var(--vscode-descriptionForeground)",
+							fontFamily: "monospace",
+							border: "1px solid var(--vscode-sideBar-border)",
+							borderRadius: "3px",
+							padding: "2px 6px",
+							background: "var(--vscode-sideBar-background)",
+							display: "inline-block",
+						}}>
+						Loaded Guides ({messages.length})
+					</span>
+				</div>
+
+				{/* Expanded list of instructions */}
+				{isExpanded && (
+					<div
+						style={{
+							marginLeft: 18,
+							display: "flex",
+							flexDirection: "column",
+							gap: 4,
+						}}>
+						{instructionNames.map((name, idx) => (
+							<span
+								key={idx}
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									paddingLeft: 8,
+									borderLeft: "2px solid var(--vscode-sideBar-border)",
+								}}>
+								{name}
+							</span>
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
+
 const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = (
 	{ isHidden, onSwitchTab },
 	ref,
@@ -1329,13 +1421,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					return alwaysAllowUpdateTodoList
 				}
 
-				if (tool?.tool === "fetchInstructions") {
-					if (tool.content === "create_mode") {
+				if (tool?.tool === "fetchInstructions" || tool?.tool === "getTaskGuides") {
+					if (tool.content === "create_mode" || tool.content === "create-custom-mode") {
 						return alwaysAllowModeSwitch
 					}
 
-					if (tool.content === "create_mcp_server") {
+					if (tool.content === "create_mcp_server" || tool.content === "create-mcp-server") {
 						return alwaysAllowMcp
+					}
+
+					// Auto-approve get_task_guides as it's read-only
+					if (tool?.tool === "getTaskGuides") {
+						return alwaysAllowReadOnly
 					}
 				}
 
@@ -1433,10 +1530,24 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return false
 	}
 
+	// Helper to check if a message is a fetchInstructions or getTaskGuides tool message
+	const isFetchInstructionsMessage = (message: ClineMessage): boolean => {
+		if ((message.ask === "tool" || message.say === "tool") && message.text) {
+			try {
+				const tool = JSON.parse(message.text)
+				return tool.tool === "fetchInstructions" || tool.tool === "getTaskGuides"
+			} catch {
+				return false
+			}
+		}
+		return false
+	}
+
 	const groupedMessages = useMemo(() => {
 		const result: (ClineMessage | ClineMessage[])[] = []
 		let currentGroup: ClineMessage[] = []
 		let isInBrowserSession = false
+		let instructionsGroup: ClineMessage[] = []
 
 		const endBrowserSession = () => {
 			if (currentGroup.length > 0) {
@@ -1446,7 +1557,38 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			}
 		}
 
+		const endInstructionsGroup = () => {
+			if (instructionsGroup.length > 0) {
+				// If only one instruction, push as regular message; otherwise push as group
+				if (instructionsGroup.length === 1) {
+					result.push(instructionsGroup[0])
+				} else {
+					// Mark as instructions group by adding a special property
+					const groupWithMarker = instructionsGroup.map((m, i) => ({
+						...m,
+						_isInstructionsGroup: true,
+						_isFirstInGroup: i === 0,
+						_groupSize: instructionsGroup.length,
+						_groupItems: instructionsGroup,
+					}))
+					result.push(groupWithMarker as unknown as ClineMessage[])
+				}
+				instructionsGroup = []
+			}
+		}
+
 		visibleMessages.forEach((message: ClineMessage) => {
+			// Handle fetchInstructions grouping
+			if (isFetchInstructionsMessage(message)) {
+				// End browser session if we were in one
+				endBrowserSession()
+				instructionsGroup.push(message)
+				return
+			} else if (instructionsGroup.length > 0) {
+				// End instructions group when we hit a non-instruction message
+				endInstructionsGroup()
+			}
+
 			if (message.ask === "browser_action_launch") {
 				// Complete existing browser session if any.
 				endBrowserSession()
@@ -1498,6 +1640,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		if (currentGroup.length > 0) {
 			result.push([...currentGroup])
 		}
+
+		// Handle case where instructions group is the last group
+		endInstructionsGroup()
 
 		if (isCondensing) {
 			// Show indicator after clicking condense button
@@ -1680,6 +1825,22 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const itemContent = useCallback(
 		(index: number, messageOrGroup: ClineMessage | ClineMessage[]) => {
+			// Check for instructions group (array with _isInstructionsGroup marker)
+			if (Array.isArray(messageOrGroup) && (messageOrGroup[0] as any)?._isInstructionsGroup) {
+				return (
+					<InstructionsGroupRow
+						messages={messageOrGroup}
+						isExpanded={expandedRows[messageOrGroup[0].ts] ?? false}
+						onToggleExpand={() => {
+							setExpandedRows((prev: Record<number, boolean>) => ({
+								...prev,
+								[messageOrGroup[0].ts]: !prev[messageOrGroup[0].ts],
+							}))
+						}}
+					/>
+				)
+			}
+
 			// browser session group
 			if (Array.isArray(messageOrGroup)) {
 				return (

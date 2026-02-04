@@ -77,6 +77,15 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("<task>custom_field</task>")
 	})
 
+	it("should include Adaptive Response Agent task", () => {
+		const description = getFetchInstructionsDescription(true)
+
+		// Check for Adaptive Response Agent task
+		expect(description).toContain("adaptive_response_agent")
+		expect(description).toContain("Example: Requesting instructions for Adaptive Response Agent")
+		expect(description).toContain("<task>adaptive_response_agent</task>")
+	})
+
 	it("should include Salesforce Agent tasks even when MCP server creation is disabled", () => {
 		const description = getFetchInstructionsDescription(false)
 

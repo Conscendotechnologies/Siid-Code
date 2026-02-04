@@ -38,33 +38,33 @@ These rules guide the agent when planning or executing Salesforce metadata deplo
 
         ```powershell
         # Deploy a single component by metadata type
-        sf project deploy start -m ApexClass:MyClass -c --target-org MyAlias
+        sf project deploy start -m ApexClass:MyClass -c --target-org MyAlias --json
 
         # Deploy from source directory (only changed files staged in the dir)
-        sf project deploy start --source-dir force-app/main/default/classes -c --target-org MyAlias
+        sf project deploy start --source-dir force-app/main/default/classes -c --target-org MyAlias --json
 
         # Deploy using manifest (package.xml with only changed components)
-        sf project deploy start --manifest manifest/package.xml -c --target-org MyAlias
+        sf project deploy start --manifest manifest/package.xml -c --target-org MyAlias --json
         ```
 
 - Execute deploy (non-check-only) with minimal tests:
 
     ```powershell
     # Run local tests only (recommended for speed unless org policies require more)
-    sf project deploy start --manifest manifest/package.xml --test-level RunLocalTests --target-org MyAlias
+    sf project deploy start --manifest manifest/package.xml --test-level RunLocalTests --target-org MyAlias --json
 
     # Run specific tests impacted by changes
-    sf project deploy start --manifest manifest/package.xml --tests MyClassTest,AnotherTest --target-org MyAlias
+    sf project deploy start --manifest manifest/package.xml --tests MyClassTest,AnotherTest --target-org MyAlias --json
     ```
 
 - Retrieve and source tracking (for completeness):
 
     ```powershell
     # Retrieve only changed components defined in a manifest
-    sf project retrieve start --manifest manifest/package.xml --target-org MyAlias
+    sf project retrieve start --manifest manifest/package.xml --target-org MyAlias --json
 
     # Pull source tracking changes (scratch orgs)
-    sf project retrieve start --source-dir force-app --target-org MyAlias
+    sf project retrieve start --source-dir force-app --target-org MyAlias --json
     ```
 
 ## Packaging only changed components

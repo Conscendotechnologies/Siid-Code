@@ -14,10 +14,11 @@ function getTaskDisplayName(task: string): string {
 		create_mode: "Custom Mode Instructions",
 		create_lwc: "Lightning Web Component Instructions",
 		create_apex: "Apex Class Instructions",
-		create_visual_force: "Visual Force Page Instructions",
-		create_aura_components: "Aura Components Instructions",
-
 		// Salesforce Agent Instructions
+		agentforce_agent_create: "Agentforce Agent Creation Workflow",
+		agentforce_agent_analyse: "Agentforce Agent Analysis & Enhancement Workflow",
+		agentforce_topic_analyse: "Agentforce Topic Analysis Workflow",
+		agentforce_topics_actions: "Agentforce Topics and Actions Guide",
 		assignment_rules: "Assignment Rules Instructions",
 		custom_field: "Custom Field Instructions",
 		custom_object: "Custom Object Instructions",
@@ -28,14 +29,13 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
-		// PMD Rules Instructions
-		pmd_apex: "PMD Apex Rules Instructions",
-		pmd_html: "PMD HTML Rules Instructions",
-		pmd_javascript: "PMD JavaScript Rules Instructions",
-		pmd_visualforce: "PMD Visualforce Rules Instructions",
-		pmd_xml: "PMD XML Rules Instructions",
 		// Invocable Apex Instructions
 		invocable_apex: "Invocable Apex Instructions",
+		// Workflow Action Creation Instructions
+		workflow_field_update_creation: "Workflow Field Update Creation Instructions",
+		workflow_email_alert_creation: "Workflow Email Alert Creation Instructions",
+		// Adaptive Response Agent Instructions
+		adaptive_response_agent: "Adaptive Response Agent Instructions",
 	}
 
 	return taskNames[task] || task
@@ -54,18 +54,34 @@ export async function fetchInstructionsTool(
 
 	try {
 		if (block.partial) {
-			const partialMessage = JSON.stringify({ ...sharedMessageProps, content: undefined } satisfies ClineSayTool)
-			await cline.ask("tool", partialMessage, block.partial).catch(() => {})
+			// Skip partial messages - we'll show the complete message with the instruction name
 			return
 		} else {
 			if (!task) {
 				cline.consecutiveMistakeCount++
-				cline.recordToolError("fetch_instructions")
-				pushToolResult(await cline.sayAndCreateMissingParamError("fetch_instructions", "task"))
+				// cline.recordToolError("fetch_instructions")
+				// pushToolResult(await cline.sayAndCreateMissingParamError("fetch_instructions", "task"))
 				return
 			}
 
 			cline.consecutiveMistakeCount = 0
+
+			// Warn if Orchestrator is fetching task-specific workflows (should delegate instead)
+			const provider = cline.providerRef.deref()
+			const currentMode = (await provider?.getState())?.mode
+			const agentforceWorkflows = [
+				"agentforce_agent_create",
+				"agentforce_agent_analyse",
+				"agentforce_topic_analyse",
+				"agentforce_topics_actions",
+			]
+
+			if (agentforceWorkflows.includes(task) && currentMode === "orchestrator") {
+				// Add warning but allow reading for task understanding
+				console.warn(
+					`[Orchestrator] Fetching ${task} workflow. Orchestrator should typically delegate Agentforce tasks to Salesforce Agent mode instead of executing them directly.`,
+				)
+			}
 
 			// Extract optional section parameter
 			const section: string | undefined = block.params.section
@@ -79,10 +95,11 @@ export async function fetchInstructionsTool(
 				...sharedMessageProps,
 				content: displayMessage,
 			} satisfies ClineSayTool)
-			// Skip explicit approval prompt; we'll show the fetched content via pushToolResult below.
+			// Send the message to show which instruction was used
+			await cline.say("tool", completeMessage)
 
 			// Now fetch the content and provide it to the agent.
-			const provider = cline.providerRef.deref()
+			// const provider = cline.providerRef.deref()
 			const mcpHub = provider?.getMcpHub()
 
 			if (!mcpHub) {

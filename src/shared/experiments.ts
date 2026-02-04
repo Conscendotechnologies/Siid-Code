@@ -5,6 +5,8 @@ export const EXPERIMENT_IDS = {
 	POWER_STEERING: "powerSteering",
 	PREVENT_FOCUS_DISRUPTION: "preventFocusDisruption",
 	ASSISTANT_MESSAGE_PARSER: "assistantMessageParser",
+	MULTIPLE_TOOL_CALLS: "multipleToolCalls",
+	PLANNING_WORKFLOW: "planningWorkflow",
 } as const satisfies Record<string, ExperimentId>
 
 type _AssertExperimentIds = AssertEqual<Equals<ExperimentId, Values<typeof EXPERIMENT_IDS>>>
@@ -20,6 +22,8 @@ export const experimentConfigsMap: Record<ExperimentKey, ExperimentConfig> = {
 	POWER_STEERING: { enabled: false },
 	PREVENT_FOCUS_DISRUPTION: { enabled: false },
 	ASSISTANT_MESSAGE_PARSER: { enabled: false },
+	MULTIPLE_TOOL_CALLS: { enabled: true },
+	PLANNING_WORKFLOW: { enabled: true },
 }
 
 export const experimentDefault = Object.fromEntries(

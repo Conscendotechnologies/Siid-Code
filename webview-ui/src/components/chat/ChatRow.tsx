@@ -335,8 +335,8 @@ export const ChatRowContent = ({
 	}
 
 	const tool = useMemo(
-		() => (message.ask === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
-		[message.ask, message.text],
+		() => (message.ask === "tool" || message.say === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
+		[message.ask, message.say, message.text],
 	)
 
 	const followUpData = useMemo(() => {
@@ -352,6 +352,7 @@ export const ChatRowContent = ({
 				className={`codicon codicon-${name}`}
 				style={{ color: "var(--vscode-foreground)", marginBottom: "-1.5px" }}></span>
 		)
+		console.log("tool: ", JSON.stringify(tool))
 
 		switch (tool.tool) {
 			case "editedExistingFile":
@@ -698,6 +699,50 @@ export const ChatRowContent = ({
 						</div>
 					</>
 				)
+			case "getTaskGuides":
+				return (
+					<>
+						<div style={headerStyle}></div>
+						<div style={{ margin: "6px 0 6px 0", display: "flex", flexDirection: "column", gap: 4 }}>
+							<span
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									border: `1px solid var(--vscode-sideBar-border)`,
+									borderRadius: "3px",
+									padding: "2px 6px",
+									background: "var(--vscode-sideBar-background)",
+									display: "inline-block",
+								}}>
+								Loaded guides for: {tool.content || "Task"}
+							</span>
+							{tool.loadedGuides && tool.loadedGuides.length > 0 && (
+								<div
+									style={{
+										marginLeft: 12,
+										display: "flex",
+										flexDirection: "column",
+										gap: 2,
+									}}>
+									{tool.loadedGuides.map((guide: string, idx: number) => (
+										<span
+											key={idx}
+											style={{
+												fontSize: "10px",
+												color: "var(--vscode-descriptionForeground)",
+												fontFamily: "monospace",
+												paddingLeft: 8,
+												borderLeft: "2px solid var(--vscode-sideBar-border)",
+											}}>
+											• {guide}
+										</span>
+									))}
+								</div>
+							)}
+						</div>
+					</>
+				)
 			case "listFilesTopLevel":
 				return (
 					<>
@@ -929,6 +974,60 @@ export const ChatRowContent = ({
 								<MarkdownBlock markdown={t("chat:subtasks.completionInstructions")} />
 							</div>
 						</div>
+					</>
+				)
+			case "deploySfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-upload")}
+							<span style={{ fontWeight: "bold" }}>
+								Deploy Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
+					</>
+				)
+			case "retrieveSfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-download")}
+							<span style={{ fontWeight: "bold" }}>
+								Retrieve Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
 					</>
 				)
 			default:

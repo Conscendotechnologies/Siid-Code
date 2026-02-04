@@ -39,3 +39,10 @@ async function loadCodeInstruction(
 export async function invocableApexInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
 	return loadCodeInstruction(context, GlobalFileNames.invocableapexInstructions)
 }
+
+/**
+ * Loads Adaptive Response Agent instructions
+ */
+export async function adaptiveResponseAgentInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
+	return loadCodeInstruction(context, GlobalFileNames.adaptiveResponseAgentInstructions)
+}

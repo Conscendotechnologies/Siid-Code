@@ -1,4 +1,3 @@
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import { Loader2 } from "lucide-react"
 import { memo } from "react"
 import { useTranslation } from "react-i18next"
@@ -43,8 +42,7 @@ const ContextUsageIndicator = memo<ContextUsageIndicatorProps>(
 
 		return (
 			<div className="context-usage-indicator">
-				<VSCodeButton
-					appearance="secondary"
+				<button
 					onClick={handleClick}
 					disabled={disabled || isCondensing || !taskId}
 					title={
@@ -60,16 +58,21 @@ const ContextUsageIndicator = memo<ContextUsageIndicatorProps>(
 						</>
 					) : (
 						<>
-							<div className="context-usage-bar-mini">
-								<div
-									className="context-usage-fill"
-									style={{ width: `${Math.min(percentage, 100)}%` }}
+							<svg className="context-usage-circle" viewBox="0 0 20 20">
+								<circle className="context-usage-circle-bg" cx="10" cy="10" r="8.5" />
+								<circle
+									className="context-usage-circle-progress"
+									cx="10"
+									cy="10"
+									r="8.5"
+									strokeDasharray={`${2 * Math.PI * 8.5}`}
+									strokeDashoffset={`${2 * Math.PI * 8.5 * (1 - Math.min(percentage, 100) / 100)}`}
 								/>
-							</div>
+							</svg>
 							<span className="context-usage-text">{displayText}</span>
 						</>
 					)}
-				</VSCodeButton>
+				</button>
 			</div>
 		)
 	},

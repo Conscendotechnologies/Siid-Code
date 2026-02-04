@@ -233,6 +233,7 @@ describe("mergeExtensionState", () => {
 				preventFocusDisruption: false,
 				assistantMessageParser: false,
 				multipleToolCalls: false,
+				planningWorkflow: false,
 			} as Record<ExperimentId, boolean>,
 		}
 

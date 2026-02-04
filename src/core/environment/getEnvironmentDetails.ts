@@ -1,5 +1,6 @@
 import path from "path"
 import os from "os"
+import fs from "fs/promises"
 
 import * as vscode from "vscode"
 import pWaitFor from "p-wait-for"
@@ -250,6 +251,8 @@ export async function getEnvironmentDetails(
 			details += `<custom_instructions>${modeDetails.customInstructions}</custom_instructions>\n`
 		}
 	}
+
+	// Planning files section removed - using TodoWrite for progress tracking instead
 
 	if (includeFileDetails) {
 		details += `\n\n# Current Workspace Directory (${cline.cwd.toPosix()}) Files\n`

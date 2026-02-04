@@ -30,6 +30,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	alwaysAllowExecute?: boolean
 	alwaysAllowFollowupQuestions?: boolean
 	alwaysAllowUpdateTodoList?: boolean
+	alwaysAllowDeploySfMetadata?: boolean
 	followupAutoApproveTimeoutMs?: number
 	allowedCommands?: string[]
 	allowedMaxRequests?: number | undefined
@@ -55,6 +56,7 @@ type AutoApproveSettingsProps = HTMLAttributes<HTMLDivElement> & {
 		| "allowedMaxCost"
 		| "deniedCommands"
 		| "alwaysAllowUpdateTodoList"
+		| "alwaysAllowDeploySfMetadata"
 	>
 }
 
@@ -74,6 +76,7 @@ export const AutoApproveSettings = ({
 	alwaysAllowFollowupQuestions,
 	followupAutoApproveTimeoutMs = 60000,
 	alwaysAllowUpdateTodoList,
+	alwaysAllowDeploySfMetadata,
 	allowedCommands,
 	allowedMaxRequests,
 	allowedMaxCost,
@@ -166,9 +169,9 @@ export const AutoApproveSettings = ({
 						alwaysAllowExecute={alwaysAllowExecute}
 						alwaysAllowFollowupQuestions={alwaysAllowFollowupQuestions}
 						alwaysAllowUpdateTodoList={alwaysAllowUpdateTodoList}
+						alwaysAllowDeploySfMetadata={alwaysAllowDeploySfMetadata}
 						onToggle={(key, value) => setCachedStateField(key, value)}
 					/>
-
 					<MaxLimitInputs
 						allowedMaxRequests={allowedMaxRequests}
 						allowedMaxCost={allowedMaxCost}

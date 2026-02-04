@@ -31,10 +31,11 @@ export const toolNames = [
 	"attempt_completion",
 	"switch_mode",
 	"new_task",
-	"fetch_instructions",
+	"get_task_guides",
 	"codebase_search",
 	"update_todo_list",
 	"retrieve_sf_metadata",
+	"sf_deploy_metadata",
 ] as const
 
 export const toolNamesSchema = z.enum(toolNames)

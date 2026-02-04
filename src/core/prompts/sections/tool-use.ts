@@ -1,9 +1,17 @@
-export function getSharedToolUseSection(): string {
+import { experiments, EXPERIMENT_IDS } from "../../../shared/experiments"
+
+export function getSharedToolUseSection(experimentFlags?: Record<string, boolean>): string {
+	const isMultipleToolCallsEnabled = experiments.isEnabled(experimentFlags ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
+
+	const toolUseGuidance = isMultipleToolCallsEnabled
+		? "You can use multiple tools in a single message, and will receive the results of those tool uses in the user's response."
+		: "You can use one tool per message, and will receive the result of that tool use in the user's response."
+
 	return `====
 
 TOOL USE
 
-You have access to a set of tools that are executed upon the user's approval. You can use multiple tools of same type in a single message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
+You have access to a set of tools that are executed upon the user's approval. ${toolUseGuidance} You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
 # Tool Use Formatting
 
