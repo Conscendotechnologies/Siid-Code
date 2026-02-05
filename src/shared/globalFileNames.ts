@@ -90,7 +90,7 @@ export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 
 	// Admin/Metadata Tasks
 	"create-custom-object": {
-		instructions: ["custom_object", "custom_field", "validation_rules"],
+		instructions: ["custom_object", "custom_field", "page-layout", "field_permissions", "object_permissions"],
 		description: "Create custom object with fields and validations",
 		mode: "salesforce-agent",
 	},
@@ -118,13 +118,6 @@ export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 		instructions: ["validation_rules"],
 		description: "Create validation rules",
 		mode: "salesforce-agent",
-	},
-
-	// Adaptive Response Agent
-	"create-adaptive-agent": {
-		instructions: ["adaptive_response_agent", "adaptive_response_agent_workflow"],
-		description: "Create Adaptive Response Agent",
-		mode: "code",
 	},
 
 	// MCP/Modes

@@ -114,9 +114,9 @@ export const ChatRowContent = ({
 }: ChatRowContentProps) => {
 	const { t } = useTranslation()
 	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode, developerMode } = useExtensionState()
-	const [reasoningCollapsed, setReasoningCollapsed] = useState(!developerMode)
+	const [reasoningCollapsed, setReasoningCollapsed] = useState(true)
 	useEffect(() => {
-		setReasoningCollapsed(!developerMode)
+		setReasoningCollapsed(true)
 	}, [developerMode])
 	const [isDiffErrorExpanded, setIsDiffErrorExpanded] = useState(false)
 	const [showCopySuccess, setShowCopySuccess] = useState(false)
@@ -125,6 +125,7 @@ export const ChatRowContent = ({
 	const [editMode, setEditMode] = useState<Mode>(mode || "code")
 	const [editImages, setEditImages] = useState<string[]>([])
 	const [isFileHover, setIsFileHover] = useState(false)
+	const [isTaskGuidesExpanded, setIsTaskGuidesExpanded] = useState(false)
 	const { copyWithFeedback } = useCopyToClipboard()
 
 	// Handle message events for image selection during edit mode
@@ -487,6 +488,33 @@ export const ChatRowContent = ({
 								}}>
 								-{linesRemoved}
 							</span>
+
+							{/* View Diff button - opens VS Code native diff */}
+							{tool.diff && (
+								<span
+									className="codicon codicon-diff"
+									title="View Diff"
+									style={{
+										fontSize: "13px",
+										cursor: "pointer",
+										color: "var(--vscode-descriptionForeground)",
+										marginLeft: "2px",
+										padding: "2px",
+										borderRadius: "3px",
+									}}
+									onClick={() =>
+										vscode.postMessage({
+											type: "openDiff",
+											text: tool.path,
+											values: {
+												filePath: tool.path,
+												diff: tool.diff,
+												status: "modified",
+											},
+										})
+									}
+								/>
+							)}
 						</div>
 					</>
 				)
@@ -623,6 +651,32 @@ export const ChatRowContent = ({
 								}}>
 								+{linesAdded}
 							</span>
+
+							{/* View Diff button - opens VS Code native diff for new file */}
+							<span
+								className="codicon codicon-diff"
+								title="View Diff"
+								style={{
+									fontSize: "13px",
+									cursor: "pointer",
+									color: "var(--vscode-descriptionForeground)",
+									marginLeft: "2px",
+									padding: "2px",
+									borderRadius: "3px",
+								}}
+								onClick={() =>
+									vscode.postMessage({
+										type: "openDiff",
+										text: tool.path,
+										values: {
+											filePath: tool.path,
+											diff: tool.diff || (tool as any).content,
+											original: "", // new file - empty original
+											status: "created",
+										},
+									})
+								}
+							/>
 						</div>
 					</>
 				)
@@ -704,23 +758,40 @@ export const ChatRowContent = ({
 					<>
 						<div style={headerStyle}></div>
 						<div style={{ margin: "6px 0 6px 0", display: "flex", flexDirection: "column", gap: 4 }}>
-							<span
+							<div
+								onClick={() => setIsTaskGuidesExpanded(!isTaskGuidesExpanded)}
 								style={{
-									fontSize: "11px",
-									color: "var(--vscode-descriptionForeground)",
-									fontFamily: "monospace",
-									border: `1px solid var(--vscode-sideBar-border)`,
-									borderRadius: "3px",
-									padding: "2px 6px",
-									background: "var(--vscode-sideBar-background)",
-									display: "inline-block",
+									display: "flex",
+									alignItems: "center",
+									gap: 6,
+									cursor: "pointer",
+									userSelect: "none",
 								}}>
-								Loaded guides for: {tool.content || "Task"}
-							</span>
-							{tool.loadedGuides && tool.loadedGuides.length > 0 && (
+								<span
+									className={`codicon codicon-chevron-${isTaskGuidesExpanded ? "down" : "right"}`}
+									style={{
+										fontSize: "12px",
+										color: "var(--vscode-descriptionForeground)",
+									}}
+								/>
+								<span
+									style={{
+										fontSize: "11px",
+										color: "var(--vscode-descriptionForeground)",
+										fontFamily: "monospace",
+										border: `1px solid var(--vscode-sideBar-border)`,
+										borderRadius: "3px",
+										padding: "2px 6px",
+										background: "var(--vscode-sideBar-background)",
+										display: "inline-block",
+									}}>
+									Loaded guides for: {tool.content || "Task"}
+								</span>
+							</div>
+							{isTaskGuidesExpanded && tool.loadedGuides && tool.loadedGuides.length > 0 && (
 								<div
 									style={{
-										marginLeft: 12,
+										marginLeft: 18,
 										display: "flex",
 										flexDirection: "column",
 										gap: 2,

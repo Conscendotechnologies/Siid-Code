@@ -70,23 +70,9 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 			preTask += PLANNING_WORKFLOW_STEPS
 			preTask += existingPlanningFiles
 			preTask += `\n\n**Detailed Planning Instructions:**\n${PLANNING_INSTRUCTIONS}\n\n`
-		} else {
-			// Slimmed Planning Workflow (legacy)
-			preTask += `### Planning Workflow\n\n`
-			preTask += `1. **Create Planning File** at \`.siid-code/planning/[descriptive-name]-plan.md\`\n`
-			preTask += `   - Use meaningful names (e.g., \`invoice-trigger-plan.md\`)\n`
-			preTask += `   - Include: request, components, phases, execution log\n\n`
-			preTask += `2. **Create/Update Todo List** with phases:\n`
-			preTask += `   - [ ] pending, [-] in_progress, [x] completed\n`
-			preTask += `   - ONE task in_progress at a time\n\n`
-			preTask += `3. **Execute & Validate** each phase before proceeding\n\n`
+			preTask += `---\n\n`
 		}
-
-		preTask += `---\n\n`
-
-		// Mode Selection (compact)
-		preTask += `### Mode Selection\n`
-		preTask += `- **salesforce-agent:** Objects, fields, profiles, flows, Agentforce, admin\n`
+		// If planning workflow is disabled, don't include planning instructions at all
 		preTask += `- **code:** Apex, LWC, triggers, test classes, development\n\n`
 
 		preTask += `---\n\n`

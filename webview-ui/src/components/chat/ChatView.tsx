@@ -48,6 +48,7 @@ import ChatTextArea from "./ChatTextArea"
 import TaskHeader from "./TaskHeader"
 import AutoApproveMenu from "./AutoApproveMenu"
 import SystemPromptWarning from "./SystemPromptWarning"
+import { FileChanges, type FileChange } from "./FileChanges"
 import ProfileViolationWarning from "./ProfileViolationWarning"
 import { CheckpointWarning } from "./CheckpointWarning"
 import QueuedMessages from "./QueuedMessages"
@@ -540,7 +541,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	// Also try to discover created file names from incoming cline messages
 	useEffect(() => {
 		// Look for Create/Edit style messages and optional +N / -M counts.
-		const filenameRegex = /(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)/gi
+		// Improved regex: require forward slash or backslash in path to avoid matching property names like "or.background"
+		const filenameRegex =
+			/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+\.[A-Za-z0-9_]+)/gi
 		const plusRegex = /\+(\d+)/g
 		const minusRegex = /-(\d+)/g
 		const discovered: { path: string; additions?: number; deletions?: number; status?: string }[] = []
@@ -607,7 +610,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			if (discovered.length === 0) {
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				const domMatch = bodyText.match(
-					/(?:Create|Created|Edit|Edited):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
+					/(?:Create|Created|Edit|Edited):?\s*((?:[\w\-]+[/\\])+[\w\-]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
 				)
 				if (domMatch && domMatch[1]) {
 					const p = domMatch[1]
@@ -2091,14 +2094,19 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	// Keep track of files that were created/edited by the assistant. This will
 	// be displayed above the chat input box when populated.
-	type FileChange = {
-		path: string
-		additions?: number
-		deletions?: number
-		status?: "modified" | "created" | "deleted"
-	}
-
 	const [fileChanges, setFileChanges] = useState<FileChange[]>([])
+	// Open diff in VS Code's native diff editor
+	const openVsCodeDiff = useCallback((file: FileChange) => {
+		vscode.postMessage({
+			type: "openDiff",
+			text: file.path,
+			values: {
+				filePath: file.path,
+				diff: file.diff,
+				status: file.status,
+			},
+		})
+	}, [])
 
 	// Listen for file creation and task completion events (and a few common
 	// payload shapes that the extension might send describing files changed).
@@ -2113,27 +2121,45 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			const normalizeFile = (f: any): FileChange | null => {
 				if (!f) return null
 				// plain string
-				if (typeof f === "string") return { path: f }
+				if (typeof f === "string") return { path: f, timestamp: Date.now(), deploymentStatus: "local" }
 
-				// common shapes
-				if (typeof f.path === "string" && f.path)
-					return { path: f.path, additions: f.additions, deletions: f.deletions, status: f.status }
-				if (typeof f.filePath === "string" && f.filePath) return { path: f.filePath }
-				if (typeof f.fileName === "string" && f.fileName) return { path: f.fileName }
-
-				// other possible keys we've seen in payloads
-				if (typeof f.name === "string" && f.name) return { path: f.name }
-				if (typeof f.filename === "string" && f.filename) return { path: f.filename }
-				if (typeof f.file === "string" && f.file) return { path: f.file }
-				if (typeof f.displayName === "string" && f.displayName) return { path: f.displayName }
-
-				// nested shapes: { file: { path: '...' } }
-				if (f.file && typeof f.file === "object") {
-					if (typeof f.file.path === "string") return { path: f.file.path }
-					if (typeof f.file.fileName === "string") return { path: f.file.fileName }
+				// common shapes - extract all relevant fields
+				const fileChange: FileChange = {
+					path: "",
+					additions: f.additions,
+					deletions: f.deletions,
+					status: f.status,
+					diff: f.diff,
+					deploymentStatus: f.deploymentStatus || "local",
+					timestamp: f.timestamp || Date.now(),
+					error: f.error,
 				}
 
-				return null
+				// Find the path from various possible keys
+				if (typeof f.path === "string" && f.path) {
+					fileChange.path = f.path
+				} else if (typeof f.filePath === "string" && f.filePath) {
+					fileChange.path = f.filePath
+				} else if (typeof f.fileName === "string" && f.fileName) {
+					fileChange.path = f.fileName
+				} else if (typeof f.name === "string" && f.name) {
+					fileChange.path = f.name
+				} else if (typeof f.filename === "string" && f.filename) {
+					fileChange.path = f.filename
+				} else if (typeof f.file === "string" && f.file) {
+					fileChange.path = f.file
+				} else if (typeof f.displayName === "string" && f.displayName) {
+					fileChange.path = f.displayName
+				} else if (f.file && typeof f.file === "object") {
+					// nested shapes: { file: { path: '...' } }
+					if (typeof f.file.path === "string") {
+						fileChange.path = f.file.path
+					} else if (typeof f.file.fileName === "string") {
+						fileChange.path = f.file.fileName
+					}
+				}
+
+				return fileChange.path ? fileChange : null
 			}
 
 			const mergeFilesArray = (filesArr: any[]) => {
@@ -2191,9 +2217,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 				// Try to extract any filenames from payload.text (could contain multiple lines)
 				if (typeof payload.text === "string") {
-					// allow multi-dot filenames like Foo.cls-meta.xml
+					// allow multi-dot filenames like Foo.cls-meta.xml, require path separator
 					const regex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
 					let m: RegExpExecArray | null
 					const found: string[] = []
 					while ((m = regex.exec(payload.text)) !== null) {
@@ -2210,16 +2236,21 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				setDeploying(false)
 			}
 
-			// Single file created message containing a path or array of paths
+			// Single file created message containing files array, path, or array of paths
 			if (type === "fileCreated") {
+				setFileCreated(true)
+
+				// payload.files is already merged above by the generic check, so just return
+				if (Array.isArray(payload.files) && payload.files.length > 0) {
+					return
+				}
+
 				if (Array.isArray(payload.path) && payload.path.length) {
 					mergeFilesArray(payload.path)
-					setFileCreated(true)
 					return
 				}
 				const p = payload.path || payload.filePath || payload.fileName
 				if (typeof p === "string") {
-					setFileCreated(true)
 					setFileChanges((prev) =>
 						prev.some((f) => f.path === p) ? prev : [...prev, { path: p, status: "created" }],
 					)
@@ -2230,7 +2261,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			// Generic fallback: if payload.text contains human readable markers, extract all matches
 			if (typeof payload.text === "string") {
 				const regexAll =
-					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
 				let mm: RegExpExecArray | null
 				const discovered: string[] = []
 				while ((mm = regexAll.exec(payload.text)) !== null) {
@@ -2244,7 +2275,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				if (bodyText && bodyText.length > 0) {
 					const domRegex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
 					let d: RegExpExecArray | null
 					const domFound: string[] = []
 					while ((d = domRegex.exec(bodyText)) !== null) {
@@ -2271,9 +2302,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	// Collapsible state for the file list shown above the chat box (default: collapsed)
 	const [fileListCollapsed, setFileListCollapsed] = useState(true)
-	const filesLabel = `${fileChanges.length} file${fileChanges.length === 1 ? "" : "s"} changed`
-
-	// Note: translateOrFallback removed — UI only shows panel when there are file changes
 
 	return (
 		<div
@@ -2470,113 +2498,27 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				}}
 			/>
 			{fileChanges.length > 0 && (
-				<div className="flex-initial px-3.5 mb-2">
-					{/* Header: only show when there are file changes. Shows count and chevron; no Clear button. */}
-					<div
-						className="flex items-center gap-2 text-sm cursor-pointer"
-						onClick={() => setFileListCollapsed((s) => !s)}>
-						<span className="font-bold text-xs text-vscode-editor-foreground">{filesLabel}</span>
-						<div className="ml-auto flex items-center gap-2">
-							<span
-								className={`codicon ${fileListCollapsed ? "codicon-chevron-right" : "codicon-chevron-down"}`}
-							/>
-						</div>
-					</div>
-
-					{/* Expanded section (shows filenames) */}
-					{!fileListCollapsed && (
-						<div className="mt-1 max-h-40 overflow-auto text-sm bg-vscode-editorHoverWidget-background p-2 rounded">
-							{fileChanges
-								.filter((f) => !!f?.path)
-								.map((f) => (
-									<div key={f.path} className="flex items-center gap-2 text-xs truncate py-0.5">
-										<span className="codicon codicon-file" />
-										<button
-											onClick={() => {
-												try {
-													if (!f.path) {
-														console.warn(
-															"ChatView: attempt to open file with undefined path",
-															f,
-														)
-														return
-													}
-
-													// Determine if path looks absolute (POSIX or Windows drive)
-													const looksAbsolute =
-														f.path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(f.path)
-
-													// If not absolute and not already prefixed with ./ or .\, prefix with ./
-													const pathToSend = looksAbsolute
-														? f.path
-														: f.path.startsWith("./") || f.path.startsWith(".\\")
-															? f.path
-															: "./" + f.path
-
-													if (
-														typeof vscode !== "undefined" &&
-														typeof (vscode as any).postMessage === "function"
-													) {
-														;(vscode as any).postMessage({
-															type: "openFile",
-															path: pathToSend,
-														})
-													} else if (
-														typeof window !== "undefined" &&
-														typeof window.postMessage === "function"
-													) {
-														// Fallback - post to window (useful in tests/devtools)
-														window.postMessage({ type: "openFile", path: pathToSend }, "*")
-													} else {
-														console.error(
-															"Cannot post openFile message: no postMessage available",
-															f.path,
-														)
-													}
-												} catch (err) {
-													console.error("Failed to send openFile message", err, f.path)
-												}
-											}}
-											className="truncate text-left text-xs text-vscode-editor-foreground hover:underline">
-											{f.path}
-										</button>
-
-										{/* Show additions/deletions only when non-zero values are provided */}
-										{((f.additions !== undefined && f.additions !== 0) ||
-											(f.deletions !== undefined && f.deletions !== 0)) && (
-											<>
-												{f.additions !== undefined && f.additions !== 0 && (
-													<span
-														style={{
-															fontSize: "11px",
-															color: "var(--vscode-charts-green)",
-															fontFamily: "monospace",
-															fontWeight: "bold",
-															marginLeft: 8,
-														}}>
-														+{f.additions}
-													</span>
-												)}
-
-												{f.deletions !== undefined && f.deletions !== 0 && (
-													<span
-														style={{
-															fontSize: "11px",
-															color: "var(--vscode-errorForeground)",
-															fontFamily: "monospace",
-															fontWeight: "bold",
-															marginLeft: 4,
-														}}>
-														-{f.deletions}
-													</span>
-												)}
-											</>
-										)}
-									</div>
-								))}
-						</div>
+				<>
+					{/* List variant - collapsible summary */}
+					<FileChanges
+						files={fileChanges}
+						variant="list"
+						defaultCollapsed={fileListCollapsed}
+						onViewDiff={openVsCodeDiff}
+						className="px-3.5 mb-2"
+						taskId={task?.ts ? String(task.ts) : undefined}
+					/>
+					{/* Detail variant - expanded view with stats (shown when more than 3 files) */}
+					{fileChanges.length > 3 && (
+						<FileChanges
+							files={fileChanges}
+							variant="detail"
+							onViewDiff={openVsCodeDiff}
+							className="px-3.5 mb-3"
+							taskId={task?.ts ? String(task.ts) : undefined}
+						/>
 					)}
-				</div>
+				</>
 			)}
 			<ChatTextArea
 				ref={textAreaRef}

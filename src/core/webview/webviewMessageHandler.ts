@@ -869,6 +869,61 @@ export const webviewMessageHandler = async (
 				openFile(requested, message.values as { create?: boolean; content?: string; line?: number })
 			}
 			break
+		case "openDiff":
+			{
+				// Open VS Code native diff editor for a file change
+				const diffPayload = message.values as
+					| {
+							filePath?: string
+							diff?: string
+							original?: string
+							modified?: string
+							status?: string
+					  }
+					| undefined
+
+				if (!diffPayload?.filePath) break
+
+				const workDir = getWorkspacePath()
+				const filePath = diffPayload.filePath
+				const absolutePath = path.isAbsolute(filePath)
+					? filePath
+					: workDir
+						? path.resolve(workDir, filePath.replace(/^\.\//, ""))
+						: filePath
+
+				try {
+					// If we have a diff string, reconstruct original content from current file
+					if (diffPayload.diff) {
+						const currentContent = await fs.readFile(absolutePath, "utf-8").catch(() => "")
+						const originalContent = diffPayload.original ?? currentContent
+
+						// Create a virtual document URI for the original content
+						const { DIFF_VIEW_URI_SCHEME } = await import("../../integrations/editor/DiffViewProvider")
+						const fileName = path.basename(absolutePath)
+						const originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
+							query: Buffer.from(originalContent).toString("base64"),
+						})
+						const modifiedUri = vscode.Uri.file(absolutePath)
+
+						await vscode.commands.executeCommand(
+							"vscode.diff",
+							originalUri,
+							modifiedUri,
+							`${fileName}: Changes`,
+							{ preview: true, preserveFocus: false },
+						)
+					} else {
+						// No diff available, just open the file
+						openFile(absolutePath)
+					}
+				} catch (err) {
+					console.error("Failed to open diff view:", err)
+					// Fallback: just open the file
+					openFile(absolutePath)
+				}
+			}
+			break
 		case "openMention":
 			openMention(message.text)
 			break
@@ -1602,6 +1657,10 @@ export const webviewMessageHandler = async (
 			break
 		case "profileThresholds":
 			await updateGlobalState("profileThresholds", message.values)
+			await provider.postStateToWebview()
+			break
+		case "updateExperimental":
+			await updateGlobalState("experiments", message.values)
 			await provider.postStateToWebview()
 			break
 		case "autoApprovalEnabled":

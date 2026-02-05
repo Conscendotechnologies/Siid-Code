@@ -124,9 +124,11 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "firebaseLogout"
 		| "showOsNotification"
+		| "fileCreated"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
+	files?: any[] // File change tracking data for fileCreated messages
 	action?:
 		| "chatButtonClicked"
 		| "mcpButtonClicked"
