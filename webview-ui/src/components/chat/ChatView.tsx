@@ -543,7 +543,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		// Look for Create/Edit style messages and optional +N / -M counts.
 		// Improved regex: require forward slash or backslash in path to avoid matching property names like "or.background"
 		const filenameRegex =
-			/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+\.[A-Za-z0-9_]+)/gi
+			/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+\.[A-Za-z0-9_]+)/gi
 		const plusRegex = /\+(\d+)/g
 		const minusRegex = /-(\d+)/g
 		const discovered: { path: string; additions?: number; deletions?: number; status?: string }[] = []
@@ -610,7 +610,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			if (discovered.length === 0) {
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				const domMatch = bodyText.match(
-					/(?:Create|Created|Edit|Edited):?\s*((?:[\w\-]+[/\\])+[\w\-]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
+					/(?:Create|Created|Edit|Edited):?\s*((?:[\w-]+[/\\])+[\w-]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
 				)
 				if (domMatch && domMatch[1]) {
 					const p = domMatch[1]
@@ -2219,7 +2219,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				if (typeof payload.text === "string") {
 					// allow multi-dot filenames like Foo.cls-meta.xml, require path separator
 					const regex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 					let m: RegExpExecArray | null
 					const found: string[] = []
 					while ((m = regex.exec(payload.text)) !== null) {
@@ -2261,7 +2261,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			// Generic fallback: if payload.text contains human readable markers, extract all matches
 			if (typeof payload.text === "string") {
 				const regexAll =
-					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 				let mm: RegExpExecArray | null
 				const discovered: string[] = []
 				while ((mm = regexAll.exec(payload.text)) !== null) {
@@ -2275,7 +2275,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				if (bodyText && bodyText.length > 0) {
 					const domRegex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w\-]+[/\\])+[\w\-]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 					let d: RegExpExecArray | null
 					const domFound: string[] = []
 					while ((d = domRegex.exec(bodyText)) !== null) {
@@ -2301,7 +2301,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText || isStreaming
 
 	// Collapsible state for the file list shown above the chat box (default: collapsed)
-	const [fileListCollapsed, setFileListCollapsed] = useState(true)
+	const [fileListCollapsed, _setFileListCollapsed] = useState(true)
 
 	return (
 		<div

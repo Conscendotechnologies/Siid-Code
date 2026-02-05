@@ -15,7 +15,7 @@ export const FileChangesHookExample: React.FC = () => {
 		files,
 		addFile,
 		updateFile,
-		removeFile,
+		removeFile: _removeFile,
 		updateDeploymentStatus,
 		updateMultipleStatuses,
 		filterByStatus,
@@ -197,7 +197,7 @@ export const FileChangesHookExample: React.FC = () => {
 				</>
 			) : (
 				<div className="text-center py-8 text-sm opacity-70">
-					No files tracked yet. Click "Create File" to add some files.
+					No files tracked yet. Click &quot;Create File&quot; to add some files.
 				</div>
 			)}
 

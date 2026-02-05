@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from "react"
-import { FileChanges, type FileChange, type DeploymentStatus } from "./FileChanges"
+import { FileChanges, type FileChange, type DeploymentStatus as _DeploymentStatus } from "./FileChanges"
 import { DiffViewer } from "./DiffViewer"
 
 // Example file changes data with diff and deployment status
@@ -115,7 +115,7 @@ export const FileChangesExample = () => {
 
 			<div>
 				<h2 className="text-xl font-bold mb-4">Local Only Files</h2>
-				<p className="text-sm mb-4 opacity-70">Files that haven't been deployed yet</p>
+				<p className="text-sm mb-4 opacity-70">Files that have not been deployed yet</p>
 				<FileChanges
 					files={exampleFiles.filter((f) => f.deploymentStatus === "local")}
 					variant="list"
