@@ -52,8 +52,6 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 
 | Task Type | Description |
 |-----------|-------------|
-| create-agentforce-agent | Create Agentforce agent with all required metadata |
-| analyse-agentforce-agent | Analyse and enhance existing Agentforce agent |
 | create-lwc | Create Lightning Web Component |
 | create-lwc-with-apex | Create LWC with Apex backend |
 | create-apex | Create Apex class or trigger |
@@ -71,6 +69,6 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 **Example Usage:**
 
 <get_task_guides>
-<task_type>create-agentforce-agent</task_type>
+<task_type>create-lwc-with-apex</task_type>
 </get_task_guides>`
 }

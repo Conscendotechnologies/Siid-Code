@@ -86,7 +86,7 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 			}
 			preTask += `\nExample:\n`
 			preTask += `<get_task_guides>\n`
-			preTask += `<task_type>create-agentforce-agent</task_type>\n`
+			preTask += `<task_type>create-lwc-with-apex</task_type>\n`
 			preTask += `</get_task_guides>\n`
 		}
 	}

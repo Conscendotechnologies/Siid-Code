@@ -97,6 +97,11 @@ export async function attemptCompletionTool(
 			TelemetryService.instance.captureTaskCompleted(cline.taskId)
 			cline.emit(RooCodeEventName.TaskCompleted, cline.taskId, cline.getTokenUsage(), cline.toolUsage)
 
+			// Debug logging for subtask detection
+			console.log(
+				`[attemptCompletionTool] Task ${cline.taskId} (taskNumber: ${cline.taskNumber}): parentTask=${cline.parentTask ? cline.parentTask.taskId : "undefined"}`,
+			)
+
 			if (cline.parentTask) {
 				const didApprove = await askFinishSubTaskApproval()
 

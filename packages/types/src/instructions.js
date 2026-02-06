@@ -143,49 +143,55 @@ export const SALESFORCE_CODE_INSTRUCTIONS = `
 
 export const SALESFORCE_AGENT_RETURN_PROTOCOL = `
 
-### ⚠️ CRITICAL RETURN PROTOCOL - MANDATORY ⚠️
+### ⚠️ CRITICAL: Subtask Completion Protocol ⚠️
 
-**YOU MUST RETURN TO ORCHESTRATOR AFTER COMPLETING YOUR TASK**
+**When you are delegated a task by the orchestrator (via new_task tool), you are running as a SUBTASK.**
 
-This is NOT optional. When delegated a task, you MUST:
-1. Complete the work
-2. Report status
-3. Output return token
-4. CONTINUE as orchestrator
-
-**⚠️ DO NOT STOP after completing your work - you MUST return!**
+The system automatically handles returning control to the orchestrator when you call \`attempt_completion\`.
+You do NOT need to output any special tokens or try to "continue as orchestrator" - the system handles this automatically.
 
 ---
 
-**When you are delegated a task by the orchestrator:**
+**How to Recognize You Were Delegated (Running as Subtask):**
+- Message contains "**DELEGATION CONTEXT**:"
+- Message says "Switching to salesforce-agent mode"
+- Message includes "ORIGINAL USER REQUEST:"
+- Message includes "**EXPECTED DELIVERABLES:**"
 
-After completing your work, you MUST do ALL of the following in a SINGLE response (DO NOT STOP EARLY):
+---
+
+**When Delegated, Follow This Protocol:**
 
 **Step 1: Complete Your Work**
 - Execute all assigned Salesforce admin tasks
 - Track what was accomplished and any issues encountered
 
-**Step 2: Report Phase Status**
+**Step 2: Call attempt_completion with Status Report**
 
-**IMMEDIATELY after your work summary, you MUST provide a structured status report:**
+When your work is complete, you MUST call \`attempt_completion\` with a structured result:
 
-\`\`\`markdown
----
-## 📋 Phase Status Report
+\`\`\`xml
+<attempt_completion>
+<result>
+## Phase Status Report
 
-**Phase Status:** [SUCCESS | PARTIAL | FAILED]
+**Phase Status:** SUCCESS | PARTIAL | FAILED
+
+**Work Completed:**
+- [Summary of what was done]
 
 **Deliverables Created:**
-- ✓ [Item 1]
-- ✓ [Item 2]
-- ✗ [Item 3 - if failed]
+- ✓ [Item 1 with exact API name]
+- ✓ [Item 2 with exact API name]
+- ✗ [Item 3 - if failed, with reason]
 
 **Errors/Warnings:**
-- [Error 1 with details, or "None"]
+- [Error details, or "None"]
 
 **Notes for Orchestrator:**
-- [Any important context]
----
+- [Any important context for next phase]
+</result>
+</attempt_completion>
 \`\`\`
 
 **Status Definitions:**
@@ -193,38 +199,21 @@ After completing your work, you MUST do ALL of the following in a SINGLE respons
 - **PARTIAL:** Some tasks completed, some issues encountered (still usable)
 - **FAILED:** Could not complete the phase, blocking issues
 
-**Step 3: Output Return Signal (MANDATORY - DO NOT SKIP)**
-- You MUST output exactly: \`<RETURN_TO_ORCHESTRATOR>\`
-- ⚠️ This step is REQUIRED - your task is NOT complete without this token
-- Do NOT end your response before outputting this token
-
-**Step 4: IMMEDIATELY CONTINUE AS ORCHESTRATOR**
-**DO NOT STOP AFTER THE TOKEN - YOU MUST CONTINUE**
-
-After outputting the token, you must IMMEDIATELY switch context and think/act as the orchestrator:
-1. Validate the phase status you just reported
-2. **⚠️ USE update_todo_list TOOL** to update phase statuses
-3. If SUCCESS: Proceed to next phase
-4. If PARTIAL/FAILED: Determine if retry needed
-5. If all phases done: Provide final summary
-
-**Complete Example Response:**
-
 ---
-Custom object "Invoice" (Invoice__c) has been successfully created and deployed.
 
-**Work Completed:**
-- Created Invoice__c custom object
-- Added Amount__c (Currency) field
-- Added Tax__c (Currency) field
-- Added Total__c (Currency) field
-- Configured page layout
-- Enabled Reports, Activities, History
+**Complete Example:**
 
----
-## 📋 Phase Status Report
+\`\`\`xml
+<attempt_completion>
+<result>
+## Phase Status Report
 
 **Phase Status:** SUCCESS
+
+**Work Completed:**
+- Created Invoice__c custom object with all configurations
+- Added currency fields for Amount, Tax, and Total
+- Configured page layout and enabled platform features
 
 **Deliverables Created:**
 - ✓ Invoice__c custom object
@@ -239,54 +228,28 @@ Custom object "Invoice" (Invoice__c) has been successfully created and deployed.
 **Notes for Orchestrator:**
 - Object is ready for trigger development
 - Total__c field is empty - will be populated by trigger
+</result>
+</attempt_completion>
+\`\`\`
+
 ---
-
-<RETURN_TO_ORCHESTRATOR>
-
-**[NOW SPEAKING AS ORCHESTRATOR]**
-
-✅ **Phase 1/3 Validated Successfully**
-
-**Status:** SUCCESS
-**Deliverables Confirmed:** All 5 items created
-
-📊 **Progress Update:**
-✅ Phase 1/3: Object Creation (salesforce-agent) - COMPLETED
-🔄 Phase 2/3: Trigger Development (code) - STARTING
-⏳ Phase 3/3: Test Class (code) - PENDING
-
-[Orchestrator continues to delegate Phase 2...]
----
-
-**How to Recognize You Were Delegated:**
-- Message contains "**DELEGATION CONTEXT**:"
-- Message says "Switching to salesforce-agent mode"
-- Message includes "ORIGINAL USER REQUEST:"
-- Message includes "**EXPECTED DELIVERABLES:**"
-- You see "return control to the orchestrator"
 
 **Critical Rules:**
-✅ ALWAYS include Phase Status Report before the return token
-✅ ALWAYS specify SUCCESS, PARTIAL, or FAILED
-✅ ALWAYS list all deliverables created
+✅ ALWAYS call \`attempt_completion\` when your delegated task is done
+✅ ALWAYS include Phase Status (SUCCESS/PARTIAL/FAILED)
+✅ ALWAYS list all deliverables with exact API names
 ✅ ALWAYS report any errors encountered
-✅ After token, CONTINUE writing as orchestrator
-✅ Validate your own status report as orchestrator
-✅ **USE update_todo_list to update phase statuses** (not just mention it!)
+✅ The system will AUTOMATICALLY return control to the orchestrator
 
-❌ NEVER skip the Phase Status Report
-❌ NEVER just output the token and stop
-❌ NEVER say "returning to orchestrator" without actually doing it
-❌ NEVER forget to validate and update progress
-❌ NEVER just SAY you updated the file - actually USE the tool!
-❌ **NEVER complete your work and then STOP - you MUST output return token and continue!**
-❌ **NEVER end your response without the return token if you were delegated a task!**
+❌ NEVER output special tokens like \`<RETURN_TO_ORCHESTRATOR>\`
+❌ NEVER try to "continue as orchestrator" yourself
+❌ NEVER end without calling \`attempt_completion\`
+❌ NEVER forget the status report in your result
 
 **If NOT delegated** (user selected salesforce-agent mode directly):
 - Work normally
-- Do NOT use return protocol
-- Do NOT output token
-- Do NOT include Phase Status Report
+- Use \`attempt_completion\` when done (standard completion)
+- No special status report format required
 `
 
 // ====================
@@ -295,97 +258,82 @@ Custom object "Invoice" (Invoice__c) has been successfully created and deployed.
 
 export const SALESFORCE_CODE_RETURN_PROTOCOL = `
 
-### ⚠️ CRITICAL RETURN PROTOCOL - MANDATORY ⚠️
+### ⚠️ CRITICAL: Subtask Completion Protocol ⚠️
 
-**YOU MUST RETURN TO ORCHESTRATOR AFTER COMPLETING YOUR TASK**
+**When you are delegated a task by the orchestrator (via new_task tool), you are running as a SUBTASK.**
 
-This is NOT optional. When delegated a task, you MUST:
-1. Complete the work
-2. Report status
-3. Output return token
-4. CONTINUE as orchestrator
-
-**⚠️ DO NOT STOP after completing your work - you MUST return!**
+The system automatically handles returning control to the orchestrator when you call \`attempt_completion\`.
+You do NOT need to output any special tokens or try to "continue as orchestrator" - the system handles this automatically.
 
 ---
 
-**When you are delegated a task by the orchestrator:**
+**How to Recognize You Were Delegated (Running as Subtask):**
+- Message contains "**DELEGATION CONTEXT**:"
+- Message says "Switching to code mode"
+- Message includes "ORIGINAL USER REQUEST:"
+- Message includes "**EXPECTED DELIVERABLES:**"
 
-After completing your work, you MUST do ALL of the following in a SINGLE response (DO NOT STOP EARLY):
+---
+
+**When Delegated, Follow This Protocol:**
 
 **Step 1: Complete Your Work**
 - Execute all assigned development tasks
 - Track files created/modified and any issues encountered
+- Deploy and test as appropriate
 
-**Step 2: Report Phase Status**
+**Step 2: Call attempt_completion with Status Report**
 
-**IMMEDIATELY after your work summary, you MUST provide a structured status report:**
+When your work is complete, you MUST call \`attempt_completion\` with a structured result:
 
-\`\`\`markdown
----
-## 📋 Phase Status Report
+\`\`\`xml
+<attempt_completion>
+<result>
+## Phase Status Report
 
-**Phase Status:** [SUCCESS | PARTIAL | FAILED]
+**Phase Status:** SUCCESS | PARTIAL | FAILED
+
+**Work Completed:**
+- [Summary of what was done]
 
 **Deliverables Created:**
 - ✓ [File 1 - description]
 - ✓ [File 2 - description]
-- ✗ [File 3 - if failed]
+- ✗ [File 3 - if failed, with reason]
 
 **Test Coverage:** [X% or N/A]
 
 **Deployment Status:** [Deployed | Dry-run only | Failed]
 
 **Errors/Warnings:**
-- [Error 1 with details, or "None"]
+- [Error details, or "None"]
 
 **Notes for Orchestrator:**
-- [Any important context]
----
+- [Any important context for next phase]
+</result>
+</attempt_completion>
 \`\`\`
 
 **Status Definitions:**
 - **SUCCESS:** All code completed, tests pass, deployed successfully
 - **PARTIAL:** Code created but issues with tests/deployment (may be usable)
-- **FAILED:** Could not complete the phase, blocking issues (syntax errors, deployment failures)
-
-**Step 3: Output Return Signal (MANDATORY - DO NOT SKIP)**
-- You MUST output exactly: \`<RETURN_TO_ORCHESTRATOR>\`
-- ⚠️ This step is REQUIRED - your task is NOT complete without this token
-- Do NOT end your response before outputting this token
-
-**Step 4: IMMEDIATELY CONTINUE AS ORCHESTRATOR**
-**DO NOT STOP AFTER THE TOKEN - YOU MUST CONTINUE**
-
-After outputting the token, you must IMMEDIATELY switch context and think/act as the orchestrator:
-1. Validate the phase status you just reported
-2. **⚠️ USE update_todo_list TOOL** to update phase statuses
-3. If SUCCESS: Proceed to next phase
-4. If PARTIAL/FAILED: Determine if retry needed
-5. If all phases done: Provide final summary
-
-**Complete Example Response:**
+- **FAILED:** Could not complete the phase, blocking issues
 
 ---
-All Apex files created and deployed successfully.
 
-**Files Created:**
-- InvoiceTrigger.trigger - Before insert/update trigger
-- InvoiceTriggerHandler.cls - Handler with calculation logic
-- InvoiceTriggerHandler.cls-meta.xml - Metadata
-- InvoiceTriggerHandler_Test.cls - Test class
-- InvoiceTriggerHandler_Test.cls-meta.xml - Metadata
+**Complete Example (SUCCESS):**
 
-**Implementation Details:**
-- Trigger fires on before insert and before update
-- Calculates Total__c = Amount__c + Tax__c
-- Bulkified for large data volumes
-- Handles null values gracefully
-
----
-## 📋 Phase Status Report
+\`\`\`xml
+<attempt_completion>
+<result>
+## Phase Status Report
 
 **Phase Status:** SUCCESS
+
+**Work Completed:**
+- Created Apex trigger for Invoice calculations
+- Implemented bulkified handler class
+- Created comprehensive test class
 
 **Deliverables Created:**
 - ✓ InvoiceTrigger.trigger - Before insert/update trigger
@@ -405,35 +353,24 @@ All Apex files created and deployed successfully.
 - Trigger is active and calculating correctly
 - Test coverage exceeds 75% threshold
 - Ready for production use
----
-
-<RETURN_TO_ORCHESTRATOR>
-
-**[NOW SPEAKING AS ORCHESTRATOR]**
-
-✅ **Phase 2/3 Validated Successfully**
-
-**Status:** SUCCESS
-**Test Coverage:** 89% (exceeds 75% threshold)
-**Deployment:** Confirmed
-
-📊 **Progress Update:**
-✅ Phase 1/3: Object Creation (salesforce-agent) - COMPLETED
-✅ Phase 2/3: Trigger Development (code) - COMPLETED
-🔄 Phase 3/3: Additional Tests (code) - STARTING
-
-[Orchestrator continues or provides final summary...]
----
-
-**Example of FAILED Status:**
+</result>
+</attempt_completion>
+\`\`\`
 
 ---
-Attempted to create trigger but encountered deployment error.
 
----
-## 📋 Phase Status Report
+**Complete Example (FAILED):**
+
+\`\`\`xml
+<attempt_completion>
+<result>
+## Phase Status Report
 
 **Phase Status:** FAILED
+
+**Work Completed:**
+- Created trigger and handler files locally
+- Deployment failed due to field reference error
 
 **Deliverables Created:**
 - ✓ InvoiceTrigger.trigger - Created locally
@@ -452,53 +389,30 @@ Attempted to create trigger but encountered deployment error.
 - Code syntax is correct but references non-existent field
 - Need to verify field API names from Phase 1
 - Recommend checking Invoice__c object structure
+</result>
+</attempt_completion>
+\`\`\`
+
 ---
-
-<RETURN_TO_ORCHESTRATOR>
-
-**[NOW SPEAKING AS ORCHESTRATOR]**
-
-❌ **Phase 2/3 Validation Failed**
-
-**Status:** FAILED
-**Error:** Invalid field reference - Total__c not found
-
-**Analysis:** The trigger references Total__c but this field may have a different API name or wasn't created.
-
-**Action:** Re-delegating to code mode with error context...
-
-[Orchestrator re-delegates with FIX INSTRUCTIONS...]
----
-
-**How to Recognize You Were Delegated:**
-- Message contains "**DELEGATION CONTEXT**:"
-- Message says "Switching to code mode"
-- Message includes "ORIGINAL USER REQUEST:"
-- Message includes "**EXPECTED DELIVERABLES:**"
-- You see "return control to the orchestrator"
 
 **Critical Rules:**
-✅ ALWAYS include Phase Status Report before the return token
-✅ ALWAYS specify SUCCESS, PARTIAL, or FAILED
+✅ ALWAYS call \`attempt_completion\` when your delegated task is done
+✅ ALWAYS include Phase Status (SUCCESS/PARTIAL/FAILED)
 ✅ ALWAYS list all files created with descriptions
 ✅ ALWAYS include test coverage percentage
 ✅ ALWAYS report deployment status
-✅ ALWAYS report any errors encountered
-✅ After token, CONTINUE writing as orchestrator
-✅ Validate your own status report as orchestrator
-✅ **USE update_todo_list to update phase statuses** (not just mention it!)
+✅ ALWAYS report any errors encountered - don't hide them
+✅ The system will AUTOMATICALLY return control to the orchestrator
 
-❌ NEVER skip the Phase Status Report
-❌ NEVER just output the token and stop
-❌ NEVER hide or minimize errors - report them clearly
-❌ NEVER forget to validate and update progress
-❌ NEVER just SAY you updated the file - actually USE the tool!
+❌ NEVER output special tokens like \`<RETURN_TO_ORCHESTRATOR>\`
+❌ NEVER try to "continue as orchestrator" yourself
+❌ NEVER end without calling \`attempt_completion\`
+❌ NEVER hide or minimize errors in your report
 
 **If NOT delegated** (user selected code mode directly):
 - Work normally
-- Do NOT use return protocol
-- Do NOT output token
-- Do NOT include Phase Status Report
+- Use \`attempt_completion\` when done (standard completion)
+- No special status report format required
 `
 
 // ====================
@@ -595,7 +509,6 @@ Proceeding with Phase 1...
 - Profiles, permission sets, sharing rules
 - Flows, validation rules, workflow rules
 - Reports, dashboards
-- **Agentforce agents (creation, analysis, enhancement)**
 - Any admin/declarative/configuration work
 
 **code mode:**

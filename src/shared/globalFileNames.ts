@@ -6,13 +6,7 @@ export const GlobalFileNames = {
 	taskMetadata: "task_metadata.json",
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
-	invocableapexInstructions: "code/agentforce-apex-guide.md",
-	adaptiveResponseAgentInstructions: "code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md",
 	// Salesforce Agent Instructions
-	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
-	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",
-	agentforceTopicAnalyseInstructions: "Salesforce_Agent/agentforce-topic-analyse-workflow.md",
-	agentforceTopicsActionsInstructions: "Salesforce_Agent/agentforce-topics-actions-guide.md",
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
 	customObjectInstructions: "Salesforce_Agent/custom-object.md",
@@ -45,25 +39,6 @@ export interface TaskTypeConfig {
 }
 
 export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
-	// Agentforce Tasks
-	"create-agentforce-agent": {
-		instructions: [
-			"agentforce_agent_create",
-			"agentforce_agent_analyse",
-			"agentforce_topic_analyse",
-			"invocable_apex",
-			"adaptive_response_agent",
-			"adaptive_response_agent_workflow",
-		],
-		description: "Create Agentforce agent with all required metadata",
-		mode: "salesforce-agent",
-	},
-	"analyse-agentforce-agent": {
-		instructions: ["agentforce_agent_analyse", "agentforce_topic_analyse"],
-		description: "Analyse and enhance existing Agentforce agent",
-		mode: "salesforce-agent",
-	},
-
 	// LWC Tasks
 	"create-lwc": {
 		instructions: ["create_lwc"],

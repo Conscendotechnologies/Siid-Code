@@ -688,6 +688,45 @@ export class ClineProvider
 	public async initClineWithHistoryItem(historyItem: HistoryItem & { rootTask?: Task; parentTask?: Task }) {
 		await this.removeClineFromStack()
 
+		// Restore parent/root task references from IDs if not already provided
+		// This allows subtask relationships to survive window reloads
+		let parentTask = historyItem.parentTask
+		let rootTask = historyItem.rootTask
+
+		if (!parentTask && historyItem.parentTaskId) {
+			// Try to find the parent task in the current stack by ID
+			parentTask = this.clineStack.find((t) => t.taskId === historyItem.parentTaskId)
+			if (parentTask) {
+				this.log(`[subtasks] Restored parentTask reference from stack: ${historyItem.parentTaskId}`)
+			} else {
+				// Parent not in stack - try to load it from history first (recursive restore)
+				try {
+					const parentHistory = await this.getTaskWithId(historyItem.parentTaskId)
+					if (parentHistory) {
+						this.log(
+							`[subtasks] Parent task ${historyItem.parentTaskId} not in stack, loading from history first`,
+						)
+						// Recursively load the parent task (this will add it to the stack)
+						// Note: We don't await removeClineFromStack for the parent since we want it to stay
+						parentTask = await this.loadParentTaskFromHistory(parentHistory.historyItem)
+						if (parentTask) {
+							this.log(`[subtasks] Successfully restored parent task chain from history`)
+						}
+					}
+				} catch (error) {
+					this.log(`[subtasks] Warning: Could not restore parent task ${historyItem.parentTaskId}: ${error}`)
+				}
+			}
+		}
+
+		if (!rootTask && historyItem.rootTaskId) {
+			// Try to find the root task in the current stack by ID
+			rootTask = this.clineStack.find((t) => t.taskId === historyItem.rootTaskId)
+			if (rootTask) {
+				this.log(`[subtasks] Restored rootTask reference from ID: ${historyItem.rootTaskId}`)
+			}
+		}
+
 		// If the history item has a saved mode, restore it and its associated API configuration
 		if (historyItem.mode) {
 			// Validate that the mode still exists
@@ -731,8 +770,8 @@ export class ClineProvider
 			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
 			historyItem,
 			experiments,
-			rootTask: historyItem.rootTask,
-			parentTask: historyItem.parentTask,
+			rootTask: rootTask,
+			parentTask: parentTask,
 			taskNumber: historyItem.number,
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
@@ -742,6 +781,69 @@ export class ClineProvider
 		this.log(
 			`[subtasks] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
 		)
+
+		return task
+	}
+
+	/**
+	 * Load a parent task from history and add it to the stack in paused state.
+	 * This is used to restore the parent task chain when loading a subtask after window reload.
+	 */
+	private async loadParentTaskFromHistory(historyItem: HistoryItem): Promise<Task | undefined> {
+		const {
+			apiConfiguration,
+			diffEnabled: enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			experiments,
+		} = await this.getState()
+
+		// Recursively load the parent's parent if needed
+		let parentTask: Task | undefined = undefined
+		let rootTask: Task | undefined = undefined
+
+		if (historyItem.parentTaskId) {
+			parentTask = this.clineStack.find((t) => t.taskId === historyItem.parentTaskId)
+			if (!parentTask) {
+				try {
+					const grandparentHistory = await this.getTaskWithId(historyItem.parentTaskId)
+					if (grandparentHistory) {
+						parentTask = await this.loadParentTaskFromHistory(grandparentHistory.historyItem)
+					}
+				} catch (error) {
+					this.log(`[subtasks] Could not load grandparent task: ${error}`)
+				}
+			}
+		}
+
+		if (historyItem.rootTaskId) {
+			rootTask = this.clineStack.find((t) => t.taskId === historyItem.rootTaskId)
+		}
+
+		// Create the parent task in paused/non-starting state
+		const task = new Task({
+			provider: this,
+			apiConfiguration,
+			enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+			historyItem,
+			experiments,
+			rootTask: rootTask,
+			parentTask: parentTask,
+			taskNumber: historyItem.number,
+			startTask: false, // Don't start the task - it should be paused waiting for subtask
+			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
+		})
+
+		// Mark as paused since it's waiting for a subtask to complete
+		task.isPaused = true
+
+		// Add to stack (but don't call addClineToStack which has additional setup)
+		this.clineStack.push(task)
+
+		this.log(`[subtasks] Loaded parent task ${task.taskId} from history in paused state`)
 
 		return task
 	}

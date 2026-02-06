@@ -2292,9 +2292,27 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return () => window.removeEventListener("message", handleVSCodeMessage)
 	}, [])
 
-	// Reset file changes when switching to a different task/chat
+	// Reset file changes when switching to a different task/chat, and load from localStorage
 	useEffect(() => {
-		// task?.ts changes when switching chats/tasks; clear fileChanges for new chat
+		// task?.ts changes when switching chats/tasks
+		if (task?.ts) {
+			// Try to load saved file changes from localStorage for this task
+			const storageKey = `fileChanges_${task.ts}`
+			try {
+				const saved = localStorage.getItem(storageKey)
+				if (saved) {
+					const savedFiles = JSON.parse(saved) as FileChange[]
+					if (Array.isArray(savedFiles) && savedFiles.length > 0) {
+						console.debug("Loaded file changes from localStorage:", savedFiles)
+						setFileChanges(savedFiles)
+						return
+					}
+				}
+			} catch (error) {
+				console.error("Failed to load file changes from localStorage:", error)
+			}
+		}
+		// If no saved data or error, clear for new chat
 		setFileChanges([])
 	}, [task?.ts])
 
@@ -2498,27 +2516,14 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				}}
 			/>
 			{fileChanges.length > 0 && (
-				<>
-					{/* List variant - collapsible summary */}
-					<FileChanges
-						files={fileChanges}
-						variant="list"
-						defaultCollapsed={fileListCollapsed}
-						onViewDiff={openVsCodeDiff}
-						className="px-3.5 mb-2"
-						taskId={task?.ts ? String(task.ts) : undefined}
-					/>
-					{/* Detail variant - expanded view with stats (shown when more than 3 files) */}
-					{fileChanges.length > 3 && (
-						<FileChanges
-							files={fileChanges}
-							variant="detail"
-							onViewDiff={openVsCodeDiff}
-							className="px-3.5 mb-3"
-							taskId={task?.ts ? String(task.ts) : undefined}
-						/>
-					)}
-				</>
+				<FileChanges
+					files={fileChanges}
+					variant="list"
+					defaultCollapsed={fileListCollapsed}
+					onViewDiff={openVsCodeDiff}
+					className="px-3.5 mb-2"
+					taskId={task?.ts ? String(task.ts) : undefined}
+				/>
 			)}
 			<ChatTextArea
 				ref={textAreaRef}

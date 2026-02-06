@@ -196,6 +196,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	isPaused: boolean = false
 	pausedModeSlug: string = defaultModeSlug
 	private pauseInterval: NodeJS.Timeout | undefined
+	private isLoopRunning: boolean = false
 
 	// API
 	readonly apiConfiguration: ProviderSettings
@@ -648,6 +649,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				globalStoragePath: this.globalStoragePath,
 				workspace: this.cwd,
 				mode: this._taskMode || defaultModeSlug, // Use the task's own mode, not the current provider mode
+				// Include subtask relationship IDs for persistence across window reloads
+				parentTaskId: this.parentTask?.taskId,
+				rootTaskId: this.rootTask?.taskId,
 			})
 
 			this.emit(RooCodeEventName.TaskTokenUsageUpdated, this.taskId, tokenUsage)
@@ -1081,6 +1085,48 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				role: "user",
 				content: [{ type: "text", text: `[new_task completed] Result: ${lastMessage}` }],
 			})
+
+			// If the task loop is not running (e.g., parent was loaded from history),
+			// we need to continue processing with the subtask result
+			if (!this.isLoopRunning) {
+				this.providerRef
+					.deref()
+					?.log(
+						`[subtasks] task ${this.taskId}.${this.instanceId} loop not running, continuing conversation with subtask result`,
+					)
+
+				// Mark the loop as running since we're about to start it
+				this.isLoopRunning = true
+				this.emit(RooCodeEventName.TaskStarted)
+
+				// Continue the existing conversation by calling recursivelyMakeClineRequests
+				// This preserves all previous context and simply continues from where we left off
+				let nextUserContent: Anthropic.Messages.ContentBlockParam[] = [
+					{ type: "text", text: `[new_task completed] Result: ${lastMessage}` },
+				]
+
+				try {
+					while (!this.abort) {
+						const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, false)
+
+						if (didEndLoop) {
+							break
+						} else {
+							nextUserContent = [{ type: "text", text: formatResponse.noToolsUsed() }]
+							this.consecutiveMistakeCount++
+						}
+					}
+				} finally {
+					// Mark that the loop has finished
+					this.isLoopRunning = false
+				}
+			} else {
+				this.providerRef
+					.deref()
+					?.log(
+						`[subtasks] task ${this.taskId}.${this.instanceId} loop already running, will continue automatically`,
+					)
+			}
 		} catch (error) {
 			this.providerRef
 				.deref()
@@ -1433,6 +1479,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		let nextUserContent = userContent
 		let includeFileDetails = true
 
+		// Mark that the task loop is now running
+		this.isLoopRunning = true
+
 		this.emit(RooCodeEventName.TaskStarted)
 
 		while (!this.abort) {
@@ -1459,6 +1508,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				this.consecutiveMistakeCount++
 			}
 		}
+
+		// Mark that the loop has finished
+		this.isLoopRunning = false
 	}
 
 	public async recursivelyMakeClineRequests(
@@ -1808,7 +1860,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					const history = await provider?.getTaskWithId(this.taskId)
 
 					if (history) {
-						await provider?.initClineWithHistoryItem(history.historyItem)
+						// Preserve parent and root task information when reinitializing from history
+						// to ensure subtask completion still works correctly
+						await provider?.initClineWithHistoryItem({
+							...history.historyItem,
+							rootTask: this.rootTask,
+							parentTask: this.parentTask,
+						})
 					}
 				}
 			} finally {
