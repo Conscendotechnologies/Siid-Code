@@ -114,9 +114,9 @@ export const ChatRowContent = ({
 }: ChatRowContentProps) => {
 	const { t } = useTranslation()
 	const { mcpServers, alwaysAllowMcp, currentCheckpoint, mode, developerMode } = useExtensionState()
-	const [reasoningCollapsed, setReasoningCollapsed] = useState(!developerMode)
+	const [reasoningCollapsed, setReasoningCollapsed] = useState(true)
 	useEffect(() => {
-		setReasoningCollapsed(!developerMode)
+		setReasoningCollapsed(true)
 	}, [developerMode])
 	const [isDiffErrorExpanded, setIsDiffErrorExpanded] = useState(false)
 	const [showCopySuccess, setShowCopySuccess] = useState(false)
@@ -125,6 +125,7 @@ export const ChatRowContent = ({
 	const [editMode, setEditMode] = useState<Mode>(mode || "code")
 	const [editImages, setEditImages] = useState<string[]>([])
 	const [isFileHover, setIsFileHover] = useState(false)
+	const [isTaskGuidesExpanded, setIsTaskGuidesExpanded] = useState(false)
 	const { copyWithFeedback } = useCopyToClipboard()
 
 	// Handle message events for image selection during edit mode
@@ -335,8 +336,8 @@ export const ChatRowContent = ({
 	}
 
 	const tool = useMemo(
-		() => (message.ask === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
-		[message.ask, message.text],
+		() => (message.ask === "tool" || message.say === "tool" ? safeJsonParse<ClineSayTool>(message.text) : null),
+		[message.ask, message.say, message.text],
 	)
 
 	const followUpData = useMemo(() => {
@@ -352,6 +353,7 @@ export const ChatRowContent = ({
 				className={`codicon codicon-${name}`}
 				style={{ color: "var(--vscode-foreground)", marginBottom: "-1.5px" }}></span>
 		)
+		console.log("tool: ", JSON.stringify(tool))
 
 		switch (tool.tool) {
 			case "editedExistingFile":
@@ -486,6 +488,33 @@ export const ChatRowContent = ({
 								}}>
 								-{linesRemoved}
 							</span>
+
+							{/* View Diff button - opens VS Code native diff */}
+							{tool.diff && (
+								<span
+									className="codicon codicon-diff"
+									title="View Diff"
+									style={{
+										fontSize: "13px",
+										cursor: "pointer",
+										color: "var(--vscode-descriptionForeground)",
+										marginLeft: "2px",
+										padding: "2px",
+										borderRadius: "3px",
+									}}
+									onClick={() =>
+										vscode.postMessage({
+											type: "openDiff",
+											text: tool.path,
+											values: {
+												filePath: tool.path,
+												diff: tool.diff,
+												status: "modified",
+											},
+										})
+									}
+								/>
+							)}
 						</div>
 					</>
 				)
@@ -622,6 +651,32 @@ export const ChatRowContent = ({
 								}}>
 								+{linesAdded}
 							</span>
+
+							{/* View Diff button - opens VS Code native diff for new file */}
+							<span
+								className="codicon codicon-diff"
+								title="View Diff"
+								style={{
+									fontSize: "13px",
+									cursor: "pointer",
+									color: "var(--vscode-descriptionForeground)",
+									marginLeft: "2px",
+									padding: "2px",
+									borderRadius: "3px",
+								}}
+								onClick={() =>
+									vscode.postMessage({
+										type: "openDiff",
+										text: tool.path,
+										values: {
+											filePath: tool.path,
+											diff: tool.diff || (tool as any).content,
+											original: "", // new file - empty original
+											status: "created",
+										},
+									})
+								}
+							/>
 						</div>
 					</>
 				)
@@ -695,6 +750,67 @@ export const ChatRowContent = ({
 								}}>
 								Used {tool.content || "Instruction"}
 							</span>
+						</div>
+					</>
+				)
+			case "getTaskGuides":
+				return (
+					<>
+						<div style={headerStyle}></div>
+						<div style={{ margin: "6px 0 6px 0", display: "flex", flexDirection: "column", gap: 4 }}>
+							<div
+								onClick={() => setIsTaskGuidesExpanded(!isTaskGuidesExpanded)}
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 6,
+									cursor: "pointer",
+									userSelect: "none",
+								}}>
+								<span
+									className={`codicon codicon-chevron-${isTaskGuidesExpanded ? "down" : "right"}`}
+									style={{
+										fontSize: "12px",
+										color: "var(--vscode-descriptionForeground)",
+									}}
+								/>
+								<span
+									style={{
+										fontSize: "11px",
+										color: "var(--vscode-descriptionForeground)",
+										fontFamily: "monospace",
+										border: `1px solid var(--vscode-sideBar-border)`,
+										borderRadius: "3px",
+										padding: "2px 6px",
+										background: "var(--vscode-sideBar-background)",
+										display: "inline-block",
+									}}>
+									Loaded guides for: {tool.content || "Task"}
+								</span>
+							</div>
+							{isTaskGuidesExpanded && tool.loadedGuides && tool.loadedGuides.length > 0 && (
+								<div
+									style={{
+										marginLeft: 18,
+										display: "flex",
+										flexDirection: "column",
+										gap: 2,
+									}}>
+									{tool.loadedGuides.map((guide: string, idx: number) => (
+										<span
+											key={idx}
+											style={{
+												fontSize: "10px",
+												color: "var(--vscode-descriptionForeground)",
+												fontFamily: "monospace",
+												paddingLeft: 8,
+												borderLeft: "2px solid var(--vscode-sideBar-border)",
+											}}>
+											• {guide}
+										</span>
+									))}
+								</div>
+							)}
 						</div>
 					</>
 				)
@@ -929,6 +1045,60 @@ export const ChatRowContent = ({
 								<MarkdownBlock markdown={t("chat:subtasks.completionInstructions")} />
 							</div>
 						</div>
+					</>
+				)
+			case "deploySfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-upload")}
+							<span style={{ fontWeight: "bold" }}>
+								Deploy Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
+					</>
+				)
+			case "retrieveSfMetadata":
+				return (
+					<>
+						<div style={headerStyle}>
+							{toolIcon("cloud-download")}
+							<span style={{ fontWeight: "bold" }}>
+								Retrieve Salesforce Metadata: {tool.metadataType}
+								{tool.metadataName && ` - ${tool.metadataName}`}
+							</span>
+						</div>
+						{tool.content && (
+							<div
+								style={{
+									marginTop: "4px",
+									backgroundColor: "var(--vscode-editor-background)",
+									border: "1px solid var(--vscode-badge-background)",
+									borderRadius: "4px",
+									overflow: "hidden",
+									marginBottom: "8px",
+								}}>
+								<div style={{ padding: "12px 16px" }}>
+									<MarkdownBlock markdown={tool.content} />
+								</div>
+							</div>
+						)}
 					</>
 				)
 			default:

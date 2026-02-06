@@ -17,6 +17,9 @@ export const historyItemSchema = z.object({
 	size: z.number().optional(),
 	workspace: z.string().optional(),
 	mode: z.string().optional(),
+	// Subtask relationship - stores parent task ID for persistence across window reloads
+	parentTaskId: z.string().optional(),
+	rootTaskId: z.string().optional(),
 })
 
 export type HistoryItem = z.infer<typeof historyItemSchema>

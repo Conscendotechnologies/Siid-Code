@@ -166,11 +166,11 @@ After creating the field, you MUST retrieve the Admin profile and add read and e
     - Save at: `force-app/main/default/profiles/Admin.profile-meta.xml`
     - Run dry run first:
         ```bash
-        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml
+        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
         ```
     - If successful, deploy:
         ```bash
-        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml
+        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
         ```
 
 5. **User Communication**
@@ -200,13 +200,13 @@ For Lookup fields: Target Object, Relationship Label, Relationship Name
 **8. Dry run and Deployment** (!IMPORTANT)
 After creating all fields, before deployment first do Dry Run on fields using CLI:
 -DO DRY RUN ON ALL FIELDS AT ONCE
-sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml
+sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
 
 - Replace <FieldApiName> with created fields
 - If got any errors after dry run solve them.
 - After successful dry run then proceed with deloyment process.
 - Do deploy all fields rules at once.
-  sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml
+  sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
 - Replace <FieldApiName> with created fields
 
 **9. Page Layout Field Management** (!IMPORTANT - MUST DO AFTER FIELD DEPLOYMENT)
@@ -246,7 +246,7 @@ After successfully deploying the created fields, you MUST retrieve the object's 
 4. **Dry Run Page Layout Update**
 
     ```bash
-    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml
+    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
     ```
 
     - If you get "Too many columns for section style" error: You modified the layout structure. Only add `<layoutItems>` blocks.
@@ -254,7 +254,7 @@ After successfully deploying the created fields, you MUST retrieve the object's 
 5. **Deploy Updated Page Layout**
 
     ```bash
-    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml
+    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
     ```
 
 6. **User Communication**

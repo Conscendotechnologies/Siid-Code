@@ -24,7 +24,9 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation`
 			: `  create_mode
   create_lwc
   create_apex
@@ -40,7 +42,9 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   profile
   record_types
   role_creation
-  validation_rules`
+  validation_rules
+  workflow_field_update_creation
+  workflow_email_alert_creation`
 
 	const pmdTasks =
 		enablePmdRules !== false
@@ -87,11 +91,17 @@ Example: Requesting instructions to create Aura Components
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Assignment Rules
+
+<fetch_instructions>
+<task>assignment_rules</task>
+</fetch_instructions>
+
 Example: Requesting PMD JavaScript Rules instructions
 
 <fetch_instructions>
 <task>pmd_javascript</task>
 </fetch_instructions>
+
 
 `
 			: ``
@@ -106,6 +116,12 @@ Example: Requesting instructions to create an Apex class
 
 <fetch_instructions>
 <task>create_apex</task>
+</fetch_instructions>
+
+Example: Requesting instructions for Salesforce Custom Object
+
+<fetch_instructions>
+<task>custom_object</task>
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Field

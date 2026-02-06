@@ -147,7 +147,7 @@ This mode assists the AI model in assigning field permissions to Salesforce prof
 - **After updating the profile XML with field permissions, you MUST immediately deploy it to the default Salesforce org.**
 - **Deployment Command:**
     ```
-    sf project deploy start --source-dir force-app/main/default/profiles/<ProfileName>.profile-meta.xml
+    sf project deploy start --source-dir force-app/main/default/profiles/<ProfileName>.profile-meta.xml --json
     ```
 - Replace `<ProfileName>` with the actual profile name.
 - **MANDATORY: Execute the deployment command immediately after updating the profile. Do not skip this step.**

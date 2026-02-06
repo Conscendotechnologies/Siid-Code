@@ -112,11 +112,11 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 
 - Before deploying the created objects and tabs into the org do the dry run first using below command
 - Do dry run for all objects at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>`
+  `sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>` --json
 - If got any errors after dry run solve them.
 - After successful dry run then proceed with deloyment process.
 - Do deploy all objects at once.
-  `sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiNames>`
+  `sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiNames>` --json
 - Replace <ObjectApiName> with the actual object API name (e.g., Invoice_Item\_\_c).
 
 ## Dry Run and deployment for tabs(Mandatory)
@@ -124,11 +124,11 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 - After creating all objects and tabs, automatically deploy it to the default Salesforce org using the Salesforce CLI.
 - Run the deployment command after creating all objects and tabs creation
 - Do dry run for all tabs at once.
-  `sf project deploy start --dry-run --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml`
+  `sf project deploy start --dry-run --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml` --json
 - If got any errors after dry run solve them.
 - After successful dry run then proceed with deloyment process.
 - Do deploy all tabs at once.
-  `sf project deploy start --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml`
+  `sf project deploy start --source-dir force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml` --json
 - Replace <ObjectApiNames> with the all objects that are created comma separated.
 
 ## Compliance
@@ -189,16 +189,16 @@ When creating a custom object named "Test", follow these steps:
 
 For Objects:
 bash# Dry run
-sf project deploy start --dry-run --source-dir force-app/main/default/objects/Test\_\_c
+sf project deploy start --dry-run --source-dir force-app/main/default/objects/Test\_\_c --json
 
 # Actual deployment (after successful dry run)
 
-sf project deploy start --source-dir force-app/main/default/objects/Test\_\_c
+sf project deploy start --source-dir force-app/main/default/objects/Test\_\_c --json
 
 For Tabs:
 bash# Dry run
-sf project deploy start --dry-run --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
+sf project deploy start --dry-run --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml --json
 
 # Actual deployment (after successful dry run)
 
-sf project deploy start --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml
+sf project deploy start --source-dir force-app/main/default/tabs/Test\_\_c.tab-meta.xml --json

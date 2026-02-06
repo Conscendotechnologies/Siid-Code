@@ -14,7 +14,6 @@ import {
 	type ClineMessage,
 	TelemetryEventName,
 } from "@siid-code/types"
-import { CloudService } from "@roo-code/cloud"
 import { TelemetryService } from "@siid-code/telemetry"
 import { type ApiMessage } from "../task-persistence/apiMessages"
 
@@ -502,6 +501,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowUpdateTodoList", message.bool)
 			await provider.postStateToWebview()
 			break
+		case "alwaysAllowDeploySfMetadata":
+			await updateGlobalState("alwaysAllowDeploySfMetadata", message.bool)
+			await provider.postStateToWebview()
+			break
 		case "askResponse":
 			provider.getCurrentCline()?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 			break
@@ -549,50 +552,13 @@ export const webviewMessageHandler = async (
 				provider.exportTaskWithId(currentTaskId)
 			}
 			break
-		case "shareCurrentTask":
-			const shareTaskId = provider.getCurrentCline()?.taskId
-			const clineMessages = provider.getCurrentCline()?.clineMessages
-			if (!shareTaskId) {
-				vscode.window.showErrorMessage(t("common:errors.share_no_active_task"))
-				break
-			}
-
-			try {
-				const visibility = message.visibility || "organization"
-				const result = await CloudService.instance.shareTask(shareTaskId, visibility, clineMessages)
-
-				if (result.success && result.shareUrl) {
-					// Show success notification
-					const messageKey =
-						visibility === "public"
-							? "common:info.public_share_link_copied"
-							: "common:info.organization_share_link_copied"
-					vscode.window.showInformationMessage(t(messageKey))
-
-					// Send success feedback to webview for inline display
-					await provider.postMessageToWebview({
-						type: "shareTaskSuccess",
-						visibility,
-						text: result.shareUrl,
-					})
-				} else {
-					// Handle error
-					const errorMessage = result.error || "Failed to create share link"
-					if (errorMessage.includes("Authentication")) {
-						vscode.window.showErrorMessage(t("common:errors.share_auth_required"))
-					} else if (errorMessage.includes("sharing is not enabled")) {
-						vscode.window.showErrorMessage(t("common:errors.share_not_enabled"))
-					} else if (errorMessage.includes("not found")) {
-						vscode.window.showErrorMessage(t("common:errors.share_task_not_found"))
-					} else {
-						vscode.window.showErrorMessage(errorMessage)
-					}
-				}
-			} catch (error) {
-				provider.log(`[shareCurrentTask] Unexpected error: ${error}`)
-				vscode.window.showErrorMessage(t("common:errors.share_task_failed"))
+		case "exportCurrentTaskDebugJson": {
+			const debugTaskId = provider.getCurrentCline()?.taskId
+			if (debugTaskId) {
+				provider.exportTaskDebugJsonWithId(debugTaskId)
 			}
 			break
+		}
 		case "showTaskWithId":
 			provider.showTaskWithId(message.text!)
 			break
@@ -642,6 +608,9 @@ export const webviewMessageHandler = async (
 		}
 		case "exportTaskWithId":
 			provider.exportTaskWithId(message.text!)
+			break
+		case "exportTaskDebugJson":
+			provider.exportTaskDebugJsonWithId(message.text!)
 			break
 		case "importSettings": {
 			await importSettingsWithFeedback({
@@ -898,6 +867,61 @@ export const webviewMessageHandler = async (
 
 				// If webview sent `path` instead of `text`, accept that too.
 				openFile(requested, message.values as { create?: boolean; content?: string; line?: number })
+			}
+			break
+		case "openDiff":
+			{
+				// Open VS Code native diff editor for a file change
+				const diffPayload = message.values as
+					| {
+							filePath?: string
+							diff?: string
+							original?: string
+							modified?: string
+							status?: string
+					  }
+					| undefined
+
+				if (!diffPayload?.filePath) break
+
+				const workDir = getWorkspacePath()
+				const filePath = diffPayload.filePath
+				const absolutePath = path.isAbsolute(filePath)
+					? filePath
+					: workDir
+						? path.resolve(workDir, filePath.replace(/^\.\//, ""))
+						: filePath
+
+				try {
+					// If we have a diff string, reconstruct original content from current file
+					if (diffPayload.diff) {
+						const currentContent = await fs.readFile(absolutePath, "utf-8").catch(() => "")
+						const originalContent = diffPayload.original ?? currentContent
+
+						// Create a virtual document URI for the original content
+						const { DIFF_VIEW_URI_SCHEME } = await import("../../integrations/editor/DiffViewProvider")
+						const fileName = path.basename(absolutePath)
+						const originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
+							query: Buffer.from(originalContent).toString("base64"),
+						})
+						const modifiedUri = vscode.Uri.file(absolutePath)
+
+						await vscode.commands.executeCommand(
+							"vscode.diff",
+							originalUri,
+							modifiedUri,
+							`${fileName}: Changes`,
+							{ preview: true, preserveFocus: false },
+						)
+					} else {
+						// No diff available, just open the file
+						openFile(absolutePath)
+					}
+				} catch (err) {
+					console.error("Failed to open diff view:", err)
+					// Fallback: just open the file
+					openFile(absolutePath)
+				}
 			}
 			break
 		case "openMention":
@@ -1633,6 +1657,10 @@ export const webviewMessageHandler = async (
 			break
 		case "profileThresholds":
 			await updateGlobalState("profileThresholds", message.values)
+			await provider.postStateToWebview()
+			break
+		case "updateExperimental":
+			await updateGlobalState("experiments", message.values)
 			await provider.postStateToWebview()
 			break
 		case "autoApprovalEnabled":

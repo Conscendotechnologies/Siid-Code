@@ -308,6 +308,26 @@ export class DiffViewProvider {
 			throw new Error("No file path available in DiffViewProvider")
 		}
 
+		// Calculate additions and deletions from the actual diff between original and new content
+		let additions = 0
+		let deletions = 0
+		let diffText = ""
+
+		const original = this.originalContent ?? ""
+		const updated = this.newContent ?? ""
+
+		if (original !== updated) {
+			const changes = diff.diffLines(original, updated)
+			for (const part of changes) {
+				if (part.added) {
+					additions += part.count || 0
+				} else if (part.removed) {
+					deletions += part.count || 0
+				}
+			}
+			diffText = formatResponse.createPrettyPatch(this.relPath!.toPosix(), original, updated)
+		}
+
 		// Only send user_feedback_diff if userEdits exists
 		if (this.userEdits) {
 			// Create say object for UI feedback
@@ -315,10 +335,31 @@ export class DiffViewProvider {
 				tool: isNewFile ? "newFileCreated" : "editedExistingFile",
 				path: getReadablePath(cwd, this.relPath),
 				diff: this.userEdits,
+				linesAdded: additions,
+				linesRemoved: deletions,
 			}
 
 			// Send the user feedback
 			await task.say("user_feedback_diff", JSON.stringify(say))
+		}
+
+		// Send file change notification to webview with all tracking data
+		const provider = task.providerRef.deref()
+		if (provider) {
+			await provider.postMessageToWebview({
+				type: "fileCreated",
+				files: [
+					{
+						path: getReadablePath(cwd, this.relPath),
+						status: isNewFile ? "created" : "modified",
+						additions,
+						deletions,
+						diff: diffText || undefined,
+						deploymentStatus: "local",
+						timestamp: Date.now(),
+					},
+				],
+			})
 		}
 
 		// Build XML response
