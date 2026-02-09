@@ -30,7 +30,15 @@ export class DiffViewProvider {
 	private createdDirs: string[] = []
 	private documentWasOpen = false
 	private relPath?: string
-	private newContent?: string
+	private _newContent?: string
+
+	/**
+	 * Get the new content that will be/was written to the file
+	 * Used for file change tracking
+	 */
+	get newContent(): string | undefined {
+		return this._newContent
+	}
 	private activeDiffEditor?: vscode.TextEditor
 	private fadedOverlayController?: DecorationController
 	private activeLineController?: DecorationController
@@ -115,7 +123,7 @@ export class DiffViewProvider {
 			throw new Error("Required values not set")
 		}
 
-		this.newContent = accumulatedContent
+		this._newContent = accumulatedContent
 		const accumulatedLines = accumulatedContent.split("\n")
 
 		if (!isFinal) {
@@ -195,7 +203,7 @@ export class DiffViewProvider {
 		userEdits: string | undefined
 		finalContent: string | undefined
 	}> {
-		if (!this.relPath || !this.newContent || !this.activeDiffEditor) {
+		if (!this.relPath || !this._newContent || !this.activeDiffEditor) {
 			return { newProblemsMessage: undefined, userEdits: undefined, finalContent: undefined }
 		}
 
@@ -265,13 +273,13 @@ export class DiffViewProvider {
 
 		// If the edited content has different EOL characters, we don't want to
 		// show a diff with all the EOL differences.
-		const newContentEOL = this.newContent.includes("\r\n") ? "\r\n" : "\n"
+		const newContentEOL = this._newContent.includes("\r\n") ? "\r\n" : "\n"
 
 		// Normalize EOL characters without trimming content
 		const normalizedEditedContent = editedContent.replace(/\r\n|\n/g, newContentEOL)
 
 		// Just in case the new content has a mix of varying EOL characters.
-		const normalizedNewContent = this.newContent.replace(/\r\n|\n/g, newContentEOL)
+		const normalizedNewContent = this._newContent.replace(/\r\n|\n/g, newContentEOL)
 
 		if (normalizedEditedContent !== normalizedNewContent) {
 			// User made changes before approving edit.
@@ -314,7 +322,7 @@ export class DiffViewProvider {
 		let diffText = ""
 
 		const original = this.originalContent ?? ""
-		const updated = this.newContent ?? ""
+		const updated = this._newContent ?? ""
 
 		if (original !== updated) {
 			const changes = diff.diffLines(original, updated)
@@ -756,7 +764,7 @@ export class DiffViewProvider {
 		this.newProblemsMessage = newProblemsMessage
 		this.userEdits = undefined
 		this.relPath = relPath
-		this.newContent = content
+		this._newContent = content
 
 		return {
 			newProblemsMessage,
