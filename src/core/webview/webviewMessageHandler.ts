@@ -56,6 +56,7 @@ const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv"])
 
 import { MarketplaceManager, MarketplaceItemType } from "../../services/marketplace"
 import { setPendingTodoList } from "../tools/updateTodoListTool"
+import { FileChangesService } from "../../services/file-changes"
 
 export const webviewMessageHandler = async (
 	provider: ClineProvider,
@@ -1918,5 +1919,149 @@ export const webviewMessageHandler = async (
 				}
 			}
 			break
+
+		// File Changes Database handlers
+		case "getFileChanges": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const fileChanges = await service.getTaskFileChanges(taskId)
+					await provider.postMessageToWebview({
+						type: "fileChanges",
+						fileChanges: fileChanges.map((fc) => ({
+							path: fc.filePath,
+							additions: fc.additions,
+							deletions: fc.deletions,
+							status: fc.status,
+							diff: fc.diff,
+							deploymentStatus: fc.deploymentStatus,
+							timestamp: fc.timestamp,
+							error: fc.error,
+						})),
+					})
+				} catch (error) {
+					provider.log(
+						`Error getting file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+					await provider.postMessageToWebview({
+						type: "fileChanges",
+						fileChanges: [],
+					})
+				}
+			}
+			break
+		}
+
+		case "updateFileDeploymentStatus": {
+			const values = message.values as
+				| {
+						taskId: string
+						filePath: string
+						deploymentStatus: string
+						error?: string
+				  }
+				| undefined
+			if (values?.taskId && values?.filePath && values?.deploymentStatus) {
+				try {
+					const service = FileChangesService.getInstance()
+					await service.updateDeploymentStatus(
+						values.taskId,
+						values.filePath,
+						values.deploymentStatus as "local" | "dry-run" | "deploying" | "deployed" | "failed",
+						values.error,
+					)
+				} catch (error) {
+					provider.log(
+						`Error updating deployment status: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "clearFileChanges": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+					await db.deleteAllFileChangesForTask(taskId)
+				} catch (error) {
+					provider.log(
+						`Error clearing file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "getFileChangesStatistics": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+					const stats = await db.getTaskStatistics(taskId)
+					await provider.postMessageToWebview({
+						type: "fileChangesStatistics",
+						statistics: stats,
+					})
+				} catch (error) {
+					provider.log(
+						`Error getting file changes statistics: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "migrateFileChanges": {
+			const taskId = message.text
+			const localFileChanges = message.values?.fileChanges as
+				| Array<{
+						path: string
+						additions?: number
+						deletions?: number
+						status?: "modified" | "created" | "deleted"
+						diff?: string
+						deploymentStatus?: string
+						timestamp?: number
+						error?: string
+				  }>
+				| undefined
+
+			if (taskId && Array.isArray(localFileChanges) && localFileChanges.length > 0) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+
+					provider.log(`Migrating ${localFileChanges.length} file changes for task ${taskId}`)
+
+					for (const fc of localFileChanges) {
+						if (fc.path) {
+							await db.addFileChange({
+								taskId,
+								filePath: fc.path,
+								status: fc.status || "modified",
+								additions: fc.additions,
+								deletions: fc.deletions,
+								deploymentStatus: (fc.deploymentStatus as any) || "local",
+								timestamp: fc.timestamp || Date.now(),
+								diff: fc.diff,
+								error: fc.error,
+							})
+						}
+					}
+
+					provider.log(`Successfully migrated file changes for task ${taskId}`)
+				} catch (error) {
+					provider.log(
+						`Error migrating file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
 	}
 }

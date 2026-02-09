@@ -125,6 +125,8 @@ export interface ExtensionMessage {
 		| "firebaseLogout"
 		| "showOsNotification"
 		| "fileCreated"
+		| "fileChanges"
+		| "fileChangesStatistics"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
@@ -203,6 +205,23 @@ export interface ExtensionMessage {
 	commands?: Command[]
 	loginData?: {
 		userInfo?: CloudUserInfo
+	}
+	fileChanges?: Array<{
+		path: string
+		additions: number
+		deletions: number
+		status: "modified" | "created" | "deleted"
+		diff?: string
+		deploymentStatus?: "local" | "dry-run" | "deploying" | "deployed" | "failed"
+		timestamp: number
+		error?: string
+	}>
+	statistics?: {
+		totalFiles: number
+		totalAdditions: number
+		totalDeletions: number
+		byStatus: Record<string, number>
+		byDeploymentStatus: Record<string, number>
 	}
 }
 
