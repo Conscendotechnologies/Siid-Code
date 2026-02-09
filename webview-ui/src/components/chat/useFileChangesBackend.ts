@@ -43,6 +43,7 @@ export const useFileChangesBackend = (taskId?: string): UseFileChangesBackendRet
 	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null)
+	const isLoadingRef = useRef(false)
 
 	// Listen for file changes from the backend
 	useEffect(() => {
@@ -51,6 +52,7 @@ export const useFileChangesBackend = (taskId?: string): UseFileChangesBackendRet
 			if (message.type === "fileChanges" && message.fileChanges) {
 				setFiles(message.fileChanges)
 				setIsLoading(false)
+				isLoadingRef.current = false
 				setError(null)
 			} else if (message.type === "fileChangesStatistics" && message.statistics) {
 				// Handle statistics if needed
@@ -72,6 +74,7 @@ export const useFileChangesBackend = (taskId?: string): UseFileChangesBackendRet
 	useEffect(() => {
 		if (taskId) {
 			setIsLoading(true)
+			isLoadingRef.current = true
 			setError(null)
 
 			// Request file changes from backend
@@ -79,13 +82,14 @@ export const useFileChangesBackend = (taskId?: string): UseFileChangesBackendRet
 
 			// Fallback: load from localStorage after a timeout if backend doesn't respond
 			const timeoutId = setTimeout(() => {
-				if (isLoading) {
+				if (isLoadingRef.current) {
 					console.debug("Backend timeout, falling back to localStorage")
 					const savedFiles = loadFileChanges(taskId)
 					if (savedFiles.length > 0) {
 						setFiles(savedFiles)
 					}
 					setIsLoading(false)
+					isLoadingRef.current = false
 				}
 			}, 2000)
 
