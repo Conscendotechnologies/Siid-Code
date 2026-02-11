@@ -200,6 +200,8 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		alwaysAllowSubtasks,
 		alwaysAllowFollowupQuestions,
 		alwaysAllowUpdateTodoList,
+		alwaysAllowDeploySfMetadata,
+		alwaysAllowRetrieveSfMetadata,
 		customModes,
 		hasSystemPromptOverride,
 		historyPreviewCollapsed, // Added historyPreviewCollapsed
@@ -1424,23 +1426,21 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					return alwaysAllowUpdateTodoList
 				}
 
-				if (tool?.tool === "fetchInstructions" || tool?.tool === "getTaskGuides") {
-					if (tool.content === "create_mode" || tool.content === "create-custom-mode") {
-						return alwaysAllowModeSwitch
-					}
-
-					if (tool.content === "create_mcp_server" || tool.content === "create-mcp-server") {
-						return alwaysAllowMcp
-					}
-
-					// Auto-approve get_task_guides as it's read-only
-					if (tool?.tool === "getTaskGuides") {
-						return alwaysAllowReadOnly
-					}
+				if (tool?.tool === "deploySfMetadata") {
+					return alwaysAllowDeploySfMetadata
 				}
 
-				if (tool?.tool === "switchMode") {
-					return alwaysAllowModeSwitch
+				if (tool?.tool === "retrieveSfMetadata") {
+					return alwaysAllowRetrieveSfMetadata
+				}
+
+				if (tool.content === "create_mcp_server" || tool.content === "create-mcp-server") {
+					return alwaysAllowMcp
+				}
+
+				// Auto-approve get_task_guides as it's read-only
+				if (tool?.tool === "getTaskGuides") {
+					return alwaysAllowReadOnly
 				}
 
 				if (["newTask", "finishTask"].includes(tool?.tool)) {
@@ -1480,10 +1480,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			isAllowedCommand,
 			alwaysAllowMcp,
 			isMcpToolAlwaysAllowed,
-			alwaysAllowModeSwitch,
 			alwaysAllowFollowupQuestions,
 			alwaysAllowSubtasks,
 			alwaysAllowUpdateTodoList,
+			alwaysAllowDeploySfMetadata,
+			alwaysAllowRetrieveSfMetadata,
 		],
 	)
 

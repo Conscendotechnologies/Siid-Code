@@ -322,7 +322,11 @@ export async function retrieveSfMetadataTool(
 			command,
 		})
 
-		const didApprove = await askApproval("tool", toolMessage)
+		// Check if auto-approval is enabled for this tool
+		const providerState = await cline.providerRef.deref()?.getState()
+		const forceApproval = !providerState?.alwaysAllowRetrieveSfMetadata
+
+		const didApprove = await askApproval("tool", toolMessage, undefined, forceApproval)
 
 		if (!didApprove) {
 			return
@@ -341,7 +345,6 @@ export async function retrieveSfMetadataTool(
 
 			// Format and return the result
 			const formattedResult = formatSfOutput(output, metadataType, metadataName)
-			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully.`)
 			pushToolResult(formattedResult)
 		} catch (execError: any) {
 			// Handle execution errors

@@ -194,6 +194,10 @@
 			"label": "Deploy Salesforce Metadata",
 			"description": "Automatically deploy Salesforce metadata to orgs without requiring approval (dry-run validation still runs)"
 		},
+		"retrieveSfMetadata": {
+			"label": "Retrieve Salesforce Metadata",
+			"description": "Automatically retrieve Salesforce metadata without requiring approval"
+		},
 		"apiRequestLimit": {
 			"title": "Max Requests",
 			"description": "Automatically make this many API requests before asking for approval to continue with the task.",
