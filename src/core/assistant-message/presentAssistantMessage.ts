@@ -90,57 +90,71 @@ export async function presentAssistantMessage(cline: Task) {
 			let content = block.content
 
 			if (content) {
-				// Have to do this for partial and complete since sending
-				// content in thinking tags to markdown renderer will
-				// automatically be removed.
-				// Remove end substrings of <thinking or </thinking (below xml
-				// parsing is only for opening tags).
-				// Tthis is done with the xml parsing below now, but keeping
-				// here for reference.
-				// content = content.replace(/<\/?t(?:h(?:i(?:n(?:k(?:i(?:n(?:g)?)?)?$/, "")
-				//
-				// Remove all instances of <thinking> (with optional line break
-				// after) and </thinking> (with optional line break before).
-				// - Needs to be separate since we dont want to remove the line
-				//   break before the first tag.
-				// - Needs to happen before the xml parsing below.
-				content = content.replace(/<thinking>\s?/g, "")
-				content = content.replace(/\s?<\/thinking>/g, "")
+				// If the assistant embedded <thinking> tags in the text, present
+				// their contents as `reasoning` messages so the UI shows them in
+				// the thinking box. Handle both complete and partial tags.
+				const fullTagRegex = /<thinking>\s*([\s\S]*?)\s*<\/thinking>/g
+				const fullMatches: string[] = []
+				let m: RegExpExecArray | null
+				while ((m = fullTagRegex.exec(content)) !== null) {
+					fullMatches.push(m[1])
+				}
 
-				// Remove partial XML tag at the very end of the content (for
-				// tool use and thinking tags), Prevents scrollview from
-				// jumping when tags are automatically removed.
+				if (fullMatches.length > 0) {
+					// Remove full thinking tags from text and present remaining text
+					const remaining = content.replace(fullTagRegex, "").trim()
+					// Combine multiple thinking blocks into one reasoning message
+					const combined = fullMatches
+						.map((r) => r.replace(/^\n/, "").replace(/\n$/, ""))
+						.join("\n")
+					const combinedTrim = combined.trim()
+					// Present reasoning first, then any remaining text
+					if (combinedTrim.length > 0) {
+						await cline.say("reasoning", combinedTrim, undefined, block.partial)
+					}
+					if (remaining.length > 0) {
+						await cline.say("text", remaining, undefined, block.partial)
+					}
+
+					// We've handled both text and reasoning, skip default path.
+					break
+				}
+
+				// Handle an open <thinking> tag without a closing tag (partial)
+				const openTag = "<thinking>"
+				const openIdx = content.indexOf(openTag)
+				if (openIdx !== -1 && !content.includes("</thinking>")) {
+					const before = content.slice(0, openIdx).trim()
+					const after = content.slice(openIdx + openTag.length).trim()
+
+					// Treat the remainder as partial reasoning if non-empty,
+					// and present reasoning before any preceding text so the
+					// thinking box appears first.
+					if (after.trim().length > 0) {
+						await cline.say("reasoning", after.trim(), undefined, block.partial)
+					}
+					if (before.length > 0) {
+						await cline.say("text", before, undefined, block.partial)
+					}
+
+					break
+				}
+
+				// Default: no thinking tags present. Remove any stray incomplete
+				// XML-like tag at the end to avoid artifacts, same as before.
 				const lastOpenBracketIndex = content.lastIndexOf("<")
-
 				if (lastOpenBracketIndex !== -1) {
 					const possibleTag = content.slice(lastOpenBracketIndex)
-
-					// Check if there's a '>' after the last '<' (i.e., if the
-					// tag is complete) (complete thinking and tool tags will
-					// have been removed by now.)
 					const hasCloseBracket = possibleTag.includes(">")
-
 					if (!hasCloseBracket) {
-						// Extract the potential tag name.
 						let tagContent: string
-
 						if (possibleTag.startsWith("</")) {
 							tagContent = possibleTag.slice(2).trim()
 						} else {
 							tagContent = possibleTag.slice(1).trim()
 						}
-
-						// Check if tagContent is likely an incomplete tag name
-						// (letters and underscores only).
 						const isLikelyTagName = /^[a-zA-Z_]+$/.test(tagContent)
-
-						// Preemptively remove < or </ to keep from these
-						// artifacts showing up in chat (also handles closing
-						// thinking tags).
 						const isOpeningOrClosing = possibleTag === "<" || possibleTag === "</"
-
-						// If the tag is incomplete and at the end, remove it
-						// from the content.
 						if (isOpeningOrClosing || isLikelyTagName) {
 							content = content.slice(0, lastOpenBracketIndex).trim()
 						}
@@ -148,7 +162,15 @@ export async function presentAssistantMessage(cline: Task) {
 				}
 			}
 
-			await cline.say("text", content, undefined, block.partial)
+			// If the next block is an `attempt_completion` tool, it will
+			// emit a `completion_result` with the final output. To avoid
+			// showing the same output twice (once as `text` and once as
+			// `completion_result`), skip presenting this text block when
+			// the next block is `attempt_completion`.
+			const nextBlock = cline.assistantMessageContent[cline.currentStreamingContentIndex + 1]
+			if (!(nextBlock && nextBlock.type === "tool_use" && nextBlock.name === "attempt_completion")) {
+				await cline.say("text", content, undefined, block.partial)
+			}
 			break
 		}
 		case "tool_use":
