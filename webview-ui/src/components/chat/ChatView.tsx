@@ -1107,14 +1107,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		const latestApiReqStarted = apiReqStartedMessages.at(-1)
 
 		const newVisibleMessages = recentMessages.filter((message: ClineMessage) => {
-			// Hide assistant's thinking/explanation text when developer mode is OFF
-			if (!developerMode && message.say === "text" && message.type === "say") {
-				return false
-			}
-			// Hide reasoning blocks when developer mode is OFF
-			if (!developerMode && message.say === "reasoning") {
-				return false
-			}
+			// Always show assistant text and reasoning for all users
 
 			if (everVisibleMessagesTsRef.current.has(message.ts)) {
 				const alwaysHiddenOnceProcessedAsk: ClineAsk[] = [
@@ -1187,10 +1180,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					}
 					break
 				case "text":
-					// Hide assistant's thinking/explanation text when developer mode is OFF
-					if (!developerMode && message.type === "say") {
-						return false
-					}
+					// Always show assistant text
 					if ((message.text ?? "") === "" && (message.images?.length ?? 0) === 0) return false
 					// Hide text messages that come between thinking/ask messages (informational boxes)
 					{
@@ -1210,10 +1200,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					}
 					break
 				case "reasoning":
-					// Hide reasoning blocks when developer mode is OFF
-					if (!developerMode) {
-						return false
-					}
+					// Always show reasoning blocks
 					break
 				case "mcp_server_request_started":
 					return false

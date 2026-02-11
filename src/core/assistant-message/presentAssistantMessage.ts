@@ -2,6 +2,7 @@ import cloneDeep from "clone-deep"
 import { serializeError } from "serialize-error"
 
 import type { ToolName, ClineAsk, ToolProgressStatus } from "@siid-code/types"
+import { toolNames } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
 
 import { defaultModeSlug, getModeBySlug } from "../../shared/modes"
@@ -160,6 +161,21 @@ export async function presentAssistantMessage(cline: Task) {
 						}
 					}
 				}
+
+					// Remove any tool XML tags (e.g. <sf_deploy_metadata />,
+					// <read_file>...</read_file>) from plain text so tool markup
+					// doesn't appear outside thinking/reasoning blocks.
+					if (content && Array.isArray(toolNames)) {
+						for (const t of toolNames) {
+							// Remove full tags with content
+							const fullTagRegex = new RegExp(`<${t}>[\\s\\S]*?<\\/${t}>`, "g")
+							content = content.replace(fullTagRegex, "")
+							// Remove self-closing or stray opening tags
+							const selfClosingRegex = new RegExp(`<${t}[^>]*\\/?>`, "g")
+							content = content.replace(selfClosingRegex, "")
+						}
+						content = content.trim()
+					}
 			}
 
 			// If the next block is an `attempt_completion` tool, it will
