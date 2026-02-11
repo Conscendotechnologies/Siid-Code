@@ -22,6 +22,10 @@ export type TaskMetadataOptions = {
 	// Subtask relationship IDs for persistence across window reloads
 	parentTaskId?: string
 	rootTaskId?: string
+	// Task time tracking - elapsed duration in milliseconds
+	duration?: number
+	// Task completion status
+	taskCompleted?: boolean
 }
 
 export async function taskMetadata({
@@ -33,6 +37,8 @@ export async function taskMetadata({
 	mode,
 	parentTaskId,
 	rootTaskId,
+	duration,
+	taskCompleted,
 }: TaskMetadataOptions) {
 	const taskDir = await getTaskDirectoryPath(globalStoragePath, taskId)
 
@@ -100,6 +106,8 @@ export async function taskMetadata({
 		size: taskDirSize,
 		workspace,
 		mode,
+		duration,
+		taskCompleted,
 		// Include subtask relationship IDs for persistence across window reloads
 		parentTaskId,
 		rootTaskId,

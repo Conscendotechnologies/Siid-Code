@@ -676,6 +676,19 @@ export class ClineProvider
 			...options,
 		})
 
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
+		})
+
 		await this.addClineToStack(task)
 
 		this.log(
@@ -776,6 +789,19 @@ export class ClineProvider
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
 
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
+		})
+
 		await this.addClineToStack(task)
 
 		this.log(
@@ -835,6 +861,19 @@ export class ClineProvider
 			taskNumber: historyItem.number,
 			startTask: false, // Don't start the task - it should be paused waiting for subtask
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
+		})
+
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
 		})
 
 		// Mark as paused since it's waiting for a subtask to complete
@@ -1324,7 +1363,7 @@ export class ClineProvider
 		const rootTask = cline.rootTask
 		const parentTask = cline.parentTask
 
-		cline.abortTask()
+		await cline.abortTask()
 
 		await pWaitFor(
 			() =>
@@ -1340,6 +1379,10 @@ export class ClineProvider
 			},
 		).catch(() => {})
 
+		// Send frozen timer to webview while old Task is still getCurrentCline()
+		// (before initClineWithHistoryItem replaces it with a new instance)
+		await this.postStateToWebview()
+
 		if (this.getCurrentCline()) {
 			// 'abandoned' will prevent this Cline instance from affecting
 			// future Cline instances. This may happen if its hanging on a
@@ -1348,7 +1391,9 @@ export class ClineProvider
 		}
 
 		// Clears task again, so we need to abortTask manually above.
-		await this.initClineWithHistoryItem({ ...historyItem, rootTask, parentTask })
+		// Re-fetch historyItem since abortTask saved updated duration
+		const { historyItem: updatedHistoryItem } = await this.getTaskWithId(cline.taskId)
+		await this.initClineWithHistoryItem({ ...updatedHistoryItem, rootTask, parentTask })
 	}
 
 	async updateCustomInstructions(instructions?: string) {
@@ -1863,6 +1908,12 @@ export class ClineProvider
 			currentTaskItem: this.getCurrentCline()?.taskId
 				? (taskHistory || []).find((item: HistoryItem) => item.id === this.getCurrentCline()?.taskId)
 				: undefined,
+			taskStartTime:
+				this.getCurrentCline()?.taskStartTime && !this.getCurrentCline()?.taskCompleted
+					? this.getCurrentCline()?.taskStartTime
+					: 0,
+			taskElapsedTime: this.getCurrentCline()?.getTaskDuration(),
+			taskCompleted: this.getCurrentCline()?.taskCompleted,
 			clineMessages: this.getCurrentCline()?.clineMessages || [],
 			taskHistory: (taskHistory || [])
 				.filter((item: HistoryItem) => item.ts && item.task)

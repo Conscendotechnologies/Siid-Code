@@ -17,6 +17,10 @@ export const historyItemSchema = z.object({
 	size: z.number().optional(),
 	workspace: z.string().optional(),
 	mode: z.string().optional(),
+	// Task time tracking - stores elapsed duration in milliseconds
+	duration: z.number().optional(),
+	// Task completion status - true when task has finished
+	taskCompleted: z.boolean().optional(),
 	// Subtask relationship - stores parent task ID for persistence across window reloads
 	parentTaskId: z.string().optional(),
 	rootTaskId: z.string().optional(),
