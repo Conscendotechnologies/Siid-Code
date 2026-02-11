@@ -13,6 +13,7 @@ import { fileExistsAtPath } from "../../utils/fs"
 import { insertGroups } from "../diff/insert-groups"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
+import { trackFileChange } from "../../services/file-changes/trackFileChange"
 
 export async function insertContentTool(
 	cline: Task,
@@ -188,6 +189,15 @@ export async function insertContentTool(
 
 		// Get the formatted response message
 		const message = await cline.diffViewProvider.pushToolWriteResult(cline, cline.cwd, !fileExists)
+
+		// Track file change in database with diff calculation
+		await trackFileChange({
+			taskId: cline.taskId,
+			filePath: relPath,
+			status: fileExists ? "modified" : "created",
+			oldContent: cline.diffViewProvider.originalContent ?? "",
+			newContent: cline.diffViewProvider.newContent ?? "",
+		})
 
 		pushToolResult(message)
 

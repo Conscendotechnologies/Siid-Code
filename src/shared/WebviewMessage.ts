@@ -226,6 +226,11 @@ export interface WebviewMessage {
 		| "firebaseSignInWithApiKey"
 		| "developerMode"
 		| "openDiff"
+		| "getFileChanges"
+		| "updateFileDeploymentStatus"
+		| "clearFileChanges"
+		| "getFileChangesStatistics"
+		| "migrateFileChanges"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"

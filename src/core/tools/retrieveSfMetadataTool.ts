@@ -182,7 +182,8 @@ function buildSfCommand(metadataType: string, metadataName: string | undefined, 
 }
 
 /**
- * Parse and format the SF CLI output
+ * Parse and format the SF CLI output to reduce context size
+ * Returns component names with their status
  */
 function formatSfOutput(output: string, metadataType: string, metadataName: string | undefined): string {
 	try {
@@ -190,24 +191,56 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 
 		if (jsonOutput.status === 0) {
 			const result = jsonOutput.result
+			const files = result?.files || []
 
-			if (!metadataName) {
-				// Listing mode - show count and status only to reduce context size
-				const files = result?.files || []
-				if (files.length === 0) {
+			if (files.length === 0) {
+				if (!metadataName) {
 					return `No ${metadataType} metadata found in the org.`
 				}
-
-				return `Successfully retrieved ${files.length} ${metadataType} component(s). Files have been retrieved to your local project directory.`
-			}
-
-			// Specific component retrieval
-			const files = result?.files || []
-			if (files.length === 0) {
 				return `${metadataType} '${metadataName}' does not exist in the org. No files were retrieved.`
 			}
 
-			return `Successfully retrieved ${metadataType} '${metadataName}'\nThe metadata has been saved to your local project directory. You can now read the files to inspect the metadata content.`
+			// Build a map of unique components with their status
+			const componentMap = new Map<string, string>()
+			for (const file of files) {
+				const name = file.fullName
+				const state = file.state || "Retrieved"
+				if (name && !componentMap.has(name)) {
+					componentMap.set(name, state)
+				}
+			}
+
+			const totalCount = componentMap.size
+			const entries = Array.from(componentMap.entries())
+
+			// Count by status for summary
+			const statusCounts = new Map<string, number>()
+			for (const [, status] of entries) {
+				statusCounts.set(status, (statusCounts.get(status) || 0) + 1)
+			}
+			const statusSummary = Array.from(statusCounts.entries())
+				.map(([status, count]) => `${count} ${status}`)
+				.join(", ")
+
+			if (totalCount > 10) {
+				// Too many components - show summary only
+				const first10 = entries
+					.slice(0, 10)
+					.map(([name, status]) => `${name}: ${status}`)
+					.join("\n")
+
+				return `Found ${totalCount} ${metadataType} component(s) (${statusSummary}):\n${first10}\n... and ${totalCount - 10} more`
+			}
+
+			// 10 or fewer - show full list
+			const componentList = entries.map(([name, status]) => `${name}: ${status}`).join("\n")
+
+			if (!metadataName) {
+				return `Found ${totalCount} ${metadataType} component(s):\n${componentList}`
+			}
+
+			// Specific component retrieval
+			return `Successfully retrieved ${metadataType} '${metadataName}':\n${componentList}`
 		} else {
 			// Error in SF CLI response
 			const errorMessage = jsonOutput.message || jsonOutput.result?.message || "Unknown error occurred"
@@ -215,7 +248,11 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 			return `SF CLI Error (${errorName}): ${errorMessage}`
 		}
 	} catch (parseError) {
-		// If JSON parsing fails, return raw output
+		// If JSON parsing fails, return raw output (but truncated if too long)
+		const maxLength = 2000
+		if (output.length > maxLength) {
+			output = output.substring(0, maxLength) + "\n... (output truncated)"
+		}
 		if (output.includes("ERROR") || output.includes("error")) {
 			return `SF CLI Error:\n${output}`
 		}
@@ -303,9 +340,9 @@ export async function retrieveSfMetadataTool(
 			})
 
 			// Format and return the result
-			// const formattedResult = formatSfOutput(output, metadataType, metadataName)
-			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. output: ${output}`)
-			pushToolResult(output)
+			const formattedResult = formatSfOutput(output, metadataType, metadataName)
+			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully.`)
+			pushToolResult(formattedResult)
 		} catch (execError: any) {
 			// Handle execution errors
 			let errorMessage = "Failed to execute SF CLI command"
@@ -316,9 +353,9 @@ export async function retrieveSfMetadataTool(
 				errorMessage = execError.stderr
 			} else if (execError.stdout) {
 				// Sometimes SF CLI returns error info in stdout with non-zero exit
-				// const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
-				cline.say("error", `SF CLI command failed, Result: ${execError.stdout}`)
-				pushToolResult(execError.stdout)
+				const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
+				cline.say("error", `SF CLI command failed.`)
+				pushToolResult(formattedResult)
 				return
 			} else if (execError.message) {
 				errorMessage = execError.message
