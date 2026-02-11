@@ -1224,7 +1224,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			.forEach((msg: ClineMessage) => everVisibleMessagesTsRef.current.set(msg.ts, true))
 
 		return newVisibleMessages
-	}, [modifiedMessages, developerMode])
+	}, [modifiedMessages])
 
 	useEffect(() => {
 		const cleanupInterval = setInterval(() => {
