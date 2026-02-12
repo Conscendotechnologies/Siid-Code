@@ -53,32 +53,46 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "openai/gpt-5",
-			displayName: "OpenAI: GPT-5",
+			modelId: "openai/gpt-5-mini",
+			displayName: "GPT-5 Mini",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 6, // Premium option
+		},
+		{
+			modelId: "moonshotai/kimi-k2.5",
+			displayName: "Kimi K2.5",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 7, // Premium option
+		},
+		{
+			modelId: "qwen/qwen3-32b:nitro",
+			displayName: "Qwen3 32B (nitro)",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 8, // Premium option
+		},
+		{
+			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
+			displayName: "Llama 3.3 70B Instruct (nitro)",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 9, // Premium option
+		},
+		{
+			modelId: "deepseek/deepseek-v3.2",
+			displayName: "DeepSeek V3.2",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 10, // Premium option
 		},
 		{
-			modelId: "x-ai/grok-code-fast-1",
-			displayName: "xAI: Grok Code Fast 1",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 11, // Premium option
-		},
-		{
 			modelId: "openai/gpt-5",
-			displayName: "GPT-5 (Premium)",
+			displayName: "GPT-5",
 			provider: "openrouter",
 			tier: "advanced",
-			priority: 20, // Premium option
-		},
-		{
-			modelId: "anthropic/claude-sonnet-4-20250514",
-			displayName: "Claude Sonnet 4",
-			provider: "openrouter",
-			tier: "advanced",
-			priority: 21, // Premium option
+			priority: 11, // Premium option
 		},
 	],
 	code: [
@@ -118,32 +132,46 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "openai/gpt-5",
-			displayName: "OpenAI: GPT-5",
+			modelId: "openai/gpt-5-mini",
+			displayName: "GPT-5 Mini",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 6, // Premium option
+		},
+		{
+			modelId: "moonshotai/kimi-k2.5",
+			displayName: "Kimi K2.5",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 7, // Premium option
+		},
+		{
+			modelId: "qwen/qwen3-32b:nitro",
+			displayName: "Qwen3 32B (nitro)",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 8, // Premium option
+		},
+		{
+			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
+			displayName: "Llama 3.3 70B Instruct (nitro)",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 9, // Premium option
+		},
+		{
+			modelId: "deepseek/deepseek-v3.2",
+			displayName: "DeepSeek V3.2",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 10, // Premium option
 		},
 		{
-			modelId: "x-ai/grok-code-fast-1",
-			displayName: "xAI: Grok Code Fast 1",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 11, // Premium option
-		},
-		{
 			modelId: "openai/gpt-5",
-			displayName: "GPT-5 (Premium)",
+			displayName: "GPT-5",
 			provider: "openrouter",
 			tier: "advanced",
-			priority: 20, // Premium option
-		},
-		{
-			modelId: "anthropic/claude-sonnet-4-20250514",
-			displayName: "Claude Sonnet 4",
-			provider: "openrouter",
-			tier: "advanced",
-			priority: 21, // Premium option
+			priority: 11, // Premium option
 		},
 	],
 	orchestrator: [
@@ -183,13 +211,6 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 3, // Fallback 2
 		},
 		{
-			modelId: "openai/gpt-5",
-			displayName: "OpenAI: GPT-5",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 10, // Premium option
-		},
-		{
 			modelId: "x-ai/grok-code-fast-1",
 			displayName: "xAI: Grok Code Fast 1",
 			provider: "openrouter",
@@ -198,54 +219,10 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 		},
 		{
 			modelId: "openai/gpt-5",
-			displayName: "GPT-5 (Premium)",
-			provider: "openrouter",
-			tier: "advanced",
-			priority: 20, // Premium option
-		},
-		{
-			modelId: "anthropic/claude-sonnet-4-20250514",
-			displayName: "Claude Sonnet 4",
-			provider: "openrouter",
-			tier: "advanced",
-			priority: 21, // Premium option
-		},
-	],
-	debug: [
-		{
-			modelId: "qwen/qwen3-coder:free",
-			displayName: "Qwen3 Coder (Free, Recommended)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 1, // Primary
-		},
-		{
-			modelId: "z-ai/glm-4.5-air:free",
-			displayName: "GLM 4.5 Air (Free)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 2, // Fallback 1
-		},
-		{
-			modelId: "meta-llama/llama-3.3-70b-instruct:free",
-			displayName: "Llama 3.3 70B (Free)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 3, // Fallback 2
-		},
-		{
-			modelId: "anthropic/claude-sonnet-4-20250514",
-			displayName: "Claude Sonnet 4",
-			provider: "openrouter",
-			tier: "advanced",
-			priority: 20, // Premium option
-		},
-		{
-			modelId: "openai/gpt-5",
 			displayName: "GPT-5",
 			provider: "openrouter",
 			tier: "advanced",
-			priority: 21, // Premium option
+			priority: 20, // Premium option
 		},
 	],
 }
