@@ -53,15 +53,15 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "z-ai/glm-4.6",
-			displayName: "GLM 4.6",
+			modelId: "openai/gpt-5",
+			displayName: "OpenAI: GPT-5",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 10, // Premium option
 		},
 		{
-			modelId: "z-ai/glm-4.5",
-			displayName: "GLM 4.5",
+			modelId: "x-ai/grok-code-fast-1",
+			displayName: "xAI: Grok Code Fast 1",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 11, // Premium option
@@ -118,11 +118,18 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "z-ai/glm-4.5",
-			displayName: "GLM 4.5",
+			modelId: "openai/gpt-5",
+			displayName: "OpenAI: GPT-5",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 10, // Premium option
+		},
+		{
+			modelId: "x-ai/grok-code-fast-1",
+			displayName: "xAI: Grok Code Fast 1",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 11, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5",
@@ -176,11 +183,18 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 3, // Fallback 2
 		},
 		{
-			modelId: "x-ai/grok-code-fast-1",
-			displayName: "Grok Code Fast 1",
+			modelId: "openai/gpt-5",
+			displayName: "OpenAI: GPT-5",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 10, // Premium option
+		},
+		{
+			modelId: "x-ai/grok-code-fast-1",
+			displayName: "xAI: Grok Code Fast 1",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 11, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5",
