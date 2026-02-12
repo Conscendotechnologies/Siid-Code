@@ -3,6 +3,12 @@
 ## **Mode Overview**
 
 This mode assists the AI model in creating **Salesforce custom fields** by generating the necessary XML files inside the respective object’s `fields` folder. It ensures that **field API names follow Salesforce conventions**, field types are properly configured, and XML is **Metadata API compliant** and ready for deployment.
+**IMPORTANT: This workflow supports MULTIPLE FIELDS AND MULTIPLE OBJECTS**
+
+- If user requests creation of multiple fields on one object OR fields across multiple objects, this workflow handles all
+- ALL steps (creation, dry run, deployment, permissions, page layout) are executed for EACH field
+- This is a COMPLETE end-to-end workflow that ensures all fields are fully configured and visible to users
+- The workflow sequentially processes: object creation → field creation → permissions → page layout updates → final deployment
 
 ## **Strict Rules for Salesforce Field Creation**
 
@@ -117,19 +123,69 @@ Target Object
 <required>false</required>
 </fields>
 
-**6. Permission Assignment**( !IMPORTANT)
+**6. Permission Assignment to Admin Profile** (!IMPORTANT)
 
-- After creation of field assign read permission to those fields for system administrator profile.
-- Fetch the system administrator profile and assign read permission like this
-      <?xml version="1.0" encoding="UTF-8"?>
-      <Profile xmlns="http://soap.sforce.com/2006/04/metadata">
-          <fieldPermissions>
-              <editable>false</editable>
-              <field>Project__c.Start_Date__c</field>
-              <readable>true</readable>
-          </fieldPermissions>
-      </Profile>
-      **MUST ASSIGN READ PERMISSION TO THAT FIELDS FOR SYSTEM ADMINISTRATOR PROFILE**
+After creating the field, you MUST retrieve the Admin profile and add read and edit permissions for the newly created fields.
+
+**Steps:**
+
+1. **Retrieve Admin Profile XML**
+
+    - Use the `<retrieve_sf_metadata>` tool with:
+        - metadata_type: "Profile"
+        - metadata_name: "Admin"
+    - This will give you the complete Admin profile XML (Admin.profile-meta.xml)
+
+2. **Add Field Permission Entry to Profile XML**
+
+    - In the retrieved profile XML, add a new `<fieldPermissions>` block for each newly created field
+    - Add it within the `<Profile>` root tag (with other field permissions)
+    - Use this exact format:
+        ```xml
+        <fieldPermissions>
+          <editable>true</editable>
+          <field>ObjectApiName.FieldApiName__c</field>
+          <readable>true</readable>
+        </fieldPermissions>
+        ```
+    - Replace `ObjectApiName` with the actual object name (e.g., `Invoice__c`)
+    - Replace `FieldApiName__c` with the field API name
+
+3. **Complete Example**
+
+    ```xml
+    <fieldPermissions>
+      <editable>true</editable>
+      <field>Invoice__c.Customer_Type__c</field>
+      <readable>true</readable>
+    </fieldPermissions>
+    ```
+
+4. **Deploy Profile with Field Permissions**
+
+    - Save at: `force-app/main/default/profiles/Admin.profile-meta.xml`
+    - Run dry run first:
+        ```bash
+        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
+        ```
+    - If successful, deploy:
+        ```bash
+        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
+        ```
+
+5. **User Communication**
+    - "Retrieving Admin profile..."
+    - "Adding field permissions for {X} newly created field(s)..."
+    - "Fields being granted permission: {Field names}"
+    - "Deploying updated Admin profile..."
+    - "✓ Field permissions successfully assigned to Admin profile!"
+
+**CRITICAL NOTES:**
+
+- Both `<editable>true</editable>` AND `<readable>true</readable>` must be present
+- Field reference format: `ObjectApiName.FieldApiName__c`
+- Profile metadata name is exactly: "Admin"
+- Refer to field-permissions.md for complete field permission guidelines
 
 **7. Validation with User**
 Before generating final XML, confirm:
@@ -144,16 +200,80 @@ For Lookup fields: Target Object, Relationship Label, Relationship Name
 **8. Dry run and Deployment** (!IMPORTANT)
 After creating all fields, before deployment first do Dry Run on fields using CLI:
 -DO DRY RUN ON ALL FIELDS AT ONCE
-sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml
+sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
 
 - Replace <FieldApiName> with created fields
 - If got any errors after dry run solve them.
 - After successful dry run then proceed with deloyment process.
 - Do deploy all fields rules at once.
-  sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml
+  sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
 - Replace <FieldApiName> with created fields
 
-**8. Compliance**
+**9. Page Layout Field Management** (!IMPORTANT - MUST DO AFTER FIELD DEPLOYMENT)
+
+After successfully deploying the created fields, you MUST retrieve the object's page layout and add the newly created fields to it. This ensures the fields are immediately visible and accessible to users in the Salesforce UI.
+
+**IMPORTANT**: Only add fields to the layout. Do NOT modify the layout structure, columns, or sections.
+
+**Steps:**
+
+1. **Retrieve Page Layout**
+
+    - Use the `<retrieve_sf_metadata>` tool with:
+        - metadata_type: "Layout"
+        - metadata_name: "{ObjectApiName}-{LayoutName}"
+    - Example: `Invoice__c-Invoice Layout` or `Account-Account Layout`
+
+2. **Add Newly Created Fields (SIMPLE - Just add these blocks)**
+
+    - Find an existing `<layoutColumns>` section in the page layout
+    - Add each new field as a `<layoutItems>` block:
+        ```xml
+        <layoutItems>
+          <behavior>Edit</behavior>
+          <field>{FieldApiName}</field>
+        </layoutItems>
+        ```
+    - For formula/auto-number fields: Use `<behavior>Readonly</behavior>`
+    - **IMPORTANT**: Do NOT modify anything else - only add these XML blocks
+
+3. **Validate Page Layout XML**
+
+    - Ensure all field API names are correctly spelled
+    - Verify you only added `<layoutItems>` blocks
+    - Confirm fields exist on the object
+
+4. **Dry Run Page Layout Update**
+
+    ```bash
+    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
+    ```
+
+    - If you get "Too many columns for section style" error: You modified the layout structure. Only add `<layoutItems>` blocks.
+
+5. **Deploy Updated Page Layout**
+
+    ```bash
+    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
+    ```
+
+6. **User Communication**
+    - "Retrieving page layout for {ObjectName}..."
+    - "Adding {X} newly created field(s) to the page layout..."
+    - "Fields being added: {Field names}"
+    - "Running dry run on page layout..."
+    - "Deploying updated page layout..."
+    - "✓ Page layout successfully updated with new fields!"
+
+**Important Notes:**
+
+- This step is MANDATORY after field deployment
+- Only add `<layoutItems>` blocks - do NOT modify the layout structure
+- Do NOT touch `<layoutColumns>` or `<layoutSection>` tags
+- All newly created fields must be visible in the page layout
+- Do NOT skip this step - users will not see the fields without page layout configuration
+
+**10. Compliance**
 XML must follow Salesforce Metadata API standards
 Must be deployable via:
 Change Sets

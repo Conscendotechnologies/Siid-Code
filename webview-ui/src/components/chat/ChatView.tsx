@@ -48,6 +48,7 @@ import ChatTextArea from "./ChatTextArea"
 import TaskHeader from "./TaskHeader"
 import AutoApproveMenu from "./AutoApproveMenu"
 import SystemPromptWarning from "./SystemPromptWarning"
+import { FileChanges, type FileChange } from "./FileChanges"
 import ProfileViolationWarning from "./ProfileViolationWarning"
 import { CheckpointWarning } from "./CheckpointWarning"
 import QueuedMessages from "./QueuedMessages"
@@ -68,6 +69,98 @@ export interface ChatViewRef {
 export const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
+
+// Component to render grouped fetchInstructions/getTaskGuides messages
+interface InstructionsGroupRowProps {
+	messages: ClineMessage[]
+	isExpanded: boolean
+	onToggleExpand: () => void
+}
+
+const InstructionsGroupRow: React.FC<InstructionsGroupRowProps> = ({ messages, isExpanded, onToggleExpand }) => {
+	// Extract instruction/guide names from messages
+	const instructionNames = messages.map((msg) => {
+		try {
+			const tool = JSON.parse(msg.text || "{}")
+			// Handle both fetchInstructions and getTaskGuides
+			if (tool.tool === "getTaskGuides") {
+				return `Task Guides: ${tool.content || "Unknown"}`
+			}
+			return tool.content || "Instruction"
+		} catch {
+			return "Instruction"
+		}
+	})
+
+	return (
+		<div className="px-[15px] py-[10px] pr-[6px]">
+			<div
+				style={{
+					margin: "6px 0 6px 0",
+					display: "flex",
+					flexDirection: "column",
+					gap: 4,
+				}}>
+				{/* Collapsible header */}
+				<div
+					onClick={onToggleExpand}
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 6,
+						cursor: "pointer",
+						userSelect: "none",
+					}}>
+					<span
+						className={`codicon codicon-chevron-${isExpanded ? "down" : "right"}`}
+						style={{
+							fontSize: "12px",
+							color: "var(--vscode-descriptionForeground)",
+						}}
+					/>
+					<span
+						style={{
+							fontSize: "11px",
+							color: "var(--vscode-descriptionForeground)",
+							fontFamily: "monospace",
+							border: "1px solid var(--vscode-sideBar-border)",
+							borderRadius: "3px",
+							padding: "2px 6px",
+							background: "var(--vscode-sideBar-background)",
+							display: "inline-block",
+						}}>
+						Loaded Guides ({messages.length})
+					</span>
+				</div>
+
+				{/* Expanded list of instructions */}
+				{isExpanded && (
+					<div
+						style={{
+							marginLeft: 18,
+							display: "flex",
+							flexDirection: "column",
+							gap: 4,
+						}}>
+						{instructionNames.map((name, idx) => (
+							<span
+								key={idx}
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									paddingLeft: 8,
+									borderLeft: "2px solid var(--vscode-sideBar-border)",
+								}}>
+								{name}
+							</span>
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
 
 const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = (
 	{ isHidden, onSwitchTab },
@@ -115,6 +208,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		soundVolume,
 		developerMode,
 	} = useExtensionState()
+
+	const selectedModel = useSelectedModel(apiConfiguration)
+	const contextWindow = selectedModel?.info?.contextWindow || 1
 
 	const messagesRef = useRef(messages)
 	useEffect(() => {
@@ -445,7 +541,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	// Also try to discover created file names from incoming cline messages
 	useEffect(() => {
 		// Look for Create/Edit style messages and optional +N / -M counts.
-		const filenameRegex = /(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)/gi
+		// Improved regex: require forward slash or backslash in path to avoid matching property names like "or.background"
+		const filenameRegex =
+			/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+\.[A-Za-z0-9_]+)/gi
 		const plusRegex = /\+(\d+)/g
 		const minusRegex = /-(\d+)/g
 		const discovered: { path: string; additions?: number; deletions?: number; status?: string }[] = []
@@ -512,7 +610,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			if (discovered.length === 0) {
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				const domMatch = bodyText.match(
-					/(?:Create|Created|Edit|Edited):?\s*([\w\-/.]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
+					/(?:Create|Created|Edit|Edited):?\s*((?:[\w-]+[/\\])+[\w-]+\.[A-Za-z0-9_]+)(?:\s*[+](\d+))?(?:\s*-(\d+))?/i,
 				)
 				if (domMatch && domMatch[1]) {
 					const p = domMatch[1]
@@ -1326,13 +1424,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					return alwaysAllowUpdateTodoList
 				}
 
-				if (tool?.tool === "fetchInstructions") {
-					if (tool.content === "create_mode") {
+				if (tool?.tool === "fetchInstructions" || tool?.tool === "getTaskGuides") {
+					if (tool.content === "create_mode" || tool.content === "create-custom-mode") {
 						return alwaysAllowModeSwitch
 					}
 
-					if (tool.content === "create_mcp_server") {
+					if (tool.content === "create_mcp_server" || tool.content === "create-mcp-server") {
 						return alwaysAllowMcp
+					}
+
+					// Auto-approve get_task_guides as it's read-only
+					if (tool?.tool === "getTaskGuides") {
+						return alwaysAllowReadOnly
 					}
 				}
 
@@ -1430,10 +1533,24 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return false
 	}
 
+	// Helper to check if a message is a fetchInstructions or getTaskGuides tool message
+	const isFetchInstructionsMessage = (message: ClineMessage): boolean => {
+		if ((message.ask === "tool" || message.say === "tool") && message.text) {
+			try {
+				const tool = JSON.parse(message.text)
+				return tool.tool === "fetchInstructions" || tool.tool === "getTaskGuides"
+			} catch {
+				return false
+			}
+		}
+		return false
+	}
+
 	const groupedMessages = useMemo(() => {
 		const result: (ClineMessage | ClineMessage[])[] = []
 		let currentGroup: ClineMessage[] = []
 		let isInBrowserSession = false
+		let instructionsGroup: ClineMessage[] = []
 
 		const endBrowserSession = () => {
 			if (currentGroup.length > 0) {
@@ -1443,7 +1560,38 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			}
 		}
 
+		const endInstructionsGroup = () => {
+			if (instructionsGroup.length > 0) {
+				// If only one instruction, push as regular message; otherwise push as group
+				if (instructionsGroup.length === 1) {
+					result.push(instructionsGroup[0])
+				} else {
+					// Mark as instructions group by adding a special property
+					const groupWithMarker = instructionsGroup.map((m, i) => ({
+						...m,
+						_isInstructionsGroup: true,
+						_isFirstInGroup: i === 0,
+						_groupSize: instructionsGroup.length,
+						_groupItems: instructionsGroup,
+					}))
+					result.push(groupWithMarker as unknown as ClineMessage[])
+				}
+				instructionsGroup = []
+			}
+		}
+
 		visibleMessages.forEach((message: ClineMessage) => {
+			// Handle fetchInstructions grouping
+			if (isFetchInstructionsMessage(message)) {
+				// End browser session if we were in one
+				endBrowserSession()
+				instructionsGroup.push(message)
+				return
+			} else if (instructionsGroup.length > 0) {
+				// End instructions group when we hit a non-instruction message
+				endInstructionsGroup()
+			}
+
 			if (message.ask === "browser_action_launch") {
 				// Complete existing browser session if any.
 				endBrowserSession()
@@ -1495,6 +1643,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		if (currentGroup.length > 0) {
 			result.push([...currentGroup])
 		}
+
+		// Handle case where instructions group is the last group
+		endInstructionsGroup()
 
 		if (isCondensing) {
 			// Show indicator after clicking condense button
@@ -1677,6 +1828,22 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const itemContent = useCallback(
 		(index: number, messageOrGroup: ClineMessage | ClineMessage[]) => {
+			// Check for instructions group (array with _isInstructionsGroup marker)
+			if (Array.isArray(messageOrGroup) && (messageOrGroup[0] as any)?._isInstructionsGroup) {
+				return (
+					<InstructionsGroupRow
+						messages={messageOrGroup}
+						isExpanded={expandedRows[messageOrGroup[0].ts] ?? false}
+						onToggleExpand={() => {
+							setExpandedRows((prev: Record<number, boolean>) => ({
+								...prev,
+								[messageOrGroup[0].ts]: !prev[messageOrGroup[0].ts],
+							}))
+						}}
+					/>
+				)
+			}
+
 			// browser session group
 			if (Array.isArray(messageOrGroup)) {
 				return (
@@ -1927,14 +2094,19 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	// Keep track of files that were created/edited by the assistant. This will
 	// be displayed above the chat input box when populated.
-	type FileChange = {
-		path: string
-		additions?: number
-		deletions?: number
-		status?: "modified" | "created" | "deleted"
-	}
-
 	const [fileChanges, setFileChanges] = useState<FileChange[]>([])
+	// Open diff in VS Code's native diff editor
+	const openVsCodeDiff = useCallback((file: FileChange) => {
+		vscode.postMessage({
+			type: "openDiff",
+			text: file.path,
+			values: {
+				filePath: file.path,
+				diff: file.diff,
+				status: file.status,
+			},
+		})
+	}, [])
 
 	// Listen for file creation and task completion events (and a few common
 	// payload shapes that the extension might send describing files changed).
@@ -1949,27 +2121,45 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			const normalizeFile = (f: any): FileChange | null => {
 				if (!f) return null
 				// plain string
-				if (typeof f === "string") return { path: f }
+				if (typeof f === "string") return { path: f, timestamp: Date.now(), deploymentStatus: "local" }
 
-				// common shapes
-				if (typeof f.path === "string" && f.path)
-					return { path: f.path, additions: f.additions, deletions: f.deletions, status: f.status }
-				if (typeof f.filePath === "string" && f.filePath) return { path: f.filePath }
-				if (typeof f.fileName === "string" && f.fileName) return { path: f.fileName }
-
-				// other possible keys we've seen in payloads
-				if (typeof f.name === "string" && f.name) return { path: f.name }
-				if (typeof f.filename === "string" && f.filename) return { path: f.filename }
-				if (typeof f.file === "string" && f.file) return { path: f.file }
-				if (typeof f.displayName === "string" && f.displayName) return { path: f.displayName }
-
-				// nested shapes: { file: { path: '...' } }
-				if (f.file && typeof f.file === "object") {
-					if (typeof f.file.path === "string") return { path: f.file.path }
-					if (typeof f.file.fileName === "string") return { path: f.file.fileName }
+				// common shapes - extract all relevant fields
+				const fileChange: FileChange = {
+					path: "",
+					additions: f.additions,
+					deletions: f.deletions,
+					status: f.status,
+					diff: f.diff,
+					deploymentStatus: f.deploymentStatus || "local",
+					timestamp: f.timestamp || Date.now(),
+					error: f.error,
 				}
 
-				return null
+				// Find the path from various possible keys
+				if (typeof f.path === "string" && f.path) {
+					fileChange.path = f.path
+				} else if (typeof f.filePath === "string" && f.filePath) {
+					fileChange.path = f.filePath
+				} else if (typeof f.fileName === "string" && f.fileName) {
+					fileChange.path = f.fileName
+				} else if (typeof f.name === "string" && f.name) {
+					fileChange.path = f.name
+				} else if (typeof f.filename === "string" && f.filename) {
+					fileChange.path = f.filename
+				} else if (typeof f.file === "string" && f.file) {
+					fileChange.path = f.file
+				} else if (typeof f.displayName === "string" && f.displayName) {
+					fileChange.path = f.displayName
+				} else if (f.file && typeof f.file === "object") {
+					// nested shapes: { file: { path: '...' } }
+					if (typeof f.file.path === "string") {
+						fileChange.path = f.file.path
+					} else if (typeof f.file.fileName === "string") {
+						fileChange.path = f.file.fileName
+					}
+				}
+
+				return fileChange.path ? fileChange : null
 			}
 
 			const mergeFilesArray = (filesArr: any[]) => {
@@ -2027,9 +2217,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 				// Try to extract any filenames from payload.text (could contain multiple lines)
 				if (typeof payload.text === "string") {
-					// allow multi-dot filenames like Foo.cls-meta.xml
+					// allow multi-dot filenames like Foo.cls-meta.xml, require path separator
 					const regex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 					let m: RegExpExecArray | null
 					const found: string[] = []
 					while ((m = regex.exec(payload.text)) !== null) {
@@ -2046,16 +2236,21 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				setDeploying(false)
 			}
 
-			// Single file created message containing a path or array of paths
+			// Single file created message containing files array, path, or array of paths
 			if (type === "fileCreated") {
+				setFileCreated(true)
+
+				// payload.files is already merged above by the generic check, so just return
+				if (Array.isArray(payload.files) && payload.files.length > 0) {
+					return
+				}
+
 				if (Array.isArray(payload.path) && payload.path.length) {
 					mergeFilesArray(payload.path)
-					setFileCreated(true)
 					return
 				}
 				const p = payload.path || payload.filePath || payload.fileName
 				if (typeof p === "string") {
-					setFileCreated(true)
 					setFileChanges((prev) =>
 						prev.some((f) => f.path === p) ? prev : [...prev, { path: p, status: "created" }],
 					)
@@ -2066,7 +2261,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			// Generic fallback: if payload.text contains human readable markers, extract all matches
 			if (typeof payload.text === "string") {
 				const regexAll =
-					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+					/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 				let mm: RegExpExecArray | null
 				const discovered: string[] = []
 				while ((mm = regexAll.exec(payload.text)) !== null) {
@@ -2080,7 +2275,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				const bodyText = typeof document !== "undefined" ? document.body.innerText || "" : ""
 				if (bodyText && bodyText.length > 0) {
 					const domRegex =
-						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*([A-Za-z0-9_\-./]+(?:\.[A-Za-z0-9_\-./]+)+)/gi
+						/(?:Create|Created|Edit|Edited|Modify|Modified):?\s*((?:[\w-]+[/\\])+[\w-]+(?:\.[A-Za-z0-9_./+-]+)+)/gi
 					let d: RegExpExecArray | null
 					const domFound: string[] = []
 					while ((d = domRegex.exec(bodyText)) !== null) {
@@ -2097,19 +2292,34 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return () => window.removeEventListener("message", handleVSCodeMessage)
 	}, [])
 
-	// Reset file changes when switching to a different task/chat
+	// Reset file changes when switching to a different task/chat, and load from localStorage
 	useEffect(() => {
-		// task?.ts changes when switching chats/tasks; clear fileChanges for new chat
+		// task?.ts changes when switching chats/tasks
+		if (task?.ts) {
+			// Try to load saved file changes from localStorage for this task
+			const storageKey = `fileChanges_${task.ts}`
+			try {
+				const saved = localStorage.getItem(storageKey)
+				if (saved) {
+					const savedFiles = JSON.parse(saved) as FileChange[]
+					if (Array.isArray(savedFiles) && savedFiles.length > 0) {
+						console.debug("Loaded file changes from localStorage:", savedFiles)
+						setFileChanges(savedFiles)
+						return
+					}
+				}
+			} catch (error) {
+				console.error("Failed to load file changes from localStorage:", error)
+			}
+		}
+		// If no saved data or error, clear for new chat
 		setFileChanges([])
 	}, [task?.ts])
 
 	const areButtonsVisible = showScrollToBottom || primaryButtonText || secondaryButtonText || isStreaming
 
 	// Collapsible state for the file list shown above the chat box (default: collapsed)
-	const [fileListCollapsed, setFileListCollapsed] = useState(true)
-	const filesLabel = `${fileChanges.length} file${fileChanges.length === 1 ? "" : "s"} changed`
-
-	// Note: translateOrFallback removed — UI only shows panel when there are file changes
+	const [fileListCollapsed, _setFileListCollapsed] = useState(true)
 
 	return (
 		<div
@@ -2306,113 +2516,14 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				}}
 			/>
 			{fileChanges.length > 0 && (
-				<div className="flex-initial px-3.5 mb-2">
-					{/* Header: only show when there are file changes. Shows count and chevron; no Clear button. */}
-					<div
-						className="flex items-center gap-2 text-sm cursor-pointer"
-						onClick={() => setFileListCollapsed((s) => !s)}>
-						<span className="font-bold text-xs text-vscode-editor-foreground">{filesLabel}</span>
-						<div className="ml-auto flex items-center gap-2">
-							<span
-								className={`codicon ${fileListCollapsed ? "codicon-chevron-right" : "codicon-chevron-down"}`}
-							/>
-						</div>
-					</div>
-
-					{/* Expanded section (shows filenames) */}
-					{!fileListCollapsed && (
-						<div className="mt-1 max-h-40 overflow-auto text-sm bg-vscode-editorHoverWidget-background p-2 rounded">
-							{fileChanges
-								.filter((f) => !!f?.path)
-								.map((f) => (
-									<div key={f.path} className="flex items-center gap-2 text-xs truncate py-0.5">
-										<span className="codicon codicon-file" />
-										<button
-											onClick={() => {
-												try {
-													if (!f.path) {
-														console.warn(
-															"ChatView: attempt to open file with undefined path",
-															f,
-														)
-														return
-													}
-
-													// Determine if path looks absolute (POSIX or Windows drive)
-													const looksAbsolute =
-														f.path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(f.path)
-
-													// If not absolute and not already prefixed with ./ or .\, prefix with ./
-													const pathToSend = looksAbsolute
-														? f.path
-														: f.path.startsWith("./") || f.path.startsWith(".\\")
-															? f.path
-															: "./" + f.path
-
-													if (
-														typeof vscode !== "undefined" &&
-														typeof (vscode as any).postMessage === "function"
-													) {
-														;(vscode as any).postMessage({
-															type: "openFile",
-															path: pathToSend,
-														})
-													} else if (
-														typeof window !== "undefined" &&
-														typeof window.postMessage === "function"
-													) {
-														// Fallback - post to window (useful in tests/devtools)
-														window.postMessage({ type: "openFile", path: pathToSend }, "*")
-													} else {
-														console.error(
-															"Cannot post openFile message: no postMessage available",
-															f.path,
-														)
-													}
-												} catch (err) {
-													console.error("Failed to send openFile message", err, f.path)
-												}
-											}}
-											className="truncate text-left text-xs text-vscode-editor-foreground hover:underline">
-											{f.path}
-										</button>
-
-										{/* Show additions/deletions only when non-zero values are provided */}
-										{((f.additions !== undefined && f.additions !== 0) ||
-											(f.deletions !== undefined && f.deletions !== 0)) && (
-											<>
-												{f.additions !== undefined && f.additions !== 0 && (
-													<span
-														style={{
-															fontSize: "11px",
-															color: "var(--vscode-charts-green)",
-															fontFamily: "monospace",
-															fontWeight: "bold",
-															marginLeft: 8,
-														}}>
-														+{f.additions}
-													</span>
-												)}
-
-												{f.deletions !== undefined && f.deletions !== 0 && (
-													<span
-														style={{
-															fontSize: "11px",
-															color: "var(--vscode-errorForeground)",
-															fontFamily: "monospace",
-															fontWeight: "bold",
-															marginLeft: 4,
-														}}>
-														-{f.deletions}
-													</span>
-												)}
-											</>
-										)}
-									</div>
-								))}
-						</div>
-					)}
-				</div>
+				<FileChanges
+					files={fileChanges}
+					variant="list"
+					defaultCollapsed={fileListCollapsed}
+					onViewDiff={openVsCodeDiff}
+					className="px-3.5 mb-2"
+					taskId={task?.ts ? String(task.ts) : undefined}
+				/>
 			)}
 			<ChatTextArea
 				ref={textAreaRef}
@@ -2434,6 +2545,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				mode={mode}
 				setMode={setMode}
 				modeShortcutText={modeShortcutText}
+				contextTokens={apiMetrics.contextTokens}
+				contextWindow={contextWindow}
+				onCondenseContext={() => currentTaskItem && handleCondenseContext(currentTaskItem.id)}
+				isCondensing={isCondensing}
+				taskId={currentTaskItem?.id}
 			/>
 
 			{isProfileDisabled && (

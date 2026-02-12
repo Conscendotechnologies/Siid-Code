@@ -82,6 +82,28 @@ export type SummarizeResponse = {
  * @param {ApiHandler} condensingApiHandler - Optional specific API handler to use for condensing
  * @returns {SummarizeResponse} - The result of the summarization operation (see above)
  */
+// Tools whose results should be replaced with a short status message
+const TOOLS_TO_TRIM_RESULTS: string[] = [
+	"list_files",
+	"search_files",
+	"codebase_search",
+	"retrieve_sf_metadata",
+	"execute_command",
+	"read_file",
+	"sf_deploy_metadata",
+	"update_todo_list",
+	"write_to_file",
+	"apply_diff",
+]
+
+// Tools whose results should NOT be touched
+// const TOOLS_TO_KEEP_RESULTS: string[] = [
+// 	"fetch_instructions",
+// 	"switch_mode",
+// 	"new_task",
+// ]
+
+// TODO: Re-implement full summarization logic later
 export async function summarizeConversation(
 	messages: ApiMessage[],
 	apiHandler: ApiHandler,
@@ -92,137 +114,48 @@ export async function summarizeConversation(
 	customCondensingPrompt?: string,
 	condensingApiHandler?: ApiHandler,
 ): Promise<SummarizeResponse> {
-	TelemetryService.instance.captureContextCondensed(
-		taskId,
-		isAutomaticTrigger ?? false,
-		!!customCondensingPrompt?.trim(),
-		!!condensingApiHandler,
-	)
+	console.log(`[summarizeConversation] Trimming tool results in-place. taskId: ${taskId}`)
 
-	const response: SummarizeResponse = { messages, cost: 0, summary: "" }
-	const messagesToSummarize = getMessagesSinceLastSummary(messages.slice(0, -N_MESSAGES_TO_KEEP))
-
-	if (messagesToSummarize.length <= 1) {
-		const error =
-			messages.length <= N_MESSAGES_TO_KEEP + 1
-				? t("common:errors.condense_not_enough_messages")
-				: t("common:errors.condensed_recently")
-		return { ...response, error }
-	}
-
-	const keepMessages = messages.slice(-N_MESSAGES_TO_KEEP)
-	// Check if there's a recent summary in the messages we're keeping
-	const recentSummaryExists = keepMessages.some((message) => message.isSummary)
-
-	if (recentSummaryExists) {
-		const error = t("common:errors.condensed_recently")
-		return { ...response, error }
-	}
-
-	const finalRequestMessage: Anthropic.MessageParam = {
-		role: "user",
-		content: "Summarize the conversation so far, as described in the prompt instructions.",
-	}
-
-	const requestMessages = maybeRemoveImageBlocks([...messagesToSummarize, finalRequestMessage], apiHandler).map(
-		({ role, content }) => ({ role, content }),
-	)
-
-	// Note: this doesn't need to be a stream, consider using something like apiHandler.completePrompt
-	// Use custom prompt if provided and non-empty, otherwise use the default SUMMARY_PROMPT
-	const promptToUse = customCondensingPrompt?.trim() ? customCondensingPrompt.trim() : SUMMARY_PROMPT
-
-	// Use condensing API handler if provided, otherwise use main API handler
-	let handlerToUse = condensingApiHandler || apiHandler
-
-	// Check if the chosen handler supports the required functionality
-	if (!handlerToUse || typeof handlerToUse.createMessage !== "function") {
-		console.warn(
-			"Chosen API handler for condensing does not support message creation or is invalid, falling back to main apiHandler.",
-		)
-
-		handlerToUse = apiHandler // Fallback to the main, presumably valid, apiHandler
-
-		// Ensure the main apiHandler itself is valid before this point or add another check.
-		if (!handlerToUse || typeof handlerToUse.createMessage !== "function") {
-			// This case should ideally not happen if main apiHandler is always valid.
-			// Consider throwing an error or returning a specific error response.
-			console.error("Main API handler is also invalid for condensing. Cannot proceed.")
-			// Return an appropriate error structure for SummarizeResponse
-			const error = t("common:errors.condense_handler_invalid")
-			return { ...response, error }
+	// Replace tool results with status message for specified tools (mutate in-place)
+	// Format: [0] header "[tool_name for '...'] Result:" -> keep
+	//         [1] actual result content -> remove (splice out)
+	//         [2] continuation hint "[Tool executed successfully...]" -> remove (splice out)
+	//         Then insert a single "[Result removed for context reduction]" block after the header
+	for (const msg of messages) {
+		if (msg.role !== "user" || !Array.isArray(msg.content)) {
+			continue
+		}
+		for (let i = 0; i < msg.content.length; i++) {
+			const block = msg.content[i]
+			if (block.type !== "text") {
+				continue
+			}
+			// Check if this block is a tool result header like "[tool_name for '...'] Result:"
+			// Some tools have extra text after the path, e.g. "[read_file for 'path'. Extra info here] Result:"
+			const toolMatch = block.text.match(/^\[(\w+)\s+for\s+'[^']*'[^\]]*\]\s*Result:/)
+			if (!toolMatch) {
+				continue
+			}
+			const toolName = toolMatch[1]
+			if (!TOOLS_TO_TRIM_RESULTS.includes(toolName)) {
+				continue
+			}
+			// Remove the next 2 blocks (result content + continuation hint) and replace with status message
+			const removeCount = Math.min(2, msg.content.length - (i + 1))
+			msg.content.splice(i + 1, removeCount, {
+				type: "text",
+				text: "[Result removed for context reduction]",
+			} as any)
 		}
 	}
-
-	const stream = handlerToUse.createMessage(promptToUse, requestMessages)
-
-	let summary = ""
-	let cost = 0
-	let outputTokens = 0
-
-	for await (const chunk of stream) {
-		if (chunk.type === "text") {
-			summary += chunk.text
-		} else if (chunk.type === "usage") {
-			// Record final usage chunk only
-			cost = chunk.totalCost ?? 0
-			outputTokens = chunk.outputTokens ?? 0
-		}
-	}
-
-	summary = summary.trim()
-
-	if (summary.length === 0) {
-		const error = t("common:errors.condense_failed")
-		return { ...response, cost, error }
-	}
-
-	const summaryMessage: ApiMessage = {
-		role: "assistant",
-		content: summary,
-		ts: keepMessages[0].ts,
-		isSummary: true,
-	}
-
-	const newMessages = [...messages.slice(0, -N_MESSAGES_TO_KEEP), summaryMessage, ...keepMessages]
-
-	// Count the tokens in the context for the next API request
-	// We only estimate the tokens in summaryMesage if outputTokens is 0, otherwise we use outputTokens
-	const systemPromptMessage: ApiMessage = { role: "user", content: systemPrompt }
-
-	const contextMessages = outputTokens
-		? [systemPromptMessage, ...keepMessages]
-		: [systemPromptMessage, summaryMessage, ...keepMessages]
-
-	const contextBlocks = contextMessages.flatMap((message) =>
+	// Count tokens after trimming to report new context size (exclude system prompt to match prevContextTokens calculation)
+	const contextBlocks = messages.flatMap((message) =>
 		typeof message.content === "string" ? [{ text: message.content, type: "text" as const }] : message.content,
 	)
+	const newContextTokens = await apiHandler.countTokens(contextBlocks)
+	console.log(
+		`[summarizeConversation] prevContextTokens: ${prevContextTokens}, newContextTokens: ${newContextTokens}`,
+	)
 
-	const newContextTokens = outputTokens + (await apiHandler.countTokens(contextBlocks))
-	if (newContextTokens >= prevContextTokens) {
-		const error = t("common:errors.condense_context_grew")
-		return { ...response, cost, error }
-	}
-	return { messages: newMessages, summary, cost, newContextTokens }
-}
-
-/* Returns the list of all messages since the last summary message, including the summary. Returns all messages if there is no summary. */
-export function getMessagesSinceLastSummary(messages: ApiMessage[]): ApiMessage[] {
-	let lastSummaryIndexReverse = [...messages].reverse().findIndex((message) => message.isSummary)
-
-	if (lastSummaryIndexReverse === -1) {
-		return messages
-	}
-
-	const lastSummaryIndex = messages.length - lastSummaryIndexReverse - 1
-	const messagesSinceSummary = messages.slice(lastSummaryIndex)
-
-	// Bedrock requires the first message to be a user message.
-	// See https://github.com/RooCodeInc/Roo-Code/issues/4147
-	const userMessage: ApiMessage = {
-		role: "user",
-		content: "Please continue from the following summary:",
-		ts: messages[0]?.ts ? messages[0].ts - 1 : Date.now(),
-	}
-	return [userMessage, ...messagesSinceSummary]
+	return { messages, cost: 0, summary: "", newContextTokens }
 }

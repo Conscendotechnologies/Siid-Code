@@ -7,7 +7,7 @@ import { Mode, getModeConfig, isToolAllowedForMode, getGroupName } from "../../.
 import { ToolArgs } from "./types"
 import { getExecuteCommandDescription } from "./execute-command"
 import { getReadFileDescription } from "./read-file"
-import { getFetchInstructionsDescription } from "./fetch-instructions"
+import { getGetTaskGuidesDescription } from "./get-task-guides"
 import { getWriteToFileDescription } from "./write-to-file"
 import { getSearchFilesDescription } from "./search-files"
 import { getListFilesDescription } from "./list-files"
@@ -25,12 +25,13 @@ import { getCodebaseSearchDescription } from "./codebase-search"
 import { getUpdateTodoListDescription } from "./update-todo-list"
 import { getRetrieveSfMetadataDescription } from "./retrieve-sf-metadata"
 import { CodeIndexManager } from "../../../services/code-index/manager"
+import { getSfDeployMetadataDescription } from "./sf-deploy-metadata"
 
 // Map of tool names to their description functions
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
 	execute_command: (args) => getExecuteCommandDescription(args),
 	read_file: (args) => getReadFileDescription(args),
-	fetch_instructions: (args) => getFetchInstructionsDescription(args.settings?.enableMcpServerCreation),
+	get_task_guides: () => getGetTaskGuidesDescription(),
 	write_to_file: (args) => getWriteToFileDescription(args),
 	search_files: (args) => getSearchFilesDescription(args),
 	list_files: (args) => getListFilesDescription(args),
@@ -49,6 +50,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 		args.diffStrategy ? args.diffStrategy.getToolDescription({ cwd: args.cwd, toolOptions: args.toolOptions }) : "",
 	update_todo_list: (args) => getUpdateTodoListDescription(args),
 	retrieve_sf_metadata: (args) => getRetrieveSfMetadataDescription(args),
+	sf_deploy_metadata: (args) => getSfDeployMetadataDescription(args),
 }
 
 export function getToolDescriptionsForMode(
@@ -140,7 +142,7 @@ export function getToolDescriptionsForMode(
 export {
 	getExecuteCommandDescription,
 	getReadFileDescription,
-	getFetchInstructionsDescription,
+	getGetTaskGuidesDescription,
 	getWriteToFileDescription,
 	getSearchFilesDescription,
 	getListFilesDescription,
@@ -154,4 +156,5 @@ export {
 	getInsertContentDescription,
 	getSearchAndReplaceDescription,
 	getCodebaseSearchDescription,
+	getSfDeployMetadataDescription,
 }

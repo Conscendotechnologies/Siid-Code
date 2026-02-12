@@ -53,6 +53,7 @@ import { perfLog } from "../../utils/performanceLogger"
 
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { downloadTask } from "../../integrations/misc/export-markdown"
+import { exportTaskDebugJson } from "../../integrations/misc/export-debug-json"
 import { getTheme } from "../../integrations/theme/getTheme"
 import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker"
 
@@ -687,6 +688,45 @@ export class ClineProvider
 	public async initClineWithHistoryItem(historyItem: HistoryItem & { rootTask?: Task; parentTask?: Task }) {
 		await this.removeClineFromStack()
 
+		// Restore parent/root task references from IDs if not already provided
+		// This allows subtask relationships to survive window reloads
+		let parentTask = historyItem.parentTask
+		let rootTask = historyItem.rootTask
+
+		if (!parentTask && historyItem.parentTaskId) {
+			// Try to find the parent task in the current stack by ID
+			parentTask = this.clineStack.find((t) => t.taskId === historyItem.parentTaskId)
+			if (parentTask) {
+				this.log(`[subtasks] Restored parentTask reference from stack: ${historyItem.parentTaskId}`)
+			} else {
+				// Parent not in stack - try to load it from history first (recursive restore)
+				try {
+					const parentHistory = await this.getTaskWithId(historyItem.parentTaskId)
+					if (parentHistory) {
+						this.log(
+							`[subtasks] Parent task ${historyItem.parentTaskId} not in stack, loading from history first`,
+						)
+						// Recursively load the parent task (this will add it to the stack)
+						// Note: We don't await removeClineFromStack for the parent since we want it to stay
+						parentTask = await this.loadParentTaskFromHistory(parentHistory.historyItem)
+						if (parentTask) {
+							this.log(`[subtasks] Successfully restored parent task chain from history`)
+						}
+					}
+				} catch (error) {
+					this.log(`[subtasks] Warning: Could not restore parent task ${historyItem.parentTaskId}: ${error}`)
+				}
+			}
+		}
+
+		if (!rootTask && historyItem.rootTaskId) {
+			// Try to find the root task in the current stack by ID
+			rootTask = this.clineStack.find((t) => t.taskId === historyItem.rootTaskId)
+			if (rootTask) {
+				this.log(`[subtasks] Restored rootTask reference from ID: ${historyItem.rootTaskId}`)
+			}
+		}
+
 		// If the history item has a saved mode, restore it and its associated API configuration
 		if (historyItem.mode) {
 			// Validate that the mode still exists
@@ -730,8 +770,8 @@ export class ClineProvider
 			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
 			historyItem,
 			experiments,
-			rootTask: historyItem.rootTask,
-			parentTask: historyItem.parentTask,
+			rootTask: rootTask,
+			parentTask: parentTask,
 			taskNumber: historyItem.number,
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
@@ -741,6 +781,69 @@ export class ClineProvider
 		this.log(
 			`[subtasks] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
 		)
+
+		return task
+	}
+
+	/**
+	 * Load a parent task from history and add it to the stack in paused state.
+	 * This is used to restore the parent task chain when loading a subtask after window reload.
+	 */
+	private async loadParentTaskFromHistory(historyItem: HistoryItem): Promise<Task | undefined> {
+		const {
+			apiConfiguration,
+			diffEnabled: enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			experiments,
+		} = await this.getState()
+
+		// Recursively load the parent's parent if needed
+		let parentTask: Task | undefined = undefined
+		let rootTask: Task | undefined = undefined
+
+		if (historyItem.parentTaskId) {
+			parentTask = this.clineStack.find((t) => t.taskId === historyItem.parentTaskId)
+			if (!parentTask) {
+				try {
+					const grandparentHistory = await this.getTaskWithId(historyItem.parentTaskId)
+					if (grandparentHistory) {
+						parentTask = await this.loadParentTaskFromHistory(grandparentHistory.historyItem)
+					}
+				} catch (error) {
+					this.log(`[subtasks] Could not load grandparent task: ${error}`)
+				}
+			}
+		}
+
+		if (historyItem.rootTaskId) {
+			rootTask = this.clineStack.find((t) => t.taskId === historyItem.rootTaskId)
+		}
+
+		// Create the parent task in paused/non-starting state
+		const task = new Task({
+			provider: this,
+			apiConfiguration,
+			enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+			historyItem,
+			experiments,
+			rootTask: rootTask,
+			parentTask: parentTask,
+			taskNumber: historyItem.number,
+			startTask: false, // Don't start the task - it should be paused waiting for subtask
+			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
+		})
+
+		// Mark as paused since it's waiting for a subtask to complete
+		task.isPaused = true
+
+		// Add to stack (but don't call addClineToStack which has additional setup)
+		this.clineStack.push(task)
+
+		this.log(`[subtasks] Loaded parent task ${task.taskId} from history in paused state`)
 
 		return task
 	}
@@ -1417,6 +1520,30 @@ export class ClineProvider
 		await downloadTask(historyItem.ts, apiConversationHistory)
 	}
 
+	async exportTaskDebugJsonWithId(id: string) {
+		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
+
+		// Try to get the system prompt from the active task if it matches
+		let systemPrompt: string | undefined
+		const activeTask = this.clineStack.find((t) => t.taskId === id)
+		if (activeTask) {
+			try {
+				systemPrompt = await activeTask.getSystemPrompt()
+			} catch {
+				// Task may not be in a state to generate system prompt
+			}
+		}
+
+		await exportTaskDebugJson(apiConversationHistory as any, {
+			taskId: historyItem.id,
+			timestamp: historyItem.ts,
+			taskNumber: historyItem.number,
+			workspace: historyItem.workspace,
+			mode: historyItem.mode,
+			systemPrompt,
+		})
+	}
+
 	/* Condenses a task's message history to use fewer tokens. */
 	async condenseTaskContext(taskId: string) {
 		let task: Task | undefined
@@ -1659,6 +1786,7 @@ export class ClineProvider
 			fuzzyMatchThreshold,
 			mcpEnabled,
 			enableMcpServerCreation,
+			enablePmdRules,
 			alwaysApproveResubmit,
 			requestDelaySeconds,
 			currentApiConfigName,
@@ -1769,6 +1897,7 @@ export class ClineProvider
 			fuzzyMatchThreshold: fuzzyMatchThreshold ?? 1.0,
 			mcpEnabled: mcpEnabled ?? true,
 			enableMcpServerCreation: enableMcpServerCreation ?? true,
+			enablePmdRules: enablePmdRules ?? true,
 			alwaysApproveResubmit: alwaysApproveResubmit ?? false,
 			requestDelaySeconds: requestDelaySeconds ?? 10,
 			currentApiConfigName: currentApiConfigName ?? "default",
@@ -1947,6 +2076,7 @@ export class ClineProvider
 			alwaysAllowSubtasks: stateValues.alwaysAllowSubtasks ?? false,
 			alwaysAllowFollowupQuestions: stateValues.alwaysAllowFollowupQuestions ?? false,
 			alwaysAllowUpdateTodoList: stateValues.alwaysAllowUpdateTodoList ?? false,
+			alwaysAllowDeploySfMetadata: stateValues.alwaysAllowDeploySfMetadata ?? false,
 			followupAutoApproveTimeoutMs: stateValues.followupAutoApproveTimeoutMs ?? 60000,
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,
@@ -1987,6 +2117,7 @@ export class ClineProvider
 			language: stateValues.language ?? formatLanguage(vscode.env.language),
 			mcpEnabled: stateValues.mcpEnabled ?? true,
 			enableMcpServerCreation: stateValues.enableMcpServerCreation ?? true,
+			enablePmdRules: stateValues.enablePmdRules ?? true,
 			alwaysApproveResubmit: stateValues.alwaysApproveResubmit ?? false,
 			requestDelaySeconds: Math.max(0, stateValues.requestDelaySeconds ?? 2), // Reduced to 2s default, 0s minimum for maximum speed
 			currentApiConfigName: stateValues.currentApiConfigName ?? "default",

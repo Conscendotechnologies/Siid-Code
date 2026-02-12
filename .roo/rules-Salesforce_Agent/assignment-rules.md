@@ -158,7 +158,7 @@ Each member block:
 ** Immediatly after creating the queue deploy it to current authorized org( WITHOUT ANY DELAY) **
 Deploy the queue before creating the assignment rule:
 
-sf project deploy start --source-dir force-app/main/default/queues/<DeveloperName>.queue-meta.xml
+sf project deploy start --source-dir force-app/main/default/queues/<DeveloperName>.queue-meta.xml --json
 On successful deployment:
 Set assignedToType = "Queue"
 Set assignedToValue = DeveloperName

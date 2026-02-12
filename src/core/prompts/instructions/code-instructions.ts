@@ -32,10 +32,3 @@ async function loadCodeInstruction(
 		)
 	}
 }
-
-/**
- * Loads Invocable Apex instructions
- */
-export async function invocableApexInstructions(context: vscode.ExtensionContext | undefined): Promise<string> {
-	return loadCodeInstruction(context, GlobalFileNames.invocableapexInstructions)
-}

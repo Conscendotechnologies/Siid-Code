@@ -180,6 +180,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		profileThresholds,
 		alwaysAllowFollowupQuestions,
 		alwaysAllowUpdateTodoList,
+		alwaysAllowDeploySfMetadata,
 		followupAutoApproveTimeoutMs,
 		includeDiagnosticMessages,
 		maxDiagnosticMessages,
@@ -639,6 +640,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 							alwaysAllowExecute={alwaysAllowExecute}
 							alwaysAllowFollowupQuestions={alwaysAllowFollowupQuestions}
 							alwaysAllowUpdateTodoList={alwaysAllowUpdateTodoList}
+							alwaysAllowDeploySfMetadata={alwaysAllowDeploySfMetadata}
 							followupAutoApproveTimeoutMs={followupAutoApproveTimeoutMs}
 							allowedCommands={allowedCommands}
 							deniedCommands={deniedCommands}

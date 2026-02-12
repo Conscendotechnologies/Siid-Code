@@ -63,6 +63,7 @@ export const globalSettingsSchema = z.object({
 	alwaysAllowFollowupQuestions: z.boolean().optional(),
 	followupAutoApproveTimeoutMs: z.number().optional(),
 	alwaysAllowUpdateTodoList: z.boolean().optional(),
+	alwaysAllowDeploySfMetadata: z.boolean().optional(),
 	allowedCommands: z.array(z.string()).optional(),
 	deniedCommands: z.array(z.string()).optional(),
 	commandExecutionTimeout: z.number().optional(),
@@ -135,6 +136,7 @@ export const globalSettingsSchema = z.object({
 
 	mcpEnabled: z.boolean().optional(),
 	enableMcpServerCreation: z.boolean().optional(),
+	enablePmdRules: z.boolean().optional(),
 
 	remoteControlEnabled: z.boolean().optional(),
 

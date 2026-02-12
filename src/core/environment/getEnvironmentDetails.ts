@@ -1,5 +1,6 @@
 import path from "path"
 import os from "os"
+import fs from "fs/promises"
 
 import * as vscode from "vscode"
 import pWaitFor from "p-wait-for"
@@ -17,6 +18,7 @@ import { TerminalRegistry } from "../../integrations/terminal/TerminalRegistry"
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { arePathsEqual } from "../../utils/path"
 import { formatResponse } from "../prompts/responses"
+import { FileChangesService } from "../../services/file-changes"
 
 import { Task } from "../task/Task"
 import { formatReminderSection } from "./reminder"
@@ -200,6 +202,23 @@ export async function getEnvironmentDetails(
 		}
 	}
 
+	// Add files created/modified in this task section
+	try {
+		const fileChangesService = FileChangesService.getInstance()
+		const taskFileChanges = await fileChangesService.getTaskFileChanges(cline.taskId)
+
+		if (taskFileChanges.length > 0) {
+			details += "\n\n# Files Changed This Task\nFiles you have created or modified during this task:"
+			for (const fc of taskFileChanges) {
+				const relativePath = path.relative(cline.cwd, fc.filePath).toPosix()
+				const changeInfo = `+${fc.additions}/-${fc.deletions}`
+				details += `\n- ${relativePath} (${fc.status}, ${changeInfo})`
+			}
+		}
+	} catch {
+		// FileChangesService may not be initialized yet, skip this section
+	}
+
 	if (terminalDetails) {
 		details += terminalDetails
 	}
@@ -250,6 +269,8 @@ export async function getEnvironmentDetails(
 			details += `<custom_instructions>${modeDetails.customInstructions}</custom_instructions>\n`
 		}
 	}
+
+	// Planning files section removed - using TodoWrite for progress tracking instead
 
 	if (includeFileDetails) {
 		details += `\n\n# Current Workspace Directory (${cline.cwd.toPosix()}) Files\n`

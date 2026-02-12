@@ -124,9 +124,13 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "firebaseLogout"
 		| "showOsNotification"
+		| "fileCreated"
+		| "fileChanges"
+		| "fileChangesStatistics"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
+	files?: any[] // File change tracking data for fileCreated messages
 	action?:
 		| "chatButtonClicked"
 		| "mcpButtonClicked"
@@ -202,6 +206,23 @@ export interface ExtensionMessage {
 	loginData?: {
 		userInfo?: CloudUserInfo
 	}
+	fileChanges?: Array<{
+		path: string
+		additions: number
+		deletions: number
+		status: "modified" | "created" | "deleted"
+		diff?: string
+		deploymentStatus?: "local" | "dry-run" | "deploying" | "deployed" | "failed"
+		timestamp: number
+		error?: string
+	}>
+	statistics?: {
+		totalFiles: number
+		totalAdditions: number
+		totalDeletions: number
+		byStatus: Record<string, number>
+		byDeploymentStatus: Record<string, number>
+	}
 }
 
 export type ExtensionState = Pick<
@@ -226,7 +247,9 @@ export type ExtensionState = Pick<
 	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowExecute"
+	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
+	| "alwaysAllowDeploySfMetadata"
 	| "allowedCommands"
 	| "deniedCommands"
 	| "allowedMaxRequests"
@@ -304,6 +327,7 @@ export type ExtensionState = Pick<
 
 	mcpEnabled: boolean
 	enableMcpServerCreation: boolean
+	enablePmdRules: boolean
 
 	mode: Mode
 	customModes: ModeConfig[]
@@ -343,6 +367,7 @@ export interface ClineSayTool {
 		| "codebaseSearch"
 		| "readFile"
 		| "fetchInstructions"
+		| "getTaskGuides"
 		| "listFilesTopLevel"
 		| "listFilesRecursive"
 		| "listCodeDefinitionNames"
@@ -352,9 +377,15 @@ export interface ClineSayTool {
 		| "finishTask"
 		| "searchAndReplace"
 		| "insertContent"
+		| "deploySfMetadata"
+		| "retrieveSfMetadata"
 	path?: string
 	diff?: string
 	content?: string
+	metadataType?: string
+	metadataName?: string
+	testLevel?: string
+	sourceDir?: string
 	regex?: string
 	filePattern?: string
 	mode?: string
@@ -372,6 +403,7 @@ export interface ClineSayTool {
 	query?: string
 	linesAdded?: number // Number of lines added in the diff
 	linesRemoved?: number // Number of lines removed in the diff
+	loadedGuides?: string[] // List of loaded guide names for getTaskGuides tool
 	batchFiles?: Array<{
 		path: string
 		lineSnippet: string

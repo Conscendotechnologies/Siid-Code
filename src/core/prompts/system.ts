@@ -58,6 +58,7 @@ async function generatePrompt(
 	diffEnabled?: boolean,
 	experiments?: Record<string, boolean>,
 	enableMcpServerCreation?: boolean,
+	enablePmdRules?: boolean,
 	language?: string,
 	rooIgnoreInstructions?: string,
 	partialReadsEnabled?: boolean,
@@ -108,7 +109,7 @@ ${customInstructionIndexs}
 
 ${markdownFormattingSection()}
 
-${getSharedToolUseSection()}
+${getSharedToolUseSection(experiments)}
 
 ${getToolDescriptionsForMode(
 	mode,
@@ -125,7 +126,7 @@ ${getToolDescriptionsForMode(
 	enableMcpServerCreation,
 )}
 
-${getToolUseGuidelinesSection(codeIndexManager)}
+${getToolUseGuidelinesSection(codeIndexManager, experiments)}
 
 ${mcpServersSection}
 
@@ -139,7 +140,7 @@ ${getSystemInfoSection(cwd)}
 
 ${getDeveloperInfoSection()}
 
-${getObjectiveSection(codeIndexManager, experiments)}
+${getObjectiveSection(codeIndexManager, experiments, enablePmdRules)}
 
 ${baseInstructions}`
 
@@ -160,6 +161,7 @@ export const SYSTEM_PROMPT = async (
 	diffEnabled?: boolean,
 	experiments?: Record<string, boolean>,
 	enableMcpServerCreation?: boolean,
+	enablePmdRules?: boolean,
 	language?: string,
 	rooIgnoreInstructions?: string,
 	partialReadsEnabled?: boolean,
@@ -193,6 +195,7 @@ export const SYSTEM_PROMPT = async (
 		diffEnabled,
 		experiments,
 		enableMcpServerCreation,
+		enablePmdRules,
 		language,
 		rooIgnoreInstructions,
 		partialReadsEnabled,

@@ -190,6 +190,10 @@
 			"label": "Todo",
 			"description": "Automatically update the to-do list without requiring approval"
 		},
+		"deploySfMetadata": {
+			"label": "Deploy Salesforce Metadata",
+			"description": "Automatically deploy Salesforce metadata to orgs without requiring approval (dry-run validation still runs)"
+		},
 		"apiRequestLimit": {
 			"title": "Max Requests",
 			"description": "Automatically make this many API requests before asking for approval to continue with the task.",
@@ -683,6 +687,10 @@
 		"PREVENT_FOCUS_DISRUPTION": {
 			"name": "Background editing",
 			"description": "Prevent editor focus disruption when enabled. File edits happen in the background without opening diff views or stealing focus. You can continue working uninterrupted while Pro makes changes. Files can be opened without focus to capture diagnostics or kept closed entirely."
+		},
+		"MULTIPLE_TOOL_CALLS": {
+			"name": "Enable multiple tool calls per message",
+			"description": "When enabled, Pro can use multiple tools in a single message for independent actions, reducing back-and-forth and completing tasks faster. When disabled, Pro uses one tool at a time per message."
 		}
 	},
 	"promptCaching": {

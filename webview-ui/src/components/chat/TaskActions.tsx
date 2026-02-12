@@ -27,6 +27,11 @@ export const TaskActions = ({ item, buttonsDisabled }: TaskActionsProps) => {
 				title={t("chat:task.export")}
 				onClick={() => vscode.postMessage({ type: "exportCurrentTask" })}
 			/>
+			<IconButton
+				iconClass="codicon-bug"
+				title="Export Debug JSON"
+				onClick={() => vscode.postMessage({ type: "exportCurrentTaskDebugJson" })}
+			/>
 			{item?.task && (
 				<IconButton
 					iconClass={showCopyFeedback ? "codicon-check" : "codicon-copy"}

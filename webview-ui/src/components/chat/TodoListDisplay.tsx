@@ -16,8 +16,20 @@ export function TodoListDisplay({ todos }: { todos: any[] }) {
 		if (inProgress) return inProgress
 		return todos.find((todo: any) => todo.status !== "completed")
 	}, [todos])
+
+	// Track if we've already scrolled on expand to prevent jumping on updates
+	const hasScrolledRef = useRef(false)
+
 	useEffect(() => {
-		if (isCollapsed) return
+		if (isCollapsed) {
+			// Reset scroll flag when collapsed
+			hasScrolledRef.current = false
+			return
+		}
+
+		// Only scroll once when first expanded
+		if (hasScrolledRef.current) return
+
 		if (!ulRef.current) return
 		if (scrollIndex === -1) return
 		const target = itemRefs.current[scrollIndex]
@@ -28,8 +40,9 @@ export function TodoListDisplay({ todos }: { todos: any[] }) {
 			const ulHeight = ul.clientHeight
 			const scrollTo = targetTop - (ulHeight / 2 - targetHeight / 2)
 			ul.scrollTop = scrollTo
+			hasScrolledRef.current = true
 		}
-	}, [todos, isCollapsed, scrollIndex])
+	}, [isCollapsed, scrollIndex])
 	if (!Array.isArray(todos) || todos.length === 0) return null
 
 	const totalCount = todos.length

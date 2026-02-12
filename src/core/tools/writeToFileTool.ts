@@ -16,6 +16,7 @@ import { detectCodeOmission } from "../../integrations/editor/detect-omission"
 import { unescapeHtmlEntities } from "../../utils/text-normalization"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
+import { trackFileChange } from "../../services/file-changes/trackFileChange"
 
 export async function writeToFileTool(
 	cline: Task,
@@ -303,6 +304,15 @@ export async function writeToFileTool(
 
 			// Get the formatted response message
 			const message = await cline.diffViewProvider.pushToolWriteResult(cline, cline.cwd, !fileExists)
+
+			// Track file change in database with diff calculation
+			await trackFileChange({
+				taskId: cline.taskId,
+				filePath: relPath,
+				status: fileExists ? "modified" : "created",
+				oldContent: cline.diffViewProvider.originalContent ?? "",
+				newContent: newContent,
+			})
 
 			pushToolResult(message)
 

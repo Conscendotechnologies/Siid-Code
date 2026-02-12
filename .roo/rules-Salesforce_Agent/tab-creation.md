@@ -92,15 +92,15 @@ File: `force-app/main/default/profiles/System Administrator.profile-meta.xml`
 **Dry Run:**
 
 ```bash
-sf project deploy start --dry-run --source-dir force-app/main/default/tabs/<TabApiName>.tab-meta.xml
-sf project deploy start --dry-run --source-dir "force-app/main/default/profiles/System Administrator.profile-meta.xml"
+sf project deploy start --dry-run --source-dir force-app/main/default/tabs/<TabApiName>.tab-meta.xml --json
+sf project deploy start --dry-run --source-dir "force-app/main/default/profiles/System Administrator.profile-meta.xml" --json
 ```
 
 **Deploy:**
 
 ```bash
-sf project deploy start --source-dir force-app/main/default/tabs/<TabApiName>.tab-meta.xml
-sf project deploy start --source-dir "force-app/main/default/profiles/System Administrator.profile-meta.xml"
+sf project deploy start --source-dir force-app/main/default/tabs/<TabApiName>.tab-meta.xml --json
+sf project deploy start --source-dir "force-app/main/default/profiles/System Administrator.profile-meta.xml" --json
 ```
 
 Deploy both tab and profile together for complete setup.

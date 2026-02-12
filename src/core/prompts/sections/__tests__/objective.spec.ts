@@ -18,7 +18,7 @@ describe("getObjectiveSection", () => {
 
 	describe("when codebase_search is available", () => {
 		it("should include codebase_search first enforcement in thinking process", () => {
-			const objective = getObjectiveSection(mockCodeIndexManagerEnabled)
+			const objective = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, undefined)
 
 			// Check that the objective includes the codebase_search enforcement
 			expect(objective).toContain(
@@ -31,7 +31,7 @@ describe("getObjectiveSection", () => {
 
 	describe("when codebase_search is not available", () => {
 		it("should not include codebase_search enforcement", () => {
-			const objective = getObjectiveSection(mockCodeIndexManagerDisabled)
+			const objective = getObjectiveSection(mockCodeIndexManagerDisabled, undefined, undefined)
 
 			// Check that the objective does not include the codebase_search enforcement
 			expect(objective).not.toContain("you MUST use the `codebase_search` tool")
@@ -40,8 +40,8 @@ describe("getObjectiveSection", () => {
 	})
 
 	it("should maintain proper structure regardless of codebase_search availability", () => {
-		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled)
-		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled)
+		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, undefined)
+		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled, undefined, undefined)
 
 		// Check that all numbered items are present in both cases
 		for (const objective of [objectiveEnabled, objectiveDisabled]) {
@@ -54,8 +54,8 @@ describe("getObjectiveSection", () => {
 	})
 
 	it("should include thinking tags guidance regardless of codebase_search availability", () => {
-		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled)
-		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled)
+		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, undefined)
+		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled, undefined, undefined)
 
 		// Check that thinking tags guidance is included in both cases
 		for (const objective of [objectiveEnabled, objectiveDisabled]) {
@@ -66,8 +66,8 @@ describe("getObjectiveSection", () => {
 	})
 
 	it("should include parameter inference guidance regardless of codebase_search availability", () => {
-		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled)
-		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled)
+		const objectiveEnabled = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, undefined)
+		const objectiveDisabled = getObjectiveSection(mockCodeIndexManagerDisabled, undefined, undefined)
 
 		// Check parameter inference guidance in both cases
 		for (const objective of [objectiveEnabled, objectiveDisabled]) {
@@ -78,5 +78,40 @@ describe("getObjectiveSection", () => {
 			expect(objective).toContain("DO NOT invoke the tool (not even with fillers for the missing params)")
 			expect(objective).toContain("ask_followup_question tool")
 		}
+	})
+
+	describe("PMD rules guidance", () => {
+		it("should include PMD rules instructions when enabled", () => {
+			const objective = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, true)
+
+			// Check that PMD rules guidance is included
+			expect(objective).toContain("PMD Code Quality Rules")
+			expect(objective).toContain("PMD rules are ENABLED")
+			expect(objective).toContain("pmd_apex")
+			expect(objective).toContain("pmd_javascript")
+			expect(objective).toContain("pmd_html")
+			expect(objective).toContain("pmd_visualforce")
+			expect(objective).toContain("pmd_xml")
+			expect(objective).toContain(
+				"you MUST fetch and follow the appropriate PMD rules for the language you're working with",
+			)
+		})
+
+		it("should show PMD disabled message when disabled", () => {
+			const objective = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, false)
+
+			// Check that PMD disabled message is included
+			expect(objective).toContain("PMD Code Quality Rules")
+			expect(objective).toContain("PMD rules are DISABLED")
+			expect(objective).toContain("You may proceed with standard coding practices without fetching PMD rules")
+		})
+
+		it("should default to showing PMD instructions when enablePmdRules is undefined", () => {
+			const objective = getObjectiveSection(mockCodeIndexManagerEnabled, undefined, undefined)
+
+			// When undefined, it should default to disabled message (since enablePmdRules is falsy)
+			expect(objective).toContain("PMD Code Quality Rules")
+			expect(objective).toContain("PMD rules are DISABLED")
+		})
 	})
 })

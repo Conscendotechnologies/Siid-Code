@@ -185,6 +185,7 @@ describe("mergeExtensionState", () => {
 			version: "",
 			mcpEnabled: false,
 			enableMcpServerCreation: false,
+			enablePmdRules: true,
 			clineMessages: [],
 			taskHistory: [],
 			shouldShowAnnouncement: false,
@@ -231,6 +232,8 @@ describe("mergeExtensionState", () => {
 				multiFileApplyDiff: true,
 				preventFocusDisruption: false,
 				assistantMessageParser: false,
+				multipleToolCalls: false,
+				planningWorkflow: false,
 			} as Record<ExperimentId, boolean>,
 		}
 

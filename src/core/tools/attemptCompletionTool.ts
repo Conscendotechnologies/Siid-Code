@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import * as vscode from "vscode"
+import * as path from "path"
+import * as fs from "fs/promises"
 
 import { RooCodeEventName } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
@@ -94,6 +96,11 @@ export async function attemptCompletionTool(
 			await cline.say("completion_result", result, undefined, false)
 			TelemetryService.instance.captureTaskCompleted(cline.taskId)
 			cline.emit(RooCodeEventName.TaskCompleted, cline.taskId, cline.getTokenUsage(), cline.toolUsage)
+
+			// Debug logging for subtask detection
+			console.log(
+				`[attemptCompletionTool] Task ${cline.taskId} (taskNumber: ${cline.taskNumber}): parentTask=${cline.parentTask ? cline.parentTask.taskId : "undefined"}`,
+			)
 
 			if (cline.parentTask) {
 				const didApprove = await askFinishSubTaskApproval()

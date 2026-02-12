@@ -91,10 +91,10 @@ describe("ContextWindowProgress Logic", () => {
 		expect(result.reservedForOutput).toBe(8192) // ANTHROPIC_DEFAULT_MAX_TOKENS
 		expect(result.availableSize).toBe(0) // max(0, 0 - 1000 - 8192) = 0
 
-		// The percentages maintain total of 100% even with zero context window
-		// due to how the division handles this edge case
-		const totalPercentage = result.currentPercent + result.reservedPercent + result.availablePercent
-		expect(totalPercentage).toBeCloseTo(100)
+		// With zero context window, all percentages should be 0 (division by zero safeguard)
+		expect(result.currentPercent).toBe(0)
+		expect(result.reservedPercent).toBe(0)
+		expect(result.availablePercent).toBe(0)
 	})
 
 	test("handles case where tokens exceed context window", () => {
@@ -109,12 +109,15 @@ describe("ContextWindowProgress Logic", () => {
 		expect(result.reservedForOutput).toBe(8192)
 		expect(result.availableSize).toBe(0)
 
-		// Percentages should be calculated based on total (12000 + 8192 + 0 = 20192)
-		expect(result.currentPercent).toBeCloseTo((12000 / 20192) * 100)
-		expect(result.reservedPercent).toBeCloseTo((8192 / 20192) * 100)
+		// Percentages are now based on contextWindow (10000)
+		// currentPercent = 12000/10000 * 100 = 120% (over limit)
+		// reservedPercent = 8192/10000 * 100 = 81.92%
+		// availablePercent = 0/10000 * 100 = 0%
+		expect(result.currentPercent).toBeCloseTo(120) // 12000/10000 * 100
+		expect(result.reservedPercent).toBeCloseTo(81.92) // 8192/10000 * 100
 		expect(result.availablePercent).toBeCloseTo(0)
 
-		// Verify percentages sum to 100%
-		expect(result.currentPercent + result.reservedPercent + result.availablePercent).toBeCloseTo(100)
+		// Note: percentages can now exceed 100% total when tokens exceed context window
+		// This is expected behavior as it shows the overflow
 	})
 })
