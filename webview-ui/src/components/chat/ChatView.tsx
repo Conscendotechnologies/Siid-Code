@@ -206,7 +206,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		notificationsEnabled,
 		soundEnabled,
 		soundVolume,
-		developerMode,
+		
 	} = useExtensionState()
 
 	const selectedModel = useSelectedModel(apiConfiguration)
