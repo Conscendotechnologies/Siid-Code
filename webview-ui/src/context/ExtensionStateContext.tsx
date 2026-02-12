@@ -148,6 +148,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setAlwaysAllowUpdateTodoList: (value: boolean) => void
 	alwaysAllowDeploySfMetadata?: boolean
 	setAlwaysAllowDeploySfMetadata: (value: boolean) => void
+	alwaysAllowRetrieveSfMetadata?: boolean
+	setAlwaysAllowRetrieveSfMetadata: (value: boolean) => void
 	includeDiagnosticMessages?: boolean
 	setIncludeDiagnosticMessages: (value: boolean) => void
 	maxDiagnosticMessages?: number
@@ -551,6 +553,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		alwaysAllowDeploySfMetadata: state.alwaysAllowDeploySfMetadata,
 		setAlwaysAllowDeploySfMetadata: (value) => {
 			setState((prevState) => ({ ...prevState, alwaysAllowDeploySfMetadata: value }))
+		},
+		alwaysAllowRetrieveSfMetadata: state.alwaysAllowRetrieveSfMetadata,
+		setAlwaysAllowRetrieveSfMetadata: (value) => {
+			setState((prevState) => ({ ...prevState, alwaysAllowRetrieveSfMetadata: value }))
 		},
 		includeDiagnosticMessages: state.includeDiagnosticMessages,
 		setIncludeDiagnosticMessages: (value) => {

@@ -28,6 +28,7 @@ describe("AutoApproveToggle", () => {
 		alwaysAllowFollowupQuestions: false,
 		alwaysAllowUpdateTodoList: true,
 		alwaysAllowDeploySfMetadata: false,
+		alwaysAllowRetrieveSfMetadata: false,
 		onToggle: mockOnToggle,
 	}
 

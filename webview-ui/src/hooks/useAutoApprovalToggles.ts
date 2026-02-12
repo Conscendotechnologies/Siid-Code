@@ -18,6 +18,7 @@ export function useAutoApprovalToggles() {
 		alwaysAllowFollowupQuestions,
 		alwaysAllowUpdateTodoList,
 		alwaysAllowDeploySfMetadata,
+		alwaysAllowRetrieveSfMetadata,
 	} = useExtensionState()
 
 	const toggles = useMemo(
@@ -33,6 +34,7 @@ export function useAutoApprovalToggles() {
 			alwaysAllowFollowupQuestions,
 			alwaysAllowUpdateTodoList,
 			alwaysAllowDeploySfMetadata,
+			alwaysAllowRetrieveSfMetadata,
 		}),
 		[
 			alwaysAllowReadOnly,
@@ -46,6 +48,7 @@ export function useAutoApprovalToggles() {
 			alwaysAllowFollowupQuestions,
 			alwaysAllowUpdateTodoList,
 			alwaysAllowDeploySfMetadata,
+			alwaysAllowRetrieveSfMetadata,
 		],
 	)
 

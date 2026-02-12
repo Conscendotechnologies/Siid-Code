@@ -250,6 +250,7 @@ export type ExtensionState = Pick<
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowDeploySfMetadata"
+	| "alwaysAllowRetrieveSfMetadata"
 	| "allowedCommands"
 	| "deniedCommands"
 	| "allowedMaxRequests"

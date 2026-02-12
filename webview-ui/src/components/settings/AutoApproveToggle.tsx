@@ -17,6 +17,7 @@ type AutoApproveToggles = Pick<
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowDeploySfMetadata"
+	| "alwaysAllowRetrieveSfMetadata"
 >
 
 export type AutoApproveSetting = keyof AutoApproveToggles
@@ -106,6 +107,13 @@ export const autoApproveSettingsConfig: Record<AutoApproveSetting, AutoApproveCo
 		descriptionKey: "settings:autoApprove.deploySfMetadata.description",
 		icon: "cloud-upload",
 		testId: "always-allow-deploy-sf-metadata-toggle",
+	},
+	alwaysAllowRetrieveSfMetadata: {
+		key: "alwaysAllowRetrieveSfMetadata",
+		labelKey: "settings:autoApprove.retrieveSfMetadata.label",
+		descriptionKey: "settings:autoApprove.retrieveSfMetadata.description",
+		icon: "cloud-download",
+		testId: "always-allow-retrieve-sf-metadata-toggle",
 	},
 }
 
