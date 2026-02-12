@@ -49,6 +49,7 @@ export interface WebviewMessage {
 		| "useFreeModels"
 		| "followupAutoApproveTimeoutMs"
 		| "webviewDidLaunch"
+		| "debugStopTimer"
 		| "newTask"
 		| "askResponse"
 		| "terminalOperation"

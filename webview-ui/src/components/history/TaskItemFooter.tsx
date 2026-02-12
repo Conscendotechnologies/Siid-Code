@@ -1,6 +1,6 @@
 import React from "react"
 import type { HistoryItem } from "@siid-code/types"
-import { formatTimeAgo } from "@/utils/format"
+import { formatTimeAgo, formatDuration } from "@/utils/format"
 import { CopyButton } from "./CopyButton"
 import { ExportButton } from "./ExportButton"
 import { DeleteButton } from "./DeleteButton"
@@ -27,6 +27,13 @@ const TaskItemFooter: React.FC<TaskItemFooterProps> = ({ item, variant, isSelect
 					<span className="flex items-center" data-testid="cost-footer-compact">
 						{"$" + item.totalCost.toFixed(2)}
 					</span>
+				)}
+				{/* Duration */}
+				{!!item.duration && item.duration > 0 && (
+					<>
+						<span>·</span>
+						<span>{formatDuration(item.duration)}</span>
+					</>
 				)}
 			</div>
 
