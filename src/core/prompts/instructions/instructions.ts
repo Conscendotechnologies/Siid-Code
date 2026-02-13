@@ -4,6 +4,7 @@ import { createLWCInstructions } from "./create-lwc"
 import { createApexInstructions } from "./create-apex"
 import { createVisualForceInstructions } from "./create-visual-force"
 import { createAuraComponentsInstructions } from "./create-aura-components"
+import { createDeploymentInstructions } from "./create-deployment"
 import {
 	assignmentRulesInstructions,
 	customFieldInstructions,
@@ -106,7 +107,11 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
-		} // Code Instructions
+		}
+		// Deployment Instructions
+		case "sf_deployment": {
+			return await createDeploymentInstructions(detail.context)
+		}
 		default: {
 			return ""
 		}

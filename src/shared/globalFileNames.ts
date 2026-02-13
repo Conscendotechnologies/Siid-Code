@@ -6,6 +6,7 @@ export const GlobalFileNames = {
 	taskMetadata: "task_metadata.json",
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
+	deploymentInstructions: "code/deployment-guide.md",
 	// Salesforce Agent Instructions
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",
@@ -41,24 +42,24 @@ export interface TaskTypeConfig {
 export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 	// LWC Tasks
 	"create-lwc": {
-		instructions: ["create_lwc"],
+		instructions: ["create_lwc", "sf_deployment"],
 		description: "Create Lightning Web Component",
 		mode: "code",
 	},
 	"create-lwc-with-apex": {
-		instructions: ["create_lwc", "create_apex"],
+		instructions: ["create_lwc", "create_apex", "sf_deployment"],
 		description: "Create LWC with Apex backend",
 		mode: "code",
 	},
 
 	// Apex Tasks
 	"create-apex": {
-		instructions: ["create_apex"],
+		instructions: ["create_apex", "sf_deployment"],
 		description: "Create Apex class or trigger",
 		mode: "code",
 	},
 	"create-invocable-apex": {
-		instructions: ["invocable_apex", "create_apex"],
+		instructions: ["invocable_apex", "create_apex", "sf_deployment"],
 		description: "Create Invocable Apex for Agentforce or Flows",
 		mode: "code",
 	},

@@ -10,8 +10,10 @@ export interface PreTaskOptions {
 	globalStorageUri: vscode.Uri | undefined
 	taskGuidesFetched?: boolean
 	hasTodoList?: boolean
+	isSubtask?: boolean
 	cwd?: string
 	experiments?: Experiments
+	planningCache?: Map<string, string>
 }
 
 /**
@@ -19,7 +21,14 @@ export interface PreTaskOptions {
  * Content is dynamic based on current task state.
  */
 export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined, options?: Partial<PreTaskOptions>) {
-	const { taskGuidesFetched = false, hasTodoList = false, cwd, experiments: exps } = options || {}
+	const {
+		taskGuidesFetched = false,
+		hasTodoList = false,
+		isSubtask = false,
+		cwd,
+		experiments: exps,
+		planningCache,
+	} = options || {}
 
 	let preTask = "<pre-task>\n\n"
 
@@ -32,7 +41,9 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		}
 
 		// Dynamic todo list reminder
-		if (hasTodoList) {
+		if (isSubtask) {
+			preTask += `**Todo List:** You are a subtask. Create your OWN todo list specific to your task - do NOT reuse or inherit the parent's todos.\n\n`
+		} else if (hasTodoList) {
 			preTask += `**Todo List:** A todo list exists. UPDATE it as you progress - don't recreate.\n\n`
 		}
 
@@ -41,10 +52,22 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		// Check if planning workflow is enabled
 		const planningEnabled = exps ? experiments.isEnabled(exps, "planningWorkflow") : false
 
-		if (planningEnabled) {
-			// Check for existing planning files
-			let existingPlanningFiles = ""
-			if (cwd) {
+		// IMPORTANT: Only show planning workflow for root tasks, NOT for subtasks
+		// Subtasks should execute their assigned work without creating additional planning files
+		if (planningEnabled && !isSubtask) {
+			// Check for cached planning files first, then fall back to disk
+			let cachedPlanningContent = ""
+			if (planningCache && planningCache.size > 0) {
+				// Use cached planning content
+				cachedPlanningContent = "\n\n**Current Planning Files (Cached):**\n"
+				for (const [filePath, content] of planningCache.entries()) {
+					const fileName = path.basename(filePath)
+					// Include first 1000 chars of content to give context
+					const preview = content.length > 1000 ? content.substring(0, 1000) + "\n...[truncated]" : content
+					cachedPlanningContent += `\n### ${fileName}\n\`\`\`markdown\n${preview}\n\`\`\`\n`
+				}
+			} else if (cwd) {
+				// Fall back to checking disk for planning files
 				try {
 					const planningDir = path.join(cwd, ".siid-code", "planning")
 					const dirExists = await fs
@@ -55,9 +78,9 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 						const files = await fs.readdir(planningDir)
 						const planFiles = files.filter((f) => f.endsWith("-plan.md"))
 						if (planFiles.length > 0) {
-							existingPlanningFiles = `\n\n**Existing Planning Files:**\n`
+							cachedPlanningContent = "\n\n**Existing Planning Files:**\n"
 							for (const file of planFiles) {
-								existingPlanningFiles += `- \`.siid-code/planning/${file}\` (Read and maintain during task)\n`
+								cachedPlanningContent += `- \`.siid-code/planning/${file}\` (Read and maintain during task)\n`
 							}
 						}
 					}
@@ -68,11 +91,11 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 
 			// Include planning workflow steps
 			preTask += PLANNING_WORKFLOW_STEPS
-			preTask += existingPlanningFiles
+			preTask += cachedPlanningContent
 			preTask += `\n\n**Detailed Planning Instructions:**\n${PLANNING_INSTRUCTIONS}\n\n`
 			preTask += `---\n\n`
 		}
-		// If planning workflow is disabled, don't include planning instructions at all
+		// If planning workflow is disabled OR this is a subtask, don't include planning instructions
 		preTask += `- **code:** Apex, LWC, triggers, test classes, development\n\n`
 
 		preTask += `---\n\n`

@@ -103,15 +103,21 @@ export async function truncateConversationIfNeeded({
 	// Calculate the effective context limit and threshold percentage
 	const effectiveMaxTokens = maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS
 	const availableTokens = contextWindow - effectiveMaxTokens
-	const contextPercentUsed = (totalTokens / availableTokens) * 100
+
+	// Calculate percentage based on TOTAL context window, not available space
+	// This matches user expectations: "80%" means 80% of the full context window
+	const contextPercentUsed = (totalTokens / contextWindow) * 100
 	const threshold = Math.max(MIN_CONDENSE_THRESHOLD, Math.min(autoCondenseContextPercent, MAX_CONDENSE_THRESHOLD))
 
 	console.log(
-		`[truncateConversationIfNeeded] contextPercentUsed: ${contextPercentUsed.toFixed(1)}%, threshold: ${threshold}%, taskId: ${taskId}`,
+		`[truncateConversationIfNeeded] totalTokens: ${totalTokens}, contextWindow: ${contextWindow}, contextPercentUsed: ${contextPercentUsed.toFixed(1)}%, threshold: ${threshold}%, availableTokens: ${availableTokens}, taskId: ${taskId}`,
 	)
 
 	// Only run trimming when context usage exceeds the configured threshold
 	if (contextPercentUsed < threshold) {
+		console.log(
+			`[truncateConversationIfNeeded] Context usage ${contextPercentUsed.toFixed(1)}% is below threshold ${threshold}%, skipping condensing`,
+		)
 		return { messages, summary: "", cost: 0, prevContextTokens: totalTokens }
 	}
 

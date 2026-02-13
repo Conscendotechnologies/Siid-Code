@@ -116,6 +116,9 @@ export async function summarizeConversation(
 ): Promise<SummarizeResponse> {
 	console.log(`[summarizeConversation] Trimming tool results in-place. taskId: ${taskId}`)
 
+	// Track how many tool results were trimmed
+	let trimmedCount = 0
+
 	// Replace tool results with status message for specified tools (mutate in-place)
 	// Format: [0] header "[tool_name for '...'] Result:" -> keep
 	//         [1] actual result content -> remove (splice out)
@@ -142,20 +145,47 @@ export async function summarizeConversation(
 			}
 			// Remove the next 2 blocks (result content + continuation hint) and replace with status message
 			const removeCount = Math.min(2, msg.content.length - (i + 1))
-			msg.content.splice(i + 1, removeCount, {
-				type: "text",
-				text: "[Result removed for context reduction]",
-			} as any)
+			if (removeCount > 0) {
+				msg.content.splice(i + 1, removeCount, {
+					type: "text",
+					text: "[Result removed for context reduction]",
+				} as any)
+				trimmedCount++
+			}
 		}
 	}
+
+	console.log(`[summarizeConversation] Trimmed ${trimmedCount} tool results`)
+
 	// Count tokens after trimming to report new context size (exclude system prompt to match prevContextTokens calculation)
 	const contextBlocks = messages.flatMap((message) =>
 		typeof message.content === "string" ? [{ text: message.content, type: "text" as const }] : message.content,
 	)
 	const newContextTokens = await apiHandler.countTokens(contextBlocks)
+	const reductionTokens = prevContextTokens - newContextTokens
+	const reductionPercent = prevContextTokens > 0 ? ((reductionTokens / prevContextTokens) * 100).toFixed(1) : "0"
+
 	console.log(
-		`[summarizeConversation] prevContextTokens: ${prevContextTokens}, newContextTokens: ${newContextTokens}`,
+		`[summarizeConversation] prevContextTokens: ${prevContextTokens}, newContextTokens: ${newContextTokens}, reduction: ${reductionTokens} tokens (${reductionPercent}%)`,
 	)
+
+	// Check if trimming was insufficient (less than 5% reduction and still near capacity)
+	if (trimmedCount === 0) {
+		console.warn(`[summarizeConversation] No tool results were trimmed - context may still be too large`)
+		return {
+			messages,
+			cost: 0,
+			summary: "",
+			newContextTokens,
+			error: "Context condensing could not find tool results to trim. The conversation may be too long. Consider starting a new task or deleting some messages from history.",
+		}
+	}
+
+	if (reductionTokens < prevContextTokens * 0.05) {
+		console.warn(
+			`[summarizeConversation] Minimal reduction achieved (${reductionPercent}%) - context may still be too large`,
+		)
+	}
 
 	return { messages, cost: 0, summary: "", newContextTokens }
 }
