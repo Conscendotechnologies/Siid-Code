@@ -1,5 +1,6 @@
 import * as path from "path"
 import * as vscode from "vscode"
+import * as fs from "fs/promises"
 import os from "os"
 import crypto from "crypto"
 import EventEmitter from "events"
@@ -141,6 +142,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	readonly parentTask: Task | undefined = undefined
 	readonly taskNumber: number
 	readonly workspacePath: string
+
+	/**
+	 * Cache for planning file content to avoid repeated disk reads.
+	 * Key: planning file path, Value: file content
+	 */
+	private planningFileCache: Map<string, string> = new Map()
 
 	/**
 	 * The mode associated with this task. Persisted across sessions
@@ -437,20 +444,38 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 */
 	private ensureTodoListInitialized(): void {
 		try {
+			// IMPORTANT: Subtasks should start with their own task-specific todo list
+			// Check this FIRST before attempting to restore from messages.
+			if (this.parentTask) {
+				// Subtasks get a focused checklist with dry-run and deploy steps
+				const subtaskDefaultMd = [
+					"[ ] Implement assigned task",
+					"[ ] Dry-run validation",
+					"[ ] Deploy to org",
+					"[ ] Verify deployment success",
+				].join("\n")
+				const seeded = subtaskDefaultMd.split(/\r?\n/).map((line) => ({
+					id: crypto.createHash("md5").update(line).digest("hex"),
+					content: line.replace(/^\[[^\]]+\]\s+/, ""),
+					status: "pending" as const,
+				}))
+				void setTodoListForTask(this, seeded)
+				console.log(`[Task] Subtask ${this.taskId} initialized with deployment-focused todo list`)
+				return
+			}
+
 			// Attempt to restore from prior messages (history or resumed tasks).
 			restoreTodoListForTask(this)
 			const hasTodos = Array.isArray(this.todoList) && this.todoList.length > 0
 			if (!hasTodos) {
-				// Seed with a starter checklist that encourages proper planning
-				// The orchestrator will replace this with dynamic phase-based todos
+				// Seed root/orchestrator tasks with a starter checklist
 				const defaultMd = [
 					"[ ] Analyze request & identify components",
 					"[ ] Define phases with mode assignments",
 					"[ ] Execute phases sequentially",
 					"[ ] Validate & finalize",
 				].join("\n")
-				// Use the same parser as the updateTodoListTool via its interface by reusing setTodoListForTask with parsed items.
-				// Minimal parsing: mirror updateTodoListTool's parser by synthesizing ids and pending status.
+				// Minimal parsing: synthesize ids and pending status.
 				const seeded = defaultMd.split(/\r?\n/).map((line) => ({
 					id: crypto.createHash("md5").update(line).digest("hex"),
 					content: line.replace(/^\[[^\]]+\]\s+/, ""),
@@ -1059,7 +1084,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	private resumeTaskTimer() {
-		if (!this.taskTimerRunning && !this.timerManuallyPaused) {
+		// Reset manual pause flag when task becomes active again
+		this.timerManuallyPaused = false
+
+		if (!this.taskTimerRunning) {
 			this.taskStartTime = Date.now()
 			this.taskTimerRunning = true
 		}
@@ -1111,6 +1139,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const firstLine = task.split("\n")[0]
 			this.taskTitle = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine
 		}
+
+		// Load existing planning files into cache
+		await this.loadPlanningFilesIntoCache()
 
 		await this.say("text", task, images)
 		this.isInitialized = true
@@ -1276,6 +1307,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		this.isInitialized = true
+
+		// Load existing planning files into cache
+		await this.loadPlanningFilesIntoCache()
 
 		const { response, text, images } = await this.ask(askType) // Calls `postStateToWebview`.
 
@@ -1711,8 +1745,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, {
 			taskGuidesFetched: this.taskGuidesFetched,
 			hasTodoList,
+			isSubtask: !!this.parentTask,
 			cwd: this.cwd,
 			experiments: state?.experiments,
+			planningCache: this.planningFileCache,
 		})
 
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
@@ -2687,5 +2723,78 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	public get cwd() {
 		return this.workspacePath
+	}
+
+	/**
+	 * Get cached planning file content
+	 */
+	public getPlanningCache(): Map<string, string> {
+		return this.planningFileCache
+	}
+
+	/**
+	 * Update planning file cache when AI writes to a planning file
+	 */
+	public updatePlanningCache(filePath: string, content: string): void {
+		// Normalize path and check if it's a planning file
+		const normalizedPath = filePath.replace(/\\/g, "/").toLowerCase()
+		if (normalizedPath.includes("/.siid-code/planning/") && normalizedPath.endsWith("-plan.md")) {
+			this.planningFileCache.set(filePath, content)
+			console.log(`[Task] Updated planning cache for: ${filePath}`)
+		}
+	}
+
+	/**
+	 * Clear a specific planning file from cache
+	 */
+	public clearPlanningCache(filePath?: string): void {
+		if (filePath) {
+			this.planningFileCache.delete(filePath)
+			console.log(`[Task] Cleared planning cache for: ${filePath}`)
+		} else {
+			this.planningFileCache.clear()
+			console.log(`[Task] Cleared all planning cache`)
+		}
+	}
+
+	/**
+	 * Load existing planning files into cache at task start/resume
+	 */
+	private async loadPlanningFilesIntoCache(): Promise<void> {
+		try {
+			const planningDir = path.join(this.cwd, ".siid-code", "planning")
+
+			// Check if planning directory exists
+			const dirExists = await fs
+				.access(planningDir)
+				.then(() => true)
+				.catch(() => false)
+
+			if (!dirExists) {
+				return
+			}
+
+			// Read all planning files
+			const files = await fs.readdir(planningDir)
+			const planFiles = files.filter((f) => f.endsWith("-plan.md"))
+
+			// Load each planning file into cache
+			for (const file of planFiles) {
+				const filePath = path.join(planningDir, file)
+				try {
+					const content = await fs.readFile(filePath, "utf-8")
+					this.planningFileCache.set(filePath, content)
+					console.log(`[Task] Cached planning file: ${file}`)
+				} catch (error) {
+					console.error(`[Task] Failed to cache planning file ${file}:`, error)
+				}
+			}
+
+			if (planFiles.length > 0) {
+				console.log(`[Task] Loaded ${planFiles.length} planning file(s) into cache`)
+			}
+		} catch (error) {
+			console.error("[Task] Error loading planning files into cache:", error)
+		}
 	}
 }

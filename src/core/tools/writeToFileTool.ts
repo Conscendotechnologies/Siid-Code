@@ -314,6 +314,10 @@ export async function writeToFileTool(
 				newContent: newContent,
 			})
 
+			// Update planning cache if this is a planning file
+			const fullAbsolutePath = path.resolve(cline.cwd, relPath)
+			cline.updatePlanningCache(fullAbsolutePath, newContent)
+
 			pushToolResult(message)
 
 			await cline.diffViewProvider.reset()

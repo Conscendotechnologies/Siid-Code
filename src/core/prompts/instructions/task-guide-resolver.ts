@@ -132,6 +132,7 @@ function formatInstructionTitle(key: string): string {
 		create_mode: "Custom Mode Creation",
 		create_lwc: "Lightning Web Component",
 		create_apex: "Apex Class/Trigger",
+		sf_deployment: "Salesforce Deployment Best Practices",
 
 		// Agentforce
 		agentforce_agent_create: "Agentforce Agent Creation Workflow",

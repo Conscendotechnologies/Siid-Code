@@ -19,6 +19,7 @@ import {
 } from "../../shared/tools"
 import { formatResponse } from "../prompts/responses"
 import { Package } from "../../shared/package"
+import { FileChangesService } from "../../services/file-changes"
 
 export async function attemptCompletionTool(
 	cline: Task,
@@ -52,6 +53,95 @@ export async function attemptCompletionTool(
 		)
 
 		return
+	}
+
+	// Check if SF deployment was performed before completing task
+	// Use FileChangesService to get all modified files for this task
+	const sfFileExtensions = [
+		".cls",
+		".trigger",
+		".page",
+		".component",
+		"-meta.xml",
+		".object",
+		".field",
+		".layout",
+		".permissionset",
+		".profile",
+		".flexipage",
+		".flow",
+	]
+	const sfDirectories = [
+		"/classes/",
+		"/triggers/",
+		"/pages/",
+		"/components/",
+		"/objects/",
+		"/layouts/",
+		"/permissionsets/",
+		"/profiles/",
+		"/flexipages/",
+		"/flows/",
+		"/lwc/",
+		"/aura/",
+		"/staticresources/",
+		"/tabs/",
+		"/applications/",
+	]
+
+	let hasSfFileModifications = false
+
+	// Try to use FileChangesService to get modified files
+	try {
+		const fileChangesService = FileChangesService.getInstance()
+		const fileChanges = await fileChangesService.getTaskFileChanges(cline.taskId)
+
+		// Check if any modified files are Salesforce files
+		for (const fileChange of fileChanges) {
+			const filePath = fileChange.filePath.toLowerCase()
+			const hasSfExtension = sfFileExtensions.some((ext) => filePath.includes(ext))
+			const hasSfDirectory = sfDirectories.some((dir) => filePath.includes(dir))
+
+			if (hasSfExtension || hasSfDirectory) {
+				hasSfFileModifications = true
+				break
+			}
+		}
+	} catch (error) {
+		// FileChangesService might not be initialized, fall back to checking messages
+		console.log("[attemptCompletion] FileChangesService unavailable, skipping SF deployment check:", error)
+	}
+
+	// Only check for deployment if Salesforce files were modified
+	if (hasSfFileModifications) {
+		// Look for sf_deploy_metadata tool usage or execute_command with "sf project deploy"
+		const hasSfDeployMetadata = (cline.toolUsage["sf_deploy_metadata"]?.attempts ?? 0) > 0
+
+		// Check if any execute_command contained "sf project deploy"
+		let hasSfDeployCommand = false
+		for (const message of cline.clineMessages) {
+			if (message.type === "ask" && message.ask === "command") {
+				const command = message.text?.toLowerCase() || ""
+				if (command.includes("sf project deploy") || command.includes("sf deploy")) {
+					hasSfDeployCommand = true
+					break
+				}
+			}
+		}
+
+		// If neither deployment method was used, remind the AI to deploy
+		if (!hasSfDeployMetadata && !hasSfDeployCommand) {
+			cline.consecutiveMistakeCount++
+			cline.recordToolError("attempt_completion")
+
+			pushToolResult(
+				formatResponse.toolError(
+					"⚠️ **Deployment Required:** You modified Salesforce files but haven't deployed them yet.\n\n**ACTION REQUIRED:**\n1. First, load deployment instructions: Use 'get_task_guides' tool with your task type (create-apex, create-lwc, etc.) to get the Salesforce Deployment Best Practices guide\n2. Follow the deployment guide to deploy SPECIFIC components (not entire folders)\n3. Use 'execute_command' with component-specific paths:\n   - Apex: `sf project deploy start --dry-run --source-dir force-app/main/default/classes/YourClass.cls --json`\n   - LWC: `sf project deploy start --dry-run --source-dir force-app/main/default/lwc/yourComponent --json`\n\n**CRITICAL:** \n- ❌ NEVER deploy entire folders (classes/, lwc/, etc.)\n- ✅ ALWAYS deploy specific component files/folders\n- ✅ ALWAYS dry-run first, fix errors, then deploy\n- ✅ Deploy dependencies in order (Apex first, then LWC)\n- ✅ If multiple components fail together, deploy one-by-one\n\nAfter successful deployment, attempt completion again.",
+				),
+			)
+
+			return
+		}
 	}
 
 	try {
