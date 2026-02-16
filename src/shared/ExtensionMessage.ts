@@ -124,9 +124,13 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "firebaseLogout"
 		| "showOsNotification"
+		| "fileCreated"
+		| "fileChanges"
+		| "fileChangesStatistics"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
+	files?: any[] // File change tracking data for fileCreated messages
 	action?:
 		| "chatButtonClicked"
 		| "mcpButtonClicked"
@@ -202,6 +206,23 @@ export interface ExtensionMessage {
 	loginData?: {
 		userInfo?: CloudUserInfo
 	}
+	fileChanges?: Array<{
+		path: string
+		additions: number
+		deletions: number
+		status: "modified" | "created" | "deleted"
+		diff?: string
+		deploymentStatus?: "local" | "dry-run" | "deploying" | "deployed" | "failed"
+		timestamp: number
+		error?: string
+	}>
+	statistics?: {
+		totalFiles: number
+		totalAdditions: number
+		totalDeletions: number
+		byStatus: Record<string, number>
+		byDeploymentStatus: Record<string, number>
+	}
 }
 
 export type ExtensionState = Pick<
@@ -229,6 +250,7 @@ export type ExtensionState = Pick<
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowDeploySfMetadata"
+	| "alwaysAllowRetrieveSfMetadata"
 	| "allowedCommands"
 	| "deniedCommands"
 	| "allowedMaxRequests"
@@ -285,6 +307,9 @@ export type ExtensionState = Pick<
 	version: string
 	clineMessages: ClineMessage[]
 	currentTaskItem?: HistoryItem
+	taskStartTime?: number
+	taskElapsedTime?: number
+	taskCompleted?: boolean
 	apiConfiguration?: ProviderSettings
 	uriScheme?: string
 	shouldShowAnnouncement: boolean

@@ -56,6 +56,7 @@ const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv"])
 
 import { MarketplaceManager, MarketplaceItemType } from "../../services/marketplace"
 import { setPendingTodoList } from "../tools/updateTodoListTool"
+import { FileChangesService } from "../../services/file-changes"
 
 export const webviewMessageHandler = async (
 	provider: ClineProvider,
@@ -208,7 +209,17 @@ export const webviewMessageHandler = async (
 		}
 	}
 
+	console.log(`[DEBUG] Received webview message type: ${message.type}`)
+
 	switch (message.type) {
+		case "debugStopTimer": {
+			const task = provider.getCurrentCline()
+			if (task) {
+				task.manualPauseTimer()
+				await provider.postStateToWebview()
+			}
+			break
+		}
 		case "webviewDidLaunch":
 			// Calculate and log time from activation to UI ready
 			const activationStartTime = provider.getValue("activationStartTime")
@@ -503,6 +514,10 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowDeploySfMetadata":
 			await updateGlobalState("alwaysAllowDeploySfMetadata", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "alwaysAllowRetrieveSfMetadata":
+			await updateGlobalState("alwaysAllowRetrieveSfMetadata", message.bool)
 			await provider.postStateToWebview()
 			break
 		case "askResponse":
@@ -867,6 +882,61 @@ export const webviewMessageHandler = async (
 
 				// If webview sent `path` instead of `text`, accept that too.
 				openFile(requested, message.values as { create?: boolean; content?: string; line?: number })
+			}
+			break
+		case "openDiff":
+			{
+				// Open VS Code native diff editor for a file change
+				const diffPayload = message.values as
+					| {
+							filePath?: string
+							diff?: string
+							original?: string
+							modified?: string
+							status?: string
+					  }
+					| undefined
+
+				if (!diffPayload?.filePath) break
+
+				const workDir = getWorkspacePath()
+				const filePath = diffPayload.filePath
+				const absolutePath = path.isAbsolute(filePath)
+					? filePath
+					: workDir
+						? path.resolve(workDir, filePath.replace(/^\.\//, ""))
+						: filePath
+
+				try {
+					// If we have a diff string, reconstruct original content from current file
+					if (diffPayload.diff) {
+						const currentContent = await fs.readFile(absolutePath, "utf-8").catch(() => "")
+						const originalContent = diffPayload.original ?? currentContent
+
+						// Create a virtual document URI for the original content
+						const { DIFF_VIEW_URI_SCHEME } = await import("../../integrations/editor/DiffViewProvider")
+						const fileName = path.basename(absolutePath)
+						const originalUri = vscode.Uri.parse(`${DIFF_VIEW_URI_SCHEME}:${fileName}`).with({
+							query: Buffer.from(originalContent).toString("base64"),
+						})
+						const modifiedUri = vscode.Uri.file(absolutePath)
+
+						await vscode.commands.executeCommand(
+							"vscode.diff",
+							originalUri,
+							modifiedUri,
+							`${fileName}: Changes`,
+							{ preview: true, preserveFocus: false },
+						)
+					} else {
+						// No diff available, just open the file
+						openFile(absolutePath)
+					}
+				} catch (err) {
+					console.error("Failed to open diff view:", err)
+					// Fallback: just open the file
+					openFile(absolutePath)
+				}
 			}
 			break
 		case "openMention":
@@ -1604,6 +1674,10 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("profileThresholds", message.values)
 			await provider.postStateToWebview()
 			break
+		case "updateExperimental":
+			await updateGlobalState("experiments", message.values)
+			await provider.postStateToWebview()
+			break
 		case "autoApprovalEnabled":
 			await updateGlobalState("autoApprovalEnabled", message.bool ?? false)
 			await provider.postStateToWebview()
@@ -1859,5 +1933,149 @@ export const webviewMessageHandler = async (
 				}
 			}
 			break
+
+		// File Changes Database handlers
+		case "getFileChanges": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const fileChanges = await service.getTaskFileChanges(taskId)
+					await provider.postMessageToWebview({
+						type: "fileChanges",
+						fileChanges: fileChanges.map((fc) => ({
+							path: fc.filePath,
+							additions: fc.additions,
+							deletions: fc.deletions,
+							status: fc.status,
+							diff: fc.diff,
+							deploymentStatus: fc.deploymentStatus,
+							timestamp: fc.timestamp,
+							error: fc.error,
+						})),
+					})
+				} catch (error) {
+					provider.log(
+						`Error getting file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+					await provider.postMessageToWebview({
+						type: "fileChanges",
+						fileChanges: [],
+					})
+				}
+			}
+			break
+		}
+
+		case "updateFileDeploymentStatus": {
+			const values = message.values as
+				| {
+						taskId: string
+						filePath: string
+						deploymentStatus: string
+						error?: string
+				  }
+				| undefined
+			if (values?.taskId && values?.filePath && values?.deploymentStatus) {
+				try {
+					const service = FileChangesService.getInstance()
+					await service.updateDeploymentStatus(
+						values.taskId,
+						values.filePath,
+						values.deploymentStatus as "local" | "dry-run" | "deploying" | "deployed" | "failed",
+						values.error,
+					)
+				} catch (error) {
+					provider.log(
+						`Error updating deployment status: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "clearFileChanges": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+					await db.deleteAllFileChangesForTask(taskId)
+				} catch (error) {
+					provider.log(
+						`Error clearing file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "getFileChangesStatistics": {
+			const taskId = message.text
+			if (taskId) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+					const stats = await db.getTaskStatistics(taskId)
+					await provider.postMessageToWebview({
+						type: "fileChangesStatistics",
+						statistics: stats,
+					})
+				} catch (error) {
+					provider.log(
+						`Error getting file changes statistics: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
+
+		case "migrateFileChanges": {
+			const taskId = message.text
+			const localFileChanges = message.values?.fileChanges as
+				| Array<{
+						path: string
+						additions?: number
+						deletions?: number
+						status?: "modified" | "created" | "deleted"
+						diff?: string
+						deploymentStatus?: string
+						timestamp?: number
+						error?: string
+				  }>
+				| undefined
+
+			if (taskId && Array.isArray(localFileChanges) && localFileChanges.length > 0) {
+				try {
+					const service = FileChangesService.getInstance()
+					const db = service.getDatabase()
+
+					provider.log(`Migrating ${localFileChanges.length} file changes for task ${taskId}`)
+
+					for (const fc of localFileChanges) {
+						if (fc.path) {
+							await db.addFileChange({
+								taskId,
+								filePath: fc.path,
+								status: fc.status || "modified",
+								additions: fc.additions,
+								deletions: fc.deletions,
+								deploymentStatus: (fc.deploymentStatus as any) || "local",
+								timestamp: fc.timestamp || Date.now(),
+								diff: fc.diff,
+								error: fc.error,
+							})
+						}
+					}
+
+					provider.log(`Successfully migrated file changes for task ${taskId}`)
+				} catch (error) {
+					provider.log(
+						`Error migrating file changes: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			}
+			break
+		}
 	}
 }

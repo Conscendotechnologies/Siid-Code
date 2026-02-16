@@ -13,6 +13,7 @@ import { fileExistsAtPath } from "../../utils/fs"
 import { RecordSource } from "../context-tracking/FileContextTrackerTypes"
 import { unescapeHtmlEntities } from "../../utils/text-normalization"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
+import { trackFileChange } from "../../services/file-changes/trackFileChange"
 
 export async function applyDiffToolLegacy(
 	cline: Task,
@@ -229,6 +230,15 @@ export async function applyDiffToolLegacy(
 
 			// Get the formatted response message
 			const message = await cline.diffViewProvider.pushToolWriteResult(cline, cline.cwd, !fileExists)
+
+			// Track file change in database with diff calculation
+			await trackFileChange({
+				taskId: cline.taskId,
+				filePath: relPath,
+				status: "modified",
+				oldContent: originalContent,
+				newContent: diffResult.content,
+			})
 
 			// Check for single SEARCH/REPLACE block warning
 			const searchBlocks = (diffContent.match(/<<<<<<< SEARCH/g) || []).length

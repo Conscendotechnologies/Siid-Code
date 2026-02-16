@@ -83,11 +83,15 @@ export async function newTaskTool(
 			cline.pausedModeSlug = (await provider.getState()).mode ?? defaultModeSlug
 
 			// Create new task instance first (this preserves parent's current mode in its history)
+			console.log(`[newTaskTool] Creating subtask with parent ${cline.taskId} (taskNumber: ${cline.taskNumber})`)
 			const newCline = await provider.initClineWithTask(unescapedMessage, undefined, cline)
 			if (!newCline) {
 				pushToolResult(t("tools:newTask.errors.policy_restriction"))
 				return
 			}
+			console.log(
+				`[newTaskTool] Created subtask ${newCline.taskId} (taskNumber: ${newCline.taskNumber}), parentTask=${newCline.parentTask ? newCline.parentTask.taskId : "undefined"}`,
+			)
 
 			// Now switch the newly created task to the desired mode
 			await provider.handleModeSwitch(mode)

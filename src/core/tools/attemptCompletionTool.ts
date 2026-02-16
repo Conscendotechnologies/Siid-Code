@@ -79,6 +79,7 @@ export async function attemptCompletionTool(
 			} else {
 				// No command, still outputting partial result
 				await cline.say("completion_result", removeClosingTag("result", result), undefined, block.partial)
+				cline.taskCompleted = true
 			}
 			return
 		} else {
@@ -95,7 +96,13 @@ export async function attemptCompletionTool(
 			// Users must use execute_command tool separately before attempt_completion
 			await cline.say("completion_result", result, undefined, false)
 			TelemetryService.instance.captureTaskCompleted(cline.taskId)
+			cline.taskCompleted = true
 			cline.emit(RooCodeEventName.TaskCompleted, cline.taskId, cline.getTokenUsage(), cline.toolUsage)
+
+			// Debug logging for subtask detection
+			console.log(
+				`[attemptCompletionTool] Task ${cline.taskId} (taskNumber: ${cline.taskNumber}): parentTask=${cline.parentTask ? cline.parentTask.taskId : "undefined"}`,
+			)
 
 			if (cline.parentTask) {
 				const didApprove = await askFinishSubTaskApproval()

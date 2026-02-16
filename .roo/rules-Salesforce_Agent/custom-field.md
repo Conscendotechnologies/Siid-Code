@@ -166,11 +166,11 @@ After creating the field, you MUST retrieve the Admin profile and add read and e
     - Save at: `force-app/main/default/profiles/Admin.profile-meta.xml`
     - Run dry run first:
         ```bash
-        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml
+        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
         ```
     - If successful, deploy:
         ```bash
-        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml
+        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
         ```
 
 5. **User Communication**
@@ -246,7 +246,7 @@ After successfully deploying the created fields, you MUST retrieve the object's 
 4. **Dry Run Page Layout Update**
 
     ```bash
-    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml
+    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
     ```
 
     - If you get "Too many columns for section style" error: You modified the layout structure. Only add `<layoutItems>` blocks.
@@ -254,7 +254,7 @@ After successfully deploying the created fields, you MUST retrieve the object's 
 5. **Deploy Updated Page Layout**
 
     ```bash
-    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml
+    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
     ```
 
 6. **User Communication**

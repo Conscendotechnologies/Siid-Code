@@ -159,26 +159,3 @@ export async function summarizeConversation(
 
 	return { messages, cost: 0, summary: "", newContextTokens }
 }
-
-/* Returns the list of all messages since the last summary message, including the summary. Returns all messages if there is no summary. */
-export function getMessagesSinceLastSummary(messages: ApiMessage[]): ApiMessage[] {
-	// TODO: Re-enable summary slicing logic later
-	// let lastSummaryIndexReverse = [...messages].reverse().findIndex((message) => message.isSummary)
-	//
-	// if (lastSummaryIndexReverse === -1) {
-	// 	return messages
-	// }
-	//
-	// const lastSummaryIndex = messages.length - lastSummaryIndexReverse - 1
-	// const messagesSinceSummary = messages.slice(lastSummaryIndex)
-	//
-	// // Bedrock requires the first message to be a user message.
-	// // See https://github.com/RooCodeInc/Roo-Code/issues/4147
-	// const userMessage: ApiMessage = {
-	// 	role: "user",
-	// 	content: "Please continue from the following summary:",
-	// 	ts: messages[0]?.ts ? messages[0].ts - 1 : Date.now(),
-	// }
-	// return [userMessage, ...messagesSinceSummary]
-	return messages
-}

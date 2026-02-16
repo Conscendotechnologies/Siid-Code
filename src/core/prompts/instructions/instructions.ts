@@ -28,7 +28,6 @@ import {
 	pmdVisualforceInstructions,
 	pmdXmlInstructions,
 } from "./pmd-instructions"
-import { invocableApexInstructions } from "./code-instructions"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { DiffStrategy } from "../../../shared/tools"
 import * as vscode from "vscode"

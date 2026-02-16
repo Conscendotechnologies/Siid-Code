@@ -177,7 +177,7 @@ jobs:
                 echo "$tag"
               fi
             fi
-          done | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
+          done | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 | sed 's/^/v/')
           
           # Get current year
           CURRENT_YEAR=$(date +'%Y')

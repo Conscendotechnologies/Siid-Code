@@ -71,6 +71,6 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 **Example Usage:**
 
 <get_task_guides>
-<task_type>create-agentforce-agent</task_type>
+<task_type>create-lwc-with-apex</task_type>
 </get_task_guides>`
 }

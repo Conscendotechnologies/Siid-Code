@@ -126,6 +126,11 @@ Example: Requesting instructions to create Aura Components
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Assignment Rules
+
+<fetch_instructions>
+<task>assignment_rules</task>
+</fetch_instructions>
+
 Example: Requesting PMD JavaScript Rules instructions
 
 <fetch_instructions>
@@ -140,9 +145,7 @@ Example: Requesting instructions for Adaptive Response Agent
 			: `Example: Requesting instructions to create a Mode
 <task>pmd_javascript</task>
 </fetch_instructions>
-
 `
-			: ``
 
 	const example = `${mcpExample}Example: Requesting instructions to create a Lightning Web Component
 
@@ -169,6 +172,12 @@ Example: Requesting instructions for Agentforce Topics and Actions Guide
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object
+
+
+<fetch_instructions>
+<task>custom_object</task>
+</fetch_instructions>
+
 Example: Requesting instructions for Salesforce Custom Field
 
 <fetch_instructions>

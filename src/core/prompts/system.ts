@@ -124,7 +124,6 @@ ${getToolDescriptionsForMode(
 	partialReadsEnabled,
 	settings,
 	enableMcpServerCreation,
-	enablePmdRules,
 )}
 
 ${getToolUseGuidelinesSection(codeIndexManager, experiments)}

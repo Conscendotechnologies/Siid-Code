@@ -66,7 +66,6 @@ export function getToolDescriptionsForMode(
 	partialReadsEnabled?: boolean,
 	settings?: Record<string, any>,
 	enableMcpServerCreation?: boolean,
-	enablePmdRules?: boolean,
 ): string {
 	const config = getModeConfig(mode, customModes)
 	const args: ToolArgs = {
@@ -79,7 +78,6 @@ export function getToolDescriptionsForMode(
 		settings: {
 			...settings,
 			enableMcpServerCreation,
-			enablePmdRules,
 		},
 		experiments,
 	}

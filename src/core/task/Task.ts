@@ -107,7 +107,7 @@ import {
 } from "../checkpoints"
 import { processUserContentMentions } from "../mentions/processUserContentMentions"
 import { ApiMessage } from "../task-persistence/apiMessages"
-import { getMessagesSinceLastSummary, summarizeConversation } from "../condense"
+import { summarizeConversation } from "../condense"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoListTool"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
@@ -196,6 +196,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	isPaused: boolean = false
 	pausedModeSlug: string = defaultModeSlug
 	private pauseInterval: NodeJS.Timeout | undefined
+	private isLoopRunning: boolean = false
 
 	// API
 	readonly apiConfiguration: ProviderSettings
@@ -252,6 +253,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	// Task title for notifications
 	taskTitle: string = "Task"
+
+	// Task time tracking
+	taskStartTime?: number
+	private taskElapsedMs: number = 0
+	private taskTimerRunning: boolean = false
+	private timerManuallyPaused: boolean = false
+	taskCompleted: boolean = false
 
 	// Streaming
 	isWaitingForFirstChunk = false
@@ -335,6 +343,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		if (historyItem) {
 			this._taskMode = historyItem.mode || defaultModeSlug
 			this.taskModeReady = Promise.resolve()
+			// Restore saved duration if available
+			if (historyItem.duration) {
+				this.taskElapsedMs = historyItem.duration
+			}
+			// Restore task completion status if available
+			if (historyItem.taskCompleted) {
+				this.taskCompleted = historyItem.taskCompleted
+			}
 			TelemetryService.instance.captureTaskRestarted(this.taskId)
 		} else {
 			// For new tasks, don't set the mode yet - wait for async initialization.
@@ -648,6 +664,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				globalStoragePath: this.globalStoragePath,
 				workspace: this.cwd,
 				mode: this._taskMode || defaultModeSlug, // Use the task's own mode, not the current provider mode
+				// Include subtask relationship IDs for persistence across window reloads
+				parentTaskId: this.parentTask?.taskId,
+				rootTaskId: this.rootTask?.taskId,
+				// Task time tracking - use accumulated elapsed time
+				duration: this.getTaskDuration(),
+				taskCompleted: this.taskCompleted,
 			})
 
 			this.emit(RooCodeEventName.TaskTokenUsageUpdated, this.taskId, tokenUsage)
@@ -761,6 +783,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		if (!partial && !isReady && isBlockingAsk(type)) {
 			this.blockingAsk = type
+			this.pauseTaskTimer()
 			this.emit(RooCodeEventName.TaskIdle, this.taskId)
 		}
 
@@ -783,6 +806,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// Switch back to an active state.
 		if (this.blockingAsk) {
 			this.blockingAsk = undefined
+			this.resumeTaskTimer()
 			this.emit(RooCodeEventName.TaskActive, this.taskId)
 		}
 
@@ -1023,6 +1047,44 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		return formatResponse.toolError(formatResponse.missingToolParameterError(paramName))
 	}
 
+	// Task Timer Helpers
+
+	private pauseTaskTimer() {
+		if (this.taskTimerRunning && this.taskStartTime) {
+			this.taskElapsedMs += Date.now() - this.taskStartTime
+		}
+		// Always clear taskStartTime to stop UI timer, even if timer wasn't running
+		this.taskStartTime = undefined
+		this.taskTimerRunning = false
+	}
+
+	private resumeTaskTimer() {
+		if (!this.taskTimerRunning && !this.timerManuallyPaused) {
+			this.taskStartTime = Date.now()
+			this.taskTimerRunning = true
+		}
+	}
+
+	private stopTaskTimer() {
+		if (this.taskStartTime) {
+			this.taskElapsedMs += Date.now() - this.taskStartTime
+		}
+		this.taskStartTime = undefined
+		this.taskTimerRunning = false
+	}
+
+	public manualPauseTimer() {
+		this.stopTaskTimer()
+		this.timerManuallyPaused = true
+	}
+
+	getTaskDuration(): number {
+		if (this.taskTimerRunning && this.taskStartTime) {
+			return this.taskElapsedMs + (Date.now() - this.taskStartTime)
+		}
+		return this.taskElapsedMs
+	}
+
 	// Start / Abort / Resume
 
 	private async startTask(task?: string, images?: string[]): Promise<void> {
@@ -1081,6 +1143,75 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				role: "user",
 				content: [{ type: "text", text: `[new_task completed] Result: ${lastMessage}` }],
 			})
+
+			// If the task loop is not running (e.g., parent was loaded from history),
+			// we need to continue processing with the subtask result
+			if (!this.isLoopRunning) {
+				this.providerRef
+					.deref()
+					?.log(
+						`[subtasks] task ${this.taskId}.${this.instanceId} loop not running, continuing conversation with subtask result`,
+					)
+
+				// Mark the loop as running since we're about to start it
+				this.isLoopRunning = true
+				this.resumeTaskTimer()
+				this.emit(RooCodeEventName.TaskStarted)
+
+				// Continue the existing conversation by calling recursivelyMakeClineRequests
+				// This preserves all previous context and simply continues from where we left off
+				let nextUserContent: Anthropic.Messages.ContentBlockParam[] = [
+					{ type: "text", text: `[new_task completed] Result: ${lastMessage}` },
+				]
+
+				try {
+					while (!this.abort) {
+						const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, false)
+
+						if (didEndLoop) {
+							break
+						} else {
+							nextUserContent = [{ type: "text", text: formatResponse.noToolsUsed() }]
+							this.consecutiveMistakeCount++
+						}
+					}
+				} finally {
+					// Mark that the loop has finished
+					this.isLoopRunning = false
+					this.stopTaskTimer()
+
+					// Update webview immediately to stop the live timer
+					await this.providerRef.deref()?.postStateToWebview()
+
+					// Emit task completion event if not aborted
+					if (!this.abort) {
+						// Mark task as completed
+						this.taskCompleted = true
+
+						// Save messages to get final token usage
+						await this.saveClineMessages()
+						const { tokenUsage } = await taskMetadata({
+							messages: this.clineMessages,
+							taskId: this.taskId,
+							taskNumber: this.taskNumber,
+							globalStoragePath: this.globalStoragePath,
+							workspace: this.cwd,
+							mode: this._taskMode || defaultModeSlug,
+							parentTaskId: this.parentTask?.taskId,
+							rootTaskId: this.rootTask?.taskId,
+							duration: this.getTaskDuration(),
+							taskCompleted: this.taskCompleted,
+						})
+						this.emit(RooCodeEventName.TaskCompleted, this.taskId, tokenUsage, this.toolUsage)
+					}
+				}
+			} else {
+				this.providerRef
+					.deref()
+					?.log(
+						`[subtasks] task ${this.taskId}.${this.instanceId} loop already running, will continue automatically`,
+					)
+			}
 		} catch (error) {
 			this.providerRef
 				.deref()
@@ -1385,6 +1516,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	public async abortTask(isAbandoned = false) {
 		console.log(`[subtasks] aborting task ${this.taskId}.${this.instanceId}`)
 
+		// Stop the task timer to save the elapsed duration
+		this.stopTaskTimer()
+
 		// Will stop any autonomously running promises.
 		if (isAbandoned) {
 			this.abandoned = true
@@ -1433,6 +1567,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		let nextUserContent = userContent
 		let includeFileDetails = true
 
+		// Mark that the task loop is now running
+		this.isLoopRunning = true
+
+		this.resumeTaskTimer()
 		this.emit(RooCodeEventName.TaskStarted)
 
 		while (!this.abort) {
@@ -1459,6 +1597,32 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				this.consecutiveMistakeCount++
 			}
 		}
+
+		// Mark that the loop has finished
+		this.isLoopRunning = false
+		this.stopTaskTimer()
+
+		// Update webview immediately to stop the live timer
+		await this.providerRef.deref()?.postStateToWebview()
+
+		// Emit task completion event if not aborted
+		if (!this.abort) {
+			// Save messages to get final token usage
+			await this.saveClineMessages()
+			const { tokenUsage } = await taskMetadata({
+				messages: this.clineMessages,
+				taskId: this.taskId,
+				taskNumber: this.taskNumber,
+				globalStoragePath: this.globalStoragePath,
+				workspace: this.cwd,
+				mode: this._taskMode || defaultModeSlug,
+				parentTaskId: this.parentTask?.taskId,
+				rootTaskId: this.rootTask?.taskId,
+				duration: this.getTaskDuration(),
+				taskCompleted: this.taskCompleted,
+			})
+			this.emit(RooCodeEventName.TaskCompleted, this.taskId, tokenUsage, this.toolUsage)
+		}
 	}
 
 	public async recursivelyMakeClineRequests(
@@ -1470,25 +1634,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		if (this.consecutiveMistakeLimit > 0 && this.consecutiveMistakeCount >= this.consecutiveMistakeLimit) {
-			const { response, text, images } = await this.ask(
-				"mistake_limit_reached",
-				t("common:errors.mistake_limit_guidance"),
-			)
-
-			if (response === "messageResponse") {
-				userContent.push(
-					...[
-						{ type: "text" as const, text: formatResponse.tooManyMistakes(text) },
-						...formatResponse.imageBlocks(images),
-					],
-				)
-
-				await this.say("user_feedback", text, images)
-
-				// Track consecutive mistake errors in telemetry.
-				TelemetryService.instance.captureConsecutiveMistakeError(this.taskId)
-			}
-
+			let text = `Siid-Code has made ${this.consecutiveMistakeCount} consecutive mistakes by not using any tools.`
+			// Silently reset the count without showing error in chat
+			userContent.push(...[{ type: "text" as const, text: formatResponse.tooManyMistakes(text) }])
 			this.consecutiveMistakeCount = 0
 		}
 
@@ -1713,8 +1861,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					switch (chunk.type) {
 						case "reasoning":
+							// Buffer reasoning chunks and present as a single
+							// reasoning message after the stream completes.
 							reasoningMessage += chunk.text
-							await this.say("reasoning", reasoningMessage, undefined, true)
 							break
 						case "usage":
 							inputTokens += chunk.inputTokens
@@ -1740,9 +1889,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 								// false in case previous content set this to true.
 								this.userMessageContentReady = false
 							}
-
-							// Present content to user.
-							presentAssistantMessage(this)
+							// Do not present partial assistant content while the
+							// model is still streaming reasoning; we'll present a
+							// single final assistant message after the stream
+							// completes to ensure thinking appears first.
 							break
 						}
 					}
@@ -1808,7 +1958,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					const history = await provider?.getTaskWithId(this.taskId)
 
 					if (history) {
-						await provider?.initClineWithHistoryItem(history.historyItem)
+						// Preserve parent and root task information when reinitializing from history
+						// to ensure subtask completion still works correctly
+						await provider?.initClineWithHistoryItem({
+							...history.historyItem,
+							rootTask: this.rootTask,
+							parentTask: this.parentTask,
+						})
 					}
 				}
 			} finally {
@@ -1840,13 +1996,24 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			this.didCompleteReadingStream = true
 
-			// Set any blocks to be complete to allow `presentAssistantMessage`
-			// to finish and set `userMessageContentReady` to true.
-			// (Could be a text block that had no subsequent tool uses, or a
-			// text block at the very end, or an invalid tool use, etc. Whatever
-			// the case, `presentAssistantMessage` relies on these blocks either
-			// to be completed or the user to reject a block in order to proceed
-			// and eventually set userMessageContentReady to true.)
+			// If the model streamed reasoning chunks, present them once as a
+			// single complete reasoning message to avoid multiple partial
+			// updates in the UI. Trim whitespace-only content to avoid blank
+			// thinking boxes at the start or end of a stream.
+			const reasoningTrim = reasoningMessage.trim()
+			if (reasoningTrim.length > 0) {
+				try {
+					await this.say("reasoning", reasoningTrim, undefined, false)
+				} catch (err) {
+					// Non-fatal: log and continue
+					console.error("Error presenting combined reasoning message:", err)
+				}
+			}
+
+			// Set any blocks to be complete so presentation can finish and
+			// set `userMessageContentReady` to true. We'll present assistant
+			// content once (after reasoning has been shown) to avoid
+			// interleaving partial thinking updates with content updates.
 			const partialBlocks = this.assistantMessageContent.filter((block) => block.partial)
 			partialBlocks.forEach((block) => (block.partial = false))
 
@@ -1860,12 +2027,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 			// When using old parser, no finalization needed - parsing already happened during streaming
 
-			if (partialBlocks.length > 0) {
-				// If there is content to update then it will complete and
-				// update `this.userMessageContentReady` to true, which we
-				// `pWaitFor` before making the next request. All this is really
-				// doing is presenting the last partial message that we just set
-				// to complete.
+			// Present assistant content once (if any) after reasoning has been emitted
+			if (assistantMessage.length > 0 || partialBlocks.length > 0) {
 				presentAssistantMessage(this)
 			}
 
@@ -1917,6 +2080,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				if (!didToolUse) {
 					this.userMessageContent.push({ type: "text", text: formatResponse.noToolsUsed() })
 					this.consecutiveMistakeCount++
+				} else {
+					// Reset count when tools are successfully used
+					this.consecutiveMistakeCount = 0
 				}
 
 				const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
@@ -2288,8 +2454,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		const messagesSinceLastSummary = getMessagesSinceLastSummary(this.apiConversationHistory)
-		const cleanConversationHistory = maybeRemoveImageBlocks(messagesSinceLastSummary, this.api).map(
+		const cleanConversationHistory = maybeRemoveImageBlocks(this.apiConversationHistory, this.api).map(
 			({ role, content }) => ({ role, content }),
 		)
 
