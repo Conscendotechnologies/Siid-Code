@@ -47,10 +47,9 @@ export interface WebviewMessage {
 		| "alwaysAllowUpdateTodoList"
 		| "alwaysAllowDeploySfMetadata"
 		| "alwaysAllowRetrieveSfMetadata"
-		| "useFreeModels"
+		| "tier"
 		| "followupAutoApproveTimeoutMs"
 		| "webviewDidLaunch"
-		| "debugStopTimer"
 		| "newTask"
 		| "askResponse"
 		| "terminalOperation"
@@ -233,6 +232,7 @@ export interface WebviewMessage {
 		| "clearFileChanges"
 		| "getFileChangesStatistics"
 		| "migrateFileChanges"
+		| "debugStopTimer"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"

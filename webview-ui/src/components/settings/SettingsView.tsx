@@ -186,7 +186,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		includeDiagnosticMessages,
 		maxDiagnosticMessages,
 		includeTaskHistoryInEnhance,
-		useFreeModels,
+		tier,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -587,7 +587,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								<ApiConfigManager
 									currentApiConfigName={currentApiConfigName}
 									listApiConfigMeta={listApiConfigMeta}
-									useFreeModels={useFreeModels}
+									tier={tier}
 									developerMode={extensionState.developerMode}
 									onSelectConfig={(configName: string) =>
 										checkUnsaveChanges(() =>

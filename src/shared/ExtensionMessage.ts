@@ -309,7 +309,6 @@ export type ExtensionState = Pick<
 	currentTaskItem?: HistoryItem
 	taskStartTime?: number
 	taskElapsedTime?: number
-	taskCompleted?: boolean
 	apiConfiguration?: ProviderSettings
 	uriScheme?: string
 	shouldShowAnnouncement: boolean

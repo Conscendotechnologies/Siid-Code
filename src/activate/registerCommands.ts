@@ -237,9 +237,9 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			provider.setFirebaseAuthState(true)
 			outputChannel.appendLine("Firebase auth state set to authenticated")
 
-			// Set useFreeModels preference (false for dev bypass - user has their own API key)
-			await provider.contextProxy.setValue("useFreeModels", false)
-			outputChannel.appendLine("useFreeModels set to false (using user's own API key)")
+			// Set tier to Max for dev bypass (user has their own API key)
+			await provider.contextProxy.setValue("tier", "Max")
+			outputChannel.appendLine("tier set to Max (using user's own API key)")
 
 			// Update all provider configs with the API key
 			// This will call fetchApiKeysFromFirebase which now checks for devBypassApiKey
@@ -290,9 +290,9 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 				provider.setFirebaseAuthState(false)
 				outputChannel.appendLine("Firebase auth state set to logged out")
 
-				// Clear useFreeModels preference
-				await provider.contextProxy.setValue("useFreeModels", undefined)
-				outputChannel.appendLine("useFreeModels cleared")
+				// Reset tier to Free
+				await provider.contextProxy.setValue("tier", "Free")
+				outputChannel.appendLine("tier reset to Free")
 
 				// Update webview state
 				await provider.postStateToWebview()
@@ -394,6 +394,45 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		await visibleProvider.postStateToWebview()
 		await visibleProvider.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
 		await visibleProvider.postMessageToWebview({ type: "action", action: "focusInput" })
+	},
+	setTierFree: async () => {
+		// Test command to set tier to Free
+		try {
+			await provider.contextProxy.setValue("tier", "Free")
+			await provider.postStateToWebview()
+			outputChannel.appendLine("✅ Tier set to Free")
+			vscode.window.showInformationMessage("Tier set to Free")
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`❌ Failed to set tier: ${errorMsg}`)
+			vscode.window.showErrorMessage(`Failed to set tier: ${errorMsg}`)
+		}
+	},
+	setTierPro: async () => {
+		// Test command to set tier to Pro
+		try {
+			await provider.contextProxy.setValue("tier", "Pro")
+			await provider.postStateToWebview()
+			outputChannel.appendLine("✅ Tier set to Pro")
+			vscode.window.showInformationMessage("Tier set to Pro")
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`❌ Failed to set tier: ${errorMsg}`)
+			vscode.window.showErrorMessage(`Failed to set tier: ${errorMsg}`)
+		}
+	},
+	setTierMax: async () => {
+		// Test command to set tier to Max
+		try {
+			await provider.contextProxy.setValue("tier", "Max")
+			await provider.postStateToWebview()
+			outputChannel.appendLine("✅ Tier set to Max")
+			vscode.window.showInformationMessage("Tier set to Max")
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`❌ Failed to set tier: ${errorMsg}`)
+			vscode.window.showErrorMessage(`Failed to set tier: ${errorMsg}`)
+		}
 	},
 })
 

@@ -12,7 +12,7 @@ interface ApiConfigManagerProps {
 	currentApiConfigName?: string
 	listApiConfigMeta?: ProviderSettingsEntry[]
 	organizationAllowList?: OrganizationAllowList
-	useFreeModels?: boolean
+	tier?: "Free" | "Pro" | "Max"
 	developerMode?: boolean
 	onSelectConfig: (configName: string) => void
 	onDeleteConfig: (configName: string) => void
@@ -24,7 +24,7 @@ const ApiConfigManager = ({
 	currentApiConfigName = "",
 	listApiConfigMeta = [],
 	organizationAllowList,
-	useFreeModels = false,
+	tier = "Free",
 	developerMode = false,
 	onSelectConfig,
 	onDeleteConfig,
@@ -174,14 +174,17 @@ const ApiConfigManager = ({
 		onDeleteConfig(currentApiConfigName)
 	}
 
-	// Filter configs based on useFreeModels setting
-	// Free configs end with '-free', paid configs don't
+	// Filter configs based on tier setting
+	// Free tier shows -free configs, Pro tier shows -medium configs, Max tier shows -advanced configs
 	// In developer mode, show all configs regardless of tier
 	const filteredConfigs = developerMode
 		? listApiConfigMeta // Show all configs in developer mode
 		: listApiConfigMeta.filter((config) => {
-				const isFreeConfig = config.id.endsWith("-free")
-				return useFreeModels ? isFreeConfig : !isFreeConfig
+				const id = config.id
+				if (tier === "Free") return id.endsWith("-free")
+				if (tier === "Pro") return id.includes("-medium") || id.includes("-pro")
+				if (tier === "Max") return id.includes("-advanced") || id.includes("-max")
+				return false
 			})
 
 	const isOnlyProfile = filteredConfigs?.length === 1

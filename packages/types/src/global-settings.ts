@@ -166,7 +166,7 @@ export const globalSettingsSchema = z.object({
 	 * Changes apply to new tasks only, not mid-task
 	 * @default false for existing users, true for new installations
 	 */
-	useFreeModels: z.boolean().optional(),
+	tier: z.enum(["Free", "Pro", "Max"]).optional(),
 
 	/**
 	 * Temporary storage for user-provided API key during Firebase sign-in flow

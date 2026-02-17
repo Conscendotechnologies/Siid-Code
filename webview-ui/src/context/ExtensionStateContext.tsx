@@ -158,6 +158,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setIncludeTaskHistoryInEnhance: (value: boolean) => void
 	useFreeModels?: boolean
 	setUseFreeModels: (value: boolean) => void
+	tier?: "Free" | "Pro" | "Max"
+	setTier: (value: "Free" | "Pro" | "Max") => void
 }
 
 export const ExtensionStateContext = createContext<ExtensionStateContextType | undefined>(undefined)
@@ -284,6 +286,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	})
 	const [includeTaskHistoryInEnhance, setIncludeTaskHistoryInEnhance] = useState(false)
 	const [useFreeModels, setUseFreeModels] = useState(false)
+	const [tier, setTier] = useState<"Free" | "Pro" | "Max">("Free")
 
 	const setListApiConfigMeta = useCallback(
 		(value: ProviderSettingsEntry[]) => setState((prevState) => ({ ...prevState, listApiConfigMeta: value })),
@@ -334,6 +337,10 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					// Update useFreeModels if present in state message
 					if ((newState as any).useFreeModels !== undefined) {
 						setUseFreeModels((newState as any).useFreeModels)
+					}
+					// Update tier if present in state message
+					if ((newState as any).tier !== undefined) {
+						setTier((newState as any).tier)
 					}
 					// Handle marketplace data if present in state message
 					if (newState.marketplaceItems !== undefined) {
@@ -570,8 +577,15 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setIncludeTaskHistoryInEnhance,
 		useFreeModels,
 		setUseFreeModels: (value) => {
-			setUseFreeModels(value)
-			vscode.postMessage({ type: "useFreeModels", bool: value })
+			// Legacy method - map to tier
+			const tierValue = value ? "Free" : "Max"
+			setTier(tierValue)
+			vscode.postMessage({ type: "tier", text: tierValue })
+		},
+		tier,
+		setTier: (value) => {
+			setTier(value)
+			vscode.postMessage({ type: "tier", text: value })
 		},
 		setDeveloperMode: (value) => {
 			setState((prevState) => ({ ...prevState, developerMode: value }))

@@ -100,7 +100,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			taskHistory,
 			clineMessages,
 			commands,
-			useFreeModels,
+			tier,
 			developerMode,
 			apiConfiguration,
 		} = extensionState
@@ -923,7 +923,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								mode={mode}
 								onChange={handleModelChange}
 								title={t("chat:selectModel", { defaultValue: "Select model" })}
-								useFreeModels={useFreeModels}
+								tier={tier}
 								developerMode={developerMode}
 							/>
 						</div>
