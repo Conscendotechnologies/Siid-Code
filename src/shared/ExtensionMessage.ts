@@ -250,6 +250,7 @@ export type ExtensionState = Pick<
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowUpdateTodoList"
 	| "alwaysAllowDeploySfMetadata"
+	| "alwaysAllowRetrieveSfMetadata"
 	| "allowedCommands"
 	| "deniedCommands"
 	| "allowedMaxRequests"
@@ -306,6 +307,9 @@ export type ExtensionState = Pick<
 	version: string
 	clineMessages: ClineMessage[]
 	currentTaskItem?: HistoryItem
+	taskStartTime?: number
+	taskElapsedTime?: number
+	taskCompleted?: boolean
 	apiConfiguration?: ProviderSettings
 	uriScheme?: string
 	shouldShowAnnouncement: boolean

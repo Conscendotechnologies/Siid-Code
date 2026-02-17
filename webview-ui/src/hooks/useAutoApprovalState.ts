@@ -12,6 +12,7 @@ interface AutoApprovalToggles {
 	alwaysAllowFollowupQuestions?: boolean
 	alwaysAllowUpdateTodoList?: boolean
 	alwaysAllowDeploySfMetadata?: boolean
+	alwaysAllowRetrieveSfMetadata?: boolean
 }
 
 export function useAutoApprovalState(toggles: AutoApprovalToggles, autoApprovalEnabled?: boolean) {

@@ -209,7 +209,17 @@ export const webviewMessageHandler = async (
 		}
 	}
 
+	console.log(`[DEBUG] Received webview message type: ${message.type}`)
+
 	switch (message.type) {
+		case "debugStopTimer": {
+			const task = provider.getCurrentCline()
+			if (task) {
+				task.manualPauseTimer()
+				await provider.postStateToWebview()
+			}
+			break
+		}
 		case "webviewDidLaunch":
 			// Calculate and log time from activation to UI ready
 			const activationStartTime = provider.getValue("activationStartTime")
@@ -504,6 +514,10 @@ export const webviewMessageHandler = async (
 			break
 		case "alwaysAllowDeploySfMetadata":
 			await updateGlobalState("alwaysAllowDeploySfMetadata", message.bool)
+			await provider.postStateToWebview()
+			break
+		case "alwaysAllowRetrieveSfMetadata":
+			await updateGlobalState("alwaysAllowRetrieveSfMetadata", message.bool)
 			await provider.postStateToWebview()
 			break
 		case "askResponse":
