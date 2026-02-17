@@ -32,6 +32,7 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 		setAlwaysAllowFollowupQuestions,
 		setAlwaysAllowUpdateTodoList,
 		setAlwaysAllowDeploySfMetadata,
+		setAlwaysAllowRetrieveSfMetadata,
 	} = useExtensionState()
 
 	const { t } = useAppTranslation()
@@ -88,9 +89,10 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 				case "alwaysAllowDeploySfMetadata":
 					setAlwaysAllowDeploySfMetadata(value)
 					break
+				case "alwaysAllowRetrieveSfMetadata":
+					setAlwaysAllowRetrieveSfMetadata(value)
+					break
 			}
-
-			// Create a new toggles state with the updated value
 			const updatedToggles = {
 				...toggles,
 				[key]: value,
@@ -123,6 +125,7 @@ const AutoApproveMenu = ({ style }: AutoApproveMenuProps) => {
 			setAlwaysAllowFollowupQuestions,
 			setAlwaysAllowUpdateTodoList,
 			setAlwaysAllowDeploySfMetadata,
+			setAlwaysAllowRetrieveSfMetadata,
 			setAutoApprovalEnabled,
 		],
 	)

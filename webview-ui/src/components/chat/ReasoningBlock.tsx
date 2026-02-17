@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react"
 import { CaretDownIcon, CaretUpIcon, CounterClockwiseClockIcon } from "@radix-ui/react-icons"
 import { useTranslation } from "react-i18next"
-import { useExtensionState } from "@src/context/ExtensionStateContext"
 import MarkdownBlock from "../common/MarkdownBlock"
 
 interface ReasoningBlockProps {
@@ -13,8 +12,8 @@ interface ReasoningBlockProps {
 
 export const ReasoningBlock = ({ content, elapsed, isCollapsed = true, onToggleCollapse }: ReasoningBlockProps) => {
 	const elapsedRef = useRef<number>(0)
+
 	const { t } = useTranslation("chat")
-	const { developerMode } = useExtensionState()
 
 	useEffect(() => {
 		// Intentionally do not render or reveal internal reasoning content
@@ -27,11 +26,7 @@ export const ReasoningBlock = ({ content, elapsed, isCollapsed = true, onToggleC
 		}
 	}, [elapsed])
 
-	// When developer mode is OFF, don't render the reasoning block at all
-	// This completely hides the chain of thought from end users
-	if (!developerMode) {
-		return null
-	}
+	// Always render the reasoning block so users can see assistant reasoning
 
 	return (
 		<div className="bg-vscode-editor-background border border-vscode-border rounded-xs overflow-hidden">

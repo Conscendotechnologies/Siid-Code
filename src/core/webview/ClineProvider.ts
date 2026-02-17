@@ -46,6 +46,7 @@ import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { getDefaultModelForMode, getModelsForMode } from "../../shared/mode-models"
 import { experimentDefault } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
+import { analyzeTaskComplexity } from "../task/analyzeTaskComplexity"
 import { WebviewMessage } from "../../shared/WebviewMessage"
 import { EMBEDDING_MODEL_PROFILES } from "../../shared/embeddingModels"
 import { ProfileValidator } from "../../shared/ProfileValidator"
@@ -652,12 +653,33 @@ export class ClineProvider
 			diffEnabled: enableDiff,
 			enableCheckpoints,
 			fuzzyMatchThreshold,
-			experiments,
+			experiments: baseExperiments,
 		} = await this.getState()
 
 		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
+
+		// Analyze task complexity and auto-enable/disable planning workflow
+		// unless experiments are explicitly provided in options (user override)
+		let experiments = baseExperiments
+		let complexity = { isComplex: false, score: 0, factors: [] as string[] }
+
+		if (!options.experiments) {
+			complexity = analyzeTaskComplexity(text)
+			experiments = {
+				...baseExperiments,
+				planningWorkflow: complexity.isComplex,
+			}
+			// Update global state with the new experiments value so toggle reflects in UI
+			await this.updateGlobalState("experiments", experiments)
+		} else {
+			// Use provided experiments, but don't override if planningWorkflow is not explicitly set
+			experiments = { ...baseExperiments, ...options.experiments }
+		}
+
+		// Extract experiments from options to prevent it from being spread again
+		const { experiments: optionsExperiments, ...restOptions } = options
 
 		const task = new Task({
 			provider: this,
@@ -673,10 +695,51 @@ export class ClineProvider
 			parentTask,
 			taskNumber: this.clineStack.length + 1,
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
-			...options,
+			...restOptions,
 		})
 
 		await this.addClineToStack(task)
+
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Add complexity analysis message - show in chat after initial task message
+		if (!options.experiments && complexity.score > 0) {
+			const complexityText = complexity.isComplex
+				? `**Creating planning file for better task organization and tracking.**`
+				: `**No plan file required.**`
+
+			// Send message after a small delay to ensure the task's initial say() message is in place
+			setTimeout(() => {
+				const complexityMessage: any = {
+					ts: Date.now(),
+					type: "say",
+					say: "text",
+					text: complexityText,
+				}
+
+				// Add to the task's messages so it appears in the chat history
+				task.clineMessages.push(complexityMessage)
+
+				// Notify webview to update
+				this.postStateToWebview().catch((err: any) => {
+					console.error("Failed to update webview with complexity message:", err)
+				})
+			}, 150)
+		}
+
+		// Update webview with new experiments state
+		await this.postStateToWebview()
 
 		this.log(
 			`[subtasks] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
@@ -776,6 +839,19 @@ export class ClineProvider
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
 
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
+		})
+
 		await this.addClineToStack(task)
 
 		this.log(
@@ -835,6 +911,19 @@ export class ClineProvider
 			taskNumber: historyItem.number,
 			startTask: false, // Don't start the task - it should be paused waiting for subtask
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
+		})
+
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
 		})
 
 		// Mark as paused since it's waiting for a subtask to complete
@@ -1324,7 +1413,7 @@ export class ClineProvider
 		const rootTask = cline.rootTask
 		const parentTask = cline.parentTask
 
-		cline.abortTask()
+		await cline.abortTask()
 
 		await pWaitFor(
 			() =>
@@ -1340,6 +1429,10 @@ export class ClineProvider
 			},
 		).catch(() => {})
 
+		// Send frozen timer to webview while old Task is still getCurrentCline()
+		// (before initClineWithHistoryItem replaces it with a new instance)
+		await this.postStateToWebview()
+
 		if (this.getCurrentCline()) {
 			// 'abandoned' will prevent this Cline instance from affecting
 			// future Cline instances. This may happen if its hanging on a
@@ -1348,7 +1441,9 @@ export class ClineProvider
 		}
 
 		// Clears task again, so we need to abortTask manually above.
-		await this.initClineWithHistoryItem({ ...historyItem, rootTask, parentTask })
+		// Re-fetch historyItem since abortTask saved updated duration
+		const { historyItem: updatedHistoryItem } = await this.getTaskWithId(cline.taskId)
+		await this.initClineWithHistoryItem({ ...updatedHistoryItem, rootTask, parentTask })
 	}
 
 	async updateCustomInstructions(instructions?: string) {
@@ -1863,6 +1958,12 @@ export class ClineProvider
 			currentTaskItem: this.getCurrentCline()?.taskId
 				? (taskHistory || []).find((item: HistoryItem) => item.id === this.getCurrentCline()?.taskId)
 				: undefined,
+			taskStartTime:
+				this.getCurrentCline()?.taskStartTime && !this.getCurrentCline()?.taskCompleted
+					? this.getCurrentCline()?.taskStartTime
+					: 0,
+			taskElapsedTime: this.getCurrentCline()?.getTaskDuration(),
+			taskCompleted: this.getCurrentCline()?.taskCompleted,
 			clineMessages: this.getCurrentCline()?.clineMessages || [],
 			taskHistory: (taskHistory || [])
 				.filter((item: HistoryItem) => item.ts && item.task)
@@ -2077,6 +2178,7 @@ export class ClineProvider
 			alwaysAllowFollowupQuestions: stateValues.alwaysAllowFollowupQuestions ?? false,
 			alwaysAllowUpdateTodoList: stateValues.alwaysAllowUpdateTodoList ?? false,
 			alwaysAllowDeploySfMetadata: stateValues.alwaysAllowDeploySfMetadata ?? false,
+			alwaysAllowRetrieveSfMetadata: stateValues.alwaysAllowRetrieveSfMetadata ?? false,
 			followupAutoApproveTimeoutMs: stateValues.followupAutoApproveTimeoutMs ?? 60000,
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,

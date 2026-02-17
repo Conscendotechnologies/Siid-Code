@@ -1,6 +1,6 @@
 import { memo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { FoldVertical, ChevronUp, ChevronDown } from "lucide-react"
+import { FoldVertical, ChevronUp, ChevronDown, Timer } from "lucide-react"
 import prettyBytes from "pretty-bytes"
 
 import type { ClineMessage } from "@siid-code/types"
@@ -8,6 +8,7 @@ import type { ClineMessage } from "@siid-code/types"
 import { getModelMaxOutputTokens } from "@roo/api"
 
 import { formatLargeNumber } from "@src/utils/format"
+import { vscode } from "@src/utils/vscode"
 import { cn } from "@src/lib/utils"
 import { StandardTooltip } from "@src/components/ui"
 import { useExtensionState } from "@src/context/ExtensionStateContext"
@@ -19,6 +20,7 @@ import { TaskActions } from "./TaskActions"
 import { ContextWindowProgress } from "./ContextWindowProgress"
 import { Mention } from "./Mention"
 import { TodoListDisplay } from "./TodoListDisplay"
+import { useTaskTimer } from "./useTaskTimer"
 
 export interface TaskHeaderProps {
 	task: ClineMessage
@@ -46,9 +48,11 @@ const TaskHeader = ({
 	todos,
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
-	const { apiConfiguration, currentTaskItem, developerMode } = useExtensionState()
+	const { apiConfiguration, currentTaskItem, taskStartTime, taskElapsedTime, developerMode } = useExtensionState()
 	const { id: modelId, info: model } = useSelectedModel(apiConfiguration)
 	const [isTaskExpanded, setIsTaskExpanded] = useState(false)
+	// Live timer while running, frozen elapsed time when stopped
+	const elapsed = useTaskTimer(taskStartTime, taskElapsedTime)
 
 	const textContainerRef = useRef<HTMLDivElement>(null)
 	const textRef = useRef<HTMLDivElement>(null)
@@ -98,14 +102,36 @@ const TaskHeader = ({
 
 					setIsTaskExpanded(!isTaskExpanded)
 				}}>
+				{/* Timer badge - only show in collapsed state */}
+				{!isTaskExpanded && elapsed && (
+					<div
+						className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-vscode-badge-background text-vscode-badge-foreground text-xs font-medium"
+						onClick={(e) => {
+							e.stopPropagation()
+							vscode.postMessage({ type: "debugStopTimer" })
+						}}>
+						{taskStartTime ? (
+							<span className="relative flex h-2 w-2">
+								<span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+								<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+							</span>
+						) : (
+							<Timer size={12} className="opacity-70" />
+						)}
+						{elapsed}
+					</div>
+				)}
+
 				<div className="flex justify-between items-center gap-0">
 					<div className="flex items-center select-none grow min-w-0">
 						<div className="whitespace-nowrap overflow-hidden text-ellipsis grow min-w-0">
 							{isTaskExpanded && <span className="font-bold">{t("chat:task.title")}</span>}
 							{!isTaskExpanded && (
-								<div>
+								<div className="flex items-center gap-1.5">
 									<span className="font-bold mr-1">{t("chat:task.title")}</span>
-									<Mention text={task.text} />
+									<span className="overflow-hidden text-ellipsis">
+										<Mention text={task.text} />
+									</span>
 								</div>
 							)}
 						</div>
@@ -267,6 +293,26 @@ const TaskHeader = ({
 										</tr>
 									)}
 
+									{elapsed && (
+										<tr>
+											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
+												Duration
+											</th>
+											<td className="align-top">
+												<div className="flex items-center gap-1.5">
+													{taskStartTime ? (
+														<span className="relative flex h-2 w-2">
+															<span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+															<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+														</span>
+													) : (
+														<Timer size={12} className="opacity-70" />
+													)}
+													{elapsed}
+												</div>
+											</td>
+										</tr>
+									)}
 									{/* Cache size display */}
 									{developerMode &&
 										((typeof cacheReads === "number" && cacheReads > 0) ||
