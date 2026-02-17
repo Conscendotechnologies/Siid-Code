@@ -9,6 +9,18 @@ interface ComplexityAnalysis {
 }
 
 /**
+ * Extracts the original user request from a delegation format message
+ * Returns the original request if found, otherwise returns the original prompt
+ */
+function extractOriginalRequest(prompt: string): string {
+	const originalRequestMatch = prompt.match(/\*\*ORIGINAL USER REQUEST:\*\*\s*(.+?)(?=\n\n\*\*|$)/is)
+	if (originalRequestMatch && originalRequestMatch[1]) {
+		return originalRequestMatch[1].trim()
+	}
+	return prompt
+}
+
+/**
  * Analyzes task/prompt text to determine if it's complex enough to warrant a planning file
  * Returns true if the task is complex and would benefit from a planning file
  */
@@ -21,15 +33,18 @@ export function analyzeTaskComplexity(prompt?: string): ComplexityAnalysis {
 		}
 	}
 
+	// Extract original request if this is a delegation format message
+	const originalRequest = extractOriginalRequest(prompt)
+
 	let score = 0
 	const factors: string[] = []
-	const lowerPrompt = prompt.toLowerCase()
+	const lowerPrompt = originalRequest.toLowerCase()
 
 	// Length check - longer prompts are usually more complex
-	if (prompt.length > 500) {
+	if (originalRequest.length > 500) {
 		score += 2
 		factors.push("Lengthy prompt (>500 chars)")
-	} else if (prompt.length > 200) {
+	} else if (originalRequest.length > 200) {
 		score += 1
 		factors.push("Medium-length prompt (>200 chars)")
 	}
