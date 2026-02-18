@@ -10,6 +10,7 @@ export const GlobalFileNames = {
 	auraComponentsInstructions: "code/aura-components.md",
 	invocableapexInstructions: "code/agentforce-apex-guide.md",
 	adaptiveResponseAgentInstructions: "code/ADAPTIVE_RESPONSE_AGENT_INSTRUCTIONS.md",
+	asynchronousApexInstructions: "code/asynchronous-apex-guide.md",
 	// Salesforce Agent Instructions
 	agentforceAgentInstructions: "Salesforce_Agent/agentforce-agent-create-workflow.md",
 	agentforceAnalyseInstructions: "Salesforce_Agent/agentforce-agent-analyse-workflow.md",
@@ -84,6 +85,11 @@ export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 	"create-apex": {
 		instructions: ["create_apex"],
 		description: "Create Apex class or trigger",
+		mode: "code",
+	},
+	"create-async-apex": {
+		instructions: ["create_async_apex"],
+		description: "Create asynchronous Apex (Future, Queueable, Batch, Scheduled)",
 		mode: "code",
 	},
 	"create-invocable-apex": {
