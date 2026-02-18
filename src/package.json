@@ -185,6 +185,11 @@
 				"command": "siid-code.testOpenRouterApiKey",
 				"title": "Test OpenRouter Api Key",
 				"category": "%configuration.title%"
+			},
+			{
+				"command": "siid-code.showAgentDeploymentGuide",
+				"title": "Show Agent Deployment Guide",
+				"category": "%configuration.title%"
 			}
 		],
 		"menus": {
