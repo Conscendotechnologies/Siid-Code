@@ -12,10 +12,14 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
   create_mode
   create_lwc
   create_apex
+<<<<<<< agentforce-agent-workflow
   agentforce_agent_create
   agentforce_agent_analyse
   agentforce_topic_analyse
   agentforce_topics_actions
+=======
+  create_async_apex
+>>>>>>> main
   create_visual_force
   create_aura_components
   assignment_rules
@@ -35,10 +39,14 @@ export function getFetchInstructionsDescription(enableMcpServerCreation?: boolea
 			: `  create_mode
   create_lwc
   create_apex
+<<<<<<< agentforce-agent-workflow
   agentforce_agent_create
   agentforce_agent_analyse
   agentforce_topic_analyse
   agentforce_topics_actions
+=======
+  create_async_apex
+>>>>>>> main
   create_visual_force
   create_aura_components
   assignment_rules
@@ -159,6 +167,7 @@ Example: Requesting instructions to create an Apex class
 <task>create_apex</task>
 </fetch_instructions>
 
+<<<<<<< agentforce-agent-workflow
 Example: Requesting instructions for Agentforce Agent Analysis
 
 <fetch_instructions>
@@ -169,6 +178,12 @@ Example: Requesting instructions for Agentforce Topics and Actions Guide
 
 <fetch_instructions>
 <task>agentforce_topics_actions</task>
+=======
+Example: Requesting instructions for Asynchronous Apex (Future, Queueable, Batch, Scheduled)
+
+<fetch_instructions>
+<task>create_async_apex</task>
+>>>>>>> main
 </fetch_instructions>
 
 Example: Requesting instructions for Salesforce Custom Object

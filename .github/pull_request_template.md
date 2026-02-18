@@ -1,75 +1,55 @@
-<!--
-Thank you for contributing to Roo Code!
+## 📌 Related Issue
 
-Before submitting your PR, please ensure:
-- It's linked to an approved GitHub Issue.
-- You've reviewed our [Contributing Guidelines](../CONTRIBUTING.md).
--->
+Closes #
 
-### Related GitHub Issue
+---
 
-<!-- Every PR MUST be linked to an approved issue. -->
+## ✨ Summary
 
-Closes: # <!-- Replace with the issue number, e.g., Closes: #123 -->
+Describe **what** this PR does and **why**.
 
-### Roo Code Task Context (Optional)
+## 🔧 Changes Made
 
-<!--
-If you used Roo Code to help create this PR, you can share public task links here.
-This helps reviewers understand your development process and provides additional context.
-Example: https://app.roocode.com/share/task-id
--->
+-
+-
+-
 
-### Description
+## 🧪 How to Test
 
-<!--
-Briefly summarize the changes in this PR and how they address the linked issue.
-The issue should cover the "what" and "why"; this section should focus on:
-- The "how": key implementation details, design choices, or trade-offs made.
-- Anything specific reviewers should pay attention to in this PR.
--->
+Steps to verify this PR:
 
-### Test Procedure
+1.
+2.
+3.
 
-<!--
-Detail the steps to test your changes. This helps reviewers verify your work.
-- How did you test this specific implementation? (e.g., unit tests, manual testing steps)
-- How can reviewers reproduce your tests or verify the fix/feature?
-- Include relevant testing environment details if applicable.
--->
+## 📸 Screenshots (if applicable)
 
-### Pre-Submission Checklist
+Add before/after screenshots for UI changes.
 
-<!-- Go through this checklist before marking your PR as ready for review. -->
+---
 
-- [ ] **Issue Linked**: This PR is linked to an approved GitHub Issue (see "Related GitHub Issue" above).
-- [ ] **Scope**: My changes are focused on the linked issue (one major feature/fix per PR).
-- [ ] **Self-Review**: I have performed a thorough self-review of my code.
-- [ ] **Testing**: New and/or updated tests have been added to cover my changes (if applicable).
-- [ ] **Documentation Impact**: I have considered if my changes require documentation updates (see "Documentation Updates" section below).
-- [ ] **Contribution Guidelines**: I have read and agree to the [Contributor Guidelines](/CONTRIBUTING.md).
+## ✅ Pre-Submission Checklist
 
-### Screenshots / Videos
+- [ ] Linked to approved issue
+- [ ] Scope limited to one feature/fix
+- [ ] Self-review completed
+- [ ] Linting & formatting checks passed
+- [ ] Tests added/updated and passing
+- [ ] No console logs / debug code left
+- [ ] Backward compatibility maintained
+- [ ] Documentation updated if needed
 
-<!--
-For UI changes, please provide before-and-after screenshots or a short video of the *actual results*.
-This greatly helps in understanding the visual impact of your changes.
--->
+## ⚠️ Breaking Changes
 
-### Documentation Updates
+Describe any breaking changes.
 
-<!--
-Does this PR necessitate updates to user-facing documentation?
-- [ ] No documentation updates are required.
-- [ ] Yes, documentation updates are required. (Please describe what needs to be updated or link to a PR in the docs repository).
--->
+## 📝 Notes for Reviewers
 
-### Additional Notes
+Anything specific reviewers should focus on.
 
-<!-- Add any other context, questions, or information for reviewers here. -->
+---
 
-### Get in Touch
+## 📚 Documentation Impact
 
-<!--
-Please provide your Discord username for reviewers or maintainers to reach you if they have questions about your PR
--->
+- [ ] No docs update needed
+- [ ] Docs update required
