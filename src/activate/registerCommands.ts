@@ -1,5 +1,6 @@
 import * as vscode from "vscode"
 import delay from "delay"
+import path from "path"
 
 import type { CommandId } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
@@ -376,6 +377,17 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			vscode.window.showErrorMessage(
 				`Failed to create OpenRouter API key: ${error instanceof Error ? error.message : String(error)}`,
 			)
+		}
+	},
+	showAgentDeploymentGuide: async () => {
+		try {
+			const { openAgentDeploymentGuide } = await import("../utils/openAgentDeploymentGuide")
+			await openAgentDeploymentGuide(context)
+			outputChannel.appendLine("Agent Post Deployment Guide opened successfully")
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error)
+			outputChannel.appendLine(`Failed to open Agent Deployment Guide: ${errorMsg}`)
+			vscode.window.showErrorMessage(`Failed to open Agent Deployment Guide: ${errorMsg}`)
 		}
 	},
 	openChatView: async () => {

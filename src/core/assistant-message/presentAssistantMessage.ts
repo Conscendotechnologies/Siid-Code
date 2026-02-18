@@ -1,5 +1,6 @@
 import cloneDeep from "clone-deep"
 import { serializeError } from "serialize-error"
+import * as vscode from "vscode"
 
 import type { ToolName, ClineAsk, ToolProgressStatus } from "@siid-code/types"
 import { toolNames } from "@siid-code/types"
@@ -26,6 +27,7 @@ import { askFollowupQuestionTool } from "../tools/askFollowupQuestionTool"
 import { switchModeTool } from "../tools/switchModeTool"
 import { attemptCompletionTool } from "../tools/attemptCompletionTool"
 import { newTaskTool } from "../tools/newTaskTool"
+import { showAgentDeploymentGuideTool } from "../tools/showAgentDeploymentGuideTool"
 
 import { updateTodoListTool } from "../tools/updateTodoListTool"
 
@@ -255,6 +257,8 @@ export async function presentAssistantMessage(cline: Task) {
 					}
 					case "retrieve_sf_metadata":
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
+					case "show_agent_deployment_guide":
+						return `[${block.name}]`
 					default:
 						return `[${block.name}]`
 				}
@@ -436,6 +440,25 @@ export async function presentAssistantMessage(cline: Task) {
 			}
 
 			switch (block.name) {
+				case "show_agent_deployment_guide":
+					// Execute silently without approval - just opens documentation
+					if (!block.partial) {
+						try {
+							await showAgentDeploymentGuideTool(
+								cline,
+								block,
+								askApproval,
+								handleError,
+								pushToolResult,
+								removeClosingTag,
+							)
+							const provider = cline.providerRef.deref()
+						} catch (error) {
+							const errorMsg = error instanceof Error ? error.message : String(error)
+							pushToolResult(formatResponse.toolError(`Failed to open guide: ${errorMsg}`))
+						}
+					}
+					break
 				case "write_to_file":
 					await checkpointSaveAndMark(cline)
 					await writeToFileTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
