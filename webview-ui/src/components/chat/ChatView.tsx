@@ -2528,16 +2528,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						className="px-3.5 mb-2"
 						taskId={task?.ts ? String(task.ts) : undefined}
 					/>
-					{/* Detail variant - expanded view with stats (shown when more than 3 files) */}
-					{fileChanges.length > 3 && (
-						<FileChanges
-							files={fileChanges}
-							variant="detail"
-							onViewDiff={openVsCodeDiff}
-							className="px-3.5 mb-3"
-							taskId={task?.ts ? String(task.ts) : undefined}
-						/>
-					)}
 				</>
 			)}
 			<ChatTextArea

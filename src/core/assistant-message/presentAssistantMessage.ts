@@ -69,6 +69,19 @@ export async function presentAssistantMessage(cline: Task) {
 	cline.presentAssistantMessageLocked = true
 	cline.presentAssistantMessageHasPendingUpdates = false
 
+	// Check if multiple tool calls per message experiment is enabled
+	const multiToolProvider = cline.providerRef.deref()
+	console.log("[Task#presentAssistantMessage] Checking if multiple tool calls per message experiment is enabled")
+	let isMultipleToolCallsEnabled = false
+	if (multiToolProvider) {
+		console.log("[Task#presentAssistantMessage] Provider found, getting state for experiment check")
+		const state = await multiToolProvider.getState()
+		isMultipleToolCallsEnabled = experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
+	}
+	console.log(
+		`[Task#presentAssistantMessage] Multiple tool calls per message experiment enabled: ${isMultipleToolCallsEnabled}`,
+	)
+
 	if (cline.currentStreamingContentIndex >= cline.assistantMessageContent.length) {
 		// This may happen if the last content block was completed before
 		// streaming could finish. If streaming is finished, and we're out of
@@ -86,7 +99,7 @@ export async function presentAssistantMessage(cline: Task) {
 
 	switch (block.type) {
 		case "text": {
-			if (cline.didRejectTool || cline.didAlreadyUseTool) {
+			if (cline.didRejectTool || (cline.didAlreadyUseTool && !isMultipleToolCallsEnabled)) {
 				break
 			}
 
@@ -282,8 +295,8 @@ export async function presentAssistantMessage(cline: Task) {
 				break
 			}
 
-			if (cline.didAlreadyUseTool) {
-				// Ignore any content after a tool has already been used.
+			if (cline.didAlreadyUseTool && !isMultipleToolCallsEnabled) {
+				// Ignore any content after a tool has already been used (only when multi-tool is disabled).
 				cline.userMessageContent.push({
 					type: "text",
 					text: `Tool [${block.name}] was not executed because a tool has already been used in this message. Only one tool may be used per message. You must assess the first tool's result before proceeding to use the next tool.`,
@@ -301,9 +314,9 @@ export async function presentAssistantMessage(cline: Task) {
 					cline.userMessageContent.push(...content)
 				}
 
-				// Once a tool result has been collected, ignore all other tool
-				// uses since we should only ever present one tool result per
-				// message.
+				// Once a tool result has been collected, mark that a tool has
+				// been used. When multiple tool calls are enabled, this flag
+				// is still set but won't block subsequent tools.
 				cline.didAlreadyUseTool = true
 			}
 
