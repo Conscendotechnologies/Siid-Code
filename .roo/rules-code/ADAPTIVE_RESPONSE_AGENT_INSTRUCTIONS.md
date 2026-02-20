@@ -41,13 +41,7 @@ Comprehensive guide for implementing Salesforce Agentforce Adaptive Response act
 
     Find relevant object folder and examine fields in `fields/` subfolder
 
-- [ ] **STEP 2:** Fetch invocable Apex instructions
-
-    ```xml
-    <fetch_instructions>
-    <task>invocable_apex</task>
-    </fetch_instructions>
-    ```
+- [ ] **STEP 2:** Fetch `create-agentforce-agent` guide Creating the apex class.
 
 - [ ] **STEP 3:** Read adaptive response patterns (sections 2b-2f above)
 
@@ -83,11 +77,7 @@ Comprehensive guide for implementing Salesforce Agentforce Adaptive Response act
 
 **⚠️ MANDATORY:** After Apex is deployed, SWITCH TO SALESFORCE AGENT MODE
 
-- [ ] **STEP 8:** Fetch agentforce topics and actions guide
-    ```xml
-    <fetch_instructions>
-    <task>agentforce_topics_actions</task>
-    </fetch_instructions>
+- [ ] **STEP 8:** Fetch `create-agentforce-agent` Guide to Create Local Topics and Local Actions.
     ```
     This guide contains complete instructions for:
     - Creating local topics in GenAiPlannerBundle
@@ -96,11 +86,12 @@ Comprehensive guide for implementing Salesforce Agentforce Adaptive Response act
     - Linking actions to topics
     - Linking topics to agent
     - Deploying the GenAiPlannerBundle
+    ```
 
 **⚠️ After Apex deployment:**
 
 1. Switch to **Salesforce Agent Mode**
-2. Fetch the `agentforce_topic_analyse` instructions
+2. Fetch the `create-agentforce-agent` Guide to analyze the topics Instrcutions.
 3. Follow those instructions to configure agent topics and actions
 4. Deploy the GenAiPlannerBundle to complete the agent setup
 
@@ -144,19 +135,15 @@ This retrieves ALL objects to: `force-app/main/default/objects/`
 
 ## Step 2: Implement Apex Class
 
-### 2a. Fetch the Invocable Apex Guide
+### 2a. Fetch `create-agentforce-agent` to implement the Apex Class
 
 **MANDATORY — fetch this first:**
 
-```xml
-<fetch_instructions>
-<task>invocable_apex</task>
-</fetch_instructions>
 ```
 
 This provides: invocable Apex structure, `@InvocableMethod` / `@InvocableVariable` annotations, file creation locations, XML metadata, and deployment patterns.
 
-**Follow the invocable Apex guide for the base class structure, then apply the adaptive response patterns below.**
+**MUST Follow the invocable Apex guide for the base class structure, then **MUST** apply the adaptive response patterns below.**
 
 ---
 
@@ -165,21 +152,25 @@ This provides: invocable Apex structure, `@InvocableMethod` / `@InvocableVariabl
 #### Rich Choice (Card Carousel) — EXACT Field Names
 
 ```
-name          (String, required)   — ⚠️ EXACT: "name" not "productName"
-imageUrl      (String, required)   — ⚠️ EXACT: "imageUrl" (camelCase, not "imageURL")
-mimeType      (String, optional)   — ⚠️ EXACT: "mimeType" (camelCase)
-description   (String, optional)   — ⚠️ EXACT: "description"
+
+name (String, required) — ⚠️ EXACT: "name" not "productName"
+imageUrl (String, required) — ⚠️ EXACT: "imageUrl" (camelCase, not "imageURL")
+mimeType (String, optional) — ⚠️ EXACT: "mimeType" (camelCase)
+description (String, optional) — ⚠️ EXACT: "description"
+
 ```
 
 #### Rich Link (Single Link Card) — EXACT Field Names
 
 ```
-linkTitle          (String, required)   — ⚠️ EXACT: "linkTitle"
-linkUrl            (String, required)   — ⚠️ EXACT: "linkUrl" (lowercase 'u')
-linkImageUrl       (String, required)   — ⚠️ EXACT: "linkImageUrl" (lowercase 'u')
-linkImageMimeType  (String, optional)   — ⚠️ EXACT: "linkImageMimeType"
-description        (String, optional)   — ⚠️ EXACT: "description"
-```
+
+linkTitle (String, required) — ⚠️ EXACT: "linkTitle"
+linkUrl (String, required) — ⚠️ EXACT: "linkUrl" (lowercase 'u')
+linkImageUrl (String, required) — ⚠️ EXACT: "linkImageUrl" (lowercase 'u')
+linkImageMimeType (String, optional) — ⚠️ EXACT: "linkImageMimeType"
+description (String, optional) — ⚠️ EXACT: "description"
+
+````
 
 **Common Mistakes:**
 
@@ -200,7 +191,7 @@ description        (String, optional)   — ⚠️ EXACT: "description"
 
 ```apex
 query += ' AND Course_Level__c = :req.courseLevel';  // ❌ WRONG!
-```
+````
 
 **✅ CORRECT — Extract to standalone variables first:**
 
@@ -435,12 +426,7 @@ sf project deploy start --source-dir force-app/main/default/classes/YourClassNam
 **After Apex class is deployed:**
 
 1. **Switch to Salesforce Agent Mode**
-2. **Fetch agentforce topics and actions guide:**
-    ```xml
-    <fetch_instructions>
-    <task>agentforce_topics_actions</task>
-    </fetch_instructions>
-    ```
+2. **Fetch `create-agentforce-agent` to create Local Topics and Local Actions**
 3. **Follow the fetched guide** to create topics, actions, schemas, and deploy the GenAiPlannerBundle
 
 ---

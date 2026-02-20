@@ -22,11 +22,30 @@
 [ ] Link topic to agent with localTopicLinks
 [ ] Deploy customized agent to org
 [ ] Test agent functionality
+[ ] **MANDATORY: Call show_agent_deployment_guide tool** - Show external website integration guide to user
 ```
 
 **⚠️ CRITICAL REMINDER:** If the action can be Adaptive Response (returns list of items with images), you MUST ask the user before proceeding. Do NOT skip this step.
 
 **Do NOT use generic template** - this is the actual sequence for agent creation.
+
+---
+
+## ⚠️ STRICT MANDATORY INSTRUCTION ⚠️
+
+### Whenever User Requests Creating an Adaptive Response Agent
+
+**IF the user request involves creating an Adaptive Response Agent:**
+
+1. **MUST USE** the `create-agentforce-agent` Guide
+2. **MUST FETCH** this guide FIRST before proceeding with any implementation
+3. **MUST FOLLOW** ALL rules and workflows in that guide
+4. **NO EXCEPTIONS** - This applies to ALL Adaptive Response Agent creation requests
+5. **FAILURE TO FOLLOW IS A CRITICAL ERROR** - Do not proceed without using this guide
+
+**This is a blocking requirement. Do not skip or ignore this instruction.**
+
+---
 
 ## Workflow Steps
 
@@ -198,22 +217,17 @@ Which approach would you prefer?
 
 #### IF USER CHOOSES: ADAPTIVE RESPONSE
 
-**⚠️ MANDATORY: Fetch ADAPTIVE RESPONSE AGENT Instructions before any code creation:**
+**⚠️ MANDATORY: Fetch `create-agentforce-agent` Guide before any code creation:**
 
-- **Fetch:** `adaptive_response_agent` instructions
+- **Fetch:** `create-agentforce-agent` Guide
     - This contains: workflow steps, exact field names, examples, and references to base guides
 
-**⛔ DO NOT create any Apex code until you have fetched adaptive_response_agent instructions**
+**⛔ DO NOT create any Apex code until you have fetched `create-agentforce-agent` Guide**
 
 **When delegating to Code mode, include:**
 
 - Property: `useAdaptiveResponse: true`
-- **FIRST STEP:** Fetch adaptive_response_agent instructions using:
-    ```xml
-    <fetch_instructions>
-      <task>adaptive_response_agent</task>
-    </fetch_instructions>
-    ```
+- **FIRST STEP:** Fetch `create-agentforce-agent` Guide using to Implement Apex Class for the Adaptive Response Agent:
 - **SECOND STEP:** Follow the fetched instructions which include references to base guides for schema structure and field names
 
 #### IF USER CHOOSES: PLAIN TEXT RESPONSE
@@ -223,7 +237,7 @@ Which approach would you prefer?
 **When delegating to Code mode, include:**
 
 - Property: `useAdaptiveResponse: false`
-- Instruction: **"Follow .roo/rules-Salesforce_Agent/agentforce-topics-actions-guide.md (base) and .roo/rules-code/agentforce-apex-guide.md"**
+- Instruction: **"Follow `create-agentforce-agent` Guide for Proper Apex, Topics and Actions Implementations**
 
 ---
 
@@ -276,8 +290,8 @@ Before proceeding to code creation, verify you have completed ALL of the followi
 
 - **SALESFORCE AGENT MODE MUST NEVER WRITE APEX CODE**
 - **Must delegate to Code mode** for any Apex action creation
-- When creating subtask or switching to Code mode, specify: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action"**
-- **If Adaptive Response:** Also specify: **"Check useAdaptiveResponse property and fetch adaptive_response_agent instructions via fetch_instructions tool"**
+- When creating subtask or switching to Code mode, specify: **"Follow the guide `create-agentforce-agent` to create an invocable Apex action"**
+- **If Adaptive Response:** Also specify: **"Check useAdaptiveResponse property and fetch `create-agentforce-agent` Guide"**
 - **Do NOT use apex-guide.md** - only agentforce-apex-guide.md is for invocable actions
 - **WAIT for Code mode to finish creating AND deploying the Apex class**
 - **After Apex is deployed:** THEN update the LOCAL action in GenAiPlannerBundle to reference the Apex class
@@ -322,7 +336,7 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 2. **FIRST - Delegate to Code mode to CREATE Apex:**
     - Create subtask or switch to Code mode
     - Add property: `useAdaptiveResponse: false`
-    - Instruction: **"Follow the guide in .roo/rules-code/agentforce-apex-guide.md to create an invocable Apex action 'InventoryChecker' with a method to check stock levels for a product ID"**
+    - Instruction: **"Follow the guide `create-agentforce-agent` to create an invocable Apex action 'InventoryChecker' with a method to check stock levels for a product ID"**
     - Specify: "Method should query Inventory\_\_c and return current stock count"
     - **Important:** Code mode must use agentforce-apex-guide.md, NOT apex-guide.md
 3. **WAIT for Code mode to complete the Apex class creation AND deployment**
@@ -356,7 +370,7 @@ sf project deploy start --metadata GenAiPlannerBundle:Agent_Name --json
 **Key Points:**
 
 - **Salesforce Agent mode NEVER writes Apex code** - it only configures agent files
-- **Must delegate to Code mode** with specific instruction to use .roo/rules-code/agentforce-apex-guide.md
+- **Must delegate to Code mode** with specific instruction.
 - Code mode follows agentforce-apex-guide.md to create invocable Apex actions
 - After Apex is ready and deployed, Salesforce Agent mode configures the agent to use it
 - Only then deploys the complete agent configuration
@@ -404,11 +418,9 @@ Which approach would you prefer?
 1. **FIRST - Delegate to Code mode to CREATE Apex:**
     - Create subtask or switch to Code mode
     - **Add property:** `useAdaptiveResponse: true`
-    - **STEP 1:** Fetch adaptive_response_agent instructions:
-        ```xml
-        <fetch_instructions>
-          <task>adaptive_response_agent</task>
-        </fetch_instructions>
+    - **STEP 1:** Fetch `create-agentforce-agent` Guide to Implement the APEX Class.
+        ```
+
         ```
     - **STEP 2:** Follow the fetched instructions to create invocable Apex action 'ProductRecommendationAction'. The fetched instructions contain all required field names and schema structure guidance. Method should query Product2 records and return as visual cards with LIMIT 5 for Chat channel.
 2. **WAIT for Code mode to complete the Apex class creation AND deployment**
@@ -612,3 +624,36 @@ This guide provides:
 - Best practices and naming conventions
 - Priority rule: Always prefer LOCAL over GLOBAL
 - Examples and deployment instructions
+
+---
+
+## ⛔ Step 6: Post-Deployment - MANDATORY FINAL STEP ⛔
+
+**⚠️ DO NOT SKIP THIS STEP - THIS IS THE FINAL REQUIRED STEP OF EVERY AGENT DEPLOYMENT ⚠️**
+
+After deploying the agent with all Apex classes and schema files, verify all requirements are met and then **MUST** execute the following tool call immediately.
+
+### Requirements Met:
+
+- ✅ Agent deployed and activated
+- ✅ Apex classes created and deployed
+- ✅ Schema files configured and validated
+- ✅ Topics and actions properly linked
+- ✅ GenAiPlannerBundle deployed to org
+
+### ⛔ BLOCKING RULE: You MUST call this tool before considering the task complete ⛔
+
+```xml
+<show_agent_deployment_guide>
+</show_agent_deployment_guide>
+```
+
+**This opens the Agent Post Deployment Guide for the user, covering:**
+
+- Messaging and routing setup
+- Omni-Channel flow configuration
+- Embedded service deployment
+- Security settings (CORS, CSP, Trusted URLs)
+- Website integration
+
+**⛔ FAILURE CONDITION: If you complete agent deployment WITHOUT calling `show_agent_deployment_guide`, you have NOT completed the task. You MUST go back and call it.**

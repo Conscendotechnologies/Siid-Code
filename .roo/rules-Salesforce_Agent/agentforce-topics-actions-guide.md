@@ -199,14 +199,14 @@ genAiPlannerBundles/
     localActions/
       Topic_Name/Action_Name/
         input/
-          schema          <-- Input schema JSON file (no extension)
+          schema.json     <-- Input schema JSON file
         output/
-          schema          <-- Output schema JSON file (no extension)
+          schema.json     <-- Output schema JSON file
 ```
 
 **1. Input Schema (`input/schema.json` file):**
 
-- Physical JSON file located at: `localActions/Topic_Name/Action_Name/input/schema`
+- Physical JSON file located at: `localActions/Topic_Name/Action_Name/input/schema.json`
 - Contains the definition of input parameters
 - Must match the `@InvocableVariable` input parameters in your Apex class
 
@@ -730,13 +730,13 @@ public class ProductRecommendationAction {
 
 2. **Create input schema file:**
 
-    - Path: `localActions/Topic_Name/Action_Name/input/schema`
+    - Path: `localActions/Topic_Name/Action_Name/input/schema.json`
     - Map Apex input parameters
     - Ensure ALL properties have `lightning:isPII` and `copilotAction:isUserInput`
 
 3. **Create output schema file:**
 
-    - Path: `localActions/Topic_Name/Action_Name/output/schema`
+    - Path: `localActions/Topic_Name/Action_Name/output/schema.json`
     - Use `lightning__listType` for list output
     - Include `maxItems` (typically 2000)
     - Reference Apex wrapper: `@apexClassType/c__ApexClassName$WrapperClassName`
@@ -944,7 +944,7 @@ The following are the **ONLY** supported `lightning:type` values. Do not use any
 **Step 3:** Create `input/schema.json` file from `@InvocableVariable` input parameters
 
 1. Create folder structure: `localActions/Topic_Name/Action_Name/input/`
-2. Create file named `schema` (no extension) with JSON content
+2. Create file named `schema.json` with JSON content
 3. Set `required` array with all parameters where `required=true`
 4. Add `"unevaluatedProperties": false`
 5. Map each variable to a property:
@@ -959,7 +959,7 @@ The following are the **ONLY** supported `lightning:type` values. Do not use any
 **Step 4:** Create `output/schema.json` file from `@InvocableVariable` output parameters
 
 1. Create folder structure: `localActions/Topic_Name/Action_Name/output/`
-2. Create file named `schema` (no extension) with JSON content
+2. Create file named `schema.json` with JSON content
 3. Add `"unevaluatedProperties": false`
 4. Map each output variable to a property:
     - Use parameter name as property key (EXACT match from Apex)

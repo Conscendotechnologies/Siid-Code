@@ -47,25 +47,14 @@ export interface TaskTypeConfig {
 export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 	// Agentforce Tasks
 	"create-agentforce-agent": {
-		instructions: [
-			"agentforce_agent_create",
-			"agentforce_agent_analyse",
-			"agentforce_topic_analyse",
-			"invocable_apex",
-			"agentforce-apex-guide",
-		],
-		description: "Create Agentforce agent with all required metadata",
+		instructions: ["agentforce_agent_create", "adaptive_response_agent", "agentforce_topics_actions"],
+		description: "Create Agentforce agent and Adaptive Response Agent with all required metadata",
 		mode: "salesforce-agent",
 	},
 	// Adaptive Response Agent
-	"create-adaptive-agent": {
-		instructions: ["adaptive_response_agent"],
-		description: "Create Adaptive Response Agent",
-		mode: "code",
-	},
 	"analyse-agentforce-agent": {
 		instructions: ["agentforce_agent_analyse", "agentforce_topic_analyse"],
-		description: "Analyse and enhance existing Agentforce agent",
+		description: "Analyse and enhance existing Agentforce agent and Adaptive Response Agent",
 		mode: "salesforce-agent",
 	},
 
@@ -93,8 +82,8 @@ export const TaskTypeMapping: Record<string, TaskTypeConfig> = {
 		mode: "code",
 	},
 	"create-invocable-apex": {
-		instructions: ["invocable_apex", "create_apex"],
-		description: "Create Invocable Apex for Agentforce or Flows",
+		instructions: ["invocable_apex", "adaptive_response_agent"],
+		description: "Create Invocable Apex for Agentforce agent and Adaptive Response Agent or Flows",
 		mode: "code",
 	},
 

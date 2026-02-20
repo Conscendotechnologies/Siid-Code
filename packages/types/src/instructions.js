@@ -154,18 +154,11 @@ export const SALESFORCE_CODE_INSTRUCTIONS = `
    - **Adaptive Response Actions** (Rich Choice/Rich Link formats) → Use adaptive response workflow
    - **Standard Invocable Actions** (basic data operations) → Use agentforce-apex-guide.md
 
-2. **For Adaptive Response Actions (Cards/Carousels/Links):**
-     \`\`\`xml
-     <get_task_guides>
-     <task_type>create-adaptive-agent</task_type>
-     </get_task_guides>
-     \`\`\`
-
-3. **Key differences:**
+2. **Key differences:**
    - Adaptive Response: Returns rich UI components (cards, links) with EXACT field names
    - Standard Invocable: Returns simple data with flexible field names
 
-4. **Follow the invocable action pattern:**
+3. **Follow the invocable action pattern:**
    - Must be annotated with @InvocableMethod
    - Proper input/output wrapper classes
    - Bulkification support
@@ -581,6 +574,8 @@ Proceeding with Phase 1...
 
 **YOUR SPECIFIC TASK:** [Detailed task for this phase]
 
+**Agent Type:** [Plain|Adaptive Response]
+
 **COMPONENTS CREATED IN PREVIOUS PHASES:**
 [List any components from previous phases with exact API names, or "None - this is the first phase"]
 
@@ -650,6 +645,8 @@ When delegating to a phase that depends on previous phases, you MUST include:
 
 **YOUR SPECIFIC TASK:** [Original task]
 
+**Agent Type:** [Plain|Adaptive Response]
+
 **COMPONENTS CREATED IN PREVIOUS PHASES:**
 - [Include all relevant components with exact API names]
 
@@ -710,156 +707,6 @@ Please advise how to proceed.
 
 **Now Working On:**
 - Creating InvoiceTrigger with calculation logic
-\`\`\`
-
----
-
-## Complete Workflow Example
-
-**User Request:**
-"Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total"
-
-### Step 1: Create Plan
-
-\`\`\`markdown
-📋 **Orchestration Plan Created**
-
-**Your Request:** "Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total"
-
-**Analysis:** This requires 3 phases across 2 modes.
-
-**Components Identified:**
-1. Invoice__c object with fields → salesforce-agent
-2. Calculation trigger → code
-3. Test class for coverage → code
-
-**Execution Plan:**
-⏳ Phase 1/3: Create Invoice__c object & fields → salesforce-agent
-⏳ Phase 2/3: Create calculation trigger → code
-⏳ Phase 3/3: Create test class → code
-
-**Dependencies:**
-- Phase 2 needs Phase 1 (trigger references object)
-- Phase 3 needs Phase 2 (tests need trigger)
-
----
-
-Proceeding with Phase 1...
-\`\`\`
-
-### Step 2: Delegate Phase 1 Using new_task Tool
-
-\`\`\`xml
-<new_task>
-<mode>salesforce-agent</mode>
-<message>
-📍 **Phase 1/3 - Object & Fields Creation**
-
-**DELEGATION CONTEXT:** You are being delegated this task by the orchestrator.
-
-**ORIGINAL USER REQUEST:** Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total
-
-**YOUR SPECIFIC TASK:** Create Invoice__c custom object with:
-- Amount__c (Currency field)
-- Tax__c (Currency field)
-- Total__c (Currency field - will be populated by trigger)
-Configure page layouts and enable appropriate features.
-
-**COMPONENTS CREATED IN PREVIOUS PHASES:**
-None - this is the first phase.
-
-**EXPECTED DELIVERABLES:**
-- Invoice__c object
-- Amount__c, Tax__c, Total__c fields
-- Page layout
-
-**COMPLETION REQUIREMENTS:**
-When you complete this task, provide:
-1. **Phase Status:** SUCCESS | PARTIAL | FAILED
-2. **Deliverables Created:** List all files/components with exact API names
-3. **Errors/Warnings:** Any issues encountered
-</message>
-</new_task>
-\`\`\`
-
-### Step 3: Validate & Continue (After Sub-Task Returns)
-
-**After salesforce-agent sub-task completes and returns SUCCESS:**
-
-1. First, update the todo list:
-\`\`\`
-update_todo_list marking Phase 1 as completed, Phase 2 as in_progress
-\`\`\`
-
-2. Show progress to user:
-\`\`\`markdown
-✅ **Phase 1/3 Validated Successfully**
-
-**Deliverables Confirmed:**
-- ✓ Invoice__c object created
-- ✓ Amount__c, Tax__c, Total__c fields added
-
-📊 **Progress:**
-✅ Phase 1/3: Object Creation - COMPLETED
-🔄 Phase 2/3: Trigger Development - STARTING
-⏳ Phase 3/3: Test Class - PENDING
-\`\`\`
-
-3. Delegate Phase 2 using new_task:
-\`\`\`xml
-<new_task>
-<mode>code</mode>
-<message>
-📍 **Phase 2/3 - Trigger Development**
-
-**DELEGATION CONTEXT:** You are being delegated this task by the orchestrator.
-
-**ORIGINAL USER REQUEST:** Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total
-
-**YOUR SPECIFIC TASK:** Create an Apex trigger on Invoice__c that:
-- Fires on before insert and before update
-- Calculates Total__c = Amount__c + Tax__c
-- Handles bulk operations properly
-
-**COMPONENTS CREATED IN PREVIOUS PHASES:**
-- Object: Invoice__c
-- Fields: Amount__c (Currency), Tax__c (Currency), Total__c (Currency)
-
-**EXPECTED DELIVERABLES:**
-- InvoiceTrigger.trigger
-- InvoiceTriggerHandler.cls (handler class)
-
-**COMPLETION REQUIREMENTS:**
-When you complete this task, provide:
-1. **Phase Status:** SUCCESS | PARTIAL | FAILED
-2. **Deliverables Created:** List all files/components with exact API names
-3. **Errors/Warnings:** Any issues encountered
-</message>
-</new_task>
-\`\`\`
-
-### Step 4: Final Summary
-
-**When all phases complete:**
-
-\`\`\`markdown
-🎉 **Orchestration Complete!**
-
-**Original Request:** "Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total"
-
-**All Phases Completed:**
-✅ Phase 1/3: Object Creation (salesforce-agent)
-✅ Phase 2/3: Trigger Development (code)
-✅ Phase 3/3: Test Class (code)
-
-**Deliverables:**
-- ✓ Invoice__c custom object
-- ✓ Amount__c, Tax__c, Total__c fields
-- ✓ InvoiceTrigger with auto-calculation
-- ✓ InvoiceTriggerHandler class
-- ✓ InvoiceTriggerTest (85% coverage)
-
-Your Invoice solution is ready for use!
 \`\`\`
 
 ---

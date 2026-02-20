@@ -36,7 +36,6 @@ public with sharing class AgentforceAccountAction {
                     SELECT Id, Name, Industry, Rating, AnnualRevenue
                     FROM Account
                     WHERE Name = :req.accountName
-                    WITH USER_MODE
                     LIMIT 1
                 ];
 
@@ -104,7 +103,6 @@ public with sharing class AgentforceAccountAction {
 - ✅ Must have `@InvocableMethod` decorator
 - ✅ **Request class MUST have at least ONE input variable with `@InvocableVariable`**
 - ✅ **Response class MUST have at least ONE output variable with `@InvocableVariable`**
-- ✅ Use `WITH USER_MODE` in SOQL queries
 - ✅ Validate all inputs
 - ✅ Handle exceptions in try-catch
 - ✅ **Create both Apex class AND corresponding XML metadata file**
@@ -350,7 +348,6 @@ public static List<SearchResponse> searchAccounts(List<SearchRequest> requests) 
                 SELECT Id, Name, Industry
                 FROM Account
                 WHERE Name LIKE :pattern
-                WITH USER_MODE
                 LIMIT 10
             ];
 
@@ -434,7 +431,7 @@ public static List<SearchResponse> searchCourses(List<SearchRequest> requests) {
             query += ' AND Department__c = :department';  // ✅ CORRECT
         }
 
-        query += ' WITH USER_MODE LIMIT 10';
+        query += ' LIMIT 10';
 
         // Step 4: Execute query
         List<Course__c> courses = Database.query(query);
@@ -490,7 +487,7 @@ public static List<SearchResponse> searchCourses(List<SearchCoursesRequest> requ
             if (String.isNotBlank(category)) {
                 query += ' AND Category__c = :category';
             }
-            query += ' WITH USER_MODE LIMIT 10';
+            query += ' LIMIT 10';
 
             List<Course__c> courses = Database.query(query);
 
@@ -518,19 +515,11 @@ public static List<SearchResponse> searchCourses(List<SearchCoursesRequest> requ
 // ✅ DO: Use with sharing
 public with sharing class AgentforceAction { }
 
-// ✅ DO: Use WITH USER_MODE in SOQL
-List<Account> accounts = [
-    SELECT Id, Name FROM Account WITH USER_MODE LIMIT 10
-];
-
 // ✅ DO: Validate inputs
 if (String.isBlank(req.input)) { return error; }
 
 // ❌ DON'T: Use without sharing
 public without sharing class AgentforceAction { }
-
-// ❌ DON'T: Query without WITH USER_MODE
-List<Account> accounts = [SELECT Id, Name FROM Account];
 ```
 
 ---
@@ -582,7 +571,6 @@ public class ActionResponse {
 Before deploying:
 
 - [ ] ✅ Uses `public with sharing`
-- [ ] ✅ Uses `WITH USER_MODE` in SOQL
 - [ ] ✅ Has error handling (try-catch)
 - [ ] ✅ Validates all inputs
 - [ ] ✅ Response class has success/message fields
@@ -599,8 +587,6 @@ Before deploying:
 **Always handle errors**: Return false/error message in response
 
 **Always validate input**: Check for null/empty before processing
-
-**Always use WITH USER_MODE**: Enforces FLS and sharing
 
 ---
 

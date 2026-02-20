@@ -52,7 +52,7 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 
 | Task Type | Description |
 |-----------|-------------|
-| create-agentforce-agent | Create Agentforce agent with all required metadata |
+| create-agentforce-agent | Create Agentforce agent and Adaptive Response Agent with all required metadata |
 | analyse-agentforce-agent | Analyse and enhance existing Agentforce agent |
 | create-lwc | Create Lightning Web Component |
 | create-lwc-with-apex | Create LWC with Apex backend |
@@ -64,7 +64,6 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 | create-record-types | Create record types with path |
 | create-roles | Create role hierarchy |
 | create-validation-rules | Create validation rules |
-| create-adaptive-agent | Create Adaptive Response Agent |
 | create-mcp-server | Create MCP server |
 | create-custom-mode | Create custom mode |
 
