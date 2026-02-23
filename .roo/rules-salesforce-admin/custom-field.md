@@ -78,7 +78,7 @@ Example XML Format (IMPORTANT!)
 **f. Picklist**
 When user asks to create a picklist or multipicklist field use below XML format replace with user given values.
 <fields>
-<fullName>Status\_\_c</fullName>
+<fullName>Status__c</fullName>
 <label>Status</label>
 <type>Picklist</type>
 <valueSet>
@@ -102,9 +102,9 @@ When user asks to create a picklist or multipicklist field use below XML format 
 **h. Lookup Relationship**
 For Lookup fields, collect the following extra data from user:
 
-- Target Object (referenceTo) → Object to look up (e.g., Account, Contact, Invoice\_\_c)
+- Target Object (referenceTo) → Object to look up (e.g., Account, Contact, Invoice__c)
 - Field Label → UI display name
-- Field API Name → Ends with \_\_c
+- Field API Name → Ends with __c
 - Relationship Label → Related list display name
 - Relationship Name → API name for SOQL/Apex
 
@@ -127,7 +127,7 @@ So, at minimum you must ask the user for:
 
 **Example XML:**
 <fields>
-<fullName>Account_Lookup\_\_c</fullName>
+<fullName>Account_Lookup__c</fullName>
 <label>Account Lookup</label>
 <type>Lookup</type>
 <referenceTo>Account</referenceTo>
@@ -143,15 +143,15 @@ So, at minimum you must ask the user for:
 
 - **Available values:** `SetNull`, `Restrict`, or `Cascade`.
 - **Behavior:**
-    - `SetNull` — when the parent (referenced) record is deleted, the lookup value on the child is set to null. This is only valid when the lookup field is _not required_ (`required=false`).
+    - `SetNull` — when the parent (referenced) record is deleted, the lookup value on the child is set to null. This is only valid when the lookup field is *not required* (`required=false`).
     - `Restrict` — prevents deletion of the parent record while child records reference it. Use this when you want to block parent deletion rather than null the child.
     - `Cascade` — when the parent record is deleted, child records that reference it are also deleted. Use this when the child should not exist without the parent.
-- **Rule:** If the lookup field has `<required>true</required>`, you _must not_ set `<deleteConstraint>SetNull</deleteConstraint>`. Instead, use `Restrict` (to block parent deletion) or `Cascade` (to delete children when the parent is deleted) depending on the desired business behaviour. Using `SetNull` with a required lookup will cause deployment/validation errors because the child cannot accept null values.
+- **Rule:** If the lookup field has `<required>true</required>`, you *must not* set `<deleteConstraint>SetNull</deleteConstraint>`. Instead, use `Restrict` (to block parent deletion) or `Cascade` (to delete children when the parent is deleted) depending on the desired business behaviour. Using `SetNull` with a required lookup will cause deployment/validation errors because the child cannot accept null values.
 - **Recommendation:** Default to `SetNull` for optional lookups (`required=false`). For required lookups, choose `Restrict` to prevent orphaning or `Cascade` when child records should be removed with the parent.
 
 **Example — required lookup (Restrict):**
 <fields>
-<fullName>Account_Lookup\_\_c</fullName>
+<fullName>Account_Lookup__c</fullName>
 <label>Account Lookup</label>
 <type>Lookup</type>
 <referenceTo>Account</referenceTo>
@@ -163,7 +163,7 @@ So, at minimum you must ask the user for:
 
 **Example — required lookup (Cascade):**
 <fields>
-<fullName>Account_Lookup\_\_c</fullName>
+<fullName>Account_Lookup__c</fullName>
 <label>Account Lookup</label>
 <type>Lookup</type>
 <referenceTo>Account</referenceTo>
@@ -175,7 +175,7 @@ So, at minimum you must ask the user for:
 
 **Example — optional lookup (SetNull):**
 <fields>
-<fullName>Account_Lookup\_\_c</fullName>
+<fullName>Account_Lookup__c</fullName>
 <label>Account Lookup</label>
 <type>Lookup</type>
 <referenceTo>Account</referenceTo>
