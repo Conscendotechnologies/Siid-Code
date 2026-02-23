@@ -19,7 +19,7 @@ interface ApiConfigSelectorProps {
 	mode?: string
 	pinnedApiConfigs?: Record<string, boolean>
 	togglePinnedApiConfig: (id: string) => void
-	useFreeModels?: boolean
+	tier?: "Free" | "Pro" | "Max"
 	developerMode?: boolean
 }
 
@@ -34,7 +34,7 @@ export const ApiConfigSelector = ({
 	mode,
 	pinnedApiConfigs,
 	togglePinnedApiConfig,
-	useFreeModels = false,
+	tier = "Free",
 	developerMode = false,
 }: ApiConfigSelectorProps) => {
 	const { t } = useAppTranslation()
@@ -43,7 +43,7 @@ export const ApiConfigSelector = ({
 	const portalContainer = useRooPortal("roo-portal")
 
 	// If a mode is provided, only show the mode-specific basic/medium/advanced configs
-	// If useFreeModels is true, only show configs ending with -free
+	// If tier is set, filter configs based on the tier level
 	// If developerMode is enabled, always include the default config
 	const modeFilteredList = useMemo(() => {
 		let filtered = listApiConfigMeta
@@ -59,16 +59,40 @@ export const ApiConfigSelector = ({
 			filtered = filtered.filter((c) => allowedNames.includes(c.name ?? ""))
 		}
 
-		if (useFreeModels) {
-			// Filter for free configs, but keep default if developer mode is enabled
+		// Filter based on tier - show current tier and below
+		if (tier) {
 			filtered = filtered.filter((c) => {
 				const name = c.name ?? ""
-				return name.endsWith("-free") || (developerMode && name === "default")
+				if (tier === "Free") {
+					// Only free tier configs
+					return name.endsWith("-free") || (developerMode && name === "default")
+				}
+				if (tier === "Pro") {
+					// Show free and pro configs
+					return (
+						name.endsWith("-free") ||
+						name.includes("-medium") ||
+						name.includes("-pro") ||
+						(developerMode && name === "default")
+					)
+				}
+				if (tier === "Max") {
+					// Show all configs
+					return (
+						name.endsWith("-free") ||
+						name.includes("-medium") ||
+						name.includes("-pro") ||
+						name.includes("-advanced") ||
+						name.includes("-max") ||
+						(developerMode && name === "default")
+					)
+				}
+				return false
 			})
 		}
 
 		return filtered
-	}, [listApiConfigMeta, mode, useFreeModels, developerMode])
+	}, [listApiConfigMeta, mode, tier, developerMode])
 
 	// Create searchable items for fuzzy search
 	const searchableItems = useMemo(() => {

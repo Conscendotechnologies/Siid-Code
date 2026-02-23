@@ -209,17 +209,7 @@ export const webviewMessageHandler = async (
 		}
 	}
 
-	console.log(`[DEBUG] Received webview message type: ${message.type}`)
-
 	switch (message.type) {
-		case "debugStopTimer": {
-			const task = provider.getCurrentCline()
-			if (task) {
-				task.manualPauseTimer()
-				await provider.postStateToWebview()
-			}
-			break
-		}
 		case "webviewDidLaunch":
 			// Calculate and log time from activation to UI ready
 			const activationStartTime = provider.getValue("activationStartTime")
@@ -333,10 +323,10 @@ export const webviewMessageHandler = async (
 			if (message.apiKey) {
 				await updateGlobalState("pendingUserApiKey", message.apiKey)
 
-				// If user is signing in with their own API key, prefer free models by default
-				// so the UI reflects the intention to use OpenRouter free configs immediately.
-				await updateGlobalState("useFreeModels", true)
-				// Push updated state to webview so the checkbox updates immediately
+				// If user is signing in with their own API key, set tier to Pro by default
+				// so the UI reflects the intention to use paid/premium models/configs immediately.
+				await updateGlobalState("tier", "Pro")
+				// Push updated state to webview so the tier updates immediately
 				await provider.postStateToWebview()
 			}
 			// Execute Firebase sign-in command
@@ -382,119 +372,29 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowModeSwitch", message.bool)
 			await provider.postStateToWebview()
 			break
-		case "useFreeModels":
-			console.log("[webviewMessageHandler] useFreeModels handler called with value:", message.bool)
-			await updateGlobalState("useFreeModels", message.bool)
+		case "tier":
+			console.log("[webviewMessageHandler] tier handler called with value:", message.text)
+			// Validate tier value
+			const tierValue = message.text as "Free" | "Pro" | "Max" | undefined
+			if (tierValue && ["Free", "Pro", "Max"].includes(tierValue)) {
+				await updateGlobalState("tier", tierValue)
 
-			// Validate and update current model if needed
-			const {
-				apiConfiguration: useFreeModelsApiConfig,
-				mode: useFreeModelsMode,
-				currentApiConfigName,
-			} = await provider.getState()
-			const allModelsForUseFreeModels = getModelsForMode(useFreeModelsMode)
-			console.log("[webviewMessageHandler] Current mode:", useFreeModelsMode)
-			console.log(
-				"[webviewMessageHandler] All models for mode:",
-				allModelsForUseFreeModels.map((m) => ({ id: m.modelId, tier: m.tier })),
-			)
-
-			// Get current model from apiConfiguration
-			let currentModelId: string | undefined
-			switch (useFreeModelsApiConfig.apiProvider) {
-				case "openrouter":
-					currentModelId = useFreeModelsApiConfig.openRouterModelId
-					break
-				case "anthropic":
-				case "vertex":
-				case "bedrock":
-				case "gemini":
-				case "gemini-cli":
-				case "openai-native":
-				case "mistral":
-				case "deepseek":
-				case "doubao":
-				case "moonshot":
-				case "claude-code":
-					currentModelId = useFreeModelsApiConfig.apiModelId
-					break
-				case "openai":
-					currentModelId = useFreeModelsApiConfig.openAiModelId
-					break
-				default:
-					currentModelId = undefined
-			}
-
-			console.log("[webviewMessageHandler] Current modelId:", currentModelId)
-
-			// Find current model's tier
-			const currentModel = allModelsForUseFreeModels.find((m) => m.modelId === currentModelId)
-			const currentTier = currentModel?.tier
-			console.log("[webviewMessageHandler] Current model tier:", currentTier)
-
-			// Check if current model is compatible with new useFreeModels setting
-			// When useFreeModels=true, only free models are allowed
-			// When useFreeModels=false, all models are allowed (no validation needed)
-			const isIncompatible = message.bool === true && currentTier !== "free"
-			console.log("[webviewMessageHandler] Is model incompatible?", isIncompatible)
-
-			if (isIncompatible) {
-				console.log(
-					"[webviewMessageHandler] Current model is paid but useFreeModels=true, switching to free model",
-				)
-				// Filter to free models only
-				const freeModels = allModelsForUseFreeModels.filter((m) => m.tier === "free")
-				console.log(
-					"[webviewMessageHandler] Free models available:",
-					freeModels.map((m) => ({ id: m.modelId, tier: m.tier })),
-				)
-
-				if (freeModels.length > 0) {
-					const newModelId = freeModels[0].modelId
-					console.log("[webviewMessageHandler] Switching to model:", newModelId)
-
-					// Update the model
-					let newConfiguration: ProviderSettings
-					switch (useFreeModelsApiConfig.apiProvider) {
-						case "openrouter":
-							newConfiguration = { ...useFreeModelsApiConfig, openRouterModelId: newModelId }
-							break
-						case "anthropic":
-						case "vertex":
-						case "bedrock":
-						case "gemini":
-						case "gemini-cli":
-						case "openai-native":
-						case "mistral":
-						case "deepseek":
-						case "doubao":
-						case "moonshot":
-						case "claude-code":
-							newConfiguration = { ...useFreeModelsApiConfig, apiModelId: newModelId }
-							break
-						case "openai":
-							newConfiguration = { ...useFreeModelsApiConfig, openAiModelId: newModelId }
-							break
-						default:
-							newConfiguration = useFreeModelsApiConfig
-					}
-
-					// Save the updated configuration
-					try {
-						await provider.providerSettingsManager.saveConfig(currentApiConfigName, newConfiguration)
-						console.log("[webviewMessageHandler] Model updated successfully")
-					} catch (error) {
-						console.error("[webviewMessageHandler] Error updating model:", error)
-						provider.log(
-							`Error updating model when useFreeModels changed: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
-						)
-					}
-				} else {
-					console.log("[webviewMessageHandler] No free models available for mode:", useFreeModelsMode)
+				// Update Firebase with new tier
+				try {
+					const { updateUserProperties } = await import("../../utils/firebaseHelper")
+					await updateUserProperties({ tier: tierValue })
+					console.log("[webviewMessageHandler] Tier updated in Firebase successfully")
+				} catch (error) {
+					console.error("[webviewMessageHandler] Error updating tier in Firebase:", error)
+					provider.log(
+						`Error updating tier in Firebase: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}`,
+					)
 				}
-			}
 
-			await provider.postStateToWebview()
+				await provider.postStateToWebview()
+			} else {
+				console.error("[webviewMessageHandler] Invalid tier value:", message.text)
+			}
 			break
 		case "allowedMaxRequests":
 			await updateGlobalState("allowedMaxRequests", message.value)
@@ -1319,6 +1219,10 @@ export const webviewMessageHandler = async (
 		case "developerMode":
 			await updateGlobalState("developerMode", message.bool ?? false)
 			await provider.postStateToWebview()
+			break
+		case "debugStopTimer":
+			// TODO: Implement timer stop logic when timer feature is fully implemented
+			logger.info("[debugStopTimer] Timer stop requested from UI")
 			break
 		case "getVSCodeSetting":
 			const { setting } = message

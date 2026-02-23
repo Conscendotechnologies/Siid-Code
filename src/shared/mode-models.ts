@@ -7,7 +7,7 @@ export interface ModeModelInfo {
 	modelId: string
 	displayName: string
 	provider?: "openrouter" | "anthropic" | "openai" | "other"
-	tier?: "free" | "basic" | "medium" | "advanced"
+	tier?: "Free" | "Pro" | "Max"
 	priority?: number // Lower number = higher priority (1 = primary, 2 = fallback1, 3 = fallback2, etc.)
 }
 
@@ -21,78 +21,64 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 1, // Primary
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 2, // Fallback 1
 		},
 		{
 			modelId: "z-ai/glm-4.5-air:free",
 			displayName: "GLM 4.5 Air (Free, Recommended)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:free",
 			displayName: "Llama 3.3 70B (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "openai/gpt-5-mini",
-			displayName: "GPT-5 Mini",
+			modelId: "z-ai/glm-4.6",
+			displayName: "GLM 4.6",
 			provider: "openrouter",
-			tier: "medium",
-			priority: 6, // Premium option
-		},
-		{
-			modelId: "moonshotai/kimi-k2.5",
-			displayName: "Kimi K2.5",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 7, // Premium option
-		},
-		{
-			modelId: "qwen/qwen3-32b:nitro",
-			displayName: "Qwen3 32B (nitro)",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 8, // Premium option
-		},
-		{
-			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
-			displayName: "Llama 3.3 70B Instruct (nitro)",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 9, // Premium option
-		},
-		{
-			modelId: "deepseek/deepseek-v3.2",
-			displayName: "DeepSeek V3.2",
-			provider: "openrouter",
-			tier: "medium",
+			tier: "Pro",
 			priority: 10, // Premium option
 		},
 		{
-			modelId: "openai/gpt-5",
-			displayName: "GPT-5",
+			modelId: "z-ai/glm-4.5",
+			displayName: "GLM 4.5",
 			provider: "openrouter",
-			tier: "advanced",
+			tier: "Pro",
 			priority: 11, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5",
+			displayName: "GPT-5 (Premium)",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 20, // Premium option
+		},
+		{
+			modelId: "anthropic/claude-sonnet-4-20250514",
+			displayName: "Claude Sonnet 4",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 21, // Premium option
 		},
 	],
 	code: [
@@ -100,78 +86,57 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 1, // Primary
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 2, // Fallback 1
 		},
 		{
 			modelId: "qwen/qwen3-coder:free",
 			displayName: "Qwen3 Coder (Free, Recommended)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "z-ai/glm-4.5-air:free",
 			displayName: "GLM 4.5 Air (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 5, // Fallback 4
 		},
 		{
-			modelId: "openai/gpt-5-mini",
-			displayName: "GPT-5 Mini",
+			modelId: "z-ai/glm-4.5",
+			displayName: "GLM 4.5",
 			provider: "openrouter",
-			tier: "medium",
-			priority: 6, // Premium option
-		},
-		{
-			modelId: "moonshotai/kimi-k2.5",
-			displayName: "Kimi K2.5",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 7, // Premium option
-		},
-		{
-			modelId: "qwen/qwen3-32b:nitro",
-			displayName: "Qwen3 32B (nitro)",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 8, // Premium option
-		},
-		{
-			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
-			displayName: "Llama 3.3 70B Instruct (nitro)",
-			provider: "openrouter",
-			tier: "medium",
-			priority: 9, // Premium option
-		},
-		{
-			modelId: "deepseek/deepseek-v3.2",
-			displayName: "DeepSeek V3.2",
-			provider: "openrouter",
-			tier: "medium",
+			tier: "Pro",
 			priority: 10, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5",
-			displayName: "GPT-5",
+			displayName: "GPT-5 (Premium)",
 			provider: "openrouter",
-			tier: "advanced",
-			priority: 11, // Premium option
+			tier: "Max",
+			priority: 20, // Premium option
+		},
+		{
+			modelId: "anthropic/claude-sonnet-4-20250514",
+			displayName: "Claude Sonnet 4",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 21, // Premium option
 		},
 	],
 	orchestrator: [
@@ -179,50 +144,94 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			modelId: "z-ai/glm-4.5-air:free",
 			displayName: "GLM 4.5 Air (Free, Recommended)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 1, // Primary
 		},
 		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:free",
 			displayName: "Llama 3.3 70B (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 2, // Fallback 1
 		},
 		{
 			modelId: "deepseek/deepseek-r1-0528:free",
 			displayName: "DeepSeek R1 (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
-			tier: "free",
+			tier: "Free",
 			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "x-ai/grok-code-fast-1",
-			displayName: "xAI: Grok Code Fast 1",
+			displayName: "Grok Code Fast 1",
 			provider: "openrouter",
-			tier: "medium",
-			priority: 11, // Premium option
+			tier: "Pro",
+			priority: 10, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5",
+			displayName: "GPT-5 (Premium)",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 20, // Premium option
+		},
+		{
+			modelId: "anthropic/claude-sonnet-4-20250514",
+			displayName: "Claude Sonnet 4",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 21, // Premium option
+		},
+	],
+	debug: [
+		{
+			modelId: "qwen/qwen3-coder:free",
+			displayName: "Qwen3 Coder (Free, Recommended)",
+			provider: "openrouter",
+			tier: "Free",
+			priority: 1, // Primary
+		},
+		{
+			modelId: "z-ai/glm-4.5-air:free",
+			displayName: "GLM 4.5 Air (Free)",
+			provider: "openrouter",
+			tier: "Free",
+			priority: 2, // Fallback 1
+		},
+		{
+			modelId: "meta-llama/llama-3.3-70b-instruct:free",
+			displayName: "Llama 3.3 70B (Free)",
+			provider: "openrouter",
+			tier: "Free",
+			priority: 3, // Fallback 2
+		},
+		{
+			modelId: "anthropic/claude-sonnet-4-20250514",
+			displayName: "Claude Sonnet 4",
+			provider: "openrouter",
+			tier: "Max",
+			priority: 20, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5",
 			displayName: "GPT-5",
 			provider: "openrouter",
-			tier: "advanced",
-			priority: 20, // Premium option
+			tier: "Max",
+			priority: 21, // Premium option
 		},
 	],
 }

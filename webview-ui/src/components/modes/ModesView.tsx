@@ -76,7 +76,7 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 		customInstructions,
 		setCustomInstructions,
 		customModes,
-		useFreeModels,
+		tier,
 	} = useExtensionState()
 
 	// Use a local state to track the visually active mode
@@ -207,7 +207,7 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 	// Use the shared ESC key handler hook
 	useEscapeKey(open, () => setOpen(false))
 
-	// Helper function to get filtered API configs based on current mode and useFreeModels setting
+	// Helper function to get filtered API configs based on current mode and tier setting
 	const filteredApiConfigs = useMemo(() => {
 		if (!listApiConfigMeta) return []
 
@@ -215,7 +215,7 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 			`[ModesView] All configs before filtering:`,
 			listApiConfigMeta.map((c) => ({ name: c.name, id: c.id })),
 		)
-		console.log(`[ModesView] useFreeModels=${useFreeModels}, visualMode=${visualMode}`)
+		console.log(`[ModesView] tier=${tier}, visualMode=${visualMode}`)
 
 		const filtered = listApiConfigMeta.filter((config) => {
 			// Always exclude 'default' config
@@ -235,13 +235,18 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 					return false
 				}
 
-				// If useFreeModels is checked, show ONLY the basic(free) config
-				if (useFreeModels && !config.name?.includes("(free)")) {
-					console.log(`[ModesView] Filtering out ${config.name} - useFreeModels is true, need (free) suffix`)
-					return false
+				// Filter based on tier
+				const name = config.name ?? ""
+				if (tier === "Free") {
+					return name.includes("basic") || name.includes("-free")
+				}
+				if (tier === "Pro") {
+					return name.includes("medium") || name.includes("-pro") || name.includes("basic")
+				}
+				if (tier === "Max") {
+					return true // Show all configs for Max tier
 				}
 
-				// If useFreeModels is unchecked, show all three (basic(free), medium, advanced)
 				return true
 			}
 
@@ -255,7 +260,7 @@ const ModesView = ({ onDone }: ModesViewProps) => {
 			filtered.map((c) => c.name),
 		)
 		return filtered
-	}, [visualMode, listApiConfigMeta, useFreeModels])
+	}, [visualMode, listApiConfigMeta, tier])
 
 	// Handler for clearing search input
 	const onClearSearch = useCallback(() => {

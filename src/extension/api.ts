@@ -594,10 +594,10 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						}
 
 						// Store in IDE global state
-						await this.sidebarProvider.contextProxy.setValue("useFreeModels", useFreeModels)
-						logger.info(`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`)
+						await this.sidebarProvider.contextProxy.setValue("tier", useFreeModels ? "Free" : "Max")
+						logger.info(`[onFirebaseLogin] tier set to ${useFreeModels ? "Free" : "Max"} in IDE storage`)
 						this.outputChannel.appendLine(
-							`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`,
+							`[onFirebaseLogin] tier set to ${useFreeModels ? "Free" : "Max"} in IDE storage`,
 						)
 
 						// Update API keys based on useFreeModels preference

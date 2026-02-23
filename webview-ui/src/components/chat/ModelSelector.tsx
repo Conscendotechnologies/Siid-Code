@@ -14,7 +14,7 @@ interface ModelSelectorProps {
 	disabled?: boolean
 	title?: string
 	triggerClassName?: string
-	useFreeModels?: boolean // Filter to show only free models
+	tier?: "Free" | "Pro" | "Max" // Filter models by tier
 	developerMode?: boolean // Developer mode shows all models
 }
 
@@ -25,7 +25,7 @@ export const ModelSelector = ({
 	disabled = false,
 	title = "",
 	triggerClassName = "",
-	useFreeModels = false,
+	tier = "Free",
 	developerMode = false,
 }: ModelSelectorProps) => {
 	const [open, setOpen] = React.useState(false)
@@ -42,24 +42,57 @@ export const ModelSelector = ({
 			return [...allModels].sort((a, b) => (a.priority || 999) - (b.priority || 999))
 		}
 
-		// Filter based on useFreeModels setting
-		let filtered: typeof allModels
-		if (useFreeModels === true) {
-			// Show only free tier models when useFreeModels is enabled
-			filtered = allModels.filter((model) => model.tier === "free")
-		} else {
-			// Show all models when useFreeModels is false (both free and paid)
-			filtered = allModels
+		// Filter based on tier setting - show current tier and below
+		const tierHierarchy: Record<string, ("Free" | "Pro" | "Max")[]> = {
+			Free: ["Free"],
+			Pro: ["Free", "Pro"],
+			Max: ["Free", "Pro", "Max"],
 		}
+
+		const allowedTiers = tierHierarchy[tier] || ["Free"]
+		const filtered = allModels.filter((model) => {
+			if (!model.tier) return false
+			return allowedTiers.includes(model.tier)
+		})
 
 		// Sort by priority (lower number = higher priority)
 		return [...filtered].sort((a, b) => (a.priority || 999) - (b.priority || 999))
-	}, [mode, useFreeModels, developerMode])
+	}, [mode, tier, developerMode])
 
-	// Find the selected model info
+	// Find the selected model info, or auto-select highest tier model if current isn't at user's tier level
 	const selectedModel = React.useMemo(() => {
-		return availableModels.find((model) => model.modelId === value)
-	}, [availableModels, value])
+		// If current value is in available models, check if it matches user's tier level
+		const found = availableModels.find((model) => model.modelId === value)
+		if (found) {
+			// Check if current model's tier matches or exceeds user's tier
+			const tierHierarchy = { Free: 1, Pro: 2, Max: 3 }
+			const currentTierLevel = tierHierarchy[tier as keyof typeof tierHierarchy] || 1
+			const modelTierLevel = tierHierarchy[found.tier as keyof typeof tierHierarchy] || 0
+
+			// If model tier >= user tier, keep it (e.g., Pro model when user has Pro tier)
+			if (modelTierLevel >= currentTierLevel) {
+				return found
+			}
+			// If model tier < user tier, fall through to auto-select highest (upgrade)
+		}
+
+		// Auto-select the highest tier model available (for tier upgrades or new selections)
+		const tierPriority: Record<"Free" | "Pro" | "Max", number> = { Max: 3, Pro: 2, Free: 1 }
+		const highest = availableModels.reduce((best, current) => {
+			const currentPriority = tierPriority[current.tier as "Free" | "Pro" | "Max"] || 0
+			const bestPriority = tierPriority[best.tier as "Free" | "Pro" | "Max"] || 0
+			return currentPriority > bestPriority ? current : best
+		})
+
+		return highest
+	}, [availableModels, value, tier])
+
+	// Auto-update parent when tier changes and best model changes
+	React.useEffect(() => {
+		if (selectedModel && selectedModel.modelId !== value) {
+			onChange(selectedModel.modelId)
+		}
+	}, [selectedModel, selectedModel.modelId, value, onChange])
 
 	const handleSelect = React.useCallback(
 		(modelId: string) => {
@@ -138,10 +171,9 @@ export const ModelSelector = ({
 												<span
 													className={cn(
 														"text-[10px] px-1.5 py-0.5 rounded",
-														model.tier === "free" && "bg-green-500/20 text-green-300",
-														model.tier === "basic" && "bg-blue-500/20 text-blue-300",
-														model.tier === "medium" && "bg-purple-500/20 text-purple-300",
-														model.tier === "advanced" && "bg-orange-500/20 text-orange-300",
+														model.tier === "Free" && "bg-green-500/20 text-green-300",
+														model.tier === "Pro" && "bg-purple-500/20 text-purple-300",
+														model.tier === "Max" && "bg-orange-500/20 text-orange-300",
 													)}>
 													{model.tier}
 												</span>

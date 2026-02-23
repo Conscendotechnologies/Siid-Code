@@ -655,7 +655,7 @@ export class ClineProvider
 			diffEnabled: enableDiff,
 			enableCheckpoints,
 			fuzzyMatchThreshold,
-			experiments: baseExperiments,
+			experiments,
 		} = await this.getState()
 
 		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
@@ -685,7 +685,7 @@ export class ClineProvider
 			parentTask,
 			taskNumber: this.clineStack.length + 1,
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
-			...restOptions,
+			...options,
 		})
 
 		await this.addClineToStack(task)
@@ -842,19 +842,6 @@ export class ClineProvider
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
 
-		// Listen for task completion to update webview state
-		task.on(RooCodeEventName.TaskCompleted, async () => {
-			await this.postStateToWebview()
-		})
-
-		// Listen for task idle/active to update timer in webview
-		task.on(RooCodeEventName.TaskIdle, async () => {
-			await this.postStateToWebview()
-		})
-		task.on(RooCodeEventName.TaskActive, async () => {
-			await this.postStateToWebview()
-		})
-
 		await this.addClineToStack(task)
 
 		this.log(
@@ -914,19 +901,6 @@ export class ClineProvider
 			taskNumber: historyItem.number,
 			startTask: false, // Don't start the task - it should be paused waiting for subtask
 			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
-		})
-
-		// Listen for task completion to update webview state
-		task.on(RooCodeEventName.TaskCompleted, async () => {
-			await this.postStateToWebview()
-		})
-
-		// Listen for task idle/active to update timer in webview
-		task.on(RooCodeEventName.TaskIdle, async () => {
-			await this.postStateToWebview()
-		})
-		task.on(RooCodeEventName.TaskActive, async () => {
-			await this.postStateToWebview()
 		})
 
 		// Mark as paused since it's waiting for a subtask to complete
@@ -1184,32 +1158,46 @@ export class ClineProvider
 		await this.updateGlobalState("mode", newMode)
 
 		// Auto-switch model to the default/recommended model for this mode
-		// Respect useFreeModels setting when selecting the model
-		const { useFreeModels } = await this.getState()
+		// Respect tier setting when selecting models
+		const { tier } = await this.getState()
 		const allModels = getModelsForMode(newMode)
 
 		console.log("[ClineProvider.handleModeSwitch] Mode:", newMode)
-		console.log("[ClineProvider.handleModeSwitch] useFreeModels:", useFreeModels)
+		console.log("[ClineProvider.handleModeSwitch] tier:", tier)
 		console.log(
 			"[ClineProvider.handleModeSwitch] All models:",
 			allModels.map((m) => ({ id: m.modelId, tier: m.tier })),
 		)
 
-		// Filter models based on useFreeModels setting
+		// Filter models based on tier setting
 		let availableModels = allModels
-		if (useFreeModels === true) {
-			// Only include free models when useFreeModels is true
-			availableModels = allModels.filter((model) => model.tier === "free")
+		if (tier && tier !== "Max") {
+			// Filter to tier level and below
+			availableModels = allModels.filter((model) => {
+				if (!model.tier) return false
+				if (tier === "Free") return model.tier === "Free"
+				if (tier === "Pro") return model.tier === "Free" || model.tier === "Pro"
+				return false
+			})
 			console.log(
-				"[ClineProvider.handleModeSwitch] Filtered to free models only:",
+				"[ClineProvider.handleModeSwitch] Filtered models by tier:",
 				availableModels.map((m) => ({ id: m.modelId, tier: m.tier })),
 			)
 		} else {
-			// Show all models when useFreeModels is false
-			console.log("[ClineProvider.handleModeSwitch] Showing all models (useFreeModels=false)")
+			// Show all models when tier is "Max"
+			console.log("[ClineProvider.handleModeSwitch] Showing all models (tier=Max)")
 		}
 
-		const defaultModel = availableModels[0] // Pick first available model after filtering
+		// Select the highest tier model available (or first if tier is provided)
+		let defaultModel: any = null
+		if (availableModels.length > 0) {
+			const tierPriority: Record<string, number> = { Max: 3, Pro: 2, Free: 1 }
+			defaultModel = availableModels.reduce((best, current) => {
+				const currentPriority = tierPriority[current.tier || "Free"] || 0
+				const bestPriority = tierPriority[best.tier || "Free"] || 0
+				return currentPriority > bestPriority ? current : best
+			})
+		}
 
 		if (defaultModel) {
 			console.log(
@@ -1219,7 +1207,7 @@ export class ClineProvider
 				defaultModel.tier,
 			)
 			logger.info(
-				`ClineProvider.handleModeSwitch: auto-switching to model ${defaultModel.modelId} (tier=${defaultModel.tier}) for mode ${newMode} with useFreeModels=${useFreeModels}`,
+				`ClineProvider.handleModeSwitch: auto-switching to model ${defaultModel.modelId} (tier=${defaultModel.tier}) for mode ${newMode} with tier=${tier}`,
 			)
 
 			const { apiConfiguration, currentApiConfigName } = await this.getState()
@@ -1419,7 +1407,7 @@ export class ClineProvider
 		const rootTask = cline.rootTask
 		const parentTask = cline.parentTask
 
-		await cline.abortTask()
+		cline.abortTask()
 
 		await pWaitFor(
 			() =>
@@ -1434,10 +1422,6 @@ export class ClineProvider
 				timeout: 3_000,
 			},
 		).catch(() => {})
-
-		// Send frozen timer to webview while old Task is still getCurrentCline()
-		// (before initClineWithHistoryItem replaces it with a new instance)
-		await this.postStateToWebview()
 
 		if (this.getCurrentCline()) {
 			// 'abandoned' will prevent this Cline instance from affecting
@@ -1941,7 +1925,7 @@ export class ClineProvider
 			maxDiagnosticMessages,
 			includeTaskHistoryInEnhance,
 			developerMode,
-			useFreeModels,
+			tier,
 		} = await this.getState()
 
 		const telemetryKey = process.env.POSTHOG_API_KEY
@@ -1975,12 +1959,6 @@ export class ClineProvider
 			currentTaskItem: this.getCurrentCline()?.taskId
 				? (taskHistory || []).find((item: HistoryItem) => item.id === this.getCurrentCline()?.taskId)
 				: undefined,
-			taskStartTime:
-				this.getCurrentCline()?.taskStartTime && !this.getCurrentCline()?.taskCompleted
-					? this.getCurrentCline()?.taskStartTime
-					: 0,
-			taskElapsedTime: this.getCurrentCline()?.getTaskDuration(),
-			taskCompleted: this.getCurrentCline()?.taskCompleted,
 			clineMessages: this.getCurrentCline()?.clineMessages || [],
 			taskHistory: (taskHistory || [])
 				.filter((item: HistoryItem) => item.ts && item.task)
@@ -2076,7 +2054,7 @@ export class ClineProvider
 			includeDiagnosticMessages: includeDiagnosticMessages ?? true,
 			maxDiagnosticMessages: maxDiagnosticMessages ?? 50,
 			includeTaskHistoryInEnhance: includeTaskHistoryInEnhance ?? false,
-			useFreeModels: useFreeModels ?? false,
+			tier: tier ?? "Free",
 			developerMode: developerMode ?? false,
 		}
 	}
@@ -2290,7 +2268,7 @@ export class ClineProvider
 			maxDiagnosticMessages: stateValues.maxDiagnosticMessages ?? 50,
 			// Add includeTaskHistoryInEnhance setting
 			includeTaskHistoryInEnhance: stateValues.includeTaskHistoryInEnhance ?? false,
-			useFreeModels: stateValues.useFreeModels,
+			tier: stateValues.tier ?? "Free",
 			developerMode: stateValues.developerMode ?? false,
 		}
 
