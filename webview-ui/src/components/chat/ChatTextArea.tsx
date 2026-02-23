@@ -910,6 +910,19 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			vscode.postMessage({ type: "updateModel", text: modelId })
 		}, [])
 
+		// Auto-condense context when switching to a model with smaller context window
+		useEffect(() => {
+			if (
+				contextTokens !== undefined &&
+				contextWindow !== undefined &&
+				contextTokens > contextWindow &&
+				onCondenseContext &&
+				!isCondensing
+			) {
+				onCondenseContext()
+			}
+		}, [contextWindow, contextTokens, onCondenseContext, isCondensing])
+
 		// Helper function to render non-edit mode controls
 		const renderNonEditModeControls = () => (
 			<div className={cn("flex", "items-center", "justify-between", "gap-1", "px-1.5", "mb-1")}>
@@ -933,9 +946,9 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						contextWindow !== undefined &&
 						onCondenseContext &&
 						(() => {
-							const { currentPercent } = calculateTokenDistribution(contextWindow, contextTokens)
+							const { effectivePercent } = calculateTokenDistribution(contextWindow, contextTokens)
 							return (
-								currentPercent > 0 && (
+								effectivePercent > 0 && (
 									<div className="shrink-0">
 										<ContextUsageIndicator
 											contextTokens={contextTokens}

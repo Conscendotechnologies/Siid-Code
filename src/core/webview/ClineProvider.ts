@@ -1,6 +1,7 @@
 import os from "os"
 import * as path from "path"
 import fs from "fs/promises"
+import crypto from "crypto"
 import EventEmitter from "events"
 
 import { Anthropic } from "@anthropic-ai/sdk"
@@ -81,6 +82,8 @@ import { ContextProxy } from "../config/ContextProxy"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import { CustomModesManager } from "../config/CustomModesManager"
 import { Task, TaskOptions } from "../task/Task"
+import { analyzeTaskComplexity } from "../task/analyzeTaskComplexity"
+import { planningFileManager } from "../planning/PlanningFileManager"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
@@ -659,6 +662,15 @@ export class ClineProvider
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
 
+		// Use base experiments if not explicitly provided
+		let experiments = baseExperiments
+		if (options.experiments) {
+			experiments = { ...baseExperiments, ...options.experiments }
+		}
+
+		// Extract experiments from options to prevent it from being spread again
+		const { experiments: optionsExperiments, ...restOptions } = options
+
 		const task = new Task({
 			provider: this,
 			apiConfiguration,
@@ -677,6 +689,60 @@ export class ClineProvider
 		})
 
 		await this.addClineToStack(task)
+
+		// Analyze task complexity and create planning file if needed (asynchronously in background)
+		let planningFilePath: string | undefined
+		if (text) {
+			// Run AI analysis asynchronously without blocking task display
+			;(async () => {
+				try {
+					const complexity = await analyzeTaskComplexity(text, apiConfiguration)
+
+					if (complexity.isComplex) {
+						const cwd = getWorkspacePath(path.join(os.homedir(), "Desktop"))
+
+						planningFilePath = await planningFileManager.createPlanningFile(
+							cwd,
+							text,
+							complexity.filename,
+							complexity.planContent,
+						)
+
+						// Update task with planning file path if needed
+						if (task) {
+							task.planningFilePath = planningFilePath
+						}
+					}
+				} catch (error) {
+					console.warn("Error in planning file creation:", error)
+				}
+			})()
+		}
+
+		// Listen for task completion to update webview state
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			// Delete planning file if it was created for this task
+			if (planningFilePath) {
+				try {
+					await planningFileManager.deletePlanningFile(task.workspacePath, planningFilePath)
+				} catch (error) {
+					const errorMsg = error instanceof Error ? error.message : String(error)
+					this.log(`Warning: Failed to delete planning file: ${errorMsg}`)
+				}
+			}
+			await this.postStateToWebview()
+		})
+
+		// Listen for task idle/active to update timer in webview
+		task.on(RooCodeEventName.TaskIdle, async () => {
+			await this.postStateToWebview()
+		})
+		task.on(RooCodeEventName.TaskActive, async () => {
+			await this.postStateToWebview()
+		})
+
+		// Update webview with new task state
+		await this.postStateToWebview()
 
 		this.log(
 			`[subtasks] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
@@ -1255,8 +1321,9 @@ export class ClineProvider
 				const task = this.getCurrentCline()
 
 				if (task) {
-					task.api = buildApiHandler(providerSettings)
-					logger.info(`[upsertProviderProfile] Updated API handler for current task`)
+					// Use handleModelChange to automatically condense context if needed
+					await task.handleModelChange(providerSettings)
+					logger.info(`[upsertProviderProfile] Updated API handler for current task (with condensing check)`)
 				}
 			} else {
 				await this.updateGlobalState("listApiConfigMeta", await this.providerSettingsManager.listConfig())
@@ -1318,7 +1385,8 @@ export class ClineProvider
 		const task = this.getCurrentCline()
 
 		if (task) {
-			task.api = buildApiHandler(providerSettings)
+			// Use handleModelChange to automatically condense context if needed
+			await task.handleModelChange(providerSettings)
 		}
 
 		await this.postStateToWebview()
@@ -1334,6 +1402,7 @@ export class ClineProvider
 		}
 
 		const { historyItem } = await this.getTaskWithId(cline.taskId)
+		const elapsedBeforeAbort = cline.getTaskDuration()
 		// Preserve parent and root task information for history item.
 		const rootTask = cline.rootTask
 		const parentTask = cline.parentTask
@@ -1362,7 +1431,15 @@ export class ClineProvider
 		}
 
 		// Clears task again, so we need to abortTask manually above.
-		await this.initClineWithHistoryItem({ ...historyItem, rootTask, parentTask })
+		// Re-fetch historyItem since abortTask saved updated duration
+		const { historyItem: updatedHistoryItem } = await this.getTaskWithId(cline.taskId)
+		const resumedDuration = Math.max(updatedHistoryItem.duration ?? 0, elapsedBeforeAbort)
+		await this.initClineWithHistoryItem({
+			...updatedHistoryItem,
+			duration: resumedDuration,
+			rootTask,
+			parentTask,
+		})
 	}
 
 	async updateCustomInstructions(instructions?: string) {
@@ -1537,14 +1614,19 @@ export class ClineProvider
 	async exportTaskDebugJsonWithId(id: string) {
 		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
 
-		// Try to get the system prompt from the active task if it matches
+		// Try to get the system prompt and model info from the active task if it matches
 		let systemPrompt: string | undefined
+		let modelId: string | undefined
+		let contextWindow: number | undefined
 		const activeTask = this.clineStack.find((t) => t.taskId === id)
 		if (activeTask) {
 			try {
 				systemPrompt = await activeTask.getSystemPrompt()
+				const modelInfo = activeTask.api.getModel()
+				modelId = modelInfo.id
+				contextWindow = modelInfo.info.contextWindow
 			} catch {
-				// Task may not be in a state to generate system prompt
+				// Task may not be in a state to generate system prompt or get model info
 			}
 		}
 
@@ -1555,6 +1637,8 @@ export class ClineProvider
 			workspace: historyItem.workspace,
 			mode: historyItem.mode,
 			systemPrompt,
+			modelId,
+			contextWindow,
 		})
 	}
 
@@ -1771,7 +1855,6 @@ export class ClineProvider
 			alwaysAllowUpdateTodoList,
 			allowedMaxRequests,
 			allowedMaxCost,
-			autoCondenseContext,
 			autoCondenseContextPercent,
 			notificationsEnabled,
 			soundEnabled,
@@ -1871,7 +1954,6 @@ export class ClineProvider
 			alwaysAllowUpdateTodoList: alwaysAllowUpdateTodoList ?? false,
 			allowedMaxRequests,
 			allowedMaxCost,
-			autoCondenseContext: autoCondenseContext ?? true,
 			autoCondenseContextPercent: autoCondenseContextPercent ?? 100,
 			uriScheme: vscode.env.uriScheme,
 			currentTaskItem: this.getCurrentCline()?.taskId
@@ -2096,7 +2178,6 @@ export class ClineProvider
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,
 			allowedMaxCost: stateValues.allowedMaxCost,
-			autoCondenseContext: stateValues.autoCondenseContext ?? true,
 			autoCondenseContextPercent: stateValues.autoCondenseContextPercent ?? 100,
 			taskHistory: stateValues.taskHistory,
 			allowedCommands: stateValues.allowedCommands,

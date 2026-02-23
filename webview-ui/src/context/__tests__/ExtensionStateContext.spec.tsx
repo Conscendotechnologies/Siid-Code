@@ -204,7 +204,6 @@ describe("mergeExtensionState", () => {
 			maxReadFileLine: 500,
 			cloudUserInfo: null,
 			organizationAllowList: { allowAll: true, providers: {} },
-			autoCondenseContext: true,
 			autoCondenseContextPercent: 100,
 			cloudIsAuthenticated: false,
 			firebaseIsAuthenticated: false,
@@ -233,7 +232,6 @@ describe("mergeExtensionState", () => {
 				preventFocusDisruption: false,
 				assistantMessageParser: false,
 				multipleToolCalls: false,
-				planningWorkflow: false,
 			} as Record<ExperimentId, boolean>,
 		}
 

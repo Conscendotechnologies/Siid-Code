@@ -30,6 +30,7 @@ import {
 	getModelId,
 	DEFAULT_CONSECUTIVE_MISTAKE_LIMIT,
 	isBlockingAsk,
+	ANTHROPIC_DEFAULT_MAX_TOKENS,
 } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
 import { CloudService } from "@roo-code/cloud"
@@ -53,6 +54,8 @@ import {
 	getNextModelOnError,
 	resetModelToDefault,
 	shouldSwitchToFallback,
+	isFallbackEligible,
+	isFallbackActiveForModel,
 	getPrimaryModel,
 	isModelTimeoutExpired,
 	resetOnTimeout,
@@ -107,7 +110,7 @@ import {
 } from "../checkpoints"
 import { processUserContentMentions } from "../mentions/processUserContentMentions"
 import { ApiMessage } from "../task-persistence/apiMessages"
-import { summarizeConversation } from "../condense"
+import { summarizeConversation, MIN_CONDENSE_THRESHOLD, MAX_CONDENSE_THRESHOLD } from "../condense"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoListTool"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
@@ -130,6 +133,7 @@ export type TaskOptions = {
 	parentTask?: Task
 	taskNumber?: number
 	onCreated?: (task: Task) => void
+	planningFilePath?: string
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -197,12 +201,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	pausedModeSlug: string = defaultModeSlug
 	private pauseInterval: NodeJS.Timeout | undefined
 	private isLoopRunning: boolean = false
+	planningFilePath?: string
 
 	// API
 	readonly apiConfiguration: ProviderSettings
 	api: ApiHandler
 	private static lastGlobalApiRequestTime?: number
 	private autoApprovalHandler: AutoApprovalHandler
+
+	// Model change tracking - used for condensing context when switching models
+	previousApiHandler?: ApiHandler
+	previousModelInfo?: {
+		contextWindow: number
+		modelId: string
+	}
 
 	/**
 	 * Reset the global API request timestamp. This should only be used for testing.
@@ -294,6 +306,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		parentTask,
 		taskNumber = -1,
 		onCreated,
+		planningFilePath,
 	}: TaskOptions) {
 		super()
 
@@ -336,6 +349,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.rootTask = rootTask
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
+		this.planningFilePath = planningFilePath
 
 		// Store the task's mode when it's created.
 		// For history items, use the stored mode; for new tasks, we'll set it
@@ -344,7 +358,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this._taskMode = historyItem.mode || defaultModeSlug
 			this.taskModeReady = Promise.resolve()
 			// Restore saved duration if available
-			if (historyItem.duration) {
+			if (historyItem.duration !== undefined) {
 				this.taskElapsedMs = historyItem.duration
 			}
 			// Restore task completion status if available
@@ -783,13 +797,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		if (!partial && !isReady && isBlockingAsk(type)) {
 			this.blockingAsk = type
-			this.pauseTaskTimer()
+			if (type !== "command_output") {
+				this.pauseTaskTimer()
+			}
 			this.emit(RooCodeEventName.TaskIdle, this.taskId)
 		}
 
-		console.log(`[Task#${this.taskId}] pWaitFor askResponse(${type}) -> blocking`)
 		await pWaitFor(() => this.askResponse !== undefined || this.lastMessageTs !== askTs, { interval: 100 })
-		console.log(`[Task#${this.taskId}] pWaitFor askResponse(${type}) -> unblocked (${this.askResponse})`)
 
 		if (this.lastMessageTs !== askTs) {
 			// Could happen if we send multiple asks in a row i.e. with
@@ -805,8 +819,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Switch back to an active state.
 		if (this.blockingAsk) {
+			const blockingAskType = this.blockingAsk
 			this.blockingAsk = undefined
-			this.resumeTaskTimer()
+			if (blockingAskType !== "command_output") {
+				this.resumeTaskTimer()
+			}
 			this.emit(RooCodeEventName.TaskActive, this.taskId)
 		}
 
@@ -818,7 +835,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.handleWebviewAskResponse("messageResponse", text, images)
 	}
 
-	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[], messageTs?: number) {
+		if (messageTs !== undefined) {
+			const lastMessage = this.clineMessages.at(-1)
+			if (!lastMessage || lastMessage.type !== "ask" || lastMessage.ts !== messageTs) {
+				return
+			}
+		}
+
+		// If user provides feedback after completion, mark task active again.
+		if (askResponse === "messageResponse" && this.taskCompleted) {
+			this.taskCompleted = false
+		}
+
 		this.askResponse = askResponse
 		this.askResponseText = text
 		this.askResponseImages = images
@@ -832,7 +861,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
-	public async condenseContext(): Promise<void> {
+	public async condenseContext(isAutomaticTrigger = false, forcedApiHandler?: ApiHandler): Promise<boolean> {
 		const systemPrompt = await this.getSystemPrompt()
 
 		// Get condensing configuration
@@ -844,7 +873,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		// Determine API handler to use
 		let condensingApiHandler: ApiHandler | undefined
-		if (condensingApiConfigId && listApiConfigMeta && Array.isArray(listApiConfigMeta)) {
+
+		// If a forced handler is provided (e.g., previous model during model switch), use it
+		if (forcedApiHandler) {
+			condensingApiHandler = forcedApiHandler
+		} else if (condensingApiConfigId && listApiConfigMeta && Array.isArray(listApiConfigMeta)) {
 			// Using type assertion for the id property to avoid implicit any
 			const matchingConfig = listApiConfigMeta.find((config: any) => config.id === condensingApiConfigId)
 			if (matchingConfig) {
@@ -871,7 +904,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			systemPrompt, // Default summarization prompt (fallback)
 			this.taskId,
 			prevContextTokens,
-			false, // manual trigger
+			isAutomaticTrigger,
 			customCondensingPrompt, // User's custom prompt
 			condensingApiHandler, // Specific handler for condensing
 		)
@@ -885,8 +918,42 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				undefined /* progressStatus */,
 				{ isNonInteractive: true } /* options */,
 			)
-			return
+			return false // Condensing failed
 		}
+
+		// Check if context size actually decreased (or at least didn't increase)
+		if (newContextTokens >= prevContextTokens) {
+			const increase = newContextTokens - prevContextTokens
+			const increasePercent = ((increase / prevContextTokens) * 100).toFixed(1)
+
+			console.log(
+				`[condenseContext] Skipping summarization - context size increased:\n` +
+					`  Before: ${prevContextTokens} tokens\n` +
+					`  After: ${newContextTokens} tokens\n` +
+					`  Increase: ${increase} tokens (${increasePercent}%)`,
+			)
+
+			// this.say(
+			// 	"condense_context_error",
+			// 	`⚠️ **Context Condensing Skipped**\n\n` +
+			// 		`Summarization would increase context size instead of reducing it:\n\n` +
+			// 		`• Before: **${prevContextTokens.toLocaleString()}** tokens\n` +
+			// 		`• After: **${newContextTokens.toLocaleString()}** tokens\n` +
+			// 		`• Increase: **${increase.toLocaleString()}** tokens (**${increasePercent}%**)\n\n` +
+			// 		`This can happen when:\n` +
+			// 		`1. Conversation is already very concise\n` +
+			// 		`2. Summary model generated verbose output\n` +
+			// 		`3. Message count is too small to benefit from condensing\n\n` +
+			// 		`Keeping original conversation history.`,
+			// 	undefined /* images */,
+			// 	false /* partial */,
+			// 	undefined /* checkpoint */,
+			// 	undefined /* progressStatus */,
+			// 	{ isNonInteractive: true } /* options */,
+			// )
+			// return false // Condensing skipped
+		}
+
 		await this.overwriteApiConversationHistory(messages)
 		const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
 		await this.say(
@@ -899,6 +966,183 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			{ isNonInteractive: true } /* options */,
 			contextCondense,
 		)
+		return true // Condensing succeeded
+	}
+
+	/**
+	 * Handle model changes by condensing context if needed when switching to a smaller model
+	 * Uses the previous model to perform the condensing operation
+	 *
+	 * @param newApiConfiguration - The new API configuration being switched to
+	 * @returns Promise that resolves when model change is complete
+	 */
+	public async handleModelChange(newApiConfiguration: ProviderSettings): Promise<void> {
+		try {
+			// Build the new API handler to get model info
+			const newApiHandler = buildApiHandler(newApiConfiguration)
+			const newModel = await this.getResolvedModel(newApiHandler)
+			const newModelInfo = newModel.info
+			const newModelId = newModel.id
+			const newContextWindow = newModelInfo.contextWindow
+			const newMaxTokens = getModelMaxOutputTokens({
+				modelId: newModelId,
+				model: newModelInfo,
+				settings: newApiConfiguration,
+			})
+
+			// Get current context size for the new model's limits
+			const contextCheck = await this.getContextSizeForModel(
+				newContextWindow,
+				newMaxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
+			)
+
+			const currentModel = await this.getResolvedModel(this.api)
+			const currentModelInfo = currentModel.info
+			const currentModelId = currentModel.id
+
+			console.log(
+				`[handleModelChange] Switching models:\n` +
+					`  Current: ${currentModelId} (${currentModelInfo.contextWindow} tokens)\n` +
+					`  New: ${newModelId} (${newContextWindow} tokens)\n` +
+					`  Context: ${contextCheck.currentTokens} tokens (${contextCheck.percentOfContextWindow.toFixed(1)}% raw window, ${contextCheck.percentUsed.toFixed(1)}% usable)\n` +
+					`  Will fit: ${contextCheck.willFit}`,
+			)
+
+			// Check if condensing is needed
+			if (!contextCheck.willFit) {
+				// Show user feedback about condensing
+				// await this.say(
+				// 	"text",
+				// 	`📊 **Model Switch: Context Condensing Required**\n\n` +
+				// 		`Switching from **${currentModelId}** to **${newModelId}** requires context condensing:\n\n` +
+				// 		`• Current context: **${contextCheck.currentTokens.toLocaleString()}** tokens\n` +
+				// 		`• New model capacity: **${contextCheck.availableTokens.toLocaleString()}** tokens\n` +
+				// 		`• Context usage: **${contextCheck.percentUsed.toFixed(1)}%** of usable capacity (**${contextCheck.percentOfContextWindow.toFixed(1)}%** of raw window)\n\n` +
+				// 		`Using **${currentModelId}** to condense conversation history...`,
+				// )
+
+				// For higher -> lower model switch, condense with the current active model
+				// (the "previous" model from the user's perspective before switch).
+				const handlerForCondensing = this.api
+
+				try {
+					// Perform condensing with the current (pre-switch) model
+					const condensingSucceeded = await this.condenseContext(false, handlerForCondensing)
+
+					// If condensing was skipped or failed, don't proceed with model switch
+					if (!condensingSucceeded) {
+						// await this.say(
+						// 	"error",
+						// 	`❌ **Model Switch Cancelled**\n\n` +
+						// 		`Context condensing was skipped or failed. Cannot switch to **${newModelId}** ` +
+						// 		`because the context size (**${contextCheck.currentTokens.toLocaleString()}** tokens) ` +
+						// 		`exceeds the new model's capacity (**${contextCheck.availableTokens.toLocaleString()}** tokens).\n\n` +
+						// 		`Options:\n` +
+						// 		`1. Manually clear some conversation history\n` +
+						// 		`2. Try condensing with a different model\n` +
+						// 		`3. Choose a model with a larger context window\n\n` +
+						// 		`Keeping current model: **${currentModelId}**`,
+						// )
+						return
+					}
+
+					// Verify condensing worked
+					const newApiHandlerForCheck = buildApiHandler(newApiConfiguration)
+					const newModelForCheck = await this.getResolvedModel(newApiHandlerForCheck)
+					const newModelInfoForCheck = newModelForCheck.info
+					const newMaxTokensForCheck = getModelMaxOutputTokens({
+						modelId: newModelForCheck.id,
+						model: newModelInfoForCheck,
+						settings: newApiConfiguration,
+					})
+
+					// Re-check context size after condensing
+					// Need to temporarily update this.api to use the new handler for token counting
+					const tempApi = this.api
+					this.api = newApiHandlerForCheck
+					const recheckContext = await this.getContextSizeForModel(
+						newModelInfoForCheck.contextWindow,
+						newMaxTokensForCheck ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
+					)
+					this.api = tempApi
+
+					if (!recheckContext.willFit) {
+						// Still doesn't fit - need more aggressive condensing or error
+						// await this.say(
+						// 	"error",
+						// 	`⚠️ **Context Still Too Large After Condensing**\n\n` +
+						// 		`After condensing, context is still too large for ${newModelId}:\n\n` +
+						// 		`• Context after condensing: **${recheckContext.currentTokens.toLocaleString()}** tokens\n` +
+						// 		`• New model capacity: **${recheckContext.availableTokens.toLocaleString()}** tokens\n` +
+						// 		`• Context usage: **${recheckContext.percentUsed.toFixed(1)}%** usable (**${recheckContext.percentOfContextWindow.toFixed(1)}%** raw)\n\n` +
+						// 		`Consider:\n` +
+						// 		`1. Condensing again manually\n` +
+						// 		`2. Clearing some conversation history\n` +
+						// 		`3. Choosing a model with larger context window\n\n` +
+						// 		`Model switch cancelled.`,
+						// )
+						// Don't proceed with model switch
+						return
+					}
+
+					// Success - context now fits
+					const reduction = contextCheck.currentTokens - recheckContext.currentTokens
+					const reductionPercent = ((reduction / contextCheck.currentTokens) * 100).toFixed(1)
+
+					// await this.say(
+					// 	"text",
+					// 	`✅ **Context Condensing Successful**\n\n` +
+					// 		`Context condensed for model switch:\n\n` +
+					// 		`• Before: **${contextCheck.currentTokens.toLocaleString()}** tokens\n` +
+					// 		`• After: **${recheckContext.currentTokens.toLocaleString()}** tokens\n` +
+					// 		`• Reduction: **${reduction.toLocaleString()}** tokens (**${reductionPercent}%**)\n` +
+					// 		`• New model usage: **${recheckContext.percentUsed.toFixed(1)}%** usable (**${recheckContext.percentOfContextWindow.toFixed(1)}%** raw)\n\n` +
+					// 		`Proceeding with model switch to **${newModelId}**...`,
+					// )
+				} catch (error) {
+					// Condensing failed
+					const errorMessage = error instanceof Error ? error.message : String(error)
+					// await this.say(
+					// 	"error",
+					// 	`❌ **Context Condensing Failed**\n\n` +
+					// 		`Failed to condense context for model switch:\n\n` +
+					// 		`• Error: ${errorMessage}\n\n` +
+					// 		`Model switch cancelled. You can:\n` +
+					// 		`1. Try condensing manually\n` +
+					// 		`2. Clear some conversation history\n` +
+					// 		`3. Keep using the current model`,
+					// )
+					// Don't proceed with model switch
+					return
+				}
+			} else {
+				// Context fits in new model, no condensing needed
+				console.log(`[handleModelChange] Context fits in new model, no condensing needed`)
+			}
+
+			// Store current handler as previous before switching
+			this.previousApiHandler = this.api
+			this.previousModelInfo = {
+				contextWindow: currentModelInfo.contextWindow,
+				modelId: currentModelId,
+			}
+
+			// Switch to new API handler
+			this.api = newApiHandler
+
+			console.log(`[handleModelChange] Model switch complete: ${currentModelId} -> ${newModelId}`)
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error)
+			console.error(`[handleModelChange] Error during model switch:`, error)
+			// await this.say(
+			// 	"error",
+			// 	`❌ **Model Switch Failed**\n\n` +
+			// 		`An error occurred while switching models:\n\n` +
+			// 		`• Error: ${errorMessage}\n\n` +
+			// 		`Keeping current model configuration.`,
+			// )
+			// Don't update this.api - keep current model
+		}
 	}
 
 	async say(
@@ -1040,7 +1284,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	async sayAndCreateMissingParamError(toolName: ToolName, paramName: string, relPath?: string) {
 		await this.say(
 			"error",
-			`Roo tried to use ${toolName}${
+			`SIId-Code tried to use ${toolName}${
 				relPath ? ` for '${relPath.toPosix()}'` : ""
 			} without value for required parameter '${paramName}'. Retrying...`,
 		)
@@ -1106,10 +1350,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Note: We don't show the message here since it's a fresh task start
 		}
 
-		// Store task title for notifications - take first line or first 50 chars
+		// Store task title for notifications - initially use first line
 		if (task) {
 			const firstLine = task.split("\n")[0]
 			this.taskTitle = firstLine.length > 50 ? firstLine.substring(0, 50) + "..." : firstLine
+
+			// Generate a better title based on prompt in background
+			this.generateTaskTitle(task).catch((error) => {
+				// Silently fail - keep the default title if generation fails
+				console.log(`Failed to generate task title: ${error}`)
+			})
 		}
 
 		await this.say("text", task, images)
@@ -1128,9 +1378,53 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		])
 	}
 
+	private async generateTaskTitle(taskPrompt: string): Promise<void> {
+		try {
+			const systemPrompt = `You are a task title generator. Generate a concise, descriptive title (max 50 characters) for the following task. Only respond with the title, nothing else.`
+
+			const stream = this.api.createMessage(
+				systemPrompt,
+				[
+					{
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: taskPrompt,
+							},
+						],
+					},
+				],
+				{
+					taskId: this.taskId,
+				},
+			)
+
+			let generatedTitle = ""
+			for await (const event of stream) {
+				if (event.type === "text") {
+					generatedTitle += event.text
+				}
+			}
+
+			// Update task title with generated one (trimmed to 50 chars just in case)
+			if (generatedTitle.trim()) {
+				const trimmedTitle = generatedTitle.trim().substring(0, 50)
+				this.taskTitle = trimmedTitle
+				await this.providerRef.deref()?.postStateToWebview()
+			}
+		} catch (error) {
+			// Silently fail - keep the default title
+			console.log(
+				`Failed to generate task title from prompt: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+	}
+
 	public async resumePausedTask(lastMessage: string) {
 		// Release this Cline instance from paused state.
 		this.isPaused = false
+		this.taskCompleted = false
 		this.emit(RooCodeEventName.TaskUnpaused)
 
 		// Fake an answer from the subtask that it has completed running and
@@ -1276,6 +1570,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		this.isInitialized = true
+		this.taskCompleted = false
 
 		const { response, text, images } = await this.ask(askType) // Calls `postStateToWebview`.
 
@@ -1455,6 +1750,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		console.log(`[subtasks] task ${this.taskId}.${this.instanceId} resuming from history item`)
 
+		// Resuming should put the task back into an active, running state.
+		this.taskCompleted = false
 		await this.initiateTaskLoop(newUserContent)
 	}
 
@@ -1572,6 +1869,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.resumeTaskTimer()
 		this.emit(RooCodeEventName.TaskStarted)
+		await this.providerRef.deref()?.postStateToWebview()
 
 		while (!this.abort) {
 			const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, includeFileDetails)
@@ -1714,6 +2012,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			cwd: this.cwd,
 			experiments: state?.experiments,
 			taskId: this.taskId,
+			planningFilePath: this.planningFilePath,
 		})
 
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
@@ -2235,21 +2534,35 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	public async *attemptApiRequest(retryAttempt: number = 0): ApiStream {
 		const state = await this.providerRef.deref()?.getState()
 
-		// Check if current model has exceeded its timeout and needs to be reset to primary
-		if (state?.mode) {
-			const { timedOut, message, model: primaryModel } = resetOnTimeout(state.mode)
+		// Check if current model has exceeded its timeout and needs to be reset to primary.
+		// Timeout reset applies only when we're actively on a tracked fallback model.
+		if (state?.mode && state.currentApiConfigName) {
+			const provider = this.providerRef.deref()
+			const profileResult = await provider?.providerSettingsManager.getProfile({
+				name: state.currentApiConfigName,
+			})
 
-			if (timedOut && primaryModel && state.currentApiConfigName) {
-				// Show timeout message to user
-				await this.say("api_req_retry_delayed", message, undefined, false)
+			const currentOpenRouterModel =
+				profileResult && profileResult.apiProvider === "openrouter"
+					? profileResult.openRouterModelId
+					: undefined
 
-				// Get the provider and reset the model in provider settings
-				const provider = this.providerRef.deref()
-				const profileResult = await provider?.providerSettingsManager.getProfile({
-					name: state.currentApiConfigName,
-				})
+			const fallbackActive =
+				!!currentOpenRouterModel && isFallbackActiveForModel(state.mode, currentOpenRouterModel)
 
-				if (profileResult && profileResult.name && profileResult.apiProvider === "openrouter") {
+			if (fallbackActive) {
+				const { timedOut, message, model: primaryModel } = resetOnTimeout(state.mode)
+
+				if (
+					timedOut &&
+					primaryModel &&
+					profileResult &&
+					profileResult.name &&
+					profileResult.apiProvider === "openrouter"
+				) {
+					// Show timeout message to user
+					await this.say("api_req_retry_delayed", message, undefined, false)
+
 					// Update the model in the profile back to primary
 					const updatedProfile: ProviderSettings = {
 						...profileResult,
@@ -2265,8 +2578,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// Post updated state to webview to refresh UI
 					await provider?.postStateToWebview()
 
-					// Rebuild API handler with primary model
-					this.api = buildApiHandler(updatedProfile)
+					// Use handleModelChange to automatically condense context if needed
+					await this.handleModelChange(updatedProfile)
 				}
 			}
 		}
@@ -2277,7 +2590,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			alwaysApproveResubmit,
 			requestDelaySeconds,
 			mode,
-			autoCondenseContext = true,
 			autoCondenseContextPercent = 100,
 			profileThresholds = {},
 		} = state ?? {}
@@ -2335,123 +2647,71 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const { contextTokens } = this.getTokenUsage()
 
 		if (contextTokens) {
-			const modelInfo = this.api.getModel().info
+			const resolvedModel = await this.getResolvedModel(this.api)
+			const modelInfo = resolvedModel.info
 
 			const maxTokens = getModelMaxOutputTokens({
-				modelId: this.api.getModel().id,
+				modelId: resolvedModel.id,
 				model: modelInfo,
 				settings: this.apiConfiguration,
 			})
 
 			const contextWindow = modelInfo.contextWindow
 
-			const currentProfileId =
-				state?.listApiConfigMeta.find((profile) => profile.name === state?.currentApiConfigName)?.id ??
-				"default"
-
 			// Count system prompt tokens and add to contextTokens for accurate threshold checking
 			const systemPromptTokens = await this.api.countTokens([{ type: "text", text: systemPrompt }])
 			const totalTokensWithSystemPrompt = contextTokens + systemPromptTokens
 
-			const truncateResult = await truncateConversationIfNeeded({
-				messages: this.apiConversationHistory,
-				totalTokens: totalTokensWithSystemPrompt,
-				maxTokens,
-				contextWindow,
-				apiHandler: this.api,
-				autoCondenseContext,
-				autoCondenseContextPercent,
-				systemPrompt,
-				taskId: this.taskId,
-				customCondensingPrompt,
-				condensingApiHandler,
-				profileThresholds,
-				currentProfileId,
-			})
-			if (truncateResult.messages !== this.apiConversationHistory) {
-				await this.overwriteApiConversationHistory(truncateResult.messages)
-			}
-			if (truncateResult.error) {
-				await this.say("condense_context_error", truncateResult.error)
-			} else if (truncateResult.summary) {
-				const { summary, cost, prevContextTokens, newContextTokens = 0 } = truncateResult
-				const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
-				await this.say(
-					"condense_context",
-					undefined /* text */,
-					undefined /* images */,
-					false /* partial */,
-					undefined /* checkpoint */,
-					undefined /* progressStatus */,
-					{ isNonInteractive: true } /* options */,
-					contextCondense,
+			// Check if automatic condensing should trigger based on context threshold
+			const effectiveMaxTokens = maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS
+			const boundedEffectiveMaxTokens = Math.max(0, Math.min(effectiveMaxTokens, Math.max(0, contextWindow - 1)))
+			const availableTokens = Math.max(1, contextWindow - boundedEffectiveMaxTokens)
+			const contextPercentUsed = (totalTokensWithSystemPrompt / availableTokens) * 100
+
+			// Get profile-specific threshold or fall back to global default
+			const currentProfileId =
+				state?.listApiConfigMeta.find((profile) => profile.name === state?.currentApiConfigName)?.id ??
+				"default"
+			const profileThreshold = profileThresholds[currentProfileId]
+			const threshold =
+				profileThreshold !== undefined && profileThreshold !== -1
+					? profileThreshold
+					: autoCondenseContextPercent
+			const clampedThreshold = Math.max(MIN_CONDENSE_THRESHOLD, Math.min(threshold, MAX_CONDENSE_THRESHOLD))
+
+			console.log(
+				`[Task] Auto-condense check: contextPercentUsed=${contextPercentUsed.toFixed(1)}%, threshold=${clampedThreshold}%`,
+			)
+
+			// Minimum messages needed for condensing to be worthwhile
+			// Changed: Since we now summarize everything (not keeping first/last), we only need 3+ messages
+			const MIN_MESSAGES_FOR_CONDENSING = 3 // Need at least 3 messages to make summarization worthwhile
+
+			// If threshold exceeded AND we have enough messages, trigger automatic condensing
+			if (
+				contextPercentUsed >= clampedThreshold &&
+				this.apiConversationHistory.length >= MIN_MESSAGES_FOR_CONDENSING
+			) {
+				console.log(
+					`[Task] Threshold exceeded with ${this.apiConversationHistory.length} messages, triggering automatic condenseContext()`,
 				)
-			}
-		}
-		console.log(`[Task]apiConversationHistory: ${JSON.stringify(this.apiConversationHistory)}`)
+				await this.condenseContext(true) // true = automatic trigger
 
-		// Strip <pre-task> and <environment_details> sections from all user messages
-		// except the last one, mutating the original array in-place to reduce context size.
-		// Preserve tool_result blocks and only add placeholder if ALL content was removed.
-		const lastUserMsgIndex = findLastIndex(this.apiConversationHistory, (m) => m.role === "user")
-		for (let i = 0; i < this.apiConversationHistory.length; i++) {
-			const msg = this.apiConversationHistory[i]
-			if (msg.role !== "user" || i === lastUserMsgIndex) {
-				continue
-			}
-			if (Array.isArray(msg.content)) {
-				let hadStrippedContent = false
-				const originalLength = msg.content.length
+				// After condensing, recalculate token usage to verify it worked
+				const { contextTokens: newContextTokens } = this.getTokenUsage()
+				const systemPromptTokensAfter = await this.api.countTokens([{ type: "text", text: systemPrompt }])
+				const totalTokensAfterCondense = newContextTokens + systemPromptTokensAfter
+				const contextPercentAfterCondense = (totalTokensAfterCondense / availableTokens) * 100
 
-				msg.content = msg.content.filter((block) => {
-					// Always keep tool_result blocks - they contain important context
-					if (block.type === "tool_result") {
-						return true
-					}
-
-					// Always keep tool_use blocks
-					if (block.type === "tool_use") {
-						return true
-					}
-
-					// Filter out pre-task and environment_details from text blocks
-					if (block.type === "text") {
-						const text = block.text.trim()
-						if (text.startsWith("<pre-task>") || text.startsWith("<environment_details>")) {
-							hadStrippedContent = true
-							return false
-						}
-					}
-
-					return true
-				})
-
-				// Only add placeholder if we removed content AND no other content remains
-				// This preserves tool results and other important context
-				if (hadStrippedContent && msg.content.length === 0) {
-					// Check if placeholder already exists to avoid duplicates
-					const placeholderText = "[Tool executed successfully. Please continue with the next step.]"
-					const hasPlaceholder = msg.content.some(
-						(block) => block.type === "text" && block.text === placeholderText,
-					)
-					if (!hasPlaceholder) {
-						msg.content.push({
-							type: "text",
-							text: placeholderText,
-						})
-					}
-				}
-			} else if (typeof msg.content === "string") {
-				const original = msg.content
-				msg.content = msg.content
-					.replace(/<pre-task>[\s\S]*?<\/pre-task>/g, "")
-					.replace(/<environment_details>[\s\S]*?<\/environment_details>/g, "")
-					.trim()
-				// Only add placeholder if we stripped content and nothing remains
-				const placeholderText = "[Tool executed successfully. Please continue with the next step.]"
-				if (msg.content.length === 0 && original.trim().length > 0 && msg.content !== placeholderText) {
-					msg.content = placeholderText
-				}
+				console.log(
+					`[Task] After condensing: contextPercentUsed=${contextPercentAfterCondense.toFixed(1)}%, ` +
+						`tokens reduced from ${totalTokensWithSystemPrompt} to ${totalTokensAfterCondense}`,
+				)
+			} else if (contextPercentUsed >= clampedThreshold) {
+				console.log(
+					`[Task] Threshold exceeded but only ${this.apiConversationHistory.length} messages ` +
+						`(need at least ${MIN_MESSAGES_FOR_CONDENSING}), skipping automatic condensing`,
+				)
 			}
 		}
 
@@ -2503,7 +2763,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const state = await this.providerRef.deref()?.getState()
 				const currentMode = state?.mode
 
-				if (currentMode && shouldSwitchToFallback(currentMode)) {
+				if (currentMode) {
 					// Get the current model from the config
 					const provider = this.providerRef.deref()
 					const profileResult = await provider?.providerSettingsManager.getProfile({
@@ -2513,41 +2773,56 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					const currentModel = profileResult?.openRouterModelId
 
 					if (currentModel) {
-						const { model: nextModel, message: switchMessage } = getNextModelOnError(
-							currentMode,
-							currentModel,
-						)
+						// Only free-chain models are eligible for automatic fallback.
+						if (!isFallbackEligible(currentMode, currentModel)) {
+							console.log(
+								`[Task] Skipping automatic fallback for model '${currentModel}' in mode '${currentMode}' ` +
+									`because it is not in the free fallback chain.`,
+							)
+							// await this.say(
+							// 	"api_req_retry_delayed",
+							// 	`Provider rate limited the current model (**${currentModel}**). ` +
+							// 		`Automatic fallback is only enabled for free fallback models in this mode, so no model switch was performed.`,
+							// 	undefined,
+							// 	false,
+							// )
+						} else if (shouldSwitchToFallback(currentMode)) {
+							const { model: nextModel, message: switchMessage } = getNextModelOnError(
+								currentMode,
+								currentModel,
+							)
 
-						if (
-							nextModel &&
-							profileResult &&
-							profileResult.name &&
-							profileResult.apiProvider === "openrouter"
-						) {
-							// Show switching message with rich formatting
-							await this.say("api_req_retry_delayed", switchMessage, undefined, false)
+							if (
+								nextModel &&
+								profileResult &&
+								profileResult.name &&
+								profileResult.apiProvider === "openrouter"
+							) {
+								// Show switching message with rich formatting
+								await this.say("api_req_retry_delayed", switchMessage, undefined, false)
 
-							// Update the model in the profile
-							const updatedProfile: ProviderSettings = {
-								...profileResult,
-								openRouterModelId: nextModel,
+								// Update the model in the profile
+								const updatedProfile: ProviderSettings = {
+									...profileResult,
+									openRouterModelId: nextModel,
+								}
+
+								// Save the updated profile
+								await provider?.providerSettingsManager.saveConfig(profileResult.name, updatedProfile)
+
+								// Update provider settings in context to sync UI
+								await provider?.contextProxy.setProviderSettings(updatedProfile)
+
+								// Post updated state to webview to refresh UI
+								await provider?.postStateToWebview()
+
+								// Use handleModelChange to automatically condense context if needed
+								await this.handleModelChange(updatedProfile)
+
+								// Retry with the new model
+								yield* this.attemptApiRequest(retryAttempt)
+								return
 							}
-
-							// Save the updated profile
-							await provider?.providerSettingsManager.saveConfig(profileResult.name, updatedProfile)
-
-							// Update provider settings in context to sync UI
-							await provider?.contextProxy.setProviderSettings(updatedProfile)
-
-							// Post updated state to webview to refresh UI
-							await provider?.postStateToWebview()
-
-							// Rebuild API handler with new model
-							this.api = buildApiHandler(updatedProfile)
-
-							// Retry with the new model
-							yield* this.attemptApiRequest(retryAttempt)
-							return
 						}
 					}
 				}
@@ -2682,6 +2957,62 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		if (error) {
 			this.emit(RooCodeEventName.TaskToolFailed, this.taskId, toolName, error)
 		}
+	}
+
+	// Getters
+
+	/**
+	 * Calculate context size for a given model configuration
+	 * Used to determine if condensing is needed when switching models
+	 */
+	private async getContextSizeForModel(
+		modelContextWindow: number,
+		maxOutputTokens: number,
+	): Promise<{
+		currentTokens: number
+		availableTokens: number
+		willFit: boolean
+		percentUsed: number
+		percentOfContextWindow: number
+	}> {
+		const systemPrompt = await this.getSystemPrompt()
+		const { contextTokens } = this.getTokenUsage()
+		const systemPromptTokens = await this.api.countTokens([{ type: "text", text: systemPrompt }])
+		const totalTokens = contextTokens + systemPromptTokens
+
+		const boundedMaxOutputTokens = Math.max(0, Math.min(maxOutputTokens, Math.max(0, modelContextWindow - 1)))
+		const availableTokens = Math.max(1, modelContextWindow - boundedMaxOutputTokens)
+		const willFit = totalTokens <= availableTokens
+		const percentUsed = (totalTokens / availableTokens) * 100
+		const percentOfContextWindow = (totalTokens / modelContextWindow) * 100
+
+		return {
+			currentTokens: totalTokens,
+			availableTokens,
+			willFit,
+			percentUsed,
+			percentOfContextWindow,
+		}
+	}
+
+	/**
+	 * Resolve model metadata for handlers that lazily fetch model catalogs
+	 * (for example OpenRouter), while safely falling back to synchronous getModel().
+	 */
+	private async getResolvedModel(apiHandler: ApiHandler): Promise<ReturnType<ApiHandler["getModel"]>> {
+		const handlerWithFetch = apiHandler as ApiHandler & {
+			fetchModel?: () => Promise<ReturnType<ApiHandler["getModel"]>>
+		}
+
+		if (typeof handlerWithFetch.fetchModel === "function") {
+			try {
+				return await handlerWithFetch.fetchModel()
+			} catch (error) {
+				console.warn("[Task] Failed to fetch model metadata, falling back to getModel()", error)
+			}
+		}
+
+		return apiHandler.getModel()
 	}
 
 	// Getters
