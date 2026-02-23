@@ -1,6 +1,7 @@
 import os from "os"
 import * as path from "path"
 import fs from "fs/promises"
+import crypto from "crypto"
 import EventEmitter from "events"
 
 import { Anthropic } from "@anthropic-ai/sdk"
@@ -46,7 +47,6 @@ import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { getDefaultModelForMode, getModelsForMode } from "../../shared/mode-models"
 import { experimentDefault } from "../../shared/experiments"
 import { formatLanguage } from "../../shared/language"
-import { analyzeTaskComplexity } from "../task/analyzeTaskComplexity"
 import { WebviewMessage } from "../../shared/WebviewMessage"
 import { EMBEDDING_MODEL_PROFILES } from "../../shared/embeddingModels"
 import { ProfileValidator } from "../../shared/ProfileValidator"
@@ -82,6 +82,8 @@ import { ContextProxy } from "../config/ContextProxy"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import { CustomModesManager } from "../config/CustomModesManager"
 import { Task, TaskOptions } from "../task/Task"
+import { analyzeTaskComplexity } from "../task/analyzeTaskComplexity"
+import { planningFileManager } from "../planning/PlanningFileManager"
 import { webviewMessageHandler } from "./webviewMessageHandler"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
@@ -660,21 +662,9 @@ export class ClineProvider
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
 
-		// Analyze task complexity and auto-enable/disable planning workflow
-		// unless experiments are explicitly provided in options (user override)
+		// Use base experiments if not explicitly provided
 		let experiments = baseExperiments
-		let complexity = { isComplex: false, score: 0, factors: [] as string[] }
-
-		if (!options.experiments) {
-			complexity = analyzeTaskComplexity(text)
-			experiments = {
-				...baseExperiments,
-				planningWorkflow: complexity.isComplex,
-			}
-			// Update global state with the new experiments value so toggle reflects in UI
-			await this.updateGlobalState("experiments", experiments)
-		} else {
-			// Use provided experiments, but don't override if planningWorkflow is not explicitly set
+		if (options.experiments) {
 			experiments = { ...baseExperiments, ...options.experiments }
 		}
 
@@ -700,8 +690,46 @@ export class ClineProvider
 
 		await this.addClineToStack(task)
 
+		// Analyze task complexity and create planning file if needed (asynchronously in background)
+		let planningFilePath: string | undefined
+		if (text) {
+			// Run AI analysis asynchronously without blocking task display
+			;(async () => {
+				try {
+					const complexity = await analyzeTaskComplexity(text, apiConfiguration)
+
+					if (complexity.isComplex) {
+						const cwd = getWorkspacePath(path.join(os.homedir(), "Desktop"))
+
+						planningFilePath = await planningFileManager.createPlanningFile(
+							cwd,
+							text,
+							complexity.filename,
+							complexity.planContent,
+						)
+
+						// Update task with planning file path if needed
+						if (task) {
+							task.planningFilePath = planningFilePath
+						}
+					}
+				} catch (error) {
+					console.warn("Error in planning file creation:", error)
+				}
+			})()
+		}
+
 		// Listen for task completion to update webview state
 		task.on(RooCodeEventName.TaskCompleted, async () => {
+			// Delete planning file if it was created for this task
+			if (planningFilePath) {
+				try {
+					await planningFileManager.deletePlanningFile(task.workspacePath, planningFilePath)
+				} catch (error) {
+					const errorMsg = error instanceof Error ? error.message : String(error)
+					this.log(`Warning: Failed to delete planning file: ${errorMsg}`)
+				}
+			}
 			await this.postStateToWebview()
 		})
 
@@ -713,32 +741,7 @@ export class ClineProvider
 			await this.postStateToWebview()
 		})
 
-		// Add complexity analysis message - show in chat after initial task message
-		if (!options.experiments && complexity.score > 0) {
-			const complexityText = complexity.isComplex
-				? `**Creating planning file for better task organization and tracking.**`
-				: `**No plan file required.**`
-
-			// Send message after a small delay to ensure the task's initial say() message is in place
-			setTimeout(() => {
-				const complexityMessage: any = {
-					ts: Date.now(),
-					type: "say",
-					say: "text",
-					text: complexityText,
-				}
-
-				// Add to the task's messages so it appears in the chat history
-				task.clineMessages.push(complexityMessage)
-
-				// Notify webview to update
-				this.postStateToWebview().catch((err: any) => {
-					console.error("Failed to update webview with complexity message:", err)
-				})
-			}, 150)
-		}
-
-		// Update webview with new experiments state
+		// Update webview with new task state
 		await this.postStateToWebview()
 
 		this.log(
@@ -1330,8 +1333,9 @@ export class ClineProvider
 				const task = this.getCurrentCline()
 
 				if (task) {
-					task.api = buildApiHandler(providerSettings)
-					logger.info(`[upsertProviderProfile] Updated API handler for current task`)
+					// Use handleModelChange to automatically condense context if needed
+					await task.handleModelChange(providerSettings)
+					logger.info(`[upsertProviderProfile] Updated API handler for current task (with condensing check)`)
 				}
 			} else {
 				await this.updateGlobalState("listApiConfigMeta", await this.providerSettingsManager.listConfig())
@@ -1393,7 +1397,8 @@ export class ClineProvider
 		const task = this.getCurrentCline()
 
 		if (task) {
-			task.api = buildApiHandler(providerSettings)
+			// Use handleModelChange to automatically condense context if needed
+			await task.handleModelChange(providerSettings)
 		}
 
 		await this.postStateToWebview()
@@ -1409,6 +1414,7 @@ export class ClineProvider
 		}
 
 		const { historyItem } = await this.getTaskWithId(cline.taskId)
+		const elapsedBeforeAbort = cline.getTaskDuration()
 		// Preserve parent and root task information for history item.
 		const rootTask = cline.rootTask
 		const parentTask = cline.parentTask
@@ -1443,7 +1449,13 @@ export class ClineProvider
 		// Clears task again, so we need to abortTask manually above.
 		// Re-fetch historyItem since abortTask saved updated duration
 		const { historyItem: updatedHistoryItem } = await this.getTaskWithId(cline.taskId)
-		await this.initClineWithHistoryItem({ ...updatedHistoryItem, rootTask, parentTask })
+		const resumedDuration = Math.max(updatedHistoryItem.duration ?? 0, elapsedBeforeAbort)
+		await this.initClineWithHistoryItem({
+			...updatedHistoryItem,
+			duration: resumedDuration,
+			rootTask,
+			parentTask,
+		})
 	}
 
 	async updateCustomInstructions(instructions?: string) {
@@ -1618,14 +1630,19 @@ export class ClineProvider
 	async exportTaskDebugJsonWithId(id: string) {
 		const { historyItem, apiConversationHistory } = await this.getTaskWithId(id)
 
-		// Try to get the system prompt from the active task if it matches
+		// Try to get the system prompt and model info from the active task if it matches
 		let systemPrompt: string | undefined
+		let modelId: string | undefined
+		let contextWindow: number | undefined
 		const activeTask = this.clineStack.find((t) => t.taskId === id)
 		if (activeTask) {
 			try {
 				systemPrompt = await activeTask.getSystemPrompt()
+				const modelInfo = activeTask.api.getModel()
+				modelId = modelInfo.id
+				contextWindow = modelInfo.info.contextWindow
 			} catch {
-				// Task may not be in a state to generate system prompt
+				// Task may not be in a state to generate system prompt or get model info
 			}
 		}
 
@@ -1636,6 +1653,8 @@ export class ClineProvider
 			workspace: historyItem.workspace,
 			mode: historyItem.mode,
 			systemPrompt,
+			modelId,
+			contextWindow,
 		})
 	}
 

@@ -38,6 +38,7 @@ import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
 import { retrieveSfMetadataTool } from "../tools/retrieveSfMetadataTool"
+import { deploySfMetadataTool } from "../tools/sfDeployMetadataTool"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -71,16 +72,11 @@ export async function presentAssistantMessage(cline: Task) {
 
 	// Check if multiple tool calls per message experiment is enabled
 	const multiToolProvider = cline.providerRef.deref()
-	console.log("[Task#presentAssistantMessage] Checking if multiple tool calls per message experiment is enabled")
 	let isMultipleToolCallsEnabled = false
 	if (multiToolProvider) {
-		console.log("[Task#presentAssistantMessage] Provider found, getting state for experiment check")
 		const state = await multiToolProvider.getState()
 		isMultipleToolCallsEnabled = experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
 	}
-	console.log(
-		`[Task#presentAssistantMessage] Multiple tool calls per message experiment enabled: ${isMultipleToolCallsEnabled}`,
-	)
 
 	if (cline.currentStreamingContentIndex >= cline.assistantMessageContent.length) {
 		// This may happen if the last content block was completed before
@@ -439,7 +435,7 @@ export async function presentAssistantMessage(cline: Task) {
 					// Add user feedback to userContent.
 					cline.userMessageContent.push({
 						type: "text" as const,
-						text: `Tool repetition limit reached. Hint: repetitionCheck.agentHint`,
+						text: `Tool repetition limit reached. Hint: ${repetitionCheck.agentHint}`,
 					})
 
 					// Return tool result message about the repetition
@@ -601,6 +597,9 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
+					break
+				case "sf_deploy_metadata":
+					await deploySfMetadataTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 			}
 
