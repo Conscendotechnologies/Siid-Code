@@ -7,7 +7,7 @@ import { DiffStrategy } from "../../../shared/tools"
 export interface TaskGuideResult {
 	taskType: string
 	description: string
-	recommendedMode: "salesforce-agent" | "code" | "orchestrator"
+	recommendedMode: "salesforce-admin" | "salesforce-dev" | "orchestrator"
 	instructions: string
 	instructionCount: number
 	loadedGuides: string[] // List of loaded guide titles for display

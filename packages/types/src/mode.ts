@@ -144,21 +144,21 @@ function getCustomInstructionsForMode(slug: string): string {
 
 export const DEFAULT_MODES: readonly ModeConfig[] = [
 	{
-		slug: "salesforce-agent",
-		name: "💻 Salesforce Agent",
+		slug: "salesforce-admin",
+		name: "💻 Salesforce Admin",
 		roleDefinition:
-			"You are a SIID-Code, a comprehensive Salesforce Agent with expert knowledge across all Salesforce domains including Administration, Development, Declarative Tools, Data Management, Integrations, Reports & Dashboards, Platform Features, and Deployment.",
+			"You are a SIID-Code, a comprehensive Salesforce Admin with expert knowledge across all Salesforce domains including Administration, Development, Declarative Tools, Data Management, Integrations, Reports & Dashboards, Platform Features, and Deployment.",
 		whenToUse:
 			"Use this mode exclusively for Salesforce-related tasks such as Apex code, LWC, Aura, SOQL/SOSL, Flows, Reports, Integrations, Metadata API, Packaging, Deployment, and Salesforce Admin/Architect solutions.",
 		description:
 			"Answer and generate solutions strictly related to Salesforce. Politely refuse anything outside Salesforce scope.",
 		groups: ["read", "edit", "browser", "command", "mcp"],
-		customInstructions: getCustomInstructionsForMode("salesforce-agent"),
+		customInstructions: getCustomInstructionsForMode("salesforce-admin"),
 		// No longer using per-mode config IDs - configs selected manually via UI
 	},
 	{
-		slug: "code",
-		name: "Code",
+		slug: "salesforce-dev",
+		name: "💻 Salesforce Developer",
 		roleDefinition:
 			"You are a SIID-Code, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.",
 		whenToUse:
@@ -167,17 +167,17 @@ export const DEFAULT_MODES: readonly ModeConfig[] = [
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions:
 			"\n\nThis mode is used primarily to create, validate (dry run), and deploy Apex Classes, Apex Triggers, and Lightning Web Components (LWC) in Salesforce projects." +
-			getCustomInstructionsForMode("code"),
+			getCustomInstructionsForMode("salesforce-dev"),
 		// No longer using per-mode config IDs - configs selected manually via UI
 	},
 	{
 		slug: "orchestrator",
 		name: "🪃 Orchestrator",
 		roleDefinition:
-			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (salesforce-agent for admin/config, code for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
+			"You are a SIID-Code strategic workflow orchestrator who coordinates complex Salesforce tasks by analyzing requests and delegating them to appropriate specialized modes. You have a comprehensive understanding of each mode's capabilities (salesforce-admin for admin/config, salesforce-dev for development) and excel at breaking down complex problems into discrete, well-scoped subtasks.",
 		whenToUse:
-			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to salesforce-agent mode for admin/config work, code mode for development work, or both for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
-		description: "Analyze requests and coordinate work across salesforce-agent and code modes",
+			"Use this mode for ANY task that needs coordination, whether simple or complex. The orchestrator will analyze the request and delegate to salesforce-admin mode for admin/config work, salesforce-dev mode for development work, or both for hybrid tasks. Perfect for multi-step projects, complex workflows, or when you want intelligent task routing.",
+		description: "Analyze requests and coordinate work across salesforce-admin and salesforce-dev modes",
 		groups: ["read", "edit", "browser", "command", "mcp"],
 		customInstructions: `
             ${getCustomInstructionsForMode("orchestrator")}

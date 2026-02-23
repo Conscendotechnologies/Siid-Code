@@ -24,7 +24,7 @@ const MODEL_TIMEOUT_MS = 3 * 60 * 1000
 
 /**
  * Get fallback chain for a mode (only free models, sorted by priority)
- * @param mode - The mode slug (e.g., "salesforce-agent", "code", "orchestrator")
+ * @param mode - The mode slug (e.g., "salesforce-admin", "salesforce-dev", "orchestrator")
  * @returns Array of model IDs in fallback order
  */
 function getFallbackChainForMode(mode: string): string[] {
@@ -96,7 +96,7 @@ export function is429Error(error: any): boolean {
 /**
  * Gets the fallback model for a given mode or advances through the chain
  * Returns the model to switch to, whether it's a fallback, and a UI message
- * @param mode - The mode slug (e.g., "salesforce-agent", "code")
+ * @param mode - The mode slug (e.g., "salesforce-admin", "salesforce-dev", "orchestrator")
  * @param currentModel - The model that just failed
  */
 export function getNextModelOnError(

@@ -64,7 +64,7 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			console.log("[INSTRUCTIONS] Aura Components instructions fetched successfully")
 			return result
 		}
-		// Salesforce Agent Instructions
+		// Salesforce Admin Instructions
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
 		}
@@ -110,7 +110,7 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		}
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
-		} // Code Instructions
+		} // Salesforce Developer Instructions
 		default: {
 			return ""
 		}

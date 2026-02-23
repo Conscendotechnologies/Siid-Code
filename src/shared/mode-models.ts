@@ -16,7 +16,7 @@ export interface ModeModelInfo {
  * Models are listed in priority order (first one is default)
  */
 export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
-	"salesforce-agent": [
+	"salesforce-admin": [
 		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
@@ -95,7 +95,7 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 11, // Premium option
 		},
 	],
-	code: [
+	"salesforce-dev": [
 		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",

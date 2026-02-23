@@ -15,7 +15,7 @@ function getTaskDisplayName(task: string): string {
 		create_lwc: "Lightning Web Component Instructions",
 		create_apex: "Apex Class Instructions",
 		create_async_apex: "Asynchronous Apex Instructions",
-		// Salesforce Agent Instructions
+		// Salesforce Admin Instructions
 		agentforce_agent_create: "Agentforce Agent Creation Workflow",
 		agentforce_agent_analyse: "Agentforce Agent Analysis & Enhancement Workflow",
 		agentforce_topic_analyse: "Agentforce Topic Analysis Workflow",
@@ -80,7 +80,7 @@ export async function fetchInstructionsTool(
 			if (agentforceWorkflows.includes(task) && currentMode === "orchestrator") {
 				// Add warning but allow reading for task understanding
 				console.warn(
-					`[Orchestrator] Fetching ${task} workflow. Orchestrator should typically delegate Agentforce tasks to Salesforce Agent mode instead of executing them directly.`,
+					`[Orchestrator] Fetching ${task} workflow. Orchestrator should typically delegate Agentforce tasks to Salesforce Admin mode instead of executing them directly.`,
 				)
 			}
 

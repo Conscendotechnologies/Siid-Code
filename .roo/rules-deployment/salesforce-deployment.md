@@ -14,9 +14,9 @@ These rules guide the agent when planning or executing Salesforce metadata deplo
 ## Compatibility with existing component guides
 
 - This document sets deployment strategy and CLI usage. It does not override component-specific creation, structure, or metadata rules in:
-    - `.roo/rules-code/apex-guide.md`
-    - `.roo/rules-code/lwc-guide.md`
-    - `.roo/rules-Salesforce_Agent/*` (custom-object, custom-field, assignment-rules, field-permissions, etc.)
+    - `.roo/rules-salesforce-dev/apex-guide.md`
+    - `.roo/rules-salesforce-dev/lwc-guide.md`
+    - `.roo/rules-salesforce-admin/*` (custom-object, custom-field, assignment-rules, field-permissions, etc.)
 - When a component guide requires immediate deployment (e.g., after creating a profile, queue, or tab), follow that requirement but still:
     - Use `sf` CLI commands (not `sfdx`).
     - Deploy only the changed component(s) rather than the entire folder.

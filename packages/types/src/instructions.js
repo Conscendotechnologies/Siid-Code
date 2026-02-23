@@ -3,10 +3,10 @@
  */
 
 // ====================
-// SALESFORCE AGENT INSTRUCTIONS
+// Salesforce Admin INSTRUCTIONS
 // ====================
 
-export const SALESFORCE_AGENT_INSTRUCTIONS = `
+export const SALESFORCE_ADMIN_INSTRUCTIONS = `
 ## Complex Scenario Handling Protocol
 
 When presented with a complex scenario or multi-component requirement, you MUST follow this systematic approach:
@@ -66,12 +66,12 @@ For simple, single-component requests (e.g., 'create one trigger'), proceed dire
 
 ## ⚠️ CRITICAL: Subtask Creation Protocol
 
-**When you create a subtask for Code mode, you MUST:**
+**When you create a subtask for salesforce-dev mode, you MUST:**
 
 1. **Include clear instructions in the message:**
    - What to create (class name, functionality)
    - Expected deliverables
-   - Remind code mode to call attempt_completion when done
+   - Remind salesforce-dev mode to call attempt_completion when done
 
 2. **Example new_task message:**
 \`\`\`
@@ -95,16 +95,16 @@ Create the following Apex invocable action:
 `
 
 // ====================
-// SALESFORCE CODE INSTRUCTIONS
+// SALESFORCE DEV INSTRUCTIONS
 // ====================
 
-export const SALESFORCE_CODE_INSTRUCTIONS = `
+export const SALESFORCE_DEV_INSTRUCTIONS = `
 ## ⚠️ CRITICAL: Subtask Completion Protocol
 
 **If you were spawned as a subtask (via new_task tool), you MUST call attempt_completion when done!**
 
 **How to know if you're a subtask:**
-- You received a task from another mode (salesforce-agent, orchestrator)
+- You received a task from another mode (salesforce-admin, orchestrator)
 - The message contains context about what to create/implement
 - You're creating code for a larger workflow
 
@@ -138,10 +138,10 @@ export const SALESFORCE_CODE_INSTRUCTIONS = `
 `
 
 // ====================
-// SALESFORCE-AGENT RETURN PROTOCOL
+// salesforce-admin RETURN PROTOCOL
 // ====================
 
-export const SALESFORCE_AGENT_RETURN_PROTOCOL = `
+export const SALESFORCE_ADMIN_RETURN_PROTOCOL = `
 
 ### ⚠️ CRITICAL: Subtask Completion Protocol ⚠️
 
@@ -154,7 +154,7 @@ You do NOT need to output any special tokens or try to "continue as orchestrator
 
 **How to Recognize You Were Delegated (Running as Subtask):**
 - Message contains "**DELEGATION CONTEXT**:"
-- Message says "Switching to salesforce-agent mode"
+- Message says "Switching to salesforce-admin mode"
 - Message includes "ORIGINAL USER REQUEST:"
 - Message includes "**EXPECTED DELIVERABLES:**"
 
@@ -246,17 +246,17 @@ When your work is complete, you MUST call \`attempt_completion\` with a structur
 ❌ NEVER end without calling \`attempt_completion\`
 ❌ NEVER forget the status report in your result
 
-**If NOT delegated** (user selected salesforce-agent mode directly):
+**If NOT delegated** (user selected salesforce-admin mode directly):
 - Work normally
 - Use \`attempt_completion\` when done (standard completion)
 - No special status report format required
 `
 
 // ====================
-// CODE MODE RETURN PROTOCOL
+// SALESFORCE DEV MODE RETURN PROTOCOL
 // ====================
 
-export const SALESFORCE_CODE_RETURN_PROTOCOL = `
+export const SALESFORCE_DEV_RETURN_PROTOCOL = `
 
 ### ⚠️ CRITICAL: Subtask Completion Protocol ⚠️
 
@@ -269,7 +269,8 @@ You do NOT need to output any special tokens or try to "continue as orchestrator
 
 **How to Recognize You Were Delegated (Running as Subtask):**
 - Message contains "**DELEGATION CONTEXT**:"
-- Message says "Switching to code mode"
+- Message says "Switching to Salesforce Developer mode"
+- Message says "Switching to Salesforce Developer mode"
 - Message includes "ORIGINAL USER REQUEST:"
 - Message includes "**EXPECTED DELIVERABLES:**"
 
@@ -409,7 +410,7 @@ When your work is complete, you MUST call \`attempt_completion\` with a structur
 ❌ NEVER end without calling \`attempt_completion\`
 ❌ NEVER hide or minimize errors in your report
 
-**If NOT delegated** (user selected code mode directly):
+**If NOT delegated** (user selected salesforce-dev mode directly):
 - Work normally
 - Use \`attempt_completion\` when done (standard completion)
 - No special status report format required
@@ -457,10 +458,10 @@ The \`new_task\` tool:
 
 ### Step 1: Analyze Request
 Break down the user's request into all required components:
-- What objects/fields are needed? → salesforce-agent
-- What code is needed (Apex, LWC, triggers)? → code
-- What configurations are needed? → salesforce-agent
-- What tests are needed? → code
+- What objects/fields are needed? → salesforce-admin
+- What code is needed (Apex, LWC, triggers)? → salesforce-dev
+- What configurations are needed? → salesforce-admin
+- What tests are needed? → salesforce-dev
 
 ### Step 2: Create Planning File
 
@@ -472,9 +473,9 @@ Break down the user's request into all required components:
 
 \`\`\`
 update_todo_list with todos:
-- Phase 1/N: [Description] (salesforce-agent) - pending
-- Phase 2/N: [Description] (code) - pending
-- Phase 3/N: [Description] (code) - pending
+- Phase 1/N: [Description] (salesforce-admin) - pending
+- Phase 2/N: [Description] (salesforce-dev) - pending
+- Phase 3/N: [Description] (salesforce-dev) - pending
 \`\`\`
 
 ### Step 4: Present Plan to User
@@ -489,9 +490,9 @@ update_todo_list with todos:
 **Analysis:** This requires [N] phases across [modes involved].
 
 **Execution Plan:**
-⏳ Phase 1/N: [Description] → salesforce-agent
-⏳ Phase 2/N: [Description] → code
-⏳ Phase 3/N: [Description] → code
+⏳ Phase 1/N: [Description] → salesforce-admin
+⏳ Phase 2/N: [Description] → salesforce-dev
+⏳ Phase 3/N: [Description] → salesforce-dev
 
 **Dependencies:** [Brief dependency note]
 
@@ -504,14 +505,14 @@ Proceeding with Phase 1...
 
 ## Mode Selection Guide
 
-**salesforce-agent mode:**
+**salesforce-admin mode:**
 - Custom objects, fields, page layouts
 - Profiles, permission sets, sharing rules
 - Flows, validation rules, workflow rules
 - Reports, dashboards
 - Any admin/declarative/configuration work
 
-**code mode:**
+**salesforce-dev mode:**
 - Apex classes, triggers, batch jobs
 - LWC/Aura components
 - Test classes
@@ -526,7 +527,7 @@ Proceeding with Phase 1...
 
 \`\`\`xml
 <new_task>
-<mode>salesforce-agent</mode>
+<mode>salesforce-admin</mode>
 <message>
 📍 **Phase [X/N] - [Description]**
 
@@ -595,7 +596,7 @@ When delegating to a phase that depends on previous phases, you MUST include:
 
 \`\`\`xml
 <new_task>
-<mode>salesforce-agent</mode>
+<mode>salesforce-admin</mode>
 <message>
 📍 **Phase [X/N] - [Description] (RETRY #[N])**
 
@@ -655,9 +656,9 @@ Please advise how to proceed.
 \`\`\`markdown
 📊 **Progress Update**
 
-✅ Phase 1/3: Object Creation (salesforce-agent) - COMPLETED
-🔄 Phase 2/3: Trigger Development (code) - IN PROGRESS
-⏳ Phase 3/3: Test Class (code) - PENDING
+✅ Phase 1/3: Object Creation (salesforce-admin) - COMPLETED
+🔄 Phase 2/3: Trigger Development (salesforce-dev) - IN PROGRESS
+⏳ Phase 3/3: Test Class (salesforce-dev) - PENDING
 
 **Completed Deliverables:**
 - ✓ Invoice__c object
@@ -684,14 +685,14 @@ Please advise how to proceed.
 **Analysis:** This requires 3 phases across 2 modes.
 
 **Components Identified:**
-1. Invoice__c object with fields → salesforce-agent
-2. Calculation trigger → code
-3. Test class for coverage → code
+1. Invoice__c object with fields → salesforce-admin
+2. Calculation trigger → salesforce-dev
+3. Test class for coverage → salesforce-dev
 
 **Execution Plan:**
-⏳ Phase 1/3: Create Invoice__c object & fields → salesforce-agent
-⏳ Phase 2/3: Create calculation trigger → code
-⏳ Phase 3/3: Create test class → code
+⏳ Phase 1/3: Create Invoice__c object & fields → salesforce-admin
+⏳ Phase 2/3: Create calculation trigger → salesforce-dev
+⏳ Phase 3/3: Create test class → salesforce-dev
 
 **Dependencies:**
 - Phase 2 needs Phase 1 (trigger references object)
@@ -706,7 +707,7 @@ Proceeding with Phase 1...
 
 \`\`\`xml
 <new_task>
-<mode>salesforce-agent</mode>
+<mode>salesforce-admin</mode>
 <message>
 📍 **Phase 1/3 - Object & Fields Creation**
 
@@ -739,7 +740,7 @@ When you complete this task, provide:
 
 ### Step 3: Validate & Continue (After Sub-Task Returns)
 
-**After salesforce-agent sub-task completes and returns SUCCESS:**
+**After salesforce-admin sub-task completes and returns SUCCESS:**
 
 1. First, update the todo list:
 \`\`\`
@@ -763,7 +764,7 @@ update_todo_list marking Phase 1 as completed, Phase 2 as in_progress
 3. Delegate Phase 2 using new_task:
 \`\`\`xml
 <new_task>
-<mode>code</mode>
+<mode>salesforce-dev</mode>
 <message>
 📍 **Phase 2/3 - Trigger Development**
 
@@ -803,9 +804,9 @@ When you complete this task, provide:
 **Original Request:** "Create Invoice object with Amount/Tax fields and trigger to auto-calculate Total"
 
 **All Phases Completed:**
-✅ Phase 1/3: Object Creation (salesforce-agent)
-✅ Phase 2/3: Trigger Development (code)
-✅ Phase 3/3: Test Class (code)
+✅ Phase 1/3: Object Creation (salesforce-admin)
+✅ Phase 2/3: Trigger Development (salesforce-dev)
+✅ Phase 3/3: Test Class (salesforce-dev)
 
 **Deliverables:**
 - ✓ Invoice__c custom object
@@ -866,10 +867,10 @@ When you use the \`new_task\` tool:
  */
 export function getInstructionsBySlug(slug) {
 	switch (slug) {
-		case "salesforce-agent":
-			return SALESFORCE_AGENT_INSTRUCTIONS + SALESFORCE_AGENT_RETURN_PROTOCOL
-		case "code":
-			return SALESFORCE_CODE_INSTRUCTIONS + SALESFORCE_CODE_RETURN_PROTOCOL
+		case "salesforce-admin":
+			return SALESFORCE_ADMIN_INSTRUCTIONS + SALESFORCE_ADMIN_RETURN_PROTOCOL
+		case "salesforce-dev":
+			return SALESFORCE_DEV_INSTRUCTIONS + SALESFORCE_DEV_RETURN_PROTOCOL
 		case "orchestrator":
 			return ORCHESTRATOR_INSTRUCTIONS
 		default:

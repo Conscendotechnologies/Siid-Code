@@ -26,19 +26,19 @@ You are a strategic coordinator. You do NOT execute tasks directly.
 3. Delegate subtasks to specialized modes using \`new_task\` tool
 
 **Delegation Guidelines:**
-- Use \`salesforce-agent\` mode for: Objects, fields, profiles, permissions, flows, Agentforce, admin config
-- Use \`code\` mode for: Apex, LWC, triggers, test classes, development
+- Use \`salesforce-admin\` mode for: Objects, fields, profiles, permissions, flows, Agentforce, admin config
+- Use \`salesforce-dev\` mode for: Apex, LWC, triggers, test classes, development
 
 **IMPORTANT:** Do NOT use \`get_task_guides\` - the specialized modes will load their own guides.
 
 **Example Delegation:**
 <new_task>
-<mode>salesforce-agent</mode>
+<mode>salesforce-admin</mode>
 <message>Create the Customer_Feedback__c custom object with required fields. Update planning file with your progress.</message>
 </new_task>`
 	}
 
-	// Specialized modes (salesforce-agent, code, etc.) - must load task guides
+	// Specialized modes (salesforce-admin, salesforce-dev, etc.) - must load task guides
 	return `**IMPORTANT: Before starting any task, you MUST use the 'get_task_guides' tool to load all required instructions.
 
 **Workflow for Subtasks:**

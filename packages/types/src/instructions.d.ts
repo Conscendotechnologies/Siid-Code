@@ -1,12 +1,12 @@
 /**
- * Salesforce Agent instructions
+ * Salesforce Admin instructions
  */
-export const SALESFORCE_AGENT_INSTRUCTIONS: string
+export const SALESFORCE_ADMIN_INSTRUCTIONS: string
 
 /**
- * Salesforce LWC instructions
+ * Salesforce Developer instructions
  */
-export const SALESFORCE_LWC_INSTRUCTIONS: string
+export const SALESFORCE_DEV_INSTRUCTIONS: string
 
 /**
  * Orchestrator instructions

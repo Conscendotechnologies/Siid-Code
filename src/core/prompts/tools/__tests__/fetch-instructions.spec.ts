@@ -51,10 +51,10 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("<task>create_mcp_server</task>")
 	})
 
-	it("should include all Salesforce Agent instruction tasks", () => {
+	it("should include all Salesforce Admin instruction tasks", () => {
 		const description = getFetchInstructionsDescription(true)
 
-		// Check for all Salesforce Agent tasks
+		// Check for all Salesforce Admin tasks
 		expect(description).toContain("assignment_rules")
 		expect(description).toContain("custom_field")
 		expect(description).toContain("custom_object")
@@ -67,10 +67,10 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("validation_rules")
 	})
 
-	it("should include Salesforce Agent examples", () => {
+	it("should include Salesforce Admin examples", () => {
 		const description = getFetchInstructionsDescription(true)
 
-		// Check for Salesforce Agent examples
+		// Check for Salesforce Admin examples
 		expect(description).toContain("Example: Requesting instructions for Salesforce Assignment Rules")
 		expect(description).toContain("<task>assignment_rules</task>")
 		expect(description).toContain("Example: Requesting instructions for Salesforce Custom Field")
@@ -86,10 +86,10 @@ describe("getFetchInstructionsDescription", () => {
 		expect(description).toContain("<task>adaptive_response_agent</task>")
 	})
 
-	it("should include Salesforce Agent tasks even when MCP server creation is disabled", () => {
+	it("should include Salesforce Admin tasks even when MCP server creation is disabled", () => {
 		const description = getFetchInstructionsDescription(false)
 
-		// Salesforce Agent tasks should still be present
+		// Salesforce Admin tasks should still be present
 		expect(description).toContain("assignment_rules")
 		expect(description).toContain("custom_field")
 		expect(description).toContain("custom_object")
