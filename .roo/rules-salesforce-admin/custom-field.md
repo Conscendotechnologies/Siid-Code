@@ -78,7 +78,7 @@ Example XML Format (IMPORTANT!)
 **f. Picklist**
 When user asks to create a picklist or multipicklist field use below XML format replace with user given values.
 <fields>
-<fullName>Status__c</fullName>
+<fullName>Status\_\_c</fullName>
 <label>Status</label>
 <type>Picklist</type>
 <valueSet>
@@ -111,9 +111,9 @@ For Lookup fields, collect the following extra data from user:
 **IMPORTANT: If the user did NOT specify a `<deleteConstraint>` value in their prompt, you MUST ask them which option to use:**
 
 - Present these three choices to the user:
-    1. **SetNull** - When parent is deleted, lookup value becomes null (only for optional lookups)
-    2. **Restrict** - Prevents parent deletion if child records exist
-    3. **Cascade** - When parent is deleted, child records are also deleted
+  1. **SetNull** - When parent is deleted, lookup value becomes null (only for optional lookups)
+  2. **Restrict** - Prevents parent deletion if child records exist
+  3. **Cascade** - When parent is deleted, child records are also deleted
 
 If the user explicitly provided a `<deleteConstraint>` in their prompt, do NOT ask and proceed using the provided value.
 
@@ -127,14 +127,14 @@ So, at minimum you must ask the user for:
 
 **Example XML:**
 <fields>
-<fullName>Account_Lookup__c</fullName>
-<label>Account Lookup</label>
-<type>Lookup</type>
-<referenceTo>Account</referenceTo>
-<relationshipLabel>Account</relationshipLabel>
-<relationshipName>Account_Lookup</relationshipName>
-<deleteConstraint>SetNull</deleteConstraint>
-<required>false</required>
+ <fullName>Account_Lookup__c</fullName>
+ <label>Account Lookup</label>
+ <type>Lookup</type>
+ <referenceTo>Account</referenceTo>
+ <relationshipLabel>Account</relationshipLabel>
+ <relationshipName>Account_Lookup</relationshipName>
+ <deleteConstraint>SetNull</deleteConstraint>
+ <required>false</required>
 </fields>
 
 **Delete Constraint Rules (IMPORTANT)**
