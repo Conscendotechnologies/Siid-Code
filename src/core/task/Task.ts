@@ -1822,7 +1822,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		this.abort = true
-		this.emit(RooCodeEventName.TaskAborted)
+		this.emit(RooCodeEventName.TaskAborted, this.taskId, this.getTokenUsage(), this.toolUsage)
 
 		try {
 			this.dispose() // Call the centralized dispose method
@@ -1889,6 +1889,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			if (didEndLoop) {
 				// For now a task never 'completes'. This will only happen if
 				// the user hits max requests and denies resetting the count.
+				this.emit(RooCodeEventName.TaskMaxRequestsReached, this.taskId, this.getTokenUsage(), this.toolUsage)
 				break
 			} else {
 				nextUserContent = [{ type: "text", text: formatResponse.noToolsUsed() }]
