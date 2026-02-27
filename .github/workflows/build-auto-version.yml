@@ -3,10 +3,10 @@ name: Siid-Code Auto-Version & Release
 on:
   push:
     branches: 
-      - main
+      - main-stable-agent
   pull_request:
     branches:
-      - main
+      - main-stable-agent
     types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
@@ -164,20 +164,23 @@ jobs:
         run: |
           echo "🔍 Searching for latest CalVer tag (YEAR.MAJOR.MINOR format)..."
           
-          # Get all v*.*.* tags
-          ALL_TAGS=$(git tag -l "v*.*.*")
+          TAG_SUFFIX="-agent-edition"
+          
+          # Get all supported tag formats (legacy and agent-edition)
+          ALL_TAGS=$(printf "%s\n%s\n" "$(git tag -l "v*.*.*")" "$(git tag -l "v*.*.*${TAG_SUFFIX}")")
           
           # Filter to ONLY CalVer versions (YEAR >= 2000)
           LATEST_TAG=$(echo "$ALL_TAGS" | while read tag; do
             if [ -n "$tag" ]; then
-              VERSION=${tag#v}
+              NORMALIZED_TAG=${tag%${TAG_SUFFIX}}
+              VERSION=${NORMALIZED_TAG#v}
               IFS='.' read -r YEAR MAJOR MINOR <<< "$VERSION"
               # Only include tags where YEAR >= 2000 (CalVer versions)
               if [ "$YEAR" -eq "$YEAR" ] 2>/dev/null && [ "$YEAR" -ge 2000 ]; then
-                echo "$tag"
+                echo "$NORMALIZED_TAG|$tag"
               fi
             fi
-          done | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 | sed 's/^/v/')
+          done | sort -t'|' -k1,1V | tail -n 1 | cut -d'|' -f2)
           
           # Get current year
           CURRENT_YEAR=$(date +'%Y')
@@ -193,8 +196,9 @@ jobs:
             IS_FIRST_RELEASE="false"
           fi
           
-          # Extract version numbers (remove 'v' prefix)
-          VERSION=${LATEST_TAG#v}
+          # Extract version numbers (remove optional suffix + 'v')
+          VERSION=${LATEST_TAG%${TAG_SUFFIX}}
+          VERSION=${VERSION#v}
           
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "current_version=$VERSION" >> $GITHUB_OUTPUT
@@ -310,8 +314,9 @@ jobs:
             fi
           fi
           
+          TAG_SUFFIX="-agent-edition"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "new_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_tag=v$NEW_VERSION${TAG_SUFFIX}" >> $GITHUB_OUTPUT
           
       - name: Check if version already exists
         id: check_version
@@ -507,7 +512,7 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: "SIID Code Extension v${{ steps.calc_version.outputs.new_version }}"
+          name: "SIID Code Extension v${{ steps.calc_version.outputs.new_version }} agent-edition"
           tag_name: ${{ steps.calc_version.outputs.new_tag }}
           draft: false
           prerelease: ${{ github.event.inputs.prerelease || 'false' }}
