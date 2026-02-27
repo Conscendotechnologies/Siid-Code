@@ -139,7 +139,7 @@ jobs:
   # Job 2: Auto-Version and Release (runs on push to main)
   auto-version-and-release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main-stable-agent'
     
     steps:
       - name: Checkout repository
