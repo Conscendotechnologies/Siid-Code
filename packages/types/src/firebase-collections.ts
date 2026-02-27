@@ -41,7 +41,7 @@ export interface LogEntry {
 	eventType: LogEventType
 
 	/** Flexible JSON data for event-specific information */
-	data: Record<string, any>
+	data: Record<string, unknown>
 
 	/** Optional session identifier */
 	sessionId?: string
