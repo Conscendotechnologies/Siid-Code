@@ -164,23 +164,20 @@ jobs:
         run: |
           echo "🔍 Searching for latest CalVer tag (YEAR.MAJOR.MINOR format)..."
           
-          TAG_SUFFIX="-agent-edition"
-          
-          # Get all supported tag formats (legacy and agent-edition)
-          ALL_TAGS=$(printf "%s\n%s\n" "$(git tag -l "v*.*.*")" "$(git tag -l "v*.*.*${TAG_SUFFIX}")")
+          # Get all v*.*.* tags
+          ALL_TAGS=$(git tag -l "v*.*.*")
           
           # Filter to ONLY CalVer versions (YEAR >= 2000)
           LATEST_TAG=$(echo "$ALL_TAGS" | while read tag; do
             if [ -n "$tag" ]; then
-              NORMALIZED_TAG=${tag%${TAG_SUFFIX}}
-              VERSION=${NORMALIZED_TAG#v}
+              VERSION=${tag#v}
               IFS='.' read -r YEAR MAJOR MINOR <<< "$VERSION"
               # Only include tags where YEAR >= 2000 (CalVer versions)
               if [ "$YEAR" -eq "$YEAR" ] 2>/dev/null && [ "$YEAR" -ge 2000 ]; then
-                echo "$NORMALIZED_TAG|$tag"
+                echo "$tag"
               fi
             fi
-          done | sort -t'|' -k1,1V | tail -n 1 | cut -d'|' -f2)
+          done | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 | sed 's/^/v/')
           
           # Get current year
           CURRENT_YEAR=$(date +'%Y')
@@ -196,9 +193,8 @@ jobs:
             IS_FIRST_RELEASE="false"
           fi
           
-          # Extract version numbers (remove optional suffix + 'v')
-          VERSION=${LATEST_TAG%${TAG_SUFFIX}}
-          VERSION=${VERSION#v}
+          # Extract version numbers (remove 'v' prefix)
+          VERSION=${LATEST_TAG#v}
           
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "current_version=$VERSION" >> $GITHUB_OUTPUT
@@ -314,9 +310,8 @@ jobs:
             fi
           fi
           
-          TAG_SUFFIX="-agent-edition"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "new_tag=v$NEW_VERSION${TAG_SUFFIX}" >> $GITHUB_OUTPUT
+          echo "new_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
           
       - name: Check if version already exists
         id: check_version
@@ -507,12 +502,19 @@ jobs:
           fi
           
           echo "contributors=$CONTRIBUTORS" >> $GITHUB_OUTPUT
+
+      - name: Get release quality
+        id: release_quality
+        run: |
+          QUALITY=$(node -p "require('./src/package.json').releaseQuality || 'stable'")
+          echo "quality=$QUALITY" >> $GITHUB_OUTPUT
+          echo "Using release quality: $QUALITY"
           
       - name: Create Release
         if: steps.check_version.outputs.version_exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          name: "SIID Code Extension v${{ steps.calc_version.outputs.new_version }} agent-edition"
+          name: "SIID Code Extension v${{ steps.calc_version.outputs.new_version }} (${{ steps.release_quality.outputs.quality }})"
           tag_name: ${{ steps.calc_version.outputs.new_tag }}
           draft: false
           prerelease: ${{ github.event.inputs.prerelease || 'false' }}
@@ -523,6 +525,7 @@ jobs:
             **Build Date:** ${{ steps.timestamp.outputs.build_date }}
             **Version:** v${{ steps.calc_version.outputs.new_version }}
             **Version Bump:** ${{ steps.analyze_commits.outputs.bump_type }}
+            **Release Quality:** ${{ steps.release_quality.outputs.quality }}
             
             ---
             
@@ -568,7 +571,7 @@ jobs:
         if: steps.check_version.outputs.version_exists == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: siid-code-extension-v${{ steps.calc_version.outputs.new_version }}
+          name: siid-code-extension-v${{ steps.calc_version.outputs.new_version }}-${{ steps.release_quality.outputs.quality }}
           path: |
             ${{ steps.find_vsix.outputs.vsix_path }}
             ${{ steps.find_vsix.outputs.vsix_path }}.sha256
