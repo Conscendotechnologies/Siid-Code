@@ -344,8 +344,9 @@ export async function retrieveSfMetadataTool(
 			})
 
 			// Format and return the result
-			const formattedResult = formatSfOutput(output, metadataType, metadataName)
-			pushToolResult(formattedResult)
+			// const formattedResult = formatSfOutput(output, metadataType, metadataName)
+			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. output: ${output}`)
+			pushToolResult(output)
 		} catch (execError: any) {
 			// Handle execution errors
 			let errorMessage = "Failed to execute SF CLI command"

@@ -133,7 +133,7 @@ Notes:
 
 - Execute:
     ```powershell
-    sf project retrieve start --metadata CustomObject:<ObjectName>
+    sf project retrieve start --metadata CustomObject:<ObjectName> --json
     ```
 - Parse the returned object XML (force-app/main/default/objects/<ObjectName>.object-meta.xml) to extract all picklist fields (standard and custom). Build a `fieldsOptions` array with each entry: { label: `${fieldLabel} (API: ${fieldApiName})`, value: fieldApiName }.
 - Render a MultiSelect populated with `fieldsOptions`.
@@ -154,7 +154,7 @@ Implementation note: keep the data shape for field values as { fieldApiName: str
 
 - After picklist and value selection finishes, attempt to retrieve all profiles with:
     ```powershell
-    sf project retrieve start --metadata Profile:*
+    sf project retrieve start --metadata Profile:* --json
     ```
 - If retrieving all profiles is not possible for performance or metadata access reasons, present a prioritized set of common/important profiles (for example: System Administrator, Standard User, Sales User, Marketing User) plus any other matching profiles fetched.
 - Parse profiles and build `profilesOptions`: { label: ProfileName, value: ProfileFileNameOrAPIName }
@@ -196,19 +196,19 @@ If YES, inform the user:
 **For Opportunity:**
 
 ```bash
-sf project retrieve start --metadata StandardValueSet:OpportunityStage
+sf project retrieve start --metadata StandardValueSet:OpportunityStage --json
 ```
 
 **For Lead:**
 
 ```bash
-sf project retrieve start --metadata StandardValueSet:LeadStatus
+sf project retrieve start --metadata StandardValueSet:LeadStatus --json
 ```
 
 **For Case:**
 
 ```bash
-sf project retrieve start --metadata StandardValueSet:CaseStatus
+sf project retrieve start --metadata StandardValueSet:CaseStatus --json
 ```
 
 ##### Step 2: Parse Retrieved Values
@@ -313,13 +313,13 @@ Store user selections for the business process XML generation.
 **Step 1 - Deploy Business Process:**
 
 ```bash
-sf project deploy start --source-dir force-app/main/default/objects/<ObjectName>/businessProcesses/<BusinessProcessDeveloperName>.businessProcess-meta.xml
+sf project deploy start --source-dir force-app/main/default/objects/<ObjectName>/businessProcesses/<BusinessProcessDeveloperName>.businessProcess-meta.xml --json
 ```
 
 **Step 2 - Deploy Record Type:**
 
 ```bash
-sf project deploy start --source-dir force-app/main/default/objects/<ObjectName>/recordTypes/<RecordTypeDeveloperName>.recordType-meta.xml
+sf project deploy start --source-dir force-app/main/default/objects/<ObjectName>/recordTypes/<RecordTypeDeveloperName>.recordType-meta.xml --json
 ```
 
 6. Generate metadata XML
@@ -341,6 +341,18 @@ sf project deploy start --source-dir force-app/main/default/objects/<ObjectName>
 
 Use the `<sf_deploy_metadata>` tool to validate and deploy record types:
 
+```powershell
+# dry-run a single record type file (source format)
+sf project deploy start --dry-run --source-dir "force-app/main/default/objects/<Object>/recordTypes/<DevName>.recordType-meta.xml" --json
+```
+
+- If you need to deploy multiple files (BusinessProcess → RecordType → Profiles) in order, include them in the `--source-dir` separated by `;` (PowerShell):
+
+````powershell
+# dry-run business process + record type
+sf project deploy start --dry-run --source-dir "force-app/main/default/objects/<Object>/businessProcesses/<BP>.businessProcess-meta.xml;force-app/main/default/objects/<Object>/recordTypes/<DevName>.recordType-meta.xml" --json
+
+Manifest/metadata XML approach (when deploying a zip/manifest):
 **How to Deploy:**
 
 - Provide the record type metadata file(s) to the `<sf_deploy_metadata>` tool
@@ -351,6 +363,20 @@ Use the `<sf_deploy_metadata>` tool to validate and deploy record types:
 
 **Important Notes:**
 
+- After updating `package.xml`, dry-run using the manifest:
+
+````powershell
+# dry-run using manifest
+sf project deploy start --dry-run --manifest "path\to\package.xml" --json
+
+Notes on the error you reported: "RecordType Contact.Contact.contype001 Not in package.xml"
+
+- Root cause: the deployment used a manifest/metadata API that requires `package.xml`, and that manifest did not include the new `RecordType` fullName entry (Object.DeveloperName).
+- Fix options:
+    1. Use source-format deploy with `--source-dir` that points directly at the record type file (no package.xml needed).
+    2. Or add the `RecordType` element to your `package.xml` as shown above and re-run the manifest deploy.
+
+- Make sure the `fullName`/member format matches exactly: use `<Object>.<DeveloperName>` (for example: `Contact.contype001` or `Contact.contype_001` depending on your DevName). The package member must match the `fullName` inside the recordType metadata file.
 - Always validate before deployment using the `<sf_deploy_metadata>` tool
 - Ensure the record type metadata includes correct fullName format: `<Object>.<DeveloperName>` (e.g., `Contact.contype001`)
 - If deploying profiles with record types, ensure the order is correct: BusinessProcess first, then RecordType, then Profiles
@@ -360,10 +386,10 @@ Use the `<sf_deploy_metadata>` tool to validate and deploy record types:
 
 ````powershell
 # source-format deploy
-sf project deploy start --source-dir "force-app/main/default/objects/<Object>/recordTypes/<DevName>.recordType-meta.xml"
+sf project deploy start --source-dir "force-app/main/default/objects/<Object>/recordTypes/<DevName>.recordType-meta.xml" --json
 
 # manifest deploy
-sf project deploy start --manifest "path\to\package.xml"
+sf project deploy start --manifest "path\to\package.xml" --json
 
 -- On multi-file deployments that include BusinessProcess (Lead/Opportunity/Case) generate and include BusinessProcess file first, dry-run both, then deploy BusinessProcess, RecordType, and finally Profiles (profile changes should be last).
 
@@ -390,10 +416,10 @@ sf project deploy start --manifest "path\to\package.xml"
 
 ```powershell
 # retrieve all profiles (may be large) - adjust if needed
-sf project retrieve start --metadata "Profile:*"
+sf project retrieve start --metadata "Profile:*" --json
 
 # or retrieve specific profiles via manifest or explicit files
-sf project retrieve start --manifest "path\to\package.xml"
+sf project retrieve start --manifest "path\to\package.xml" --json
 ```
 
 2. Edit the downloaded profile XML(s) under `force-app/main/default/profiles/` and add the `<recordTypeVisibilities>` snippet. Keep entries alphabetized by `<recordType>` if your process relies on deterministic ordering.
@@ -402,16 +428,16 @@ sf project retrieve start --manifest "path\to\package.xml"
 
 ```powershell
 # dry-run profile deploy (source-format)
-sf project deploy start --dry-run --source-dir "force-app/main/default/profiles/<ProfileFile>.profile-meta.xml"
+sf project deploy start --dry-run --source-dir "force-app/main/default/profiles/<ProfileFile>.profile-meta.xml" --json
 
 # or deploy multiple profiles at once
-sf project deploy start --dry-run --source-dir "force-app/main/default/profiles"
+sf project deploy start --dry-run --source-dir "force-app/main/default/profiles" --json
 ```
 
 4. Deploy the profile updates (after dry-run success):
 
 ```powershell
-sf project deploy start --source-dir "force-app/main/default/profiles/<ProfileFile>.profile-meta.xml"
+sf project deploy start --source-dir "force-app/main/default/profiles/<ProfileFile>.profile-meta.xml" --json
 ```
 
 - Important: If the profile references the new record type, ensure the RecordType (and BusinessProcess, if required) are deployed first, then deploy the profiles. If you use a single `--source-dir` that contains both the RecordType and Profile files, the CLI will handle the ordering for you in many cases, but when you encounter dependency errors prefer to deploy RecordType first and Profiles last.
@@ -504,7 +530,7 @@ Test-Path "force-app/main/default/objects/Account/recordTypes/AccountType001.rec
 Select-String -Path "force-app/main/default/objects/Account/recordTypes/AccountType001.recordType-meta.xml" -Pattern '<fullName>'
 
 # dry-run source-format
-sf project deploy start --dry-run --source-dir "force-app/main/default/objects/Account/recordTypes/AccountType001.recordType-meta.xml"
+sf project deploy start --dry-run --source-dir "force-app/main/default/objects/Account/recordTypes/AccountType001.recordType-meta.xml" --json
 
 If you follow the filename and `<fullName>` conventions above the "Not in package.xml" error will not occur when using the manifest approach, and source-format deploys will find the file reliably.
 

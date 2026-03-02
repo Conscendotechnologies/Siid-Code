@@ -23,6 +23,12 @@ Usage Notes:
 - The tool also provides the recommended mode for the task
 - If a todo list already exists, update it instead of recreating
 
+Example: Get guides for creating an Agentforce agent and Adaptive Response Agent
+
+<get_task_guides>
+<task_type>create-agentforce-agent</task_type>
+</get_task_guides>
+
 Example: Get guides for creating an LWC with Apex backend
 
 <get_task_guides>
@@ -35,9 +41,5 @@ Example: Get guides for creating custom objects
 <task_type>create-custom-object</task_type>
 </get_task_guides>
 
-Example: Get guides for Adaptive Response Agent
-
-<get_task_guides>
-<task_type>create-adaptive-agent</task_type>
-</get_task_guides>`
+`
 }

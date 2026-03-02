@@ -6,6 +6,10 @@ import { createAsyncApexInstructions } from "./create-async-apex"
 import { createVisualForceInstructions } from "./create-visual-force"
 import { createAuraComponentsInstructions } from "./create-aura-components"
 import {
+	agentforceAgentInstructions,
+	agentforceAnalyseInstructions,
+	agentforceTopicAnalyseInstructions,
+	agentforceTopicsActionsInstructions,
 	assignmentRulesInstructions,
 	customFieldInstructions,
 	customObjectInstructions,
@@ -17,6 +21,7 @@ import {
 	roleCreationInstructions,
 	validationRulesInstructions,
 } from "./salesforce-instructions"
+import { invocableApexInstructions, adaptiveResponseAgentInstructions } from "./code-instructions"
 import {
 	pmdApexInstructions,
 	pmdHtmlInstructions,
@@ -65,6 +70,18 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 			return result
 		}
 		// Salesforce Agent Instructions
+		case "agentforce_agent_create": {
+			return await agentforceAgentInstructions(detail.context)
+		}
+		case "agentforce_agent_analyse": {
+			return await agentforceAnalyseInstructions(detail.context)
+		}
+		case "agentforce_topic_analyse": {
+			return await agentforceTopicAnalyseInstructions(detail.context)
+		}
+		case "agentforce_topics_actions": {
+			return await agentforceTopicsActionsInstructions(detail.context)
+		}
 		case "assignment_rules": {
 			return await assignmentRulesInstructions(detail.context)
 		}
@@ -111,6 +128,13 @@ export async function fetchInstructions(text: string, detail: InstructionsDetail
 		case "pmd_xml": {
 			return await pmdXmlInstructions(detail.context)
 		} // Code Instructions
+		case "invocable_apex": {
+			return await invocableApexInstructions(detail.context)
+		}
+		// Adaptive Response Agent Instructions
+		case "adaptive_response_agent": {
+			return await adaptiveResponseAgentInstructions(detail.context)
+		}
 		default: {
 			return ""
 		}
