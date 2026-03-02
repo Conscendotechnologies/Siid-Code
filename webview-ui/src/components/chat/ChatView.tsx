@@ -1427,6 +1427,20 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					return alwaysAllowUpdateTodoList
 				}
 
+				if (tool?.tool === "fetchInstructions" || tool?.tool === "getTaskGuides") {
+					if (tool.content === "create_mode" || tool.content === "create-custom-mode") {
+						return alwaysAllowModeSwitch
+					}
+
+					if (tool.content === "create_mcp_server" || tool.content === "create-mcp-server") {
+						return alwaysAllowMcp
+					}
+
+					// Auto-approve get_task_guides as it's read-only
+					if (tool?.tool === "getTaskGuides") {
+						return alwaysAllowReadOnly
+					}
+				}
 				if (tool?.tool === "deploySfMetadata") {
 					return alwaysAllowDeploySfMetadata
 				}
@@ -1486,6 +1500,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			alwaysAllowUpdateTodoList,
 			alwaysAllowDeploySfMetadata,
 			alwaysAllowRetrieveSfMetadata,
+			alwaysAllowModeSwitch,
 		],
 	)
 

@@ -759,6 +759,19 @@ export const ChatRowContent = ({
 					<>
 						<div style={headerStyle}></div>
 						<div style={{ margin: "6px 0 6px 0", display: "flex", flexDirection: "column", gap: 4 }}>
+							<span
+								style={{
+									fontSize: "11px",
+									color: "var(--vscode-descriptionForeground)",
+									fontFamily: "monospace",
+									border: `1px solid var(--vscode-sideBar-border)`,
+									borderRadius: "3px",
+									padding: "2px 6px",
+									background: "var(--vscode-sideBar-background)",
+									display: "inline-block",
+								}}>
+								Loaded guides for: {tool.content || "Task"}
+							</span>
 							<div
 								onClick={() => setIsTaskGuidesExpanded(!isTaskGuidesExpanded)}
 								style={{

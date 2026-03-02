@@ -216,6 +216,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	update_todo_list: "update todo list",
 	retrieve_sf_metadata: "retrieve salesforce metadata",
 	sf_deploy_metadata: "deploy salesforce metadata",
+	show_agent_deployment_guide: "show deployment guide",
 } as const
 
 // Define available tool groups.
@@ -256,6 +257,7 @@ export const ALWAYS_AVAILABLE_TOOLS: ToolName[] = [
 	"switch_mode",
 	"new_task",
 	"update_todo_list",
+	"show_agent_deployment_guide",
 ] as const
 
 export type DiffResult =
