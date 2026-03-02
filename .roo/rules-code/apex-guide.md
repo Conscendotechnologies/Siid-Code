@@ -6,41 +6,15 @@
 
 ### Step 1: 📋 Plan Your Implementation Using Required Patterns
 
-**YOU MUST USE THESE PATTERNS - THIS IS NOT OPTIONAL:**
+**YOU MUST USE THIS PATTERN - THIS IS NOT OPTIONAL:**
 
-#### A) Selector Pattern for SOQL (MANDATORY)
+#### Service Class with SOQL and Business Logic
 
-- **All SOQL queries MUST be in Selector classes**
-- **One Selector class per SObject** (e.g., `OpportunitySelector`, `AccountSelector`)
-- **Naming**: `<ObjectName>Selector`
-- **Methods return Lists/Sets**, never single records
-
-**Example:**
-
-```apex
-public with sharing class OpportunitySelector {
-    /**
-     * Get opportunities by stage name
-     * @param strStageName The stage name to filter by
-     * @return List of Opportunity records
-     */
-    public static List<Opportunity> getByStage(String strStageName) {
-        return [
-            SELECT Id, Name, Amount, CloseDate, StageName
-            FROM Opportunity
-            WHERE StageName = :strStageName
-            WITH USER_MODE
-        ];
-    }
-}
-```
-
-#### B) Service Pattern for Business Logic (MANDATORY)
-
-- **All business logic MUST be in Service classes**
-- **Controllers should only call Service classes, NOT Selectors directly**
+- **SOQL queries and business logic reside in Service classes**
+- **One Service class per primary SObject** (e.g., `OpportunityService`, `AccountService`)
 - **Naming**: `<ObjectName>Service`
-- **Methods are entry points for business operations**
+- **Methods are entry points for business operations and can include SOQL**
+- **Methods return Lists/Sets**, never single records
 
 **Example:**
 
@@ -51,39 +25,53 @@ public with sharing class OpportunityService {
      * @return List of Opportunity records with Prospecting stage
      */
     public static List<Opportunity> getProspectingOpportunities() {
-        // Call Selector for data retrieval
-        List<Opportunity> listOpportunities = OpportunitySelector.getByStage('Prospecting');
+        // SOQL query directly in service method
+        List<Opportunity> listOpportunities = [
+            SELECT Id, Name, Amount, CloseDate, StageName
+            FROM Opportunity
+            WHERE StageName = 'Prospecting'
+            WITH USER_MODE
+        ];
 
         // Add any business logic/transformations here if needed
 
         return listOpportunities;
     }
-}
-```
 
-#### C) Controller for LWC (MANDATORY NAMING CONVENTIONS)
-
-- **Naming**: `<ComponentName>Controller`
-- **All methods must be @AuraEnabled**
-- **Use Service classes, NOT Selector classes directly**
-- **Follow variable naming conventions**
-
-**Example:**
-
-```apex
-public with sharing class OpportunityListController {
     /**
-     * Get prospecting opportunities for LWC component
-     * @return List of Opportunity records
+     * Create orders for given Account Ids
+     * @param listAccountIds List of Account Ids
+     * @return List of created Order records
      */
-    @AuraEnabled(cacheable=true)
-    public static List<Opportunity> getProspectingOpportunities() {
-        try {
-            // Call Service class
-            return OpportunityService.getProspectingOpportunities();
-        } catch (Exception e) {
-            throw new AuraHandledException(e.getMessage());
+    public static List<Order__c> createOrdersForAccounts(List<Id> listAccountIds) {
+        if (listAccountIds == null || listAccountIds.isEmpty()) {
+            return new List<Order__c>();
         }
+
+        // Query Account data directly in service method
+        List<Account> listAccounts = [
+            SELECT Id, Name
+            FROM Account
+            WHERE Id IN :listAccountIds
+            WITH USER_MODE
+        ];
+
+        // Build orders
+        List<Order__c> listOrdersToInsert = new List<Order__c>();
+        for (Account acc : listAccounts) {
+            listOrdersToInsert.add(new Order__c(
+                Account__c = acc.Id,
+                Name = acc.Name + ' - Auto Order',
+                Status__c = 'Draft'
+            ));
+        }
+
+        // DML operation
+        if (!listOrdersToInsert.isEmpty()) {
+            insert listOrdersToInsert;
+        }
+
+        return listOrdersToInsert;
     }
 }
 ```
@@ -103,9 +91,7 @@ public with sharing class OpportunityListController {
 
 #### Classes:
 
-- **Selectors**: `OpportunitySelector`, `AccountSelector`
-- **Services**: `OpportunityService`, `AccountService`
-- **Controllers**: `OpportunityListController`, `AccountCardController`
+- **Services**: `OpportunityService`, `AccountService`, `OrderService`
 
 #### Methods:
 
@@ -115,8 +101,7 @@ public with sharing class OpportunityListController {
 
 Before writing ANY code, verify:
 
-- [ ] 📋 Planned to use Selector pattern for SOQL
-- [ ] 📋 Planned to use Service pattern for business logic
+- [ ] 📋 Planned to use Service pattern for all logic and SOQL
 - [ ] 🔤 Will follow naming conventions (list/set/map/str/int prefixes)
 - [ ] 🔒 Will use `WITH USER_MODE` or `WITH SECURITY_ENFORCED` in SOQL
 - [ ] 📦 Will use `with sharing` on classes
@@ -124,31 +109,26 @@ Before writing ANY code, verify:
 
 ### Step 4: ⚡ Create Classes in This Order
 
-1. **First**: Create Selector class(es) with SOQL queries
-2. **Second**: Create Service class(es) that call Selector(s)
-3. **Third**: Create Controller class(es) that call Service(s)
-4. **Fourth**: Create corresponding XML metadata files for each class
+1. **First**: Create Service class(es) with SOQL queries and business logic
+2. **Second**: Create corresponding XML metadata files for each class
 
 ### ❌ ANTI-PATTERNS TO AVOID
 
-❌ **NEVER put SOQL directly in Controller classes**
-❌ **NEVER put SOQL directly in LWC JavaScript files**
-❌ **NEVER skip the Selector pattern**
+❌ **NEVER put business logic in Controller classes or LWC files**
+❌ **NEVER put SOQL directly in Controller classes or LWC files**
 ❌ **NEVER skip the Service pattern**
 ❌ **NEVER use variable names without prefixes** (e.g., `opportunities` instead of `listOpportunities`)
-❌ **NEVER create a Controller that directly calls Selector** - always go through Service
+❌ **NEVER have multiple classes for one operation** - consolidate into single Service class
 
 ### ✅ CORRECT PATTERN
 
 ```
 LWC Component
     ↓ calls
-Controller (@AuraEnabled method)
-    ↓ calls
-Service (business logic)
-    ↓ calls
-Selector (SOQL queries)
-    ↓ returns data
+Service Class (@AuraEnabled wrapper methods)
+    - Contains SOQL queries
+    - Contains business logic
+    - Returns data
 ```
 
 ---
@@ -216,14 +196,14 @@ Consistent naming is critical for maintainability and code readability. Use the 
 
 ### General Apex Naming
 
-| Component      | Format                 | Pattern / Example                                          |
-| -------------- | ---------------------- | ---------------------------------------------------------- |
-| **Classes**    | PascalCase             | `OrderService`, `AccountTriggerHandler`, `AccountSelector` |
-| **Interfaces** | PascalCase + Suffix    | `IntegrationStrategyInterface`                             |
-| **Methods**    | camelCase (Verb-based) | `createOrder()`, `validateInput()`, `syncToSAP()`          |
-| **Variables**  | camelCase              | `accountList`, `hasErrors`, `retryCount`                   |
-| **Constants**  | ALL_CAPS (Underscore)  | `MAX_RETRY_COUNT`, `SAP_ENDPOINT_NAME`                     |
-| **Triggers**   | PascalCase             | `<ObjectName>Trigger` (e.g., `AccountTrigger`)             |
+| Component      | Format                 | Pattern / Example                                         |
+| -------------- | ---------------------- | --------------------------------------------------------- |
+| **Classes**    | PascalCase             | `OrderService`, `AccountService`, `AccountTriggerHandler` |
+| **Interfaces** | PascalCase + Suffix    | `IntegrationStrategyInterface`                            |
+| **Methods**    | camelCase (Verb-based) | `createOrder()`, `validateInput()`, `syncToSAP()`         |
+| **Variables**  | camelCase              | `accountList`, `hasErrors`, `retryCount`                  |
+| **Constants**  | ALL_CAPS (Underscore)  | `MAX_RETRY_COUNT`, `SAP_ENDPOINT_NAME`                    |
+| **Triggers**   | PascalCase             | `<ObjectName>Trigger` (e.g., `AccountTrigger`)            |
 
 ### Primitive Variable Prefixes (Optional but Recommended)
 
@@ -805,8 +785,8 @@ public with sharing class OrderService {
             return new List<Order__c>();
         }
 
-        // Query using Selector pattern
-        List<Account> listAccounts = AccountSelector.getByIds(new Set<Id>(listAccountIds));
+        // Query Account data directly in service method
+        List<Account> listAccounts = queryAccountsByIds(new Set<Id>(listAccountIds));
 
         // Build orders using helper method
         List<Order__c> listOrdersToInsert = buildOrders(listAccounts);
@@ -835,19 +815,13 @@ public with sharing class OrderService {
         }
         return listOrders;
     }
-}
-```
 
-### Selector Pattern (SOQL Encapsulation)
-
-Centralize all SOQL queries in Selector classes to promote reusability and maintainability.
-
-- **Rule:** One selector per SObject (e.g., `AccountSelector`).
-- **Rule:** Methods should return Lists/Sets, not single records.
-
-```apex
-public with sharing class AccountSelector {
-    public static List<Account> getByIds(Set<Id> setAccountIds) {
+    /**
+     * Private helper to query Accounts by Ids.
+     * @param setAccountIds Set of Account Ids to query
+     * @return List of Account records
+     */
+    private static List<Account> queryAccountsByIds(Set<Id> setAccountIds) {
         if (setAccountIds == null || setAccountIds.isEmpty()) {
             return new List<Account>();
         }
@@ -855,6 +829,7 @@ public with sharing class AccountSelector {
             SELECT Id, Name, Industry, AnnualRevenue
             FROM Account
             WHERE Id IN :setAccountIds
+            WITH USER_MODE
         ];
     }
 }
@@ -2257,27 +2232,30 @@ for(Account acc : accountList) {
 
 ---
 
-### 9. (**!! IMPORTANT**)Dry run and Deployment:
+### 9. ⚠️ (**!! MANDATORY**) DEPLOYMENT:
 
-After creation of all required apex classes and LWC components then first do dry run on apex using this command:
-`sf project deploy start --dry-run --source-dir force-app/main/default/classes/<classname.cls> --json`
-Replace <classname.cls> with the actual classes.
+**AFTER EVERY APEX CLASS CREATION, YOU MUST IMMEDIATELY DEPLOY USING `<sf_deploy_metadata>` TOOL**
 
-- If got any errors after dry run solve them.
-- After successful dry run of apex classes then immediatly proceed with deloyment of apex classes.
-  `sf project deploy start --source-dir force-app/main/default/objects/<classname.cls> --json`
-- Replace <classname.cls> with the all classes that are created like below format for multiple apex classes deployment:
-    # Deploy multiple specific Apex classes in order
-    ```
-    sf project deploy start --dry-run --source-dir force-app/main/default/objects/MyCustomObject__c --source-dir force-app/main/default/classes/HelperClass.cls --source-dir force-app/main/default/classes/MainService.cls --source-dir force-app/main/default/triggers/AccountTrigger.trigger --json
-    ```
-- (**!IMPORTANT**)Before Going for LWC first dry-run and deploy Apex Classes.
+**THIS IS NOT OPTIONAL. THIS STEP MUST NOT BE SKIPPED UNDER ANY CIRCUMSTANCES.**
 
-Deploy only the metadata files and component bundles that were created or modified by the AI — do NOT deploy the entire metadata folder. Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures.
+### Strict Deployment Rules
 
-Deployment workflow you should follow every time:
+- (**!CRITICAL**) **You MUST use the `<sf_deploy_metadata>` tool for ALL Apex class deployments**
+- (**!CRITICAL**) **Do NOT attempt to use CLI commands like `sf project deploy start`**
+- (**!CRITICAL**) **Do NOT skip this step - deployment is MANDATORY after every Apex class creation**
+- (**!CRITICAL**) **Ensure all dependencies are met: if LWC calls Apex controllers, Apex classes must be deployed first**
+- (**!CRITICAL**) **Deploy only the metadata files and components that were created or modified — do NOT deploy the entire metadata folder**
+- Deploying the whole folder can introduce unrelated dependencies and cause avoidable deployment failures
 
-- Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed.
+**Mandatory Deployment Workflow:**
+
+1. **Verify dependencies: if LWC calls Apex controllers, ensure those Apex classes are deployed first** (this step is MANDATORY)
+2. **Use `<sf_deploy_metadata>` tool with the Apex class file path(s)** (this step is MANDATORY)
+3. **The tool will automatically validate (dry-run) the deployment** (automatic)
+4. **If validation is successful, the tool will proceed with deployment** (automatic)
+5. **If there are any errors during validation, the tool will report them - fix and retry the deployment** (this step is MANDATORY)
+
+**MUST DO THIS AFTER EVERY SINGLE APEX CLASS - NO EXCEPTIONS**
 
 ## Quick Reference: Common Patterns
 

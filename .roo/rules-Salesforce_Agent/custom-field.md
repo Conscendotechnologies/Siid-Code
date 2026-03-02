@@ -24,14 +24,20 @@ This mode assists the AI model in creating **Salesforce custom fields** by gener
     - If it's a custom object, confirm its API name ends with `__c` (e.g., `Invoice__c`).
 - If the object exists, continue with field creation.
 
-### **2. Folder and File Placement**
+## **Important Notes on Deployment (CRITICAL - MANDATORY)**
 
-- Navigate to the object’s folder:  
-  `objects/<ObjectApiName>/fields/`
-- Create the field XML file in this directory:  
-   `<FieldApiName>.field-meta.xml`  
-  Example:  
-  `objects/Invoice__c/fields/Customer_Type__c.field-meta.xml`
+**After creating custom fields, you MUST immediately use the `<sf_deploy_metadata>` tool to deploy them:**
+
+- (**!CRITICAL**) **Deployment is MANDATORY after every field creation - YOU MUST NOT SKIP THIS STEP**
+- (**!CRITICAL**) **Use the `<sf_deploy_metadata>` tool for ALL field deployments**
+- (**!CRITICAL**) **Deploy only the field metadata files that were created or modified**
+- (**!CRITICAL**) **Do NOT deploy the entire objects folder - this causes avoidable deployment failures**
+- (**!CRITICAL**) **Before deploying fields, ensure the target object has been deployed first**
+- The tool will automatically handle both dry-run validation and actual deployment
+- If there are any errors during validation, the tool will report them - fix and retry the deployment
+- After successful deployment, fields will be available in the Salesforce org
+
+**MANDATORY: Deploy immediately after field creation using `<sf_deploy_metadata>` tool - NO EXCEPTIONS**
 
 ### **3. Field Naming Conventions**
 
@@ -226,14 +232,9 @@ After creating the field, you MUST retrieve the Admin profile and add read and e
 4. **Deploy Profile with Field Permissions**
 
     - Save at: `force-app/main/default/profiles/Admin.profile-meta.xml`
-    - Run dry run first:
-        ```bash
-        sf project deploy start --dry-run --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
-        ```
-    - If successful, deploy:
-        ```bash
-        sf project deploy start --source-dir force-app/main/default/profiles/Admin.profile-meta.xml --json
-        ```
+    - Use the `<sf_deploy_metadata>` tool to deploy the updated profile
+    - The tool will automatically handle both validation and deployment
+    - After successful deployment, the field permissions will be applied to the Admin profile
 
 5. **User Communication**
     - "Retrieving Admin profile..."
@@ -260,16 +261,14 @@ Default value (if applicable)
 For Lookup fields: Target Object, Relationship Label, Relationship Name
 
 **8. Dry run and Deployment** (!IMPORTANT)
-After creating all fields, before deployment first do Dry Run on fields using CLI:
--DO DRY RUN ON ALL FIELDS AT ONCE
-sf project deploy start --dry-run --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
 
-- Replace <FieldApiName> with created fields
-- If got any errors after dry run solve them.
-- After successful dry run then proceed with deloyment process.
-- Do deploy all fields rules at once.
-  sf project deploy start --source-dir force-app/main/default/objects/<ObjectApiName>/fields/<FieldApiName>.field-meta.xml --json
-- Replace <FieldApiName> with created fields
+After creating all fields, use the `<sf_deploy_metadata>` tool to validate and deploy them:
+
+- Provide all field metadata files to the tool at once for batch deployment
+- The tool will automatically handle both dry-run validation and actual deployment
+- Replace `<FieldApiName>` with the created field names
+- If there are any errors during validation, the tool will report them - fix and retry the deployment
+- After successful deployment, all fields will be available in the Salesforce org for use
 
 **9. Page Layout Field Management** (!IMPORTANT - MUST DO AFTER FIELD DEPLOYMENT)
 
@@ -305,26 +304,18 @@ After successfully deploying the created fields, you MUST retrieve the object's 
     - Verify you only added `<layoutItems>` blocks
     - Confirm fields exist on the object
 
-4. **Dry Run Page Layout Update**
+4. **Validate and Deploy Updated Page Layout**
 
-    ```bash
-    sf project deploy start --dry-run --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
-    ```
+    - Use the `<sf_deploy_metadata>` tool to validate and deploy the updated page layout
+    - The tool will automatically handle both dry-run validation and actual deployment
+    - If you get "Too many columns for section style" error: You only modified the layout structure. Only add `<layoutItems>` blocks.
+    - After successful deployment, the newly created fields will be visible in the page layout
 
-    - If you get "Too many columns for section style" error: You modified the layout structure. Only add `<layoutItems>` blocks.
-
-5. **Deploy Updated Page Layout**
-
-    ```bash
-    sf project deploy start --source-dir force-app/main/default/layouts/{ObjectApiName}-{LayoutName}.layout-meta.xml --json
-    ```
-
-6. **User Communication**
+5. **User Communication**
     - "Retrieving page layout for {ObjectName}..."
     - "Adding {X} newly created field(s) to the page layout..."
     - "Fields being added: {Field names}"
-    - "Running dry run on page layout..."
-    - "Deploying updated page layout..."
+    - "Validating and deploying updated page layout using sf_deploy_metadata tool..."
     - "✓ Page layout successfully updated with new fields!"
 
 **Important Notes:**
@@ -336,8 +327,6 @@ After successfully deploying the created fields, you MUST retrieve the object's 
 - Do NOT skip this step - users will not see the fields without page layout configuration
 
 **10. Compliance**
-XML must follow Salesforce Metadata API standards
-Must be deployable via:
-Change Sets
-VS Code Salesforce Extensions
-Salesforce CLI
+
+- XML must follow Salesforce Metadata API standards
+- Must be deployable via the `<sf_deploy_metadata>` tool
