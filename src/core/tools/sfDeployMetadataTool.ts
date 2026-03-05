@@ -8,6 +8,7 @@ import { formatResponse } from "../prompts/responses"
 import { ClineSayTool } from "../../shared/ExtensionMessage"
 import { FileChangesService } from "../../services/file-changes"
 import type { DeploymentStatus } from "../../services/file-changes"
+import { getErrorCapture } from "../error-recovery/error-capture"
 
 /**
  * Metadata type configuration for SF CLI commands
@@ -772,6 +773,43 @@ export async function deploySfMetadataTool(
 			await cline.say("text", "✅ Validation passed! Proceeding with actual deployment...")
 		} catch (dryRunError: any) {
 			// Handle dry run execution errors
+
+			// NEW: ERROR RECOVERY SYSTEM
+			console.log(`[deploySfMetadata] Attempting error recovery for dry run failure...`)
+			const errorOutput = dryRunError.stdout || dryRunError.stderr || dryRunError.message || ""
+
+			if (errorOutput) {
+				try {
+					const globalStoragePath = cline.providerRef.deref()?.context.globalStorageUri.fsPath
+					const errorCapture = getErrorCapture(cline.cwd, globalStoragePath)
+					const matchedError = errorCapture.findMatchingError(errorOutput)
+
+					if (matchedError) {
+						// Error found in knowledge base - send to AI with solution
+						console.log(`[deploySfMetadata] ✅ Error matched: ${matchedError.errorId}`)
+
+						const aiMessage = errorCapture.buildAIMessage(matchedError)
+						await cline.say("text", aiMessage)
+
+						// Tell AI to apply the solution and indicate when to retry
+						pushToolResult(
+							formatResponse.toolResult(
+								`${aiMessage}\n` +
+									`Please review the error details above and apply the solution.\n` +
+									`After fixing the issue, indicate when you're ready to retry the deployment.`,
+							),
+						)
+						return
+					}
+				} catch (recoveryError) {
+					console.warn(`[deploySfMetadata] Error recovery system error: ${recoveryError}`)
+					// Fall through to standard error handling
+				}
+			}
+
+			// FALLBACK: Standard error handling (for unmatched errors)
+			console.log(`[deploySfMetadata] No knowledge base match found, using standard error handling`)
+
 			let errorMessage = "Failed to execute SF CLI dry run validation"
 
 			if (dryRunError.killed) {
@@ -891,7 +929,43 @@ export async function deploySfMetadataTool(
 				// Non-critical
 			}
 
-			// Handle deployment execution errors
+			// NEW: ERROR RECOVERY SYSTEM
+			// Try to match error against knowledge base
+			console.log(`[deploySfMetadata] Attempting error recovery...`)
+			const errorOutput = deployError.stdout || deployError.stderr || deployError.message || ""
+
+			if (errorOutput) {
+				try {
+					const globalStoragePath = cline.providerRef.deref()?.context.globalStorageUri.fsPath
+					const errorCapture = getErrorCapture(cline.cwd, globalStoragePath)
+					const matchedError = errorCapture.findMatchingError(errorOutput)
+
+					if (matchedError) {
+						// Error found in knowledge base - send to AI with solution
+						console.log(`[deploySfMetadata] ✅ Error matched: ${matchedError.errorId}`)
+
+						const aiMessage = errorCapture.buildAIMessage(matchedError)
+						await cline.say("text", aiMessage)
+
+						// Tell AI to apply the solution and indicate when to retry
+						pushToolResult(
+							formatResponse.toolResult(
+								`${aiMessage}\n` +
+									`Please review the error details above and apply the solution.\n` +
+									`After fixing the issue, indicate when you're ready to retry the deployment.`,
+							),
+						)
+						return
+					}
+				} catch (recoveryError) {
+					console.warn(`[deploySfMetadata] Error recovery system error: ${recoveryError}`)
+					// Fall through to standard error handling
+				}
+			}
+
+			// FALLBACK: Standard error handling (for unmatched errors)
+			console.log(`[deploySfMetadata] No knowledge base match found, using standard error handling`)
+
 			let errorMessage = "Failed to execute SF CLI deployment"
 
 			if (deployError.killed) {
