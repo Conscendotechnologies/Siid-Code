@@ -38,6 +38,7 @@ import { MdmService } from "./services/mdm/MdmService"
 import { migrateSettings } from "./utils/migrateSettings"
 import { autoImportSettings } from "./utils/autoImportSettings"
 import { BundledInstructionsManager } from "./utils/bundled-instructions-manager"
+import { BundledKnowledgeBaseManager } from "./utils/bundled-knowledge-base-manager"
 import { API } from "./extension/api"
 
 import {
@@ -264,19 +265,27 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	registerCommands({ context, outputChannel, provider })
 
-	// Initialize bundled instructions manager in background (non-blocking)
+	// Initialize bundled resources in background (non-blocking)
 	// This was taking ~10 seconds and blocking UI load
-	const bundledInstructionsStart = Date.now()
+	const bundledResourcesStart = Date.now()
 	Promise.resolve().then(async () => {
 		try {
+			// Initialize bundled instructions manager
 			const bundledInstructionsManager = new BundledInstructionsManager(context)
 			await bundledInstructionsManager.initializeBundledInstructions()
 			outputChannel.appendLine(
-				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledInstructionsStart}ms`,
+				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledResourcesStart}ms`,
+			)
+
+			// Initialize bundled knowledge base manager
+			const bundledKBManager = new BundledKnowledgeBaseManager(context)
+			await bundledKBManager.initializeBundledKnowledgeBase()
+			outputChannel.appendLine(
+				`⏱️ [BundledKnowledgeBaseManager] Initialized in background in ${Date.now() - bundledResourcesStart}ms`,
 			)
 		} catch (error) {
 			outputChannel.appendLine(
-				`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
+				`[BundledResourcesManager] Failed to initialize bundled resources: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
 	})
