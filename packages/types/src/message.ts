@@ -159,6 +159,56 @@ export const contextCondenseSchema = z.object({
 export type ContextCondense = z.infer<typeof contextCondenseSchema>
 
 /**
+ * AgentSessionState
+ *
+ * Captures the execution state of an agent task to enable safe mid-task condensation.
+ * This state is persisted before condensation and rehydrated after to resume work seamlessly.
+ */
+export const agentSessionStateSchema = z.object({
+	/** The primary goal or user intent for the current task */
+	currentGoal: z.string().optional(),
+
+	/** List of steps that have been completed so far */
+	completedSteps: z.array(z.string()).optional(),
+
+	/** List of steps pending execution */
+	pendingSteps: z.array(z.string()).optional(),
+
+	/** Current execution state (e.g., "running", "awaiting_response", "tool_execution", "paused") */
+	executionState: z.enum(["running", "awaiting_response", "tool_execution", "paused", "idle"]).optional(),
+
+	/** Log of tool calls made during execution */
+	toolCallsLog: z
+		.array(
+			z.object({
+				timestamp: z.number(),
+				toolName: z.string(),
+				toolId: z.string().optional(),
+				status: z.enum(["initiated", "completed", "failed"]),
+				duration: z.number().optional(),
+			}),
+		)
+		.optional(),
+
+	/** Reasoning trace for transparency (optional, for debugging/explainability) */
+	reasoningTrace: z.string().optional().nullable(),
+
+	/** Timestamp of when this state was captured */
+	capturedAt: z.number(),
+
+	/** Whether a condense operation is currently in progress */
+	isCondensingInProgress: z.boolean().optional(),
+
+	/** Whether an LLM request was active when state was captured */
+	hadActiveLlmRequest: z.boolean().optional(),
+
+	/** Last active tool name if state was captured mid-tool execution */
+	lastActiveTool: z.string().optional(),
+})
+
+export type AgentSessionState = z.infer<typeof agentSessionStateSchema>
+
+/**
  * ClineMessage
  */
 
@@ -175,6 +225,7 @@ export const clineMessageSchema = z.object({
 	checkpoint: z.record(z.string(), z.unknown()).optional(),
 	progressStatus: toolProgressStatusSchema.optional(),
 	contextCondense: contextCondenseSchema.optional(),
+	agentSessionState: agentSessionStateSchema.optional(),
 	isProtected: z.boolean().optional(),
 	apiProtocol: z.union([z.literal("openai"), z.literal("anthropic")]).optional(),
 })
