@@ -70,6 +70,7 @@ import { fileExistsAtPath } from "../../utils/fs"
 import { setTtsEnabled, setTtsSpeed } from "../../utils/tts"
 import { getWorkspaceGitInfo } from "../../utils/git"
 import { getWorkspacePath } from "../../utils/path"
+import { getHackDate, isLoginAllowed } from "../../utils/hackDateStorage"
 
 import { setPanel } from "../../activate/registerCommands"
 
@@ -1649,6 +1650,24 @@ export class ClineProvider
 		if (!this.checkMdmCompliance()) {
 			await this.postMessageToWebview({ type: "action", action: "accountButtonClicked" })
 		}
+
+		// Send hackDate to webview for login validation
+		try {
+			const hackDate = await getHackDate(this.context.globalState)
+			if (hackDate) {
+				const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+				this.postMessageToWebview({
+					type: "hackDateUpdated",
+					hackDate,
+					allowed,
+					daysRemaining,
+				})
+			}
+		} catch (error) {
+			this.outputChannel.appendLine(
+				`[postStateToWebview] Error fetching hackDate: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 
 	/**
@@ -1847,8 +1866,7 @@ export class ClineProvider
 			codebaseIndexConfig,
 			codebaseIndexModels,
 			profileThresholds,
-			
-			
+
 			includeDiagnosticMessages,
 			maxDiagnosticMessages,
 			includeTaskHistoryInEnhance,
@@ -1879,7 +1897,7 @@ export class ClineProvider
 			alwaysAllowMcp: alwaysAllowMcp ?? false,
 			alwaysAllowModeSwitch: alwaysAllowModeSwitch ?? false,
 			alwaysAllowSubtasks: alwaysAllowSubtasks ?? false,
-			
+
 			allowedMaxRequests,
 			allowedMaxCost,
 			autoCondenseContextPercent: autoCondenseContextPercent ?? 100,
@@ -1983,8 +2001,7 @@ export class ClineProvider
 			profileThresholds: profileThresholds ?? {},
 			cloudApiUrl: getRooCodeApiUrl(),
 			hasOpenedModeSelector: this.getGlobalState("hasOpenedModeSelector") ?? false,
-		
-			
+
 			includeDiagnosticMessages: includeDiagnosticMessages ?? true,
 			maxDiagnosticMessages: maxDiagnosticMessages ?? 50,
 			includeTaskHistoryInEnhance: includeTaskHistoryInEnhance ?? false,
@@ -2104,10 +2121,10 @@ export class ClineProvider
 			alwaysAllowMcp: stateValues.alwaysAllowMcp ?? false,
 			alwaysAllowModeSwitch: stateValues.alwaysAllowModeSwitch ?? false,
 			alwaysAllowSubtasks: stateValues.alwaysAllowSubtasks ?? false,
-			
+
 			alwaysAllowDeploySfMetadata: stateValues.alwaysAllowDeploySfMetadata ?? false,
 			alwaysAllowRetrieveSfMetadata: stateValues.alwaysAllowRetrieveSfMetadata ?? false,
-			
+
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,
 			allowedMaxCost: stateValues.allowedMaxCost,

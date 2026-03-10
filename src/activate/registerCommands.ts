@@ -15,6 +15,7 @@ import { handleNewTask } from "./handleTask"
 import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
 import { MdmService } from "../services/mdm/MdmService"
+import { getHackDate, setHackDate, clearHackDate, isLoginAllowed } from "../utils/hackDateStorage"
 import { t } from "../i18n"
 
 /**
@@ -376,6 +377,118 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			vscode.window.showErrorMessage(
 				`Failed to create OpenRouter API key: ${error instanceof Error ? error.message : String(error)}`,
 			)
+		}
+	},
+	testHackDate: async () => {
+		try {
+			outputChannel.appendLine("\n=== HackDate Testing Command ===\n")
+			outputChannel.appendLine("📍 Storage Location: VS Code Global Storage Directory\n")
+
+			// Show quick pick with only 2 options
+			const choice = await vscode.window.showQuickPick(
+				[
+					{ label: "🗓️ Enter Custom Date", value: "custom" },
+					{ label: "🗑️ Clear Test Date", value: "clear" },
+				],
+				{ placeHolder: "Choose option" },
+			)
+
+			if (!choice) {
+				outputChannel.appendLine("Command cancelled")
+				return
+			}
+
+			let selectedDate: Date | undefined
+			const now = new Date()
+
+			if (choice.value === "custom") {
+				const dateInput = await vscode.window.showInputBox({
+					prompt: "Enter date (YYYY-MM-DD)",
+					placeHolder: "2026-03-06",
+					validateInput: (value) => {
+						const d = new Date(value)
+						if (isNaN(d.getTime())) {
+							return "Invalid date format. Use YYYY-MM-DD"
+						}
+						return undefined
+					},
+				})
+
+				if (!dateInput) return
+
+				selectedDate = new Date(dateInput)
+			} else if (choice.value === "clear") {
+				await clearHackDate(context.globalState)
+				outputChannel.appendLine("\n🗑️ HackDate cleared from VS Code storage!")
+				outputChannel.appendLine("📍 Storage: VS Code globalState (siid-code:hackDate)")
+				outputChannel.appendLine("Next login will require Firebase authentication\n")
+				vscode.window.showInformationMessage("HackDate cleared from VS Code storage.")
+
+				// Notify webview
+				const visibleProvider = getVisibleProviderOrLog(outputChannel)
+				if (visibleProvider) {
+					visibleProvider.postMessageToWebview({
+						type: "hackDateCleared",
+					} as any)
+				}
+				return
+			}
+
+			if (!selectedDate || isNaN(selectedDate.getTime())) {
+				outputChannel.appendLine("❌ Invalid date")
+				return
+			}
+
+			// Calculate difference and validate
+			const timeDiff = now.getTime() - selectedDate.getTime()
+			const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+			const daysRemaining = 2 - daysDiff
+			const allowed = daysDiff <= 2
+
+			// Store the date in VS Code storage
+			const dateString = selectedDate.toISOString()
+			await setHackDate(context.globalState, dateString)
+
+			// Display results
+			outputChannel.appendLine("╔════════════════════════════════════════════╗")
+			outputChannel.appendLine("║          HACKDATE VALIDATION RESULT        ║")
+			outputChannel.appendLine("╚════════════════════════════════════════════╝\n")
+			outputChannel.appendLine(
+				`Test Date:        ${selectedDate.toLocaleDateString()} ${selectedDate.toLocaleTimeString()}`,
+			)
+			outputChannel.appendLine(`Today's Date:     ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`)
+			outputChannel.appendLine(`Days Passed:      ${daysDiff} days`)
+			outputChannel.appendLine(`Max Allowed:      2 days`)
+			outputChannel.appendLine(`Days Remaining:   ${Math.max(0, daysRemaining)} days\n`)
+			outputChannel.appendLine(
+				allowed
+					? `✅ LOGIN STATUS:   ALLOWED - User can log in`
+					: `❌ LOGIN STATUS:   DENIED - Access period expired`,
+			)
+			outputChannel.appendLine("\n" + "─".repeat(44) + "\n")
+			outputChannel.appendLine("📍 Storage Location: VS Code globalState")
+			outputChannel.appendLine("   Key: siid-code:hackDate")
+			outputChannel.appendLine("   Value: ISO date string\n")
+			outputChannel.appendLine("Next step: Click 'Login to Your Account' button\n")
+
+			// Show message
+			vscode.window.showInformationMessage(
+				`HackDate set to ${selectedDate.toLocaleDateString()}! ${allowed ? "✅ Login ALLOWED" : "❌ Login DENIED"}`,
+			)
+
+			// Notify webview with hackDate
+			const visibleProvider = getVisibleProviderOrLog(outputChannel)
+			if (visibleProvider) {
+				visibleProvider.postMessageToWebview({
+					type: "hackDateUpdated",
+					hackDate: dateString,
+					allowed: allowed,
+					daysRemaining: Math.max(0, daysRemaining),
+				} as any)
+			}
+		} catch (error) {
+			outputChannel.appendLine(`\n❌ ERROR: ${error instanceof Error ? error.message : String(error)}`)
+			vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : String(error)}`)
 		}
 	},
 	openChatView: async () => {

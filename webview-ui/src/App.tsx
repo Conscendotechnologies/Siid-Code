@@ -13,6 +13,7 @@ import ChatView, { ChatViewRef } from "./components/chat/ChatView"
 import HistoryView from "./components/history/HistoryView"
 import SettingsView, { SettingsViewRef } from "./components/settings/SettingsView"
 import LoginView from "./components/welcome/LoginView"
+import CannotLoginView from "./components/welcome/CannotLoginView"
 import McpView from "./components/mcp/McpView"
 import ModesView from "./components/modes/ModesView"
 import { HumanRelayDialog } from "./components/human-relay/HumanRelayDialog"
@@ -72,6 +73,8 @@ const App = () => {
 
 	const [showAnnouncement, setShowAnnouncement] = useState(false)
 	const [tab, setTab] = useState<Tab>("chat")
+	const [showLoginDenied, setShowLoginDenied] = useState(false)
+	const [loginDeniedData, setLoginDeniedData] = useState<any>(null)
 
 	const [humanRelayDialogState, setHumanRelayDialogState] = useState<HumanRelayDialogState>({
 		isOpen: false,
@@ -190,6 +193,11 @@ const App = () => {
 			if (message.type === "acceptInput") {
 				chatViewRef.current?.acceptInput()
 			}
+
+			if (message.type === "loginDenied") {
+				setShowLoginDenied(true)
+				setLoginDeniedData(message)
+			}
 		},
 		[switchTab, notificationsEnabled],
 	)
@@ -248,7 +256,9 @@ const App = () => {
 	// Do not conditionally load ChatView, it's expensive and there's state we
 	// don't want to lose (user input, disableInput, askResponse promise, etc.)
 
-	return showLogin ? (
+	return showLoginDenied ? (
+		<CannotLoginView hackDate={loginDeniedData?.hackDate} />
+	) : showLogin ? (
 		<LoginView />
 	) : (
 		<>
