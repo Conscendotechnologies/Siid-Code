@@ -490,9 +490,161 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			this.sidebarProvider.setFirebaseAuthState(true)
 			this.outputChannel.appendLine("Firebase auth state updated to authenticated")
 
-			// ...existing code for user setup and API key...
-			// (keep only the necessary user setup logic, remove test/bypass logic)
+			// Setup user API key directly without routing through webview
+			// Firebase Service extension sends: { uid, user: { uid, email, displayName, ... }, session: {...} }
+			const data = loginData as {
+				uid?: string
+				user?: { uid: string; email?: string; displayName?: string }
+				userInfo?: { uid: string; email?: string; displayName?: string } // Legacy format support
+			}
 
+			// Support both new format (user) and legacy format (userInfo)
+			const userInfo = data?.user || data?.userInfo
+			// Use a safe stringify that handles circular references
+			const safeStringify = (obj: any) => {
+				try {
+					return JSON.stringify(obj, (key, value) => {
+						// Skip circular references and functions
+						if (typeof value === "function" || value instanceof Promise) {
+							return undefined
+						}
+						return value
+					})
+				} catch (e) {
+					return "{...circular reference...}"
+				}
+			}
+			logger.info(`[onFirebaseLogin] User info extracted from loginData: userInfo: ${safeStringify(userInfo)}`)
+			this.outputChannel.appendLine(`User info extracted from loginData: ${safeStringify(userInfo)}`)
+
+			if (userInfo) {
+				logger.info(`[onFirebaseLogin] Setting up API key for user: ${userInfo.uid}`)
+				this.outputChannel.appendLine(`Setting up API key for user: ${userInfo.uid}`)
+				try {
+					const userId = userInfo.uid
+					const userEmail = userInfo.email || `user_${userId}`
+
+					logger.info(`[onFirebaseLogin] Processing login for user: ${userId}`)
+					this.outputChannel.appendLine(`[onFirebaseLogin] Processing login for user: ${userId}`)
+
+					// Check if user provided their own API key
+					const pendingApiKey = this.sidebarProvider.contextProxy.getValue("pendingUserApiKey")
+
+					if (pendingApiKey) {
+						// User provided their own OpenRouter API key
+						logger.info(`[onFirebaseLogin] Using user-provided API key for user: ${userId}`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Using user-provided API key for user: ${userId}`,
+						)
+
+						try {
+							// Store the user-provided API key in Firebase user properties
+							await updateUserProperties(
+								{
+									openRouterApiKey: pendingApiKey,
+									apiKeySource: "user-provided",
+								},
+								this.outputChannel,
+							)
+
+							logger.info(
+								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
+							)
+						} catch (error) {
+							logger.error("[onFirebaseLogin] Failed to store user-provided API key:", error)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] Failed to store user-provided API key: ${error instanceof Error ? error.message : String(error)}`,
+							)
+							throw error
+						} finally {
+							// Clear pending API key from global state
+							await this.sidebarProvider.contextProxy.setValue("pendingUserApiKey", undefined)
+						}
+					} else {
+						// Auto-provision API key (default flow)
+						logger.info(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
+						this.outputChannel.appendLine(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
+
+						const keyService = await getOpenRouterKeyService(this.outputChannel)
+
+						// Setup user API key (fetches provisioning key, creates user key, stores it)
+						await keyService.setupUserApiKey(userId, userEmail)
+
+						logger.info(`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`,
+						)
+					}
+
+					// Setup useFreeModels preference
+					try {
+						logger.info(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
+						this.outputChannel.appendLine(`[onFirebaseLogin] Setting up useFreeModels for user: ${userId}`)
+
+						let useFreeModels: boolean
+
+						// If the user provided their own API key via the pending flow,
+						// prefer explicit (paid/custom) configs and disable the "use free models" flag.
+						if (pendingApiKey) {
+							useFreeModels = false
+							logger.info(
+								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
+							)
+							// Persist to Firebase so subsequent sessions respect this choice
+							await updateUserProperties({ useFreeModels: false }, this.outputChannel)
+						} else {
+							// No pending API key: user is logging in with auto-provisioned key
+							// Always set useFreeModels to true for auto-provisioned users
+							useFreeModels = true
+							logger.info(
+								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
+							)
+							this.outputChannel.appendLine(
+								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
+							)
+							// Persist to Firebase so subsequent sessions respect this choice
+							await updateUserProperties({ useFreeModels: true }, this.outputChannel)
+						}
+
+						// Store in IDE global state
+						await this.sidebarProvider.contextProxy.setValue("useFreeModels", useFreeModels)
+						logger.info(`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`,
+						)
+
+						// Update API keys based on useFreeModels preference
+						await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase()
+					} catch (error) {
+						logger.error("[onFirebaseLogin] Failed to setup useFreeModels:", error)
+						this.outputChannel.appendLine(
+							`[onFirebaseLogin] Failed to setup useFreeModels: ${error instanceof Error ? error.message : String(error)}`,
+						)
+						// Don't throw - continue with login even if this fails
+					}
+
+					vscode.window.showInformationMessage(
+						`Welcome ${userInfo.displayName || userEmail}! Your account is ready.`,
+					)
+				} catch (error) {
+					logger.error("[onFirebaseLogin] Failed to setup user API key:", error)
+					this.outputChannel.appendLine(
+						`[onFirebaseLogin] Failed to setup user API key: ${error instanceof Error ? error.message : String(error)}`,
+					)
+					vscode.window.showErrorMessage(
+						`Failed to setup your account: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			} else {
+				logger.warn("[onFirebaseLogin] No user data found in loginData")
+				this.outputChannel.appendLine("[onFirebaseLogin] No user data found in loginData")
+			}
 			// Post a custom message to webview indicating login success
 			await this.sidebarProvider.postMessageToWebview({
 				type: "state",
