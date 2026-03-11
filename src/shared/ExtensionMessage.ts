@@ -124,9 +124,6 @@ export interface ExtensionMessage {
 		| "deployResult"
 		| "firebaseLogout"
 		| "loginDenied"
-		| "testHackDateSet"
-		| "hackDateUpdated"
-		| "hackDateCleared"
 		| "showOsNotification"
 		| "fileCreated"
 		| "fileChanges"
@@ -227,7 +224,6 @@ export interface ExtensionMessage {
 		byStatus: Record<string, number>
 		byDeploymentStatus: Record<string, number>
 	}
-	testHackDate?: string
 	hackDate?: string
 	isAllowed?: boolean
 	daysRemaining?: number

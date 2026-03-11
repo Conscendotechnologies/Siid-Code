@@ -3,12 +3,10 @@ import RooHero from "./RooHero"
 import { Tab, TabContent } from "../common/Tab"
 
 type CannotLoginProps = {
-	hackDate?: string
+	_hackDate?: string
 }
 
-const CannotLoginView = ({ hackDate }: CannotLoginProps) => {
-	const completionDate = hackDate ? new Date(hackDate).toLocaleDateString() : undefined
-
+const CannotLoginView = ({ _hackDate }: CannotLoginProps) => {
 	return (
 		<Tab>
 			<TabContent className="flex flex-col gap-5 p-16">
@@ -21,11 +19,6 @@ const CannotLoginView = ({ hackDate }: CannotLoginProps) => {
 
 				<div className="bg-vscode-editor-background border border-vscode-panel-border rounded-md p-4">
 					<p className="mb-2">Limited access completed. Thank you for participating.</p>
-					{completionDate && (
-						<p className="text-sm text-vscode-descriptionForeground">
-							Access period started on {completionDate}.
-						</p>
-					)}
 				</div>
 
 				<div className="text-sm text-vscode-descriptionForeground">
