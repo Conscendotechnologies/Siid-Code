@@ -3,10 +3,10 @@ import RooHero from "./RooHero"
 import { Tab, TabContent } from "../common/Tab"
 
 type CannotLoginProps = {
-	_hackDate?: string
+	hackDate?: string
 }
 
-const CannotLoginView = ({ _hackDate }: CannotLoginProps) => {
+const CannotLoginView = ({ hackDate: _hackDate }: CannotLoginProps) => {
 	return (
 		<Tab>
 			<TabContent className="flex flex-col gap-5 p-16">

@@ -128,6 +128,7 @@ export interface ExtensionMessage {
 		| "fileCreated"
 		| "fileChanges"
 		| "fileChangesStatistics"
+		| "hackDateUpdated"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
