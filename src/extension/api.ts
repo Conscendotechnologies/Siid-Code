@@ -29,10 +29,15 @@ import {
 	onFirebaseLogout,
 	getUserProperties,
 	updateUserProperties,
+<<<<<<< task-log-evolution-log-agent
 	addLog,
+=======
+	getAdminApiKey,
+>>>>>>> main-stable-agent
 } from "../utils/firebaseHelper"
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
+import { getHackDate, setHackDate, isLoginAllowed, normalizeHackDate } from "../utils/hackDateStorage"
 
 export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	private readonly outputChannel: vscode.OutputChannel
@@ -709,6 +714,23 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 		try {
 			this.outputChannel.appendLine("Firebase login event received - user is now authenticated")
 
+			// Fetch hackDate from Firebase and store in VS Code local storage
+			const adminConfig = await getAdminApiKey(this.outputChannel)
+			const hackDate = normalizeHackDate(adminConfig?.hackDate)
+			await setHackDate(this.context.globalState, hackDate)
+
+			// Check if login is allowed
+			const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+			if (!allowed) {
+				this.outputChannel.appendLine(`❌ Login denied - access period expired`)
+				await this.sidebarProvider.postMessageToWebview({
+					type: "loginDenied",
+					hackDate: hackDate,
+					isAllowed: false,
+				} as any)
+				return
+			}
+
 			// Update the cached Firebase auth state
 			this.sidebarProvider.setFirebaseAuthState(true)
 
@@ -851,14 +873,12 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				logger.warn("[onFirebaseLogin] No user data found in loginData")
 				this.outputChannel.appendLine("[onFirebaseLogin] No user data found in loginData")
 			}
-
 			// Post a custom message to webview indicating login success
-			// This bypasses the Firebase command check which may have timing issues
 			await this.sidebarProvider.postMessageToWebview({
 				type: "state",
 				state: {
 					...(await this.sidebarProvider.getStateToPostToWebview()),
-					firebaseIsAuthenticated: true, // Override to ensure we show as authenticated
+					firebaseIsAuthenticated: true,
 				},
 			} as any)
 
@@ -874,6 +894,21 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	public async onFirebaseLogout(): Promise<void> {
 		try {
 			this.outputChannel.appendLine("Firebase logout event received - user is now logged out")
+
+			// Check hackDate validity on logout
+			const hackDate = await getHackDate(this.context.globalState)
+			const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+
+			if (!allowed) {
+				this.outputChannel.appendLine(`❌ Access period has expired (hackDate: ${hackDate})`)
+				// Send loginDenied message to webview to show CannotLoginView
+				await this.sidebarProvider.postMessageToWebview({
+					type: "loginDenied",
+					hackDate: hackDate,
+					isAllowed: false,
+				} as any)
+				return
+			}
 
 			// Update the cached Firebase auth state
 			this.sidebarProvider.setFirebaseAuthState(false)

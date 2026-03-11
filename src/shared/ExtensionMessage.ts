@@ -123,10 +123,12 @@ export interface ExtensionMessage {
 		| "insertTextIntoTextarea"
 		| "deployResult"
 		| "firebaseLogout"
+		| "loginDenied"
 		| "showOsNotification"
 		| "fileCreated"
 		| "fileChanges"
 		| "fileChangesStatistics"
+		| "hackDateUpdated"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
@@ -223,6 +225,9 @@ export interface ExtensionMessage {
 		byStatus: Record<string, number>
 		byDeploymentStatus: Record<string, number>
 	}
+	hackDate?: string
+	isAllowed?: boolean
+	daysRemaining?: number
 }
 
 export type ExtensionState = Pick<
@@ -247,7 +252,6 @@ export type ExtensionState = Pick<
 	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowExecute"
-	
 	| "alwaysAllowDeploySfMetadata"
 	| "alwaysAllowRetrieveSfMetadata"
 	| "allowedCommands"

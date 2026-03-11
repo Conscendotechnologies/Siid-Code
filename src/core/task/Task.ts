@@ -80,6 +80,7 @@ import { TerminalRegistry } from "../../integrations/terminal/TerminalRegistry"
 // utils
 import { calculateApiCostAnthropic } from "../../shared/cost"
 import { getWorkspacePath } from "../../utils/path"
+import { getHackDate, isLoginAllowed } from "../../utils/hackDateStorage"
 
 // prompts
 import { formatResponse } from "../prompts/responses"
@@ -586,6 +587,37 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	private async getSavedApiConversationHistory(): Promise<ApiMessage[]> {
 		return readApiMessages({ taskId: this.taskId, globalStoragePath: this.globalStoragePath })
+	}
+
+	/**
+	 * Verifies that the user is still within the allowed login period based on hackDate.
+	 * This check is performed before sending any message to the AI to ensure the user's access hasn't expired.
+	 * @throws {Error} If the access period has expired
+	 */
+	private async ensureHackDateValid(): Promise<void> {
+		try {
+			const provider = this.providerRef.deref()
+			if (!provider) {
+				return
+			}
+
+			const hackDate = await getHackDate(provider.context.globalState)
+			const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+
+			if (!allowed) {
+				const hackDateStr = hackDate ? new Date(hackDate).toLocaleDateString() : "unknown"
+				throw new Error(
+					`Your access period has expired. You had 2 days from ${hackDateStr} to use the application. ` +
+						`Please contact support to regain access.`,
+				)
+			}
+		} catch (error) {
+			if (error instanceof Error && error.message.includes("access period")) {
+				throw error
+			}
+			// Silently continue if there's any issue retrieving the hackDate
+			// (e.g., no hackDate set, which means first-time user)
+		}
 	}
 
 	private async addToApiConversationHistory(message: Anthropic.MessageParam) {
@@ -1381,6 +1413,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private async generateTaskTitle(taskPrompt: string): Promise<void> {
 		try {
 			const systemPrompt = `You are a task title generator. Generate a concise, descriptive title (max 50 characters) for the following task. Only respond with the title, nothing else.`
+
+			// Verify that the user's access period hasn't expired before sending API request
+			await this.ensureHackDateValid()
 
 			const stream = this.api.createMessage(
 				systemPrompt,
@@ -2730,6 +2765,29 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		if (!approvalResult.shouldProceed) {
 			// User did not approve, task should be aborted
 			throw new Error("Auto-approval limit reached and user did not approve continuation")
+		}
+
+		// Verify that the user's access period hasn't expired before sending API request
+		try {
+			await this.ensureHackDateValid()
+		} catch (error) {
+			// Check if the error is due to access period expiring
+			if (error instanceof Error && error.message.includes("access period")) {
+				// Get hackDate to send to webview
+				const provider = this.providerRef.deref()
+				if (provider) {
+					const hackDate = await getHackDate(provider.context.globalState)
+					const { daysRemaining } = isLoginAllowed(hackDate)
+
+					await provider.postMessageToWebview({
+						type: "loginDenied",
+						reason: "access_period_expired",
+						hackDate: hackDate,
+						daysRemaining: daysRemaining,
+					} as any)
+				}
+			}
+			throw error
 		}
 
 		const metadata: ApiHandlerCreateMessageMetadata = {

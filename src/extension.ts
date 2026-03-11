@@ -38,6 +38,7 @@ import { MdmService } from "./services/mdm/MdmService"
 import { migrateSettings } from "./utils/migrateSettings"
 import { autoImportSettings } from "./utils/autoImportSettings"
 import { BundledInstructionsManager } from "./utils/bundled-instructions-manager"
+import { BundledKnowledgeBaseManager } from "./utils/bundled-knowledge-base-manager"
 import { API } from "./extension/api"
 
 import {
@@ -50,6 +51,7 @@ import {
 import { initializeI18n } from "./i18n"
 import { FileChangesService } from "./services/file-changes"
 import { json } from "stream/consumers"
+import { getHackDate, isLoginAllowed } from "./utils/hackDateStorage"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -195,6 +197,31 @@ export async function activate(context: vscode.ExtensionContext) {
 	)
 	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
 
+	// Check hackDate validity on extension activation
+	try {
+		const hackDate = await getHackDate(context.globalState)
+		const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+		if (!allowed) {
+			outputChannel.appendLine(`❌ Extension activated but access period has expired (hackDate: ${hackDate})`)
+			// Send loginDenied message to webview to show CannotLoginView
+			// Use setTimeout to ensure webview is ready
+			setTimeout(async () => {
+				await provider.postMessageToWebview({
+					type: "loginDenied",
+					reason: "access_period_expired",
+					hackDate: hackDate,
+					daysRemaining: daysRemaining,
+				} as any)
+			}, 1000)
+		} else {
+			outputChannel.appendLine(`✓ Extension activated - access period valid (Days remaining: ${daysRemaining})`)
+		}
+	} catch (error) {
+		outputChannel.appendLine(
+			`[HackDateCheck] Error checking hack date on activation: ${error instanceof Error ? error.message : String(error)}`,
+		)
+	}
+
 	// Load initial provider config into contextProxy (run in background, don't block activation)
 	Promise.resolve().then(async () => {
 		const initialConfigStart = Date.now()
@@ -264,19 +291,27 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	registerCommands({ context, outputChannel, provider })
 
-	// Initialize bundled instructions manager in background (non-blocking)
+	// Initialize bundled resources in background (non-blocking)
 	// This was taking ~10 seconds and blocking UI load
-	const bundledInstructionsStart = Date.now()
+	const bundledResourcesStart = Date.now()
 	Promise.resolve().then(async () => {
 		try {
+			// Initialize bundled instructions manager
 			const bundledInstructionsManager = new BundledInstructionsManager(context)
 			await bundledInstructionsManager.initializeBundledInstructions()
 			outputChannel.appendLine(
-				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledInstructionsStart}ms`,
+				`⏱️ [BundledInstructionsManager] Initialized in background in ${Date.now() - bundledResourcesStart}ms`,
+			)
+
+			// Initialize bundled knowledge base manager
+			const bundledKBManager = new BundledKnowledgeBaseManager(context)
+			await bundledKBManager.initializeBundledKnowledgeBase()
+			outputChannel.appendLine(
+				`⏱️ [BundledKnowledgeBaseManager] Initialized in background in ${Date.now() - bundledResourcesStart}ms`,
 			)
 		} catch (error) {
 			outputChannel.appendLine(
-				`[BundledInstructionsManager] Failed to initialize bundled instructions: ${error instanceof Error ? error.message : String(error)}`,
+				`[BundledResourcesManager] Failed to initialize bundled resources: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
 	})

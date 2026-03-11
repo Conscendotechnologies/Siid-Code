@@ -1,0 +1,111 @@
+errors:
+- id: GENAI_PLANNER_TYPE_MISSING
+  errorPattern:
+      keywords:
+        - "required field is missing"
+        - "plannerType"
+  description: "GenAiPlannerBundle metadata is missing required plannerType field"
+  solution: |
+      Add the required <plannerType> element with type: 'AiCopilot__ReAct' in your GenAiPlannerBundle metadata file.
+      Example: <plannerType>AiCopilot__ReAct</plannerType>
+ 
+      File:
+      force-app/main/default/genAiPlannerBundles/{AgentName}/{AgentName}-meta.xml
+ 
+      Ensure it exists under the root metadata definition and has a valid value supported by your org/Agentforce version.
+      Start from a known working GenAiPlannerBundle meta file and keep required root fields together:
+      - <masterLabel>
+      - <plannerType>
+      - topic/action links and definitions
+ 
+      Then validate and redeploy:
+      1. sf project deploy start --metadata GenAiPlannerBundle:{AgentName} --dry-run
+      2. If validation passes, rerun without --dry-run
+  affectedFile: "{AgentName}"
+- id: TOPICS_ACTIONS_METADATA_STRUCTURE_ERROR
+  errorPattern:
+      keywords:
+        - "localTopic|localAction|genAiPlugin"
+        - "invalid|structure|malformed|not defined|undefined"
+  description: "GenAiPlannerBundle has incorrect metadata structure for topics and actions. Topics and actions must follow the proper linking hierarchy with correct XML element structure."
+  solution: |
+      Topics and Actions must follow this proper metadata structure with correct linking:
+      
+      1. ROOT LEVEL LINKS (reference the topics and actions):
+         <localTopicLinks>
+             <genAiPluginName>Contact_Creation_Topic</genAiPluginName>
+         </localTopicLinks>
+         <localActionLinks>
+             <genAiFunctionName>AnswerQuestionsWithKnowledge_16jKZ00000004wI</genAiFunctionName>
+         </localActionLinks>
+      
+      2. DEFINE TOPICS in localTopics section:
+         <localTopics>
+             <fullName>Contact_Creation_Topic</fullName>
+             <developerName>Contact_Creation_Topic</developerName>
+             <localDeveloperName>Contact_Creation_Topic</localDeveloperName>
+             <masterLabel>Contact Creation</masterLabel>
+             <description>Handles creation of new contact records</description>
+             <pluginType>Topic</pluginType>
+             <scope>Handle the collection and creation of contact records</scope>
+             
+             <!-- Link actions within this topic -->
+             <localActionLinks>
+                 <functionName>Create_Contact_Action</functionName>
+             </localActionLinks>
+             
+             <!-- Define actions used by this topic -->
+             <localActions>
+                 <fullName>Create_Contact_Action</fullName>
+                 <developerName>Create_Contact_Action</developerName>
+                 <localDeveloperName>Create_Contact_Action</localDeveloperName>
+                 <masterLabel>Create Contact</masterLabel>
+                 <description>Creates a new contact record</description>
+                 <invocationTarget>ContactCreationAction</invocationTarget>
+                 <invocationTargetType>apex</invocationTargetType>
+                 <isConfirmationRequired>false</isConfirmationRequired>
+                 <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+             </localActions>
+             
+             <!-- Topic instructions -->
+             <genAiPluginInstructions>
+                 <developerName>instructions_0</developerName>
+                 <masterLabel>instructions_0</masterLabel>
+                 <description>When user wants to create a contact, collect required details and use Create_Contact action</description>
+                 <language>en_US</language>
+                 <sortOrder>0</sortOrder>
+             </genAiPluginInstructions>
+             
+             <language>en_US</language>
+         </localTopics>
+      
+      3. GLOBAL ACTIONS (at root level, outside topics):
+         <plannerActions>
+             <fullName>AnswerQuestionsWithKnowledge_16jKZ00000004wI</fullName>
+             <developerName>AnswerQuestionsWithKnowledge_16jKZ00000004wI</developerName>
+             <localDeveloperName>AnswerQuestionsWithKnowledge</localDeveloperName>
+             <masterLabel>Answer Questions with Knowledge</masterLabel>
+             <description>Answers questions from knowledge base</description>
+             <invocationTarget>streamKnowledgeSearch</invocationTarget>
+             <invocationTargetType>standardInvocableAction</invocationTargetType>
+             <isConfirmationRequired>false</isConfirmationRequired>
+             <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+             <progressIndicatorMessage>Getting answers</progressIndicatorMessage>
+         </plannerActions>
+      
+      KEY RULES:
+      - Each <localTopic> must have unique fullName, developerName, and localDeveloperName
+      - Each <localAction> within a topic must have unique fullName, developerName, and localDeveloperName
+      - localActionLinks in root must reference <genAiFunctionName> from plannerActions
+      - localActionLinks within topics must reference <functionName> from localActions
+      - All topics must be defined in localTopics, not just referenced
+      - invocationTargetType can be: apex, standardInvocableAction
+      - pluginType for topics must be: Topic
+      
+      File:
+      force-app/main/default/genAiPlannerBundles/{AgentName}/{AgentName}-meta.xml
+      
+      Then validate and redeploy:
+      1. sf project deploy start --metadata GenAiPlannerBundle:{AgentName} --dry-run
+      2. If validation passes, rerun without --dry-run
+  affectedFile: "{AgentName}"

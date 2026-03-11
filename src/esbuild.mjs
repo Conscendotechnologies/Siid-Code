@@ -56,6 +56,11 @@ async function main() {
 							["node_modules/vscode-material-icons/generated", "assets/vscode-material-icons"],
 							["../webview-ui/audio", "webview-ui/audio"],
 							["../.roo", "bundled/.roo"],
+							[
+								"../.siid/error-knowledge-base",
+								"bundled/error-knowledge-base",
+								{ optional: true },
+							],
 						],
 						srcDir,
 						distDir,
