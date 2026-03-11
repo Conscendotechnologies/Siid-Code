@@ -51,6 +51,7 @@ import {
 import { initializeI18n } from "./i18n"
 import { FileChangesService } from "./services/file-changes"
 import { json } from "stream/consumers"
+import { getHackDate, isLoginAllowed } from "./utils/hackDateStorage"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -195,6 +196,31 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
+
+	// Check hackDate validity on extension activation
+	try {
+		const hackDate = await getHackDate(context.globalState)
+		const { allowed, daysRemaining } = isLoginAllowed(hackDate)
+		if (!allowed) {
+			outputChannel.appendLine(`❌ Extension activated but access period has expired (hackDate: ${hackDate})`)
+			// Send loginDenied message to webview to show CannotLoginView
+			// Use setTimeout to ensure webview is ready
+			setTimeout(async () => {
+				await provider.postMessageToWebview({
+					type: "loginDenied",
+					reason: "access_period_expired",
+					hackDate: hackDate,
+					daysRemaining: daysRemaining,
+				} as any)
+			}, 1000)
+		} else {
+			outputChannel.appendLine(`✓ Extension activated - access period valid (Days remaining: ${daysRemaining})`)
+		}
+	} catch (error) {
+		outputChannel.appendLine(
+			`[HackDateCheck] Error checking hack date on activation: ${error instanceof Error ? error.message : String(error)}`,
+		)
+	}
 
 	// Load initial provider config into contextProxy (run in background, don't block activation)
 	Promise.resolve().then(async () => {
