@@ -7,7 +7,7 @@ type CannotLoginProps = {
 }
 
 const CannotLoginView = ({ hackDate }: CannotLoginProps) => {
-	const hackDateString = hackDate ? new Date(hackDate).toLocaleDateString() : "unknown date"
+	const completionDate = hackDate ? new Date(hackDate).toLocaleDateString() : undefined
 
 	return (
 		<Tab>
@@ -15,21 +15,23 @@ const CannotLoginView = ({ hackDate }: CannotLoginProps) => {
 				<RooHero />
 				<h2 className="mt-0 mb-0">Thank you for using SIID</h2>
 
-				<div className="font-bold">
-					<p>Hackathon completed - Your access has expired.</p>
+				<div className="font-bold text-base">
+					<p>Hackathon has been completed.</p>
 				</div>
 
-				<div className="bg-vscode-editorError-background border border-vscode-errorForeground rounded-md p-4">
-					<p className="text-vscode-errorForeground">
-						Your access period has expired. The 2-day window from {hackDateString} has passed.
-					</p>
+				<div className="bg-vscode-editor-background border border-vscode-panel-border rounded-md p-4">
+					<p className="mb-2">Limited access completed. Thank you for participating.</p>
+					{completionDate && (
+						<p className="text-sm text-vscode-descriptionForeground">
+							Access period started on {completionDate}.
+						</p>
+					)}
 				</div>
 
 				<div className="text-sm text-vscode-descriptionForeground">
-					<h3 className="font-semibold mb-2">What happened?</h3>
 					<p>
-						This application has a limited access period. The 2-day window from your initial access date has
-						expired.
+						We appreciate your time during the event. This workspace is now closed for login as the
+						hackathon period has ended.
 					</p>
 				</div>
 			</TabContent>

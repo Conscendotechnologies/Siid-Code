@@ -1,4 +1,5 @@
 import * as vscode from "vscode"
+import { logger } from "./logging"
 
 /**
  * HackDate Storage - Extension Side (VS Code globalState)
@@ -116,6 +117,8 @@ export function isLoginAllowed(hackDate: HackDateInput): { allowed: boolean; day
 		// Calculate days difference
 		const timeDiff = currentDate.getTime() - hackDateObj.getTime()
 		const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+		const hackDateLog = `HackDate: ${hackDateObj.toISOString()}, CurrentDate: ${currentDate.toISOString()}, DaysDiff: ${daysDiff}, TimeDiff: ${timeDiff}ms`
+		logger.info(hackDateLog)
 
 		// Allow login within 2 days from hackDate
 		const DAYS_ALLOWED = 2
