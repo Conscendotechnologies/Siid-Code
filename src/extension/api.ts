@@ -33,7 +33,7 @@ import {
 } from "../utils/firebaseHelper"
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
-import { getHackDate, setHackDate, isLoginAllowed } from "../utils/hackDateStorage"
+import { getHackDate, setHackDate, isLoginAllowed, normalizeHackDate } from "../utils/hackDateStorage"
 
 export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	private readonly outputChannel: vscode.OutputChannel
@@ -471,7 +471,7 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 			// Fetch hackDate from Firebase and store in VS Code local storage
 			const adminConfig = await getAdminApiKey(this.outputChannel)
-			const hackDate = adminConfig?.hackDate
+			const hackDate = normalizeHackDate(adminConfig?.hackDate)
 			await setHackDate(this.context.globalState, hackDate)
 
 			// Check if login is allowed
@@ -480,9 +480,8 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				this.outputChannel.appendLine(`❌ Login denied - access period expired`)
 				await this.sidebarProvider.postMessageToWebview({
 					type: "loginDenied",
-					reason: "access_period_expired",
 					hackDate: hackDate,
-					daysRemaining: daysRemaining,
+					isAllowed: false,
 				} as any)
 				return
 			}
@@ -525,9 +524,8 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				// Send loginDenied message to webview to show CannotLoginView
 				await this.sidebarProvider.postMessageToWebview({
 					type: "loginDenied",
-					reason: "access_period_expired",
 					hackDate: hackDate,
-					daysRemaining: daysRemaining,
+					isAllowed: false,
 				} as any)
 				return
 			}

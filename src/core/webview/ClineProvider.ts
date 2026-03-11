@@ -1659,7 +1659,7 @@ export class ClineProvider
 				this.postMessageToWebview({
 					type: "hackDateUpdated",
 					hackDate,
-					allowed,
+					isAllowed: allowed,
 					daysRemaining,
 				})
 			}
