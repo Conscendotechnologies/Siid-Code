@@ -62,6 +62,43 @@ Example: Invoice_Item**c/Invoice_Item**c.object-meta.xml.
     - enableFeeds
     - enableHistory
 
+## Extended Scope: Custom Metadata Types and Custom Settings
+
+- This instruction is not limited to `CustomObject` creation.
+- When the user asks for a **Custom Metadata Type**, create the metadata under:
+  - `force-app/main/default/objects/<TypeApiName>/<TypeApiName>.object-meta.xml`
+- When the user asks for a **List Custom Setting** or **Hierarchy Custom Setting**, create the metadata under:
+  - `force-app/main/default/objects/<SettingApiName>/<SettingApiName>.object-meta.xml`
+- Use the correct object-level flags for the requested artifact:
+  - **Custom Metadata Type**: configure the object as custom metadata type
+  - **Custom Setting**: configure the object as a custom setting and use the requested setting type (`List` or `Hierarchy`)
+- Apply the same naming, folder, field, deployment, and validation discipline used for custom objects unless Salesforce metadata rules for that artifact differ.
+- If the user request is ambiguous between custom object, custom metadata type, or custom setting, ask for clarification before creating files.
+
+## Record Creation for Custom Metadata Types and Custom Settings
+
+- If the user asks to create **records** for a custom metadata type or custom setting, do **not** attempt to create those records in the metadata XML definition itself.
+- Create the metadata type/setting definition first, then create the records using an **anonymous Apex script**.
+- Use anonymous Apex for:
+  - Custom metadata type records
+  - Custom setting records
+- The workflow must clearly separate:
+  - metadata definition creation
+  - record insertion/upsert via anonymous Apex
+- When generating anonymous Apex:
+  - use the exact API names created in previous steps
+  - include all required field assignments
+  - prefer idempotent logic where possible so reruns do not create unintended duplicates
+  - include comments only where needed to clarify setup-specific behavior
+- If multiple records are requested, generate one anonymous Apex script that handles all requested records in a single execution when practical.
+
+## Deployment and Execution Rules for Extended Scope
+
+- For **Custom Metadata Type** and **Custom Setting** definitions, deploy using `<sf_deploy_metadata>` after file creation, just like custom objects.
+- For **record creation**, use the anonymous Apex execution workflow after the metadata deploy succeeds.
+- Never try to deploy custom setting records or custom metadata records using `<sf_deploy_metadata>` when the user explicitly asked for record creation via anonymous script.
+- If record creation depends on fields that are also being created in the same request, deploy the definition and fields first, then run the anonymous Apex script.
+
 ## Tab Creation (MANDATORY)
 
 - When creating a custom object you MUST also create a corresponding custom tab. Tab creation is required and cannot be skipped.
