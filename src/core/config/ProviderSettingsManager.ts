@@ -102,6 +102,26 @@ export class ProviderSettingsManager {
 		return next
 	}
 
+	private shouldPreserveCustomOpenRouterKey(
+		config: ProviderSettingsWithId | undefined,
+		firebaseApiKey: string | undefined,
+		forceOverride: boolean = false,
+	): boolean {
+		if (forceOverride) {
+			return false
+		}
+
+		if (!config?.openRouterApiKey) {
+			return false
+		}
+
+		if (!firebaseApiKey) {
+			return true
+		}
+
+		return config.openRouterApiKey !== firebaseApiKey
+	}
+
 	/**
 	 * Initialize config if it doesn't exist and run migrations.
 	 */
@@ -230,7 +250,20 @@ export class ProviderSettingsManager {
 	 *
 	 * Structure: One API key per user (used for both free and paid tier configs)
 	 */
-	private async fetchApiKeysFromFirebase(): Promise<{
+	private extractApiKeyFromUserDocument(result: any): string | undefined {
+		if (!result?.data) {
+			return undefined
+		}
+
+		return (
+			result.data.openRouterApiKey ||
+			result.data.apiKey ||
+			result.data.data?.openRouterApiKey ||
+			result.data.data?.apiKey
+		)
+	}
+
+	private async fetchApiKeysFromFirebase(userId?: string): Promise<{
 		freeApiKey: string | undefined // Single API key for free tier
 		paidApiKey: string | undefined // Single API key for paid tier
 	}> {
@@ -248,7 +281,7 @@ export class ProviderSettingsManager {
 			}
 
 			// Get the Firebase API to check authentication
-			const { isAuthenticated, getUserProperties } = await import("../../utils/firebaseHelper")
+			const { isAuthenticated, getUserProperties, getData } = await import("../../utils/firebaseHelper")
 
 			// Check if user is authenticated
 			const authenticated = await isAuthenticated()
@@ -260,12 +293,25 @@ export class ProviderSettingsManager {
 				}
 			}
 
-			// Get user API key from user properties (users/{uid}/openRouterApiKey)
-			const userProps = await getUserProperties(["openRouterApiKey"])
-			const userApiKey = userProps?.openRouterApiKey
+			let userApiKey: string | undefined
+
+			// On login flows, prefer fetching the key for the explicit UID so we
+			// don't depend on any stale "current user" state inside the Firebase service.
+			if (userId) {
+				const userDoc = await getData("users", userId)
+				userApiKey = this.extractApiKeyFromUserDocument(userDoc)
+			}
+
+			// Fallback for startup/background syncs that don't have an explicit UID.
+			if (!userApiKey) {
+				const userProps = await getUserProperties(["openRouterApiKey"])
+				userApiKey = userProps?.openRouterApiKey
+			}
 
 			if (!userApiKey) {
-				logger.warn("[ProviderSettingsManager] No OpenRouter API key found in user properties")
+				logger.warn(
+					`[ProviderSettingsManager] No OpenRouter API key found in Firebase${userId ? ` for user ${userId}` : ""}`,
+				)
 				return {
 					freeApiKey: undefined,
 					paidApiKey: undefined,
@@ -297,11 +343,11 @@ export class ProviderSettingsManager {
 	 * Free configs get the free tier key, paid configs get the paid tier key.
 	 * Call this method when toggling useFreeModels or during initialization.
 	 */
-	public async updateApiKeysFromFirebase() {
+	public async updateApiKeysFromFirebase(forceOverride: boolean = false, userId?: string) {
 		try {
 			console.log("[ProviderSettingsManager.updateApiKeysFromFirebase] Fetching API keys from Firebase...")
 			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Fetching API keys...`)
-			const { freeApiKey, paidApiKey } = await this.fetchApiKeysFromFirebase()
+			const { freeApiKey, paidApiKey } = await this.fetchApiKeysFromFirebase(userId)
 			console.log(
 				`[ProviderSettingsManager.updateApiKeysFromFirebase] Got keys - freeApiKey=${!!freeApiKey}, paidApiKey=${!!paidApiKey}`,
 			)
@@ -336,20 +382,28 @@ export class ProviderSettingsManager {
 			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Found default config: ${!!defaultConfig}`)
 			if (defaultConfig && (freeApiKey || paidApiKey)) {
 				const apiKey = freeApiKey || paidApiKey
-				defaultConfig.openRouterApiKey = apiKey
-				// Show first 4 and last 4 characters for verification
-				const maskedKey = apiKey
-					? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
-					: "[NOT SET]"
-				console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'default' config:`, {
-					id: defaultConfig.id,
-					apiProvider: defaultConfig.apiProvider,
-					openRouterModelId: defaultConfig.openRouterModelId,
-					openRouterApiKey: maskedKey,
-					fullKeyLength: apiKey?.length || 0,
-				})
-				logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated default config with API key`)
-				isDirty = true
+				if (this.shouldPreserveCustomOpenRouterKey(defaultConfig, apiKey, forceOverride)) {
+					logger.info(
+						"[ProviderSettingsManager.updateApiKeysFromFirebase] Preserving custom OpenRouter API key in default config",
+					)
+				} else {
+					defaultConfig.openRouterApiKey = apiKey
+					// Show first 4 and last 4 characters for verification
+					const maskedKey = apiKey
+						? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
+						: "[NOT SET]"
+					console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'default' config:`, {
+						id: defaultConfig.id,
+						apiProvider: defaultConfig.apiProvider,
+						openRouterModelId: defaultConfig.openRouterModelId,
+						openRouterApiKey: maskedKey,
+						fullKeyLength: apiKey?.length || 0,
+					})
+					logger.info(
+						`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated default config with API key`,
+					)
+					isDirty = true
+				}
 			}
 
 			// Update paidApiConfig with API key (uses paid models)
@@ -359,20 +413,28 @@ export class ProviderSettingsManager {
 				providerProfiles.apiConfigs["paidApiConfig"]
 			logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Found paidApiConfig: ${!!paidConfig}`)
 			if (paidConfig && paidApiKey) {
-				paidConfig.openRouterApiKey = paidApiKey
-				// Show first 4 and last 4 characters for verification
-				const maskedKey = paidApiKey
-					? `${paidApiKey.substring(0, 4)}...${paidApiKey.substring(paidApiKey.length - 4)}`
-					: "[NOT SET]"
-				console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'paidApiConfig':`, {
-					id: paidConfig.id,
-					apiProvider: paidConfig.apiProvider,
-					openRouterModelId: paidConfig.openRouterModelId,
-					openRouterApiKey: maskedKey,
-					fullKeyLength: paidApiKey?.length || 0,
-				})
-				logger.info(`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated paidApiConfig with API key`)
-				isDirty = true
+				if (this.shouldPreserveCustomOpenRouterKey(paidConfig, paidApiKey, forceOverride)) {
+					logger.info(
+						"[ProviderSettingsManager.updateApiKeysFromFirebase] Preserving custom OpenRouter API key in paidApiConfig",
+					)
+				} else {
+					paidConfig.openRouterApiKey = paidApiKey
+					// Show first 4 and last 4 characters for verification
+					const maskedKey = paidApiKey
+						? `${paidApiKey.substring(0, 4)}...${paidApiKey.substring(paidApiKey.length - 4)}`
+						: "[NOT SET]"
+					console.log(`[ProviderSettingsManager.updateApiKeysFromFirebase] ✓ Updated 'paidApiConfig':`, {
+						id: paidConfig.id,
+						apiProvider: paidConfig.apiProvider,
+						openRouterModelId: paidConfig.openRouterModelId,
+						openRouterApiKey: maskedKey,
+						fullKeyLength: paidApiKey?.length || 0,
+					})
+					logger.info(
+						`[ProviderSettingsManager.updateApiKeysFromFirebase] Updated paidApiConfig with API key`,
+					)
+					isDirty = true
+				}
 			}
 
 			if (isDirty) {

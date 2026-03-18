@@ -243,7 +243,7 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 
 			// Update all provider configs with the API key
 			// This will call fetchApiKeysFromFirebase which now checks for devBypassApiKey
-			await provider.providerSettingsManager.updateApiKeysFromFirebase()
+			await provider.providerSettingsManager.updateApiKeysFromFirebase(true)
 			outputChannel.appendLine("Provider configs updated with API key")
 
 			// Update webview state to show as authenticated
