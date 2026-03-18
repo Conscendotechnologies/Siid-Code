@@ -82,6 +82,38 @@
         <errorDisplayField>FieldAPIName</errorDisplayField>
         <errorMessage>Your error message here.</errorMessage>
     </ValidationRule>
+
+    **IMPORTANT - XML Special Characters:**
+    When writing formulas in XML, you MUST encode ALL special characters:
+
+    | Character | XML Entity | Usage |
+    |-----------|-----------|-------|
+    | `<` | `&lt;` | Less than comparisons |
+    | `>` | `&gt;` | Greater than comparisons |
+    | `&` | `&amp;` | AND operator or text with ampersand |
+    | `"` | `&quot;` | Double quotes in formulas |
+    | `'` | `&apos;` | Single quotes in formulas |
+
+    **Common Formula Examples:**
+
+    ❌ WRONG: `<errorConditionFormula>Amount < 5000 AND Status = "Closed"</errorConditionFormula>`
+
+    ✅ CORRECT: `<errorConditionFormula>Amount &lt; 5000 AND Status = &quot;Closed&quot;</errorConditionFormula>`
+
+    **More Examples with Encoding:**
+
+    1. **Less than/Greater than:**
+       `<errorConditionFormula>CloseDate &lt; TODAY() OR Amount &gt; 100000</errorConditionFormula>`
+
+    2. **Multiple comparisons with AND/OR:**
+       `<errorConditionFormula>Amount &lt; 1000 AND Probability &lt; 0.5</errorConditionFormula>`
+
+    3. **Text with quotes:**
+       `<errorConditionFormula>Name = &quot;Test Account&quot; AND Revenue &lt; 1000000</errorConditionFormula>`
+
+    4. **Ampersand in text (if needed):**
+       `<errorConditionFormula>Name INCLUDES &quot;R&amp;D Department&quot;</errorConditionFormula>`
+
     Note:
     Use <errorDisplayField> for field-level errors
     Omit <errorDisplayField> for top-of-page errors
