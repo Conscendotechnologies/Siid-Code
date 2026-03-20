@@ -7,13 +7,48 @@ import { ApiHandler } from "../../api"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 
+// helpers formerly in stateCapture.ts
+
+function getRecentMessages(messages: ApiMessage[], maxMessages: number = 15): ApiMessage[] {
+	if (messages.length <= maxMessages) {
+		return messages
+	}
+	const recent = messages.slice(-maxMessages)
+	console.log(`[getRecentMessages] Sliced from ${messages.length} to ${recent.length} messages for condensation`)
+	return recent
+}
+
+function is429Error(error: unknown): boolean {
+	if (error instanceof Error) {
+		const message = error.message.toLowerCase()
+		return message.includes("429") || message.includes("rate limit") || message.includes("too many requests")
+	}
+	const errorObj = error as any
+	return errorObj?.status === 429 || errorObj?.statusCode === 429
+}
+
+function calculateExponentialBackoff(attempt: number, maxDelaySeconds: number = 600): number {
+	const baseDelay = Math.pow(2, Math.min(attempt - 1, 9))
+	const delaySeconds = Math.min(baseDelay, maxDelaySeconds)
+	const delayMs = delaySeconds * 1000
+	const jitter = delayMs * 0.1 * (Math.random() - 0.5)
+	return Math.max(1000, delayMs + jitter)
+}
+
 export const N_MESSAGES_TO_KEEP = 0 // Changed: Now we don't keep any messages, only the summary
 export const MIN_CONDENSE_THRESHOLD = 5 // Minimum percentage of context window to trigger condensing
 export const MAX_CONDENSE_THRESHOLD = 80 // Maximum percentage of context window to trigger condensing
-const CONTINUATION_PROMPT = "Please continue from where we left off based on the summary above."
+export const MAX_MESSAGES_FOR_CONDENSE = 15 // Only condense from last 10-15 messages to reduce token usage
+export const MAX_SUMMARY_ATTEMPTS_WITH_RETRY = 3 // Increased from 2 to allow for 429 retry
+const CONTINUATION_PROMPT =
+	"Please continue from where we left off based on the summary above, Please read the guidelines carefully and continue the work, ensuring to follow the user's intent and the context provided in the summary."
 const MAX_SUMMARY_ATTEMPTS = 2
 const MIN_SUMMARY_CHARS_ABSOLUTE = 350
 const MIN_SUMMARY_CHARS_MAX = 2000
+
+// Rate limit handling
+const MAX_429_RETRIES = 3
+const INITIAL_429_BACKOFF_MS = 2000 // Start with 2 seconds
 
 const SUMMARY_RETRY_PROMPT_SUFFIX = `\
 CRITICAL RETRY INSTRUCTION:
@@ -173,6 +208,7 @@ export type SummarizeResponse = {
 	cost: number // The cost of the summarization operation
 	newContextTokens?: number // The number of tokens in the context for the next API request
 	error?: string // Populated iff the operation fails: error message shown to the user on failure (see Task.ts)
+	rateLimitHit?: boolean // Whether a 429 rate limit error was encountered
 }
 
 /**
@@ -234,7 +270,29 @@ export async function summarizeConversation(
 		`[summarizeConversation] Starting full summarization. taskId: ${taskId}, messageCount: ${messages.length}, isAutomatic: ${isAutomaticTrigger}`,
 	)
 
+	// ===== TOKEN GUARD: Check if we should even attempt condensation =====
+	// Estimate the cost of the summarization call itself
+	const estimatedSummaryOverhead = Math.ceil(messages.length * 100) // ~100 tokens per message as estimate
+	if (prevContextTokens + estimatedSummaryOverhead > 200000) {
+		console.warn(
+			`[summarizeConversation] Skipping condensation - estimated cost would exceed token limit (current: ${prevContextTokens}, overhead: ${estimatedSummaryOverhead})`,
+		)
+		return {
+			messages,
+			cost: 0,
+			summary: "",
+			newContextTokens: prevContextTokens,
+			error: "Token limit safety guard triggered - condensation overhead too high",
+		}
+	}
+
 	try {
+		// ===== MESSAGE FILTERING: Only use recent messages to reduce token usage =====
+		const recentMessages = getRecentMessages(messages, MAX_MESSAGES_FOR_CONDENSE)
+		console.log(
+			`[summarizeConversation] Using ${recentMessages.length} recent messages (from ${messages.length} total) for condensation`,
+		)
+
 		// Use condensing handler if provided, otherwise use main handler
 		const handler = condensingApiHandler ?? apiHandler
 		const prompt = SUMMARY_PROMPT
@@ -245,10 +303,10 @@ export async function summarizeConversation(
 		// Find the most recent summary message (if any)
 		let lastSummaryIndex = -1
 		let existingSummary: ApiMessage | undefined
-		for (let i = messages.length - 1; i >= 0; i--) {
-			if (messages[i].isSummary) {
+		for (let i = recentMessages.length - 1; i >= 0; i--) {
+			if (recentMessages[i].isSummary) {
 				lastSummaryIndex = i
-				existingSummary = messages[i]
+				existingSummary = recentMessages[i]
 				break
 			}
 		}
@@ -259,7 +317,7 @@ export async function summarizeConversation(
 		if (lastSummaryIndex >= 0 && existingSummary) {
 			// We have a previous summary - summarize that summary + NEW messages after it,
 			// then replace both with a single merged summary.
-			const messagesAfterSummary = messages.slice(lastSummaryIndex + 1)
+			const messagesAfterSummary = recentMessages.slice(lastSummaryIndex + 1)
 
 			// Filter out the continuation prompt if it exists
 			const newMessages = messagesAfterSummary.filter((m) => {
@@ -286,13 +344,15 @@ export async function summarizeConversation(
 
 			messagesToSummarize = [existingSummary, ...newMessages]
 		} else {
-			// No previous summary - summarize all messages
-			if (messages.length < MIN_MESSAGES_FOR_SUMMARY) {
-				console.log(`[summarizeConversation] Too few messages (${messages.length}), skipping summarization`)
+			// No previous summary - summarize all recent messages
+			if (recentMessages.length < MIN_MESSAGES_FOR_SUMMARY) {
+				console.log(
+					`[summarizeConversation] Too few messages (${recentMessages.length}), skipping summarization`,
+				)
 				return { messages, cost: 0, summary: "", newContextTokens: prevContextTokens }
 			}
 
-			messagesToSummarize = messages
+			messagesToSummarize = recentMessages
 		}
 
 		console.log(
@@ -316,7 +376,7 @@ export async function summarizeConversation(
 			],
 		}
 
-		// Make LLM call to summarize all messages
+		// Make LLM call to summarize all messages with 429 rate limit retry logic
 		// Collect summary text and usage metrics (supports a single retry on invalid tool-like output)
 		let summaryText = ""
 		let inputTokens = 0
@@ -327,75 +387,128 @@ export async function summarizeConversation(
 		let retryValidationError: string | undefined
 		const minSummaryChars = getMinimumSummaryChars(prevContextTokens, messagesToSummarize.length)
 
-		for (let attempt = 1; attempt <= MAX_SUMMARY_ATTEMPTS; attempt++) {
+		// ===== RATE LIMIT RETRY LOOP =====
+		let rateLimitRetries = 0
+		let lastError: Error | null = null
+
+		for (let attempt = 1; attempt <= MAX_SUMMARY_ATTEMPTS + rateLimitRetries; attempt++) {
+			// Check for rate limit before retry
+			if (rateLimitRetries > 0 && attempt > MAX_SUMMARY_ATTEMPTS) {
+				if (rateLimitRetries >= MAX_429_RETRIES) {
+					console.error(`[summarizeConversation] Max 429 retries (${MAX_429_RETRIES}) reached, giving up`)
+					return {
+						messages,
+						cost: 0,
+						summary: "",
+						newContextTokens: prevContextTokens,
+						error: `Rate limited by provider (429) after ${rateLimitRetries} retries. Please try again later.`,
+						rateLimitHit: true,
+					}
+				}
+
+				// Calculate backoff for this retry
+				const backoffMs = calculateExponentialBackoff(rateLimitRetries, 600)
+				console.warn(
+					`[summarizeConversation] Rate limited (429) - retry ${rateLimitRetries}/${MAX_429_RETRIES} after ${backoffMs}ms backoff`,
+				)
+
+				// Wait before retrying
+				await new Promise((resolve) => setTimeout(resolve, backoffMs))
+			}
+
 			const retrySuffix =
-				attempt === 1
-					? ""
-					: `\n\n${buildRetryPromptSuffix(retryValidationError ?? "Invalid summary format", minSummaryChars)}`
+				attempt <= MAX_SUMMARY_ATTEMPTS && attempt > 1
+					? `\n\n${buildRetryPromptSuffix(retryValidationError ?? "Invalid summary format", minSummaryChars)}`
+					: ""
 			const attemptPrompt = `${prompt}${retrySuffix}`
 			const metadata = { taskId, mode: "summarize" }
-			const stream = handler.createMessage(attemptPrompt, [summarizeTranscriptMessage], metadata)
 
-			let attemptSummaryText = ""
-			let attemptInputTokens = 0
-			let attemptOutputTokens = 0
-			let attemptCacheWriteTokens = 0
-			let attemptCacheReadTokens = 0
-			let attemptTotalCost: number | undefined
+			try {
+				const stream = handler.createMessage(attemptPrompt, [summarizeTranscriptMessage], metadata)
 
-			console.log(
-				`[summarizeConversation] Streaming summary from LLM (attempt ${attempt}/${MAX_SUMMARY_ATTEMPTS})...`,
-			)
+				let attemptSummaryText = ""
+				let attemptInputTokens = 0
+				let attemptOutputTokens = 0
+				let attemptCacheWriteTokens = 0
+				let attemptCacheReadTokens = 0
+				let attemptTotalCost: number | undefined
 
-			for await (const chunk of stream) {
-				if (!chunk) continue
+				console.log(
+					`[summarizeConversation] Streaming summary from LLM (attempt ${attempt}/${MAX_SUMMARY_ATTEMPTS + MAX_429_RETRIES})...`,
+				)
 
-				switch (chunk.type) {
-					case "text":
-						attemptSummaryText += chunk.text
-						break
-					case "usage":
-						attemptInputTokens += chunk.inputTokens
-						attemptOutputTokens += chunk.outputTokens
-						attemptCacheWriteTokens += chunk.cacheWriteTokens ?? 0
-						attemptCacheReadTokens += chunk.cacheReadTokens ?? 0
-						attemptTotalCost = chunk.totalCost
-						break
+				for await (const chunk of stream) {
+					if (!chunk) continue
+
+					switch (chunk.type) {
+						case "text":
+							attemptSummaryText += chunk.text
+							break
+						case "usage":
+							attemptInputTokens += chunk.inputTokens
+							attemptOutputTokens += chunk.outputTokens
+							attemptCacheWriteTokens += chunk.cacheWriteTokens ?? 0
+							attemptCacheReadTokens += chunk.cacheReadTokens ?? 0
+							attemptTotalCost = chunk.totalCost
+							break
+					}
 				}
+
+				inputTokens += attemptInputTokens
+				outputTokens += attemptOutputTokens
+				cacheWriteTokens += attemptCacheWriteTokens
+				cacheReadTokens += attemptCacheReadTokens
+				totalCost += attemptTotalCost ?? 0
+
+				console.log([
+					`[summarizeConversation] Received summary chunk (attempt ${attempt}):`,
+					attemptSummaryText,
+				])
+				console.log(
+					`[summarizeConversation] Summary attempt ${attempt} complete. Length: ${attemptSummaryText.length} chars, tokens: in=${attemptInputTokens}, out=${attemptOutputTokens}`,
+				)
+
+				// Reset rate limit retry counter on success
+				rateLimitRetries = 0
+				lastError = null
+
+				if (isToolLikeSummaryOutput(attemptSummaryText)) {
+					retryValidationError = "Summary generation returned tool-like output instead of plain text summary"
+					console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
+					continue
+				}
+
+				if (isSummaryTooShort(attemptSummaryText, minSummaryChars)) {
+					retryValidationError = `Summary too short for safe context preservation (${attemptSummaryText.trim().length} < ${minSummaryChars} chars)`
+					console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
+					continue
+				}
+
+				const missingSections = getMissingSummarySections(attemptSummaryText)
+				if (missingSections.length > 0) {
+					retryValidationError = `Summary missing required sections: ${missingSections.join(", ")}`
+					console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
+					continue
+				}
+
+				summaryText = attemptSummaryText
+				break
+			} catch (streamError) {
+				// Check if this is a 429 rate limit error
+				if (is429Error(streamError)) {
+					rateLimitRetries++
+					lastError = streamError as Error
+					console.warn(`[summarizeConversation] Got 429 rate limit error on attempt ${attempt}`)
+
+					// If we haven't exceeded max 429 retries, continue the loop for retry
+					if (rateLimitRetries < MAX_429_RETRIES) {
+						continue
+					}
+				}
+
+				// Not a 429 or max retries reached - re-throw
+				throw streamError
 			}
-
-			inputTokens += attemptInputTokens
-			outputTokens += attemptOutputTokens
-			cacheWriteTokens += attemptCacheWriteTokens
-			cacheReadTokens += attemptCacheReadTokens
-			totalCost += attemptTotalCost ?? 0
-
-			console.log([`[summarizeConversation] Received summary chunk (attempt ${attempt}):`, attemptSummaryText])
-			console.log(
-				`[summarizeConversation] Summary attempt ${attempt} complete. Length: ${attemptSummaryText.length} chars, tokens: in=${attemptInputTokens}, out=${attemptOutputTokens}`,
-			)
-
-			if (isToolLikeSummaryOutput(attemptSummaryText)) {
-				retryValidationError = "Summary generation returned tool-like output instead of plain text summary"
-				console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
-				continue
-			}
-
-			if (isSummaryTooShort(attemptSummaryText, minSummaryChars)) {
-				retryValidationError = `Summary too short for safe context preservation (${attemptSummaryText.trim().length} < ${minSummaryChars} chars)`
-				console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
-				continue
-			}
-
-			const missingSections = getMissingSummarySections(attemptSummaryText)
-			if (missingSections.length > 0) {
-				retryValidationError = `Summary missing required sections: ${missingSections.join(", ")}`
-				console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
-				continue
-			}
-
-			summaryText = attemptSummaryText
-			break
 		}
 
 		if (!summaryText && retryValidationError) {
@@ -492,7 +605,12 @@ export async function summarizeConversation(
 		}
 	} catch (error) {
 		const duration = Date.now() - startTime
-		console.error(`[summarizeConversation] Error after ${duration}ms:`, error)
+		const isRateLimit = is429Error(error)
+
+		console.error(
+			`[summarizeConversation] Error after ${duration}ms${isRateLimit ? " (429 rate limit)" : ""}:`,
+			error,
+		)
 
 		// Return original messages on error, with error message
 		return {
@@ -501,6 +619,7 @@ export async function summarizeConversation(
 			summary: "",
 			newContextTokens: prevContextTokens,
 			error: error instanceof Error ? error.message : String(error),
+			rateLimitHit: isRateLimit,
 		}
 	}
 }
