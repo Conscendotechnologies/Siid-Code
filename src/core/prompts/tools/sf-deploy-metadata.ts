@@ -10,6 +10,8 @@ IMPORTANT:
    - Phase 2: Actual deployment (only if phase 1 passes)
 2. If dry run fails, deployment is aborted and error details are returned.
 3. Prefer deploying one metadata component at a time to isolate failures quickly.
+4. For CustomMetadata and for CustomObject deploys that represent custom metadata types or custom settings, use the default NoTestRun behavior. Do not request coverage-oriented test levels for those deploys.
+5. Use this tool to perform the deployment directly. Do not ask the user to run the Salesforce deploy command manually when this tool can execute it.
 
 Supported Metadata Types:
 - ApexClass
@@ -36,6 +38,7 @@ Supported Metadata Types:
 - GenAiPlannerBundle
 - Bot
 - StaticResource
+- CustomMetadata
 
 Parameters:
 - metadata_type: (required) Salesforce metadata type from the supported list above.
@@ -46,6 +49,7 @@ Parameters:
   - For Layout use ObjectApi-Layout Name
   - For AssignmentRule use ObjectApi.RuleApi
   - For AssignmentRules use ObjectApi (example: Lead)
+  - For CustomMetadata use TypeApi.RecordApi (example: Support_Tier.Bronze)
 - test_level: (optional) NoTestRun | RunLocalTests | RunAllTestsInOrg | RunSpecifiedTests
 - tests: (optional) Required only with RunSpecifiedTests (comma-separated test class names)
 - ignore_warnings: (optional) true | false
@@ -91,6 +95,12 @@ With explicit test level:
 <metadata_type>ApexClass</metadata_type>
 <metadata_name>AppointmentReminderBatch</metadata_name>
 <test_level>RunLocalTests</test_level>
+</sf_deploy_metadata>
+
+Custom metadata record:
+<sf_deploy_metadata>
+<metadata_type>CustomMetadata</metadata_type>
+<metadata_name>Support_Tier.Bronze</metadata_name>
 </sf_deploy_metadata>
 
 With specified tests:

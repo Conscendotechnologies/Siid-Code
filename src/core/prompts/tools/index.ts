@@ -26,6 +26,7 @@ import { getUpdateTodoListDescription } from "./update-todo-list"
 import { getRetrieveSfMetadataDescription } from "./retrieve-sf-metadata"
 import { CodeIndexManager } from "../../../services/code-index/manager"
 import { getSfDeployMetadataDescription } from "./sf-deploy-metadata"
+import { getSfExecuteAnonymousDescription } from "./sf-execute-anonymous"
 
 // Map of tool names to their description functions
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
@@ -51,6 +52,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	update_todo_list: (args) => getUpdateTodoListDescription(args),
 	retrieve_sf_metadata: (args) => getRetrieveSfMetadataDescription(args),
 	sf_deploy_metadata: (args) => getSfDeployMetadataDescription(args),
+	sf_execute_anonymous: () => getSfExecuteAnonymousDescription(),
 }
 
 export function getToolDescriptionsForMode(
@@ -157,4 +159,5 @@ export {
 	getSearchAndReplaceDescription,
 	getCodebaseSearchDescription,
 	getSfDeployMetadataDescription,
+	getSfExecuteAnonymousDescription,
 }
