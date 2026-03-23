@@ -85,6 +85,16 @@ export class OpenRouterKeyService {
 		}
 	}
 
+	private extractApiKeyFromUserDocument(result: any): string | undefined {
+		if (!result?.data) {
+			return undefined
+		}
+
+		// Firebase service may return either the raw document fields or the wrapped
+		// payload stored via storeData(), where custom fields live under `data`.
+		return result.data.apiKey || result.data.data?.apiKey
+	}
+
 	/**
 	 * Get admin provisioning key from Firebase
 	 */
@@ -268,11 +278,12 @@ export class OpenRouterKeyService {
 
 			// Use Firebase API helper instead of command
 			const result = await getData("users", userId, this.outputChannel)
+			const apiKey = this.extractApiKeyFromUserDocument(result)
 
-			if (result?.data?.apiKey) {
+			if (apiKey) {
 				logger.info(`[OpenRouterKeyService] Successfully retrieved API key for user: ${userId}`)
 				this.outputChannelLog(`[OpenRouterKeyService] Successfully retrieved API key for user: ${userId}`)
-				return result.data.apiKey
+				return apiKey
 			} else {
 				logger.warn(`[OpenRouterKeyService] No API key found for user: ${userId}`)
 				this.outputChannelLog(`[OpenRouterKeyService] No API key found for user: ${userId}`)
@@ -314,23 +325,39 @@ export class OpenRouterKeyService {
 			// Step 1: Fetch the default provisioning API key
 			await this.fetchDefaultProvisioningKey()
 
-			// Step 2: Check if user already has an API key in user properties
+			// Step 2: Check if the logged-in user's UID already exists in `users/{uid}`.
+			// If it does, reuse the existing API key instead of creating a new one.
 			const { getUserProperties, updateUserProperties } = await import("../../utils/firebaseHelper")
+			const existingUserApiKey = await this.getUserApiKey(userId)
+
+			if (existingUserApiKey) {
+				logger.info(`[OpenRouterKeyService] Reusing existing API key from users/${userId}`)
+				this.outputChannelLog(`[OpenRouterKeyService] Reusing existing API key from users/${userId}`)
+
+				// Keep user properties in sync so the rest of the extension can read it
+				// from the existing path it already uses.
+				await updateUserProperties({ openRouterApiKey: existingUserApiKey }, this.outputChannel)
+				return existingUserApiKey
+			}
+
+			// Step 3: Fall back to user properties for backward compatibility.
 			const userProps = await getUserProperties(["openRouterApiKey"], this.outputChannel)
 
 			if (userProps?.openRouterApiKey) {
-				logger.info(`[OpenRouterKeyService] User ${userId} already has an API key in user properties`)
-				this.outputChannelLog(`[OpenRouterKeyService] User ${userId} already has an API key in user properties`)
+				logger.info(`[OpenRouterKeyService] Reusing existing API key from user properties for user ${userId}`)
+				this.outputChannelLog(
+					`[OpenRouterKeyService] Reusing existing API key from user properties for user ${userId}`,
+				)
 				return userProps.openRouterApiKey
 			}
 
-			// Step 3: Create a new API key for the user
+			// Step 4: No existing key found for this UID, so create a new one.
 			const keyResponse = await this.createDefaultUserKey(userId, userEmail)
 
-			// Step 4: Store the API key in Firebase users collection (for metadata)
+			// Step 5: Store the API key in Firebase users collection (for metadata)
 			await this.storeUserApiKey(userId, keyResponse.key, keyResponse.data)
 
-			// Step 5: Also store in user properties (users/{uid}) for easy access
+			// Step 6: Also store in user properties (users/{uid}) for easy access
 			await updateUserProperties({ openRouterApiKey: keyResponse.key }, this.outputChannel)
 
 			logger.info(`[OpenRouterKeyService] Successfully set up API key for user: ${userId}`)
