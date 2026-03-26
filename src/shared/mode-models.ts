@@ -32,29 +32,29 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 2, // Fallback 1
 		},
 		{
-			modelId: "deepseek/deepseek-r1-0528:free",
-			displayName: "DeepSeek R1 (Free)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 3, // Fallback 2
-		},
-		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 4, // Fallback 3
+			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 5, // Fallback 4
+			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 5, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.4-mini",
+			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 6, // Premium option
@@ -93,6 +93,20 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			provider: "openrouter",
 			tier: "advanced",
 			priority: 11, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.1",
+			displayName: "GPT-5.1",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 12, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.2-codex",
+			displayName: "GPT-5.2 Codex",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 13, // Premium option
 		},
 	],
 	code: [
@@ -111,29 +125,29 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 2, // Fallback 1
 		},
 		{
-			modelId: "deepseek/deepseek-r1-0528:free",
-			displayName: "DeepSeek R1 (Free)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 3, // Fallback 2
-		},
-		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 4, // Fallback 3
+			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 5, // Fallback 4
+			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 5, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.4-mini",
+			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 6, // Premium option
@@ -172,6 +186,20 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			provider: "openrouter",
 			tier: "advanced",
 			priority: 11, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.2-codex",
+			displayName: "GPT-5.2 Codex",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 13, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.1",
+			displayName: "GPT-5.1",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 12, // Premium option
 		},
 	],
 	orchestrator: [
@@ -190,29 +218,29 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 2, // Fallback 1
 		},
 		{
-			modelId: "deepseek/deepseek-r1-0528:free",
-			displayName: "DeepSeek R1 (Free)",
-			provider: "openrouter",
-			tier: "free",
-			priority: 3, // Fallback 2
-		},
-		{
 			modelId: "openai/gpt-oss-120b:free",
 			displayName: "OpenAI: gpt-oss-120b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 4, // Fallback 3
+			priority: 3, // Fallback 2
 		},
 		{
 			modelId: "openai/gpt-oss-20b:free",
 			displayName: "OpenAI: gpt-oss-20b (Free)",
 			provider: "openrouter",
 			tier: "free",
-			priority: 5, // Fallback 4
+			priority: 4, // Fallback 3
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
+			provider: "openrouter",
+			tier: "medium",
+			priority: 5, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.4-mini",
+			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "medium",
 			priority: 6, // Premium option
@@ -251,6 +279,20 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			provider: "openrouter",
 			tier: "advanced",
 			priority: 11, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.2-codex",
+			displayName: "GPT-5.2 Codex",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 13, // Premium option
+		},
+		{
+			modelId: "openai/gpt-5.1",
+			displayName: "GPT-5.1",
+			provider: "openrouter",
+			tier: "advanced",
+			priority: 12, // Premium option
 		},
 	],
 }
