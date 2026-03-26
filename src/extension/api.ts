@@ -29,12 +29,10 @@ import {
 	onFirebaseLogout,
 	getUserProperties,
 	updateUserProperties,
-<<<<<<< task-log-evolution-log-agent
 	addLog,
-=======
 	getAdminApiKey,
->>>>>>> main-stable-agent
 } from "../utils/firebaseHelper"
+const { generateDebugData } = await import("../integrations/misc/export-debug-json")
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
 import { getHackDate, setHackDate, isLoginAllowed, normalizeHackDate } from "../utils/hackDateStorage"
@@ -267,9 +265,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 				// Log task completion with debug JSON to Firebase
 				try {
-					const { addLog } = await import("../utils/firebaseHelper")
-					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
-
 					// Get task history and metadata
 					const { historyItem, apiConversationHistory } = await this.sidebarProvider.getTaskWithId(
 						task.taskId,
