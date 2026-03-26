@@ -68,6 +68,13 @@ Requires `length` (max 255).
 Requires precision (total digits) and scale (decimal places).
 Provide user with options
 
+**Checkbox Field**
+- Requires a boolean default when the target object is a custom metadata type ending with `__mdt`.
+- For checkbox fields on custom metadata types, always include:
+  - `<defaultValue>true</defaultValue>` or
+  - `<defaultValue>false</defaultValue>`
+- Never omit `defaultValue` for a checkbox field on a custom metadata type, or deployment will fail.
+
 **c. Formula Field**
 Requires returnType (Text, Number, Checkbox, Date, etc.) and formula.
 Based on user prompt change the label,type,formula of below XML Format

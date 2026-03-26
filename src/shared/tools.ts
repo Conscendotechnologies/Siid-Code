@@ -182,6 +182,11 @@ export interface DeploySFMetadataToolUse extends ToolUse {
 		Partial<Pick<Record<ToolParamName, string>, "test_level" | "tests" | "ignore_warnings" | "source_dir">>
 }
 
+export interface ExecuteSfAnonymousToolUse extends ToolUse {
+	name: "sf_execute_anonymous"
+	params: Required<Pick<Record<ToolParamName, string>, "content">>
+}
+
 export interface SearchAndReplaceToolUse extends ToolUse {
 	name: "search_and_replace"
 	params: Required<Pick<Record<ToolParamName, string>, "path" | "search" | "replace">> &
@@ -216,6 +221,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	update_todo_list: "update todo list",
 	retrieve_sf_metadata: "retrieve salesforce metadata",
 	sf_deploy_metadata: "deploy salesforce metadata",
+	sf_execute_anonymous: "execute anonymous apex",
 } as const
 
 // Define available tool groups.
@@ -232,7 +238,14 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 		],
 	},
 	edit: {
-		tools: ["apply_diff", "write_to_file", "insert_content", "search_and_replace", "sf_deploy_metadata"],
+		tools: [
+			"apply_diff",
+			"write_to_file",
+			"insert_content",
+			"search_and_replace",
+			"sf_deploy_metadata",
+			"sf_execute_anonymous",
+		],
 	},
 	browser: {
 		tools: ["browser_action"],

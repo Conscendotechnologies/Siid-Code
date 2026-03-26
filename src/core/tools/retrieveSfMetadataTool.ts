@@ -148,6 +148,11 @@ const METADATA_TYPE_CONFIG: Record<string, MetadataTypeConfig> = {
 		supportsListing: true,
 		description: "Path Assistant Settings",
 	},
+	CustomMetadata: {
+		cliType: "CustomMetadata",
+		supportsListing: true,
+		description: "Custom Metadata Record",
+	},
 }
 
 /**
