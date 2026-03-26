@@ -378,32 +378,7 @@ export async function exportTaskDebugJson(
 
 	const fileName = `siid_debug_${month}-${day}-${year}_${hours}-${minutes}-${seconds}-${ampm}.json`
 
-	const statistics = computeStatistics(apiConversationHistory)
-	const conversationRequests = extractConversationRequests(apiConversationHistory)
-	const summaryRequests = extractSummaryRequests(apiConversationHistory)
-	const contextUsage = calculateContextUsage(apiConversationHistory, metadata.contextWindow)
-
-	const { systemPrompt, ...metadataWithoutPrompt } = metadata
-
-	const exportData = {
-		metadata: {
-			...metadataWithoutPrompt,
-			exportedAt: new Date().toISOString(),
-			version: "2.0", // Version the export format for future compatibility
-		},
-		contextUsage: {
-			...contextUsage,
-			note: "Token estimates are approximate (1 token ≈ 4 characters). Actual counts may vary.",
-		},
-		statistics: {
-			...statistics,
-			summaryRequestCount: summaryRequests.length,
-		},
-		systemPrompt: systemPrompt || null,
-		conversation: conversationRequests,
-		summaryRequests: summaryRequests,
-		rawApiConversationHistory: apiConversationHistory,
-	}
+	const exportData = generateDebugData(apiConversationHistory, metadata)
 
 	const saveUri = await vscode.window.showSaveDialog({
 		filters: { JSON: ["json"] },
@@ -413,5 +388,30 @@ export async function exportTaskDebugJson(
 	if (saveUri) {
 		await vscode.workspace.fs.writeFile(saveUri, Buffer.from(JSON.stringify(exportData, null, 2)))
 		vscode.window.showTextDocument(saveUri, { preview: true })
+	}
+}
+
+/**
+ * Generates debug data object without saving to file
+ * Useful for automatic logging to Firebase
+ */
+export function generateDebugData(
+	apiConversationHistory: ApiMessage[],
+	metadata: DebugExportMetadata,
+): Record<string, any> {
+	const statistics = computeStatistics(apiConversationHistory)
+	const apiRequests = extractConversationRequests(apiConversationHistory)
+
+	const { systemPrompt, ...metadataWithoutPrompt } = metadata
+
+	return {
+		metadata: {
+			...metadataWithoutPrompt,
+			exportedAt: new Date().toISOString(),
+		},
+		statistics,
+		systemPrompt: systemPrompt || null,
+		apiRequests,
+		apiConversationHistory,
 	}
 }

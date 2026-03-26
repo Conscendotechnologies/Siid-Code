@@ -76,7 +76,8 @@ export type TaskEvents = {
 	// Task Lifecycle
 	[RooCodeEventName.TaskStarted]: []
 	[RooCodeEventName.TaskCompleted]: [taskId: string, tokenUsage: TokenUsage, toolUsage: ToolUsage]
-	[RooCodeEventName.TaskAborted]: []
+	[RooCodeEventName.TaskAborted]: [taskId: string, tokenUsage: TokenUsage, toolUsage: ToolUsage]
+	[RooCodeEventName.TaskMaxRequestsReached]: [taskId: string, tokenUsage: TokenUsage, toolUsage: ToolUsage]
 	[RooCodeEventName.TaskFocused]: []
 	[RooCodeEventName.TaskUnfocused]: []
 	[RooCodeEventName.TaskActive]: [taskId: string]

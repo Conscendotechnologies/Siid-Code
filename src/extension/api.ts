@@ -29,8 +29,10 @@ import {
 	onFirebaseLogout,
 	getUserProperties,
 	updateUserProperties,
+	addLog,
 	getAdminApiKey,
 } from "../utils/firebaseHelper"
+const { generateDebugData } = await import("../integrations/misc/export-debug-json")
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
 import { getHackDate, setHackDate, isLoginAllowed, normalizeHackDate } from "../utils/hackDateStorage"
@@ -260,11 +262,249 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				await this.fileLog(
 					`[${new Date().toISOString()}] taskCompleted -> ${task.taskId} | ${JSON.stringify(tokenUsage, null, 2)} | ${JSON.stringify(toolUsage, null, 2)}\n`,
 				)
+
+				// Log task completion with debug JSON to Firebase
+				try {
+					// Get task history and metadata
+					const { historyItem, apiConversationHistory } = await this.sidebarProvider.getTaskWithId(
+						task.taskId,
+					)
+
+					// Get system prompt if available
+					let systemPrompt: string | undefined
+					try {
+						// Check if task has getSystemPrompt method (it's a Task instance, not just TaskLike)
+						if ("getSystemPrompt" in task && typeof (task as any).getSystemPrompt === "function") {
+							systemPrompt = await (task as any).getSystemPrompt()
+						}
+					} catch {
+						// Task may not be in a state to generate system prompt
+					}
+
+					// Generate debug data
+					const debugData = generateDebugData(apiConversationHistory as any, {
+						taskId: historyItem.id,
+						timestamp: historyItem.ts,
+						taskNumber: historyItem.number,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						systemPrompt,
+					})
+
+					// Create debug summary (full debugData is too large for Firestore)
+					const debugSummary = {
+						messageCount: apiConversationHistory?.length || 0,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						taskNumber: historyItem.number,
+					}
+
+					// Log to Firebase with summary data
+					await addLog(
+						"task_completed",
+						{
+							taskId: task.taskId,
+							isSubtask,
+							userPrompt: historyItem.task, // User's initial prompt/request
+							tokenUsage,
+							toolUsage,
+							debugData,
+						},
+						this.outputChannel,
+					)
+
+					logger.info(`[TaskCompleted] Debug data logged to Firebase for task: ${task.taskId}`)
+
+					// Update evolution data with task completion stats
+					const { storeEvolutionData, getEvolutionData } = await import("../utils/firebaseHelper")
+					const evolutionData = await getEvolutionData(this.outputChannel)
+
+					// Calculate total tokens (sum of input and output tokens)
+					const totalTokens =
+						((tokenUsage?.totalTokensIn as number) || 0) + ((tokenUsage?.totalTokensOut as number) || 0)
+
+					// Get current tier from global state
+					const tier = this.context.globalState.get<"Free" | "Pro" | "Max">("tier")
+
+					// Extract all user messages from conversation history
+					const userMessages: string[] = []
+					if (apiConversationHistory && Array.isArray(apiConversationHistory)) {
+						for (const message of apiConversationHistory) {
+							if (message.role === "user" && message.content) {
+								// Handle both string content and array of content blocks
+								if (typeof message.content === "string") {
+									userMessages.push(message.content)
+								} else if (Array.isArray(message.content)) {
+									// Extract text from content blocks
+									for (const block of message.content) {
+										if (block.type === "text" && block.text) {
+											userMessages.push(block.text)
+										}
+									}
+								}
+							}
+						}
+					}
+
+					// Store new evolution entry with cumulative totals
+					await storeEvolutionData(
+						{
+							totalTasksCompleted: (evolutionData?.totalTasksCompleted || 0) + 1,
+							totalTokensUsed: (evolutionData?.totalTokensUsed || 0) + totalTokens,
+							taskTokensUsed: totalTokens, // Tokens used in this specific task
+							lastTaskUserPrompt: historyItem.task, // User's initial/first prompt for the task
+							allUserMessages: userMessages, // All user messages from the task
+							tier: tier || "Free",
+						},
+						this.outputChannel,
+					)
+
+					logger.info(
+						`[TaskCompleted] Evolution data logged: +1 task, +${totalTokens} tokens for task: ${task.taskId}`,
+					)
+				} catch (logError) {
+					// Don't fail task completion if logging fails
+					logger.warn(`[TaskCompleted] Failed to log debug data (non-critical):`, logError)
+					this.outputChannel.appendLine(
+						`[TaskCompleted] Failed to log debug data: ${logError instanceof Error ? logError.message : String(logError)}`,
+					)
+				}
 			})
 
-			task.on(RooCodeEventName.TaskAborted, () => {
-				this.emit(RooCodeEventName.TaskAborted, task.taskId)
+			task.on(RooCodeEventName.TaskAborted, async (_, tokenUsage, toolUsage) => {
+				this.emit(RooCodeEventName.TaskAborted, task.taskId, tokenUsage, toolUsage)
 				this.taskMap.delete(task.taskId)
+
+				await this.fileLog(
+					`[${new Date().toISOString()}] taskAborted -> ${task.taskId} | ${JSON.stringify(tokenUsage, null, 2)} | ${JSON.stringify(toolUsage, null, 2)}\n`,
+				)
+
+				// Log task abort to Firebase with debug data
+				try {
+					const { addLog } = await import("../utils/firebaseHelper")
+					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
+
+					// Get task history and metadata
+					const { historyItem, apiConversationHistory } = await this.sidebarProvider.getTaskWithId(
+						task.taskId,
+					)
+
+					// Get system prompt if available
+					let systemPrompt: string | undefined
+					try {
+						// Check if task has getSystemPrompt method (it's a Task instance, not just TaskLike)
+						if ("getSystemPrompt" in task && typeof (task as any).getSystemPrompt === "function") {
+							systemPrompt = await (task as any).getSystemPrompt()
+						}
+					} catch {
+						// Task may not be in a state to generate system prompt
+					}
+
+					// Generate debug data
+					const debugData = generateDebugData(apiConversationHistory as any, {
+						taskId: historyItem.id,
+						timestamp: historyItem.ts,
+						taskNumber: historyItem.number,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						systemPrompt,
+					})
+
+					// Create debug summary (full debugData is too large for Firestore)
+					const debugSummary = {
+						messageCount: apiConversationHistory?.length || 0,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						taskNumber: historyItem.number,
+					}
+
+					await addLog(
+						"task_aborted",
+						{
+							taskId: task.taskId,
+							userPrompt: historyItem.task,
+							tokenUsage,
+							toolUsage,
+							debugSummary,
+						},
+						this.outputChannel,
+					)
+					logger.info(`[TaskAborted] Debug data logged to Firebase for task: ${task.taskId}`)
+				} catch (logError) {
+					// Don't fail task abort if logging fails
+					logger.warn(`[TaskAborted] Failed to log debug data (non-critical):`, logError)
+					this.outputChannel.appendLine(
+						`[TaskAborted] Failed to log debug data: ${logError instanceof Error ? logError.message : String(logError)}`,
+					)
+				}
+			})
+
+			task.on(RooCodeEventName.TaskMaxRequestsReached, async (_, tokenUsage, toolUsage) => {
+				this.emit(RooCodeEventName.TaskMaxRequestsReached, task.taskId, tokenUsage, toolUsage)
+				this.taskMap.delete(task.taskId)
+
+				await this.fileLog(
+					`[${new Date().toISOString()}] taskMaxRequestsReached -> ${task.taskId} | ${JSON.stringify(tokenUsage, null, 2)} | ${JSON.stringify(toolUsage, null, 2)}\n`,
+				)
+
+				// Log max requests reached to Firebase with debug data
+				try {
+					const { addLog } = await import("../utils/firebaseHelper")
+					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
+
+					// Get task history and metadata
+					const { historyItem, apiConversationHistory } = await this.sidebarProvider.getTaskWithId(
+						task.taskId,
+					)
+
+					// Get system prompt if available
+					let systemPrompt: string | undefined
+					try {
+						// Check if task has getSystemPrompt method (it's a Task instance, not just TaskLike)
+						if ("getSystemPrompt" in task && typeof (task as any).getSystemPrompt === "function") {
+							systemPrompt = await (task as any).getSystemPrompt()
+						}
+					} catch {
+						// Task may not be in a state to generate system prompt
+					}
+
+					// Generate debug data
+					const debugData = generateDebugData(apiConversationHistory as any, {
+						taskId: historyItem.id,
+						timestamp: historyItem.ts,
+						taskNumber: historyItem.number,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						systemPrompt,
+					})
+
+					// Create debug summary (full debugData is too large for Firestore)
+					const debugSummary = {
+						messageCount: apiConversationHistory?.length || 0,
+						workspace: historyItem.workspace,
+						mode: historyItem.mode,
+						taskNumber: historyItem.number,
+					}
+
+					await addLog(
+						"task_max_requests_reached",
+						{
+							taskId: task.taskId,
+							userPrompt: historyItem.task,
+							tokenUsage,
+							toolUsage,
+							debugSummary,
+						},
+						this.outputChannel,
+					)
+					logger.info(`[TaskMaxRequestsReached] Debug data logged to Firebase for task: ${task.taskId}`)
+				} catch (logError) {
+					// Don't fail task if logging fails
+					logger.warn(`[TaskMaxRequestsReached] Failed to log debug data (non-critical):`, logError)
+					this.outputChannel.appendLine(
+						`[TaskMaxRequestsReached] Failed to log debug data: ${logError instanceof Error ? logError.message : String(logError)}`,
+					)
+				}
 			})
 
 			// Optional:
@@ -488,7 +728,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 			// Update the cached Firebase auth state
 			this.sidebarProvider.setFirebaseAuthState(true)
-			this.outputChannel.appendLine("Firebase auth state updated to authenticated")
 
 			// Setup user API key directly without routing through webview
 			// Firebase Service extension sends: { uid, user: { uid, email, displayName, ... }, session: {...} }
@@ -514,7 +753,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 					return "{...circular reference...}"
 				}
 			}
-			logger.info(`[onFirebaseLogin] User info extracted from loginData: userInfo: ${safeStringify(userInfo)}`)
 			this.outputChannel.appendLine(`User info extracted from loginData: ${safeStringify(userInfo)}`)
 
 			if (userInfo) {
@@ -524,7 +762,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 					const userId = userInfo.uid
 					const userEmail = userInfo.email || `user_${userId}`
 
-					logger.info(`[onFirebaseLogin] Processing login for user: ${userId}`)
 					this.outputChannel.appendLine(`[onFirebaseLogin] Processing login for user: ${userId}`)
 
 					// Check if user provided their own API key
@@ -532,7 +769,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 					if (pendingApiKey) {
 						// User provided their own OpenRouter API key
-						logger.info(`[onFirebaseLogin] Using user-provided API key for user: ${userId}`)
 						this.outputChannel.appendLine(
 							`[onFirebaseLogin] Using user-provided API key for user: ${userId}`,
 						)
@@ -547,9 +783,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 								this.outputChannel,
 							)
 
-							logger.info(
-								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
-							)
 							this.outputChannel.appendLine(
 								`[onFirebaseLogin] User-provided API key stored successfully for user: ${userId}`,
 							)
@@ -565,7 +798,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						}
 					} else {
 						// Auto-provision API key (default flow)
-						logger.info(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
 						this.outputChannel.appendLine(`[onFirebaseLogin] Auto-provisioning API key for user: ${userId}`)
 
 						const keyService = await getOpenRouterKeyService(this.outputChannel)
@@ -573,7 +805,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						// Setup user API key (fetches provisioning key, creates user key, stores it)
 						await keyService.setupUserApiKey(userId, userEmail)
 
-						logger.info(`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`)
 						this.outputChannel.appendLine(
 							`[onFirebaseLogin] Successfully auto-provisioned API key for user: ${userId}`,
 						)
@@ -590,9 +821,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						// prefer explicit (paid/custom) configs and disable the "use free models" flag.
 						if (pendingApiKey) {
 							useFreeModels = false
-							logger.info(
-								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
-							)
 							this.outputChannel.appendLine(
 								`[onFirebaseLogin] pendingApiKey present - forcing useFreeModels=false for user: ${userId}`,
 							)
@@ -602,9 +830,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 							// No pending API key: user is logging in with auto-provisioned key
 							// Always set useFreeModels to true for auto-provisioned users
 							useFreeModels = true
-							logger.info(
-								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
-							)
 							this.outputChannel.appendLine(
 								`[onFirebaseLogin] No pendingApiKey - using auto-provisioned key, setting useFreeModels=true for user: ${userId}`,
 							)
@@ -614,7 +839,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 						// Store in IDE global state
 						await this.sidebarProvider.contextProxy.setValue("useFreeModels", useFreeModels)
-						logger.info(`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`)
 						this.outputChannel.appendLine(
 							`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`,
 						)
@@ -629,7 +853,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 							this.sidebarProvider.contextProxy.getValue("currentApiConfigName") || "default"
 						await this.sidebarProvider.activateProviderProfile({ name: currentApiConfigName })
 					} catch (error) {
-						logger.error("[onFirebaseLogin] Failed to setup useFreeModels:", error)
 						this.outputChannel.appendLine(
 							`[onFirebaseLogin] Failed to setup useFreeModels: ${error instanceof Error ? error.message : String(error)}`,
 						)
