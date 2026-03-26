@@ -31,6 +31,10 @@ export const ModelSelector = ({
 	const [open, setOpen] = React.useState(false)
 	const portalContainer = useRooPortal("roo-portal")
 	const { t } = useAppTranslation()
+	const formatTierLabel = React.useCallback((tier: string) => {
+		if (!tier) return tier
+		return tier.charAt(0).toUpperCase() + tier.slice(1)
+	}, [])
 
 	// Get available models for the current mode with filtering
 	const availableModels = React.useMemo(() => {
@@ -46,7 +50,7 @@ export const ModelSelector = ({
 		let filtered: typeof allModels
 		if (useFreeModels === true) {
 			// Show only free tier models when useFreeModels is enabled
-			filtered = allModels.filter((model) => model.tier === "free")
+			filtered = allModels.filter((model) => model.tier === "Free")
 		} else {
 			// Show all models when useFreeModels is false (both free and paid)
 			filtered = allModels
@@ -138,17 +142,15 @@ export const ModelSelector = ({
 												<span
 													className={cn(
 														"text-[10px] px-1.5 py-0.5 rounded",
-														model.tier === "free" && "bg-green-500/20 text-green-300",
-														model.tier === "basic" && "bg-blue-500/20 text-blue-300",
-														model.tier === "medium" && "bg-purple-500/20 text-purple-300",
-														model.tier === "advanced" && "bg-orange-500/20 text-orange-300",
+														model.tier === "Free" && "bg-green-500/20 text-green-300",
+														model.tier === "Basic" && "bg-blue-500/20 text-blue-300",
+														model.tier === "Medium" && "bg-purple-500/20 text-purple-300",
+														model.tier === "Advanced" && "bg-orange-500/20 text-orange-300",
+														model.tier === "Premium" && "bg-red-500/20 text-red-300",
 													)}>
-													{model.tier}
+													{formatTierLabel(model.tier)}
 												</span>
 											)}
-										</div>
-										<div className="text-xs text-vscode-descriptionForeground mt-0.5 truncate">
-											{model.modelId}
 										</div>
 									</div>
 									{isSelected && (
