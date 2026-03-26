@@ -619,8 +619,15 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 							`[onFirebaseLogin] useFreeModels set to ${useFreeModels} in IDE storage`,
 						)
 
-						// Update API keys based on useFreeModels preference
-						await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase()
+						// On a real login, always sync the signed-in user's Firebase key
+						// back into the provider configs.
+						await this.sidebarProvider.providerSettingsManager.updateApiKeysFromFirebase(true, userId)
+
+						// Refresh the active provider profile from persisted storage so the
+						// in-memory context and UI reflect the logged-in user's key.
+						const currentApiConfigName =
+							this.sidebarProvider.contextProxy.getValue("currentApiConfigName") || "default"
+						await this.sidebarProvider.activateProviderProfile({ name: currentApiConfigName })
 					} catch (error) {
 						logger.error("[onFirebaseLogin] Failed to setup useFreeModels:", error)
 						this.outputChannel.appendLine(

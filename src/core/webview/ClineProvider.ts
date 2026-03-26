@@ -1676,15 +1676,6 @@ export class ClineProvider
 	 */
 	public setFirebaseAuthState(isAuthenticated: boolean) {
 		this.cachedFirebaseAuthState = isAuthenticated
-
-		// When user logs in, fetch and update API keys from Firebase
-		if (isAuthenticated) {
-			this.providerSettingsManager.updateApiKeysFromFirebase().catch((error) => {
-				this.outputChannel.appendLine(
-					`[setFirebaseAuthState] Error updating API keys after login: ${error instanceof Error ? error.message : String(error)}`,
-				)
-			})
-		}
 	}
 
 	/**
@@ -2119,8 +2110,10 @@ export class ClineProvider
 			alwaysAllowMcp: stateValues.alwaysAllowMcp ?? false,
 			alwaysAllowModeSwitch: stateValues.alwaysAllowModeSwitch ?? false,
 			alwaysAllowSubtasks: stateValues.alwaysAllowSubtasks ?? false,
+
 			alwaysAllowDeploySfMetadata: stateValues.alwaysAllowDeploySfMetadata ?? false,
 			alwaysAllowRetrieveSfMetadata: stateValues.alwaysAllowRetrieveSfMetadata ?? false,
+
 			diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 			allowedMaxRequests: stateValues.allowedMaxRequests,
 			allowedMaxCost: stateValues.allowedMaxCost,
