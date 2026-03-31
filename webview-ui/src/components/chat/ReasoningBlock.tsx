@@ -12,7 +12,6 @@ interface ReasoningBlockProps {
 
 export const ReasoningBlock = ({ content, elapsed, isCollapsed = true, onToggleCollapse }: ReasoningBlockProps) => {
 	const elapsedRef = useRef<number>(0)
-
 	const { t } = useTranslation("chat")
 
 	useEffect(() => {
@@ -25,8 +24,6 @@ export const ReasoningBlock = ({ content, elapsed, isCollapsed = true, onToggleC
 			elapsedRef.current = elapsed
 		}
 	}, [elapsed])
-
-	// Always render the reasoning block so users can see assistant reasoning
 
 	return (
 		<div className="bg-vscode-editor-background border border-vscode-border rounded-xs overflow-hidden">

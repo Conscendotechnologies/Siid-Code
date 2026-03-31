@@ -2197,9 +2197,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					switch (chunk.type) {
 						case "reasoning":
-							// Buffer reasoning chunks and present as a single
-							// reasoning message after the stream completes.
+							// Stream reasoning progressively into thinking box
 							reasoningMessage += chunk.text
+							await this.say("reasoning", reasoningMessage, undefined, true)
 							break
 						case "usage":
 							inputTokens += chunk.inputTokens
@@ -2225,10 +2225,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 								// false in case previous content set this to true.
 								this.userMessageContentReady = false
 							}
-							// Do not present partial assistant content while the
-							// model is still streaming reasoning; we'll present a
-							// single final assistant message after the stream
-							// completes to ensure thinking appears first.
+
+							// 🔑 CRITICAL FIX: Present content blocks progressively DURING streaming
+							// This enables chunked processing - each tool executes as it arrives,
+							// not waiting for entire response to complete. Allows thinking to
+							// stay isolated in the thinking box while content streams separately.
+							presentAssistantMessage(this)
 							break
 						}
 					}
@@ -2332,24 +2334,30 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			this.didCompleteReadingStream = true
 
-			// If the model streamed reasoning chunks, present them once as a
-			// single complete reasoning message to avoid multiple partial
-			// updates in the UI. Trim whitespace-only content to avoid blank
-			// thinking boxes at the start or end of a stream.
+			// Finalize any existing partial reasoning message that was streamed
+			// We've been streaming reasoning progressively during content arrival,
+			// now just mark the final update as complete (not partial)
 			const reasoningTrim = reasoningMessage.trim()
 			if (reasoningTrim.length > 0) {
-				try {
-					await this.say("reasoning", reasoningTrim, undefined, false)
-				} catch (err) {
-					// Non-fatal: log and continue
-					console.error("Error presenting combined reasoning message:", err)
+				// Check if we have a pending partial reasoning message to finalize
+				const lastMessage = this.clineMessages.at(-1)
+				const hasPendingReasoning = lastMessage && lastMessage.partial && lastMessage.say === "reasoning"
+
+				if (hasPendingReasoning) {
+					// Finalize the existing partial message
+					try {
+						await this.say("reasoning", reasoningTrim, undefined, false)
+					} catch (err) {
+						// Non-fatal: log and continue
+						console.error("Error finalizing reasoning message:", err)
+					}
 				}
 			}
 
 			// Set any blocks to be complete so presentation can finish and
-			// set `userMessageContentReady` to true. We'll present assistant
-			// content once (after reasoning has been shown) to avoid
-			// interleaving partial thinking updates with content updates.
+			// set `userMessageContentReady` to true. We present assistant
+			// content progressively during streaming, so this just finalizes
+			// any remaining partial blocks.
 			const partialBlocks = this.assistantMessageContent.filter((block) => block.partial)
 			partialBlocks.forEach((block) => (block.partial = false))
 
@@ -2363,8 +2371,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 			// When using old parser, no finalization needed - parsing already happened during streaming
 
-			// Present assistant content once (if any) after reasoning has been emitted
-			if (assistantMessage.length > 0 || partialBlocks.length > 0) {
+			// Complete any remaining partial blocks
+			// (Content blocks have been presented progressively during streaming,
+			// this just finalizes any that were still marked as partial)
+			if (partialBlocks.length > 0) {
 				presentAssistantMessage(this)
 			}
 

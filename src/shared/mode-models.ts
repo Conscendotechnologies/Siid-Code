@@ -67,74 +67,88 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 7, // Medium option
 		},
 		{
+			modelId: "minimax/minimax-m2.5",
+			displayName: "MiniMax: MiniMax M2.5",
+			provider: "openrouter",
+			tier: "Medium",
+			priority: 8, // Medium option
+		},
+		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
 			displayName: "Llama 3.3 70B Instruct (nitro)",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 8, // Medium option
+			priority: 9, // Medium option
 		},
 		{
 			modelId: "deepseek/deepseek-v3.2",
 			displayName: "DeepSeek V3.2",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 9, // Medium option
+			priority: 10, // Medium option
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 10, // Advanced option
+			priority: 11, // Advanced option
 		},
 		{
 			modelId: "openai/gpt-5.4-mini",
 			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 11, // Advanced option
+			priority: 12, // Advanced option
 		},
 		{
 			modelId: "google/gemini-3-flash-preview",
 			displayName: "Gemini 3 Flash Preview",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 12, // Advanced option
+			priority: 13, // Advanced option
+		},
+		{
+			modelId: "xiaomi/mimo-v2-pro",
+			displayName: "Xiaomi: MiMo-V2-Pro",
+			provider: "openrouter",
+			tier: "Advanced",
+			priority: 14, // Advanced option
 		},
 		{
 			modelId: "anthropic/claude-sonnet-4.5",
 			displayName: "Claude Sonnet 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 13, // Premium option
+			priority: 15, // Premium option
 		},
 		{
 			modelId: "anthropic/claude-haiku-4.5",
 			displayName: "Claude Haiku 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 14, // Premium option
+			priority: 16, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.1",
 			displayName: "GPT-5.1",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 15, // Premium option
+			priority: 17, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.4",
 			displayName: "GPT-5.4",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 16, // Premium option
+			priority: 18, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.2-codex",
 			displayName: "GPT-5.2 Codex",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 17, // Premium option
+			priority: 19, // Premium option
 		},
 	],
 	code: [
@@ -188,74 +202,88 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 7, // Medium option
 		},
 		{
+			modelId: "minimax/minimax-m2.5",
+			displayName: "MiniMax: MiniMax M2.5",
+			provider: "openrouter",
+			tier: "Medium",
+			priority: 8, // Medium option
+		},
+		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
 			displayName: "Llama 3.3 70B Instruct (nitro)",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 8, // Medium option
+			priority: 9, // Medium option
 		},
 		{
 			modelId: "deepseek/deepseek-v3.2",
 			displayName: "DeepSeek V3.2",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 9, // Medium option
+			priority: 10, // Medium option
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 10, // Advanced option
+			priority: 11, // Advanced option
 		},
 		{
 			modelId: "openai/gpt-5.4-mini",
 			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 11, // Advanced option
+			priority: 12, // Advanced option
 		},
 		{
 			modelId: "google/gemini-3-flash-preview",
 			displayName: "Gemini 3 Flash Preview",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 12, // Advanced option
+			priority: 13, // Advanced option
+		},
+		{
+			modelId: "xiaomi/mimo-v2-pro",
+			displayName: "Xiaomi: MiMo-V2-Pro",
+			provider: "openrouter",
+			tier: "Advanced",
+			priority: 14, // Advanced option
 		},
 		{
 			modelId: "anthropic/claude-sonnet-4.5",
 			displayName: "Claude Sonnet 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 13, // Premium option
+			priority: 15, // Premium option
 		},
 		{
 			modelId: "anthropic/claude-haiku-4.5",
 			displayName: "Claude Haiku 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 14, // Premium option
+			priority: 16, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.1",
 			displayName: "GPT-5.1",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 15, // Premium option
+			priority: 17, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.4",
 			displayName: "GPT-5.4",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 16, // Premium option
+			priority: 18, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.2-codex",
 			displayName: "GPT-5.2 Codex",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 17, // Premium option
+			priority: 19, // Premium option
 		},
 	],
 	orchestrator: [
@@ -309,74 +337,88 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 			priority: 7, // Medium option
 		},
 		{
+			modelId: "minimax/minimax-m2.5",
+			displayName: "MiniMax: MiniMax M2.5",
+			provider: "openrouter",
+			tier: "Medium",
+			priority: 8, // Medium option
+		},
+		{
 			modelId: "meta-llama/llama-3.3-70b-instruct:nitro",
 			displayName: "Llama 3.3 70B Instruct (nitro)",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 8, // Medium option
+			priority: 9, // Medium option
 		},
 		{
 			modelId: "deepseek/deepseek-v3.2",
 			displayName: "DeepSeek V3.2",
 			provider: "openrouter",
 			tier: "Medium",
-			priority: 9, // Medium option
+			priority: 10, // Medium option
 		},
 		{
 			modelId: "openai/gpt-5-mini",
 			displayName: "GPT-5 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 10, // Advanced option
+			priority: 11, // Advanced option
 		},
 		{
 			modelId: "openai/gpt-5.4-mini",
 			displayName: "GPT-5.4 Mini",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 11, // Advanced option
+			priority: 12, // Advanced option
 		},
 		{
 			modelId: "google/gemini-3-flash-preview",
 			displayName: "Gemini 3 Flash Preview",
 			provider: "openrouter",
 			tier: "Advanced",
-			priority: 12, // Advanced option
+			priority: 13, // Advanced option
+		},
+		{
+			modelId: "xiaomi/mimo-v2-pro",
+			displayName: "Xiaomi: MiMo-V2-Pro",
+			provider: "openrouter",
+			tier: "Advanced",
+			priority: 14, // Advanced option
 		},
 		{
 			modelId: "anthropic/claude-sonnet-4.5",
 			displayName: "Claude Sonnet 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 13, // Premium option
+			priority: 15, // Premium option
 		},
 		{
 			modelId: "anthropic/claude-haiku-4.5",
 			displayName: "Claude Haiku 4.5",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 14, // Premium option
+			priority: 16, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.1",
 			displayName: "GPT-5.1",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 15, // Premium option
+			priority: 17, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.4",
 			displayName: "GPT-5.4",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 16, // Premium option
+			priority: 18, // Premium option
 		},
 		{
 			modelId: "openai/gpt-5.2-codex",
 			displayName: "GPT-5.2 Codex",
 			provider: "openrouter",
 			tier: "Premium",
-			priority: 17, // Premium option
+			priority: 19, // Premium option
 		},
 	],
 }

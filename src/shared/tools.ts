@@ -82,6 +82,9 @@ export interface ToolUse {
 	name: ToolName
 	// params is a partial record, allowing only some or none of the possible parameters to be used
 	params: Partial<Record<ToolParamName, string>>
+	// contentChunks tracks the original chunks from the AI for each parameter
+	// This preserves chunk boundaries as they come from streaming
+	contentChunks?: Partial<Record<ToolParamName, string[]>>
 	partial: boolean
 }
 
