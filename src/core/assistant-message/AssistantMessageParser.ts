@@ -17,6 +17,7 @@ export class AssistantMessageParser {
 	private readonly MAX_ACCUMULATOR_SIZE = 1024 * 1024 // 1MB limit
 	private readonly MAX_PARAM_LENGTH = 1024 * 100 // 100KB per parameter limit
 	private accumulator = ""
+	private currentChunkBeingProcessed = "" // Track the incoming chunk for chunk preservation
 
 	/**
 	 * Initialize a new AssistantMessageParser instance.
@@ -36,6 +37,7 @@ export class AssistantMessageParser {
 		this.currentToolUseStartIndex = 0
 		this.currentParamName = undefined
 		this.currentParamValueStartIndex = 0
+		this.currentChunkBeingProcessed = ""
 		this.accumulator = ""
 	}
 
@@ -55,6 +57,22 @@ export class AssistantMessageParser {
 		if (this.accumulator.length + chunk.length > this.MAX_ACCUMULATOR_SIZE) {
 			throw new Error("Assistant message exceeds maximum allowed size")
 		}
+
+		// Store the chunk for content parameter accumulation
+		// This preserves the original chunk boundaries from the AI streaming
+		this.currentChunkBeingProcessed = chunk
+		if (this.currentToolUse && this.currentParamName && chunk) {
+			// Initialize contentChunks if not present
+			if (!this.currentToolUse.contentChunks) {
+				this.currentToolUse.contentChunks = {}
+			}
+			if (!this.currentToolUse.contentChunks[this.currentParamName]) {
+				this.currentToolUse.contentChunks[this.currentParamName] = []
+			}
+			// Add this chunk to the contentChunks array for this parameter
+			this.currentToolUse.contentChunks[this.currentParamName]!.push(chunk)
+		}
+
 		// Store the current length of the accumulator before adding the new chunk
 		const accumulatorStartLength = this.accumulator.length
 
