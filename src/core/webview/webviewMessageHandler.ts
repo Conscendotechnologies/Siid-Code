@@ -435,7 +435,7 @@ export const webviewMessageHandler = async (
 			// Check if current model is compatible with new useFreeModels setting
 			// When useFreeModels=true, only free models are allowed
 			// When useFreeModels=false, all models are allowed (no validation needed)
-			const isIncompatible = message.bool === true && currentTier !== "free"
+			const isIncompatible = message.bool === true && currentTier !== "Free"
 			console.log("[webviewMessageHandler] Is model incompatible?", isIncompatible)
 
 			if (isIncompatible) {
@@ -443,7 +443,7 @@ export const webviewMessageHandler = async (
 					"[webviewMessageHandler] Current model is paid but useFreeModels=true, switching to free model",
 				)
 				// Filter to free models only
-				const freeModels = allModelsForUseFreeModels.filter((m) => m.tier === "free")
+				const freeModels = allModelsForUseFreeModels.filter((m) => m.tier === "Free")
 				console.log(
 					"[webviewMessageHandler] Free models available:",
 					freeModels.map((m) => ({ id: m.modelId, tier: m.tier })),
@@ -508,7 +508,7 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("alwaysAllowSubtasks", message.bool)
 			await provider.postStateToWebview()
 			break
-		
+
 		case "alwaysAllowDeploySfMetadata":
 			await updateGlobalState("alwaysAllowDeploySfMetadata", message.bool)
 			await provider.postStateToWebview()
@@ -1587,8 +1587,7 @@ export const webviewMessageHandler = async (
 			await updateGlobalState("maxWorkspaceFiles", fileCount)
 			await provider.postStateToWebview()
 			break
-		
-		
+
 		case "browserToolEnabled":
 			await updateGlobalState("browserToolEnabled", message.bool ?? true)
 			await provider.postStateToWebview()
