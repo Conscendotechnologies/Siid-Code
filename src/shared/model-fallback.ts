@@ -31,7 +31,7 @@ function getFallbackChainForMode(mode: string): string[] {
 	const modeModels = MODE_TO_MODELS[mode] || []
 	// Filter to only free tier models and sort by priority
 	const freeModels = modeModels
-		.filter((m) => m.tier === "free")
+		.filter((m) => m.tier === "Free")
 		.sort((a, b) => (a.priority || 999) - (b.priority || 999)) // Lower priority number = higher priority
 	return freeModels.map((m) => m.modelId)
 }
