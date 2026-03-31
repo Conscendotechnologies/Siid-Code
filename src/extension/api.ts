@@ -32,7 +32,6 @@ import {
 	addLog,
 	getAdminApiKey,
 } from "../utils/firebaseHelper"
-const { generateDebugData } = await import("../integrations/misc/export-debug-json")
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
 import { getHackDate, setHackDate, isLoginAllowed, normalizeHackDate } from "../utils/hackDateStorage"
@@ -281,6 +280,8 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						// Task may not be in a state to generate system prompt
 					}
 
+					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
+
 					// Generate debug data
 					const debugData = generateDebugData(apiConversationHistory as any, {
 						taskId: historyItem.id,
@@ -449,7 +450,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 				// Log max requests reached to Firebase with debug data
 				try {
-					const { addLog } = await import("../utils/firebaseHelper")
 					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
 
 					// Get task history and metadata
