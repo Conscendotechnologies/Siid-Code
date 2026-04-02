@@ -12,6 +12,7 @@ interface ReasoningBlockProps {
 
 export const ReasoningBlock = ({ content, elapsed, isCollapsed = true, onToggleCollapse }: ReasoningBlockProps) => {
 	const elapsedRef = useRef<number>(0)
+
 	const { t } = useTranslation("chat")
 
 	useEffect(() => {

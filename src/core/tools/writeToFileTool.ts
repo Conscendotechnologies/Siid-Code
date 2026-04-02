@@ -121,42 +121,11 @@ export async function writeToFileTool(
 					await cline.diffViewProvider.open(relPath)
 				}
 
-				// editor is open, stream content in progressively
-				const contentToStream = everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent
-
-				// Stream content in chunks as they come from the AI
-				// This preserves the original chunk structure from the streaming API
-				const contentChunks = block.contentChunks?.content || []
-				let accumulatedContent = ""
-
-				if (contentChunks.length > 0) {
-					// Use preserved chunks from AI streaming
-					for (let i = 0; i < contentChunks.length; i++) {
-						accumulatedContent += contentChunks[i]
-						await cline.diffViewProvider.update(accumulatedContent, false)
-
-						// Add delay between chunks for visible streaming effect
-						if (i < contentChunks.length - 1) {
-							await new Promise((resolve) => setTimeout(resolve, 50))
-						}
-					}
-				} else {
-					// Fallback: if no chunks available, use line-based streaming
-					const lines = contentToStream.split("\n")
-					const chunkSize = Math.max(1, Math.ceil(lines.length / 50))
-
-					for (let i = 0; i < lines.length; i++) {
-						accumulatedContent += (i === 0 ? "" : "\n") + lines[i]
-
-						if ((i + 1) % chunkSize === 0 || i === lines.length - 1) {
-							await cline.diffViewProvider.update(accumulatedContent, false)
-
-							if (i < lines.length - 1) {
-								await new Promise((resolve) => setTimeout(resolve, 50))
-							}
-						}
-					}
-				}
+				// editor is open, stream content in
+				await cline.diffViewProvider.update(
+					everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
+					false,
+				)
 			}
 
 			return
@@ -268,39 +237,10 @@ export async function writeToFileTool(
 					await cline.diffViewProvider.open(relPath)
 				}
 
-				// Apply progressive chunking for complete content blocks (same as partial path)
-				const contentToStream = everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent
-				const contentChunks = block.contentChunks?.content || []
-				let accumulatedContent = ""
-
-				if (contentChunks.length > 0) {
-					// Use preserved chunks from AI streaming
-					for (let i = 0; i < contentChunks.length; i++) {
-						accumulatedContent += contentChunks[i]
-						await cline.diffViewProvider.update(accumulatedContent, true)
-
-						// Add delay between chunks for visible streaming effect
-						if (i < contentChunks.length - 1) {
-							await new Promise((resolve) => setTimeout(resolve, 50))
-						}
-					}
-				} else {
-					// Fallback: if no chunks available, use line-based streaming
-					const lines = contentToStream.split("\n")
-					const chunkSize = Math.max(1, Math.ceil(lines.length / 50))
-
-					for (let i = 0; i < lines.length; i++) {
-						accumulatedContent += (i === 0 ? "" : "\n") + lines[i]
-
-						if ((i + 1) % chunkSize === 0 || i === lines.length - 1) {
-							await cline.diffViewProvider.update(accumulatedContent, true)
-
-							if (i < lines.length - 1) {
-								await new Promise((resolve) => setTimeout(resolve, 50))
-							}
-						}
-					}
-				}
+				await cline.diffViewProvider.update(
+					everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
+					true,
+				)
 
 				await delay(0) // Instant - no delay for maximum speed
 				cline.diffViewProvider.scrollToFirstDiff()
