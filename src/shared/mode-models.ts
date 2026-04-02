@@ -19,14 +19,14 @@ export const MODE_TO_MODELS: Record<string, ModeModelInfo[]> = {
 	"salesforce-agent": [
 		{
 			modelId: "z-ai/glm-4.5-air:free",
-			displayName: "GLM 4.5 Air (Free)",
+			displayName: "GLM 4.5 Air (Free, Recommended)",
 			provider: "openrouter",
 			tier: "Free",
 			priority: 1, // Primary
 		},
 		{
 			modelId: "qwen/qwen3-coder:free",
-			displayName: "Qwen3 Coder (Free, Recommended)",
+			displayName: "Qwen3 Coder (Free)",
 			provider: "openrouter",
 			tier: "Free",
 			priority: 2, // Fallback 1
