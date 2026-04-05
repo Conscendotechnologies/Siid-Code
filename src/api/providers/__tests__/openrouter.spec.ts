@@ -9,6 +9,7 @@ import OpenAI from "openai"
 import { OpenRouterHandler } from "../openrouter"
 import { ApiHandlerOptions } from "../../../shared/api"
 import { Package } from "../../../shared/package"
+import { AssistantMessageParser } from "../../../core/assistant-message/AssistantMessageParser"
 
 // Mock dependencies
 vitest.mock("openai")
@@ -296,6 +297,323 @@ describe("OpenRouterHandler", () => {
 				{ type: "reasoning", text: "thinking..." },
 				{ type: "usage", inputTokens: 5, outputTokens: 7, totalCost: 0.0001 },
 			])
+		})
+
+		it("extracts reasoning_content from OpenRouter deltas", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { reasoning_content: "hidden chain" } }],
+					}
+					yield {
+						id: "test-id",
+						usage: { prompt_tokens: 3, completion_tokens: 4, cost: 0.0002 },
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			const chunks = []
+			for await (const chunk of handler.createMessage("test", [])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toEqual([
+				{ type: "reasoning", text: "hidden chain" },
+				{ type: "usage", inputTokens: 3, outputTokens: 4, totalCost: 0.0002 },
+			])
+		})
+
+		it("extracts thinking tags from streamed content", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: "<thinking>hidden" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: " steps</thinking> after" } }],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			const chunks = []
+			for await (const chunk of handler.createMessage("test", [])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toEqual([
+				{ type: "reasoning", text: "hidden" },
+				{ type: "reasoning", text: " steps" },
+				{ type: "text", text: " after" },
+			])
+		})
+
+		it("extracts a thinking block that starts after visible text", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: "Visible text <thinking>hidden plan" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: " continued</thinking> final answer" } }],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			const chunks = []
+			for await (const chunk of handler.createMessage("test", [])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toEqual([
+				{ type: "text", text: "Visible text " },
+				{ type: "reasoning", text: "hidden plan" },
+				{ type: "reasoning", text: " continued" },
+				{ type: "text", text: " final answer" },
+			])
+		})
+
+		it("extracts multiple thinking blocks across chunks", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: "<thinking>first" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: " block</thinking> shown <thinking>second" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: " block</thinking> done" } }],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			const chunks = []
+			for await (const chunk of handler.createMessage("test", [])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toEqual([
+				{ type: "reasoning", text: "first" },
+				{ type: "reasoning", text: " block" },
+				{ type: "text", text: " shown " },
+				{ type: "reasoning", text: "second" },
+				{ type: "reasoning", text: " block" },
+				{ type: "text", text: " done" },
+			])
+		})
+
+		it("preserves a single write_to_file tool after a split thinking block", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const parser = new AssistantMessageParser()
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: "<thinking>Planning the file" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										" structure</thinking><write_to_file><path>force-app/main/default/lwc/parentComponent/parentComponent.html</path><content><template>\n",
+								},
+							},
+						],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										'    <div class="parent-container">\n        <h2>Parent Component</h2>\n    </div>\n',
+								},
+							},
+						],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{ delta: { content: "</template></content><line_count>4</line_count></write_to_file>" } },
+						],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			for await (const chunk of handler.createMessage("test", [])) {
+				if (chunk.type === "text") {
+					parser.processChunk(chunk.text)
+				}
+			}
+
+			parser.finalizeContentBlocks()
+			const blocks = parser.getContentBlocks()
+			const toolUse = blocks.find((block) => block.type === "tool_use")
+
+			expect(toolUse).toBeDefined()
+			expect(toolUse).toMatchObject({
+				type: "tool_use",
+				name: "write_to_file",
+				params: {
+					path: "force-app/main/default/lwc/parentComponent/parentComponent.html",
+					line_count: "4",
+				},
+			})
+			expect((toolUse as any).params.content).toContain('<div class="parent-container">')
+			expect((toolUse as any).params.content).toContain("<h2>Parent Component</h2>")
+		})
+
+		it("preserves write_to_file parsing when visible text and multiple thinking blocks surround the tool", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const parser = new AssistantMessageParser()
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [{ delta: { content: "I will create the component. <thinking>Need parent html" } }],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										" first</thinking> <thinking>Ensure single file target</thinking><write_to_file><path>force-app/main/default/lwc/parentComponent/parentComponent.html</path><content><template>\n    <div>Ready</div>\n</template></content><line_count>3</line_count></write_to_file>",
+								},
+							},
+						],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			for await (const chunk of handler.createMessage("test", [])) {
+				if (chunk.type === "text") {
+					parser.processChunk(chunk.text)
+				}
+			}
+
+			parser.finalizeContentBlocks()
+			const blocks = parser.getContentBlocks()
+			const toolUses = blocks.filter((block) => block.type === "tool_use")
+			const textBlocks = blocks.filter((block) => block.type === "text")
+
+			expect(toolUses).toHaveLength(1)
+			expect((toolUses[0] as any).params.path).toBe(
+				"force-app/main/default/lwc/parentComponent/parentComponent.html",
+			)
+			expect((toolUses[0] as any).params.content).toContain("<template>")
+			expect((toolUses[0] as any).params.content).toContain("<div>Ready</div>")
+			expect(textBlocks[0]).toMatchObject({
+				type: "text",
+				content: "I will create the component.",
+			})
+		})
+
+		it("preserves consecutive write_to_file payloads for lwc html and meta xml files", async () => {
+			const handler = new OpenRouterHandler(mockOptions)
+			const parser = new AssistantMessageParser()
+			const mockStream = {
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										"<thinking>Creating child bundle files</thinking><write_to_file><path>force-app/main/default/lwc/childComponent/childComponent.html</path><content><template>\n",
+								},
+							},
+						],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										'    <div class="child">Child</div>\n</template></content><line_count>3</line_count></write_to_file><write_to_file><path>force-app/main/default/lwc/childComponent/childComponent.js-meta.xml</path><content><?xml version="1.0" encoding="UTF-8"?>\n',
+								},
+							},
+						],
+					}
+					yield {
+						id: "test-id",
+						choices: [
+							{
+								delta: {
+									content:
+										'<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>62.0</apiVersion>\n</LightningComponentBundle></content><line_count>4</line_count></write_to_file>',
+								},
+							},
+						],
+					}
+				},
+			}
+
+			const mockCreate = vitest.fn().mockResolvedValue(mockStream)
+			;(OpenAI as any).prototype.chat = {
+				completions: { create: mockCreate },
+			} as any
+
+			for await (const chunk of handler.createMessage("test", [])) {
+				if (chunk.type === "text") {
+					parser.processChunk(chunk.text)
+				}
+			}
+
+			parser.finalizeContentBlocks()
+			const toolUses = parser.getContentBlocks().filter((block) => block.type === "tool_use") as any[]
+
+			expect(toolUses).toHaveLength(2)
+			expect(toolUses[0].params.path).toBe("force-app/main/default/lwc/childComponent/childComponent.html")
+			expect(toolUses[0].params.content).toBe('<template>\n    <div class="child">Child</div>\n</template>')
+			expect(toolUses[1].params.path).toBe("force-app/main/default/lwc/childComponent/childComponent.js-meta.xml")
+			expect(toolUses[1].params.content).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+			expect(toolUses[1].params.content).toContain("<LightningComponentBundle")
 		})
 	})
 

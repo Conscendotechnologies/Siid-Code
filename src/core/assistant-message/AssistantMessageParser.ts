@@ -1,6 +1,36 @@
 import { type ToolName, toolNames } from "@siid-code/types"
 import { TextContent, ToolUse, ToolParamName, toolParamNames } from "../../shared/tools"
 import { AssistantMessageContent } from "./parseAssistantMessage"
+import {
+	announceStreamedToolDebugFile,
+	logStreamedToolDebug,
+	STREAMED_TOOL_DEBUG_ENABLED,
+} from "../../utils/streamed-tool-debug"
+
+function logAssistantParserDebug(event: string, payload: Record<string, unknown>) {
+	if (!STREAMED_TOOL_DEBUG_ENABLED) {
+		return
+	}
+
+	const serializedPayload = JSON.stringify(payload, (_key, value) => {
+		if (typeof value === "bigint") {
+			return value.toString()
+		}
+
+		if (value instanceof Error) {
+			return {
+				name: value.name,
+				message: value.message,
+				stack: value.stack,
+			}
+		}
+
+		return value
+	})
+
+	console.log(`[AssistantMessageParserDebug] ${event} ${serializedPayload}`)
+	logStreamedToolDebug("AssistantMessageParserDebug", event, payload)
+}
 
 /**
  * Parser for assistant messages. Maintains state between chunks
@@ -18,10 +48,34 @@ export class AssistantMessageParser {
 	private readonly MAX_PARAM_LENGTH = 1024 * 100 // 100KB per parameter limit
 	private accumulator = ""
 
+	private getVisibleTextContent(text: string): string {
+		const hiddenSuffixLength = this.getTrailingToolPrefixLength(text)
+		const visibleText = hiddenSuffixLength > 0 ? text.slice(0, -hiddenSuffixLength) : text
+
+		return visibleText.trim()
+	}
+
+	private getTrailingToolPrefixLength(text: string): number {
+		let longestPrefixLength = 0
+
+		for (const toolName of toolNames) {
+			const openingTag = `<${toolName}>`
+
+			for (let prefixLength = 1; prefixLength < openingTag.length; prefixLength++) {
+				if (text.endsWith(openingTag.slice(0, prefixLength))) {
+					longestPrefixLength = Math.max(longestPrefixLength, prefixLength)
+				}
+			}
+		}
+
+		return longestPrefixLength
+	}
+
 	/**
 	 * Initialize a new AssistantMessageParser instance.
 	 */
 	constructor() {
+		announceStreamedToolDebugFile()
 		this.reset()
 	}
 
@@ -52,6 +106,11 @@ export class AssistantMessageParser {
 	 * @param chunk The new chunk of text to process.
 	 */
 	public processChunk(chunk: string): AssistantMessageContent[] {
+		logAssistantParserDebug("processChunk:start", {
+			chunk,
+			accumulatorLengthBefore: this.accumulator.length,
+		})
+
 		if (this.accumulator.length + chunk.length > this.MAX_ACCUMULATOR_SIZE) {
 			throw new Error("Assistant message exceeds maximum allowed size")
 		}
@@ -67,6 +126,11 @@ export class AssistantMessageParser {
 			if (this.currentToolUse && this.currentParamName) {
 				const currentParamValue = this.accumulator.slice(this.currentParamValueStartIndex)
 				if (currentParamValue.length > this.MAX_PARAM_LENGTH) {
+					logAssistantParserDebug("param:too-large", {
+						tool: this.currentToolUse.name,
+						param: this.currentParamName,
+						length: currentParamValue.length,
+					})
 					// Reset to a safe state
 					this.currentParamName = undefined
 					this.currentParamValueStartIndex = 0
@@ -82,6 +146,11 @@ export class AssistantMessageParser {
 						this.currentParamName === "content"
 							? paramValue.replace(/^\n/, "").replace(/\n$/, "")
 							: paramValue.trim()
+					logAssistantParserDebug("param:complete", {
+						tool: this.currentToolUse.name,
+						param: this.currentParamName,
+						valuePreview: this.currentToolUse.params[this.currentParamName],
+					})
 					this.currentParamName = undefined
 					continue
 				} else {
@@ -100,6 +169,10 @@ export class AssistantMessageParser {
 				if (currentToolValue.endsWith(toolUseClosingTag)) {
 					// End of a tool use.
 					this.currentToolUse.partial = false
+					logAssistantParserDebug("tool:complete", {
+						tool: this.currentToolUse.name,
+						params: this.currentToolUse.params,
+					})
 
 					this.currentToolUse = undefined
 					continue
@@ -115,6 +188,10 @@ export class AssistantMessageParser {
 							}
 							this.currentParamName = paramName as ToolParamName
 							this.currentParamValueStartIndex = this.accumulator.length
+							logAssistantParserDebug("param:start", {
+								tool: this.currentToolUse.name,
+								param: this.currentParamName,
+							})
 							break
 						}
 					}
@@ -144,6 +221,10 @@ export class AssistantMessageParser {
 								.slice(contentStartIndex, contentEndIndex)
 								.replace(/^\n/, "")
 								.replace(/\n$/, "")
+							logAssistantParserDebug("tool:content-recovered", {
+								tool: this.currentToolUse.name,
+								contentPreview: this.currentToolUse.params[contentParamName],
+							})
 						}
 					}
 
@@ -175,17 +256,18 @@ export class AssistantMessageParser {
 						params: {},
 						partial: true,
 					}
+					logAssistantParserDebug("tool:start", {
+						tool: this.currentToolUse.name,
+						accumulatorTail: this.accumulator.slice(Math.max(0, this.accumulator.length - 200)),
+					})
 
 					this.currentToolUseStartIndex = this.accumulator.length
 
 					// This also indicates the end of the current text content.
 					if (this.currentTextContent) {
 						this.currentTextContent.partial = false
-
-						// Remove the partially accumulated tool use tag from the
-						// end of text (<tool).
-						this.currentTextContent.content = this.currentTextContent.content
-							.slice(0, -toolUseOpeningTag.slice(0, -1).length)
+						this.currentTextContent.content = this.accumulator
+							.slice(this.currentTextContentStartIndex, -toolUseOpeningTag.length)
 							.trim()
 
 						// No need to push, currentTextContent is already in contentBlocks
@@ -214,7 +296,7 @@ export class AssistantMessageParser {
 					// Create a new text content block and add it to contentBlocks
 					this.currentTextContent = {
 						type: "text",
-						content: this.accumulator.slice(this.currentTextContentStartIndex).trim(),
+						content: this.getVisibleTextContent(this.accumulator.slice(this.currentTextContentStartIndex)),
 						partial: true,
 					}
 
@@ -223,10 +305,17 @@ export class AssistantMessageParser {
 					this.contentBlocks.push(this.currentTextContent)
 				} else {
 					// Update the existing text content
-					this.currentTextContent.content = this.accumulator.slice(this.currentTextContentStartIndex).trim()
+					this.currentTextContent.content = this.getVisibleTextContent(
+						this.accumulator.slice(this.currentTextContentStartIndex),
+					)
 				}
 			}
 		}
+
+		logAssistantParserDebug("processChunk:end", {
+			blockCount: this.contentBlocks.length,
+			blocks: this.contentBlocks,
+		})
 		// Do not call finalizeContentBlocks() here.
 		// Instead, update any partial blocks in the array and add new ones as they're completed.
 		// This matches the behavior of the original parseAssistantMessage function.
@@ -244,7 +333,11 @@ export class AssistantMessageParser {
 				block.partial = false
 			}
 			if (block.type === "text" && typeof block.content === "string") {
-				block.content = block.content.trim()
+				if (block === this.currentTextContent) {
+					block.content = this.accumulator.slice(this.currentTextContentStartIndex).trim()
+				} else {
+					block.content = block.content.trim()
+				}
 			}
 		}
 	}
