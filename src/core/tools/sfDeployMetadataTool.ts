@@ -9,6 +9,7 @@ import { ClineSayTool } from "../../shared/ExtensionMessage"
 import { FileChangesService } from "../../services/file-changes"
 import type { DeploymentStatus } from "../../services/file-changes"
 import { getErrorCapture } from "../error-recovery/error-capture"
+import { normalizeSfMetadataParams } from "./sfMetadataParams"
 
 /**
  * Metadata type configuration for SF CLI commands
@@ -632,8 +633,12 @@ export async function deploySfMetadataTool(
 ) {
 	console.log(`[deploySfMetadata] ========== TOOL INVOKED ==========`)
 	console.log(`[deploySfMetadata] Parameters:`, block.params)
-	const metadataType: string | undefined = block.params.metadata_type
-	const metadataName: string | undefined = block.params.metadata_name
+	const normalizedParams = normalizeSfMetadataParams({
+		metadata_type: block.params.metadata_type,
+		metadata_name: block.params.metadata_name,
+	})
+	const metadataType: string | undefined = normalizedParams.metadata_type || undefined
+	const metadataName: string | undefined = normalizedParams.metadata_name || undefined
 	const sourceDir: string | undefined = block.params.source_dir
 	const testLevel: string | undefined = block.params.test_level
 	const tests: string | undefined = block.params.tests

@@ -17,6 +17,15 @@ import { unescapeHtmlEntities } from "../../utils/text-normalization"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import { trackFileChange } from "../../services/file-changes/trackFileChange"
+import { logStreamedToolDebug, STREAMED_TOOL_DEBUG_ENABLED } from "../../utils/streamed-tool-debug"
+
+function logWriteToolDebug(event: string, payload: Record<string, unknown>) {
+	if (!STREAMED_TOOL_DEBUG_ENABLED) {
+		return
+	}
+
+	logStreamedToolDebug("WriteToFileToolDebug", event, payload)
+}
 
 export async function writeToFileTool(
 	cline: Task,
@@ -30,13 +39,30 @@ export async function writeToFileTool(
 	let newContent: string | undefined = block.params.content
 	let predictedLineCount: number | undefined = parseInt(block.params.line_count ?? "0")
 
+	logWriteToolDebug("write:start", {
+		partial: block.partial,
+		path: relPath,
+		hasContent: newContent !== undefined,
+		contentLength: newContent?.length,
+		predictedLineCount,
+	})
+
 	if (block.partial && (!relPath || newContent === undefined)) {
 		// checking for newContent ensure relPath is complete
 		// wait so we can determine if it's a new file or editing an existing file
+		logWriteToolDebug("write:partial-wait", {
+			path: relPath,
+			hasContent: newContent !== undefined,
+			contentLength: newContent?.length,
+		})
 		return
 	}
 
 	if (!relPath) {
+		logWriteToolDebug("write:error-missing-path", {
+			partial: block.partial,
+			hasContent: newContent !== undefined,
+		})
 		cline.consecutiveMistakeCount++
 		cline.recordToolError("write_to_file")
 		pushToolResult(await cline.sayAndCreateMissingParamError("write_to_file", "path"))
@@ -45,6 +71,10 @@ export async function writeToFileTool(
 	}
 
 	if (newContent === undefined) {
+		logWriteToolDebug("write:error-missing-content", {
+			partial: block.partial,
+			path: relPath,
+		})
 		cline.consecutiveMistakeCount++
 		cline.recordToolError("write_to_file")
 		pushToolResult(await cline.sayAndCreateMissingParamError("write_to_file", "content"))
@@ -55,6 +85,9 @@ export async function writeToFileTool(
 	const accessAllowed = cline.rooIgnoreController?.validateAccess(relPath)
 
 	if (!accessAllowed) {
+		logWriteToolDebug("write:access-denied", {
+			path: relPath,
+		})
 		await cline.say("rooignore_error", relPath)
 		pushToolResult(formatResponse.toolError(formatResponse.rooIgnoreError(relPath)))
 		return
@@ -73,6 +106,12 @@ export async function writeToFileTool(
 		fileExists = await fileExistsAtPath(absolutePath)
 		cline.diffViewProvider.editType = fileExists ? "modify" : "create"
 	}
+
+	logWriteToolDebug("write:file-state", {
+		path: relPath,
+		fileExists,
+		editType: cline.diffViewProvider.editType,
+	})
 
 	// pre-processing newContent for cases where weaker models might add artifacts like markdown codeblock markers (deepseek/llama) or extra escape characters (gemini)
 	if (newContent.startsWith("```")) {
@@ -111,6 +150,12 @@ export async function writeToFileTool(
 			)
 
 			if (!isPreventFocusDisruptionEnabled) {
+				logWriteToolDebug("write:partial-present", {
+					path: relPath,
+					contentLength: newContent.length,
+					preventFocusDisruption: isPreventFocusDisruptionEnabled,
+				})
+
 				// update gui message
 				const partialMessage = JSON.stringify(sharedMessageProps)
 				await cline.ask("tool", partialMessage, block.partial).catch(() => {})
@@ -118,10 +163,17 @@ export async function writeToFileTool(
 				// update editor
 				if (!cline.diffViewProvider.isEditing) {
 					// open the editor and prepare to stream content in
+					logWriteToolDebug("write:partial-open-editor", {
+						path: relPath,
+					})
 					await cline.diffViewProvider.open(relPath)
 				}
 
 				// editor is open, stream content in
+				logWriteToolDebug("write:partial-update-editor", {
+					path: relPath,
+					contentLength: newContent.length,
+				})
 				await cline.diffViewProvider.update(
 					everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
 					false,
@@ -131,6 +183,10 @@ export async function writeToFileTool(
 			return
 		} else {
 			if (predictedLineCount === undefined) {
+				logWriteToolDebug("write:error-missing-line-count", {
+					path: relPath,
+					contentLength: newContent.length,
+				})
 				cline.consecutiveMistakeCount++
 				cline.recordToolError("write_to_file")
 
@@ -208,7 +264,21 @@ export async function writeToFileTool(
 					content: newContent,
 				} satisfies ClineSayTool)
 
+				logWriteToolDebug("write:await-approval", {
+					path: relPath,
+					fileExists,
+					mode: "direct",
+					contentLength: newContent.length,
+					predictedLineCount,
+				})
+
 				const didApprove = await askApproval("tool", completeMessage, undefined, isWriteProtected)
+
+				logWriteToolDebug("write:approval-result", {
+					path: relPath,
+					didApprove,
+					mode: "direct",
+				})
 
 				if (!didApprove) {
 					return
@@ -224,6 +294,12 @@ export async function writeToFileTool(
 				}
 
 				// Save directly without showing diff view or opening the file
+				logWriteToolDebug("write:save-directly", {
+					path: relPath,
+					contentLength: newContent.length,
+					diagnosticsEnabled,
+					writeDelayMs,
+				})
 				await cline.diffViewProvider.saveDirectly(relPath, newContent, false, diagnosticsEnabled, writeDelayMs)
 			} else {
 				// Original behavior with diff view
@@ -234,9 +310,18 @@ export async function writeToFileTool(
 					// show gui message before showing edit animation
 					const partialMessage = JSON.stringify(sharedMessageProps)
 					await cline.ask("tool", partialMessage, true).catch(() => {}) // sending true for partial even though it's not a partial, cline shows the edit row before the content is streamed into the editor
+					logWriteToolDebug("write:open-diff-view", {
+						path: relPath,
+						fileExists,
+					})
 					await cline.diffViewProvider.open(relPath)
 				}
 
+				logWriteToolDebug("write:update-diff-view", {
+					path: relPath,
+					contentLength: newContent.length,
+					predictedLineCount,
+				})
 				await cline.diffViewProvider.update(
 					everyLineHasLineNumbers(newContent) ? stripLineNumbers(newContent) : newContent,
 					true,
@@ -284,14 +369,37 @@ export async function writeToFileTool(
 						: undefined,
 				} satisfies ClineSayTool)
 
+				logWriteToolDebug("write:await-approval", {
+					path: relPath,
+					fileExists,
+					mode: "diff-view",
+					contentLength: newContent.length,
+					predictedLineCount,
+				})
+
 				const didApprove = await askApproval("tool", completeMessage, undefined, isWriteProtected)
 
+				logWriteToolDebug("write:approval-result", {
+					path: relPath,
+					didApprove,
+					mode: "diff-view",
+				})
+
 				if (!didApprove) {
+					logWriteToolDebug("write:revert-changes", {
+						path: relPath,
+						reason: "approval-rejected",
+					})
 					await cline.diffViewProvider.revertChanges()
 					return
 				}
 
 				// Call saveChanges to update the DiffViewProvider properties
+				logWriteToolDebug("write:save-changes", {
+					path: relPath,
+					diagnosticsEnabled,
+					writeDelayMs,
+				})
 				await cline.diffViewProvider.saveChanges(diagnosticsEnabled, writeDelayMs)
 			}
 
@@ -314,9 +422,18 @@ export async function writeToFileTool(
 				newContent: newContent,
 			})
 
+			logWriteToolDebug("write:success", {
+				path: relPath,
+				fileExists,
+				contentLength: newContent.length,
+			})
+
 			pushToolResult(message)
 
 			await cline.diffViewProvider.reset()
+			logWriteToolDebug("write:reset", {
+				path: relPath,
+			})
 
 			return
 		}

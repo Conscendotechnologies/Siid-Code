@@ -172,6 +172,31 @@ describe("AssistantMessageParser (streaming)", () => {
 			expect((result[3] as ToolUse).name).toBe("read_file")
 			expect((result[3] as ToolUse).params.path).toBe("file2.ts")
 		})
+
+		it("should hide partial tool-opening tags from streaming text blocks", () => {
+			let result = parser.processChunk("Before tool\n\n<write")
+
+			expect(result).toHaveLength(1)
+			expect(result[0]).toEqual({
+				type: "text",
+				content: "Before tool",
+				partial: true,
+			})
+
+			result = parser.processChunk("_to_file>\n<path>file.ts</path>")
+
+			expect(result).toHaveLength(2)
+			expect(result[0]).toEqual({
+				type: "text",
+				content: "Before tool",
+				partial: false,
+			})
+			const toolUse = result[1] as ToolUse
+			expect(toolUse.type).toBe("tool_use")
+			expect(toolUse.name).toBe("write_to_file")
+			expect(toolUse.params.path).toBe("file.ts")
+			expect(toolUse.partial).toBe(true)
+		})
 	})
 
 	describe("special and edge cases", () => {
@@ -208,6 +233,23 @@ describe("AssistantMessageParser (streaming)", () => {
 			expect(result).toHaveLength(1)
 			expect(result[0].type).toBe("text")
 			expect((result[0] as TextContent).content).toBe(message)
+		})
+
+		it("should restore incomplete tool-like text on finalize", () => {
+			const result = parser.processChunk("Literal text <write")
+
+			expect(result).toHaveLength(1)
+			expect((result[0] as TextContent).content).toBe("Literal text")
+
+			parser.finalizeContentBlocks()
+			const finalized = parser.getContentBlocks()
+
+			expect(finalized).toHaveLength(1)
+			expect(finalized[0]).toEqual({
+				type: "text",
+				content: "Literal text <write",
+				partial: false,
+			})
 		})
 
 		it("should handle tool use with no parameters", () => {

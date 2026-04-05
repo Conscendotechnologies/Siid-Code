@@ -25,6 +25,12 @@ import { getModelEndpoints } from "./fetchers/modelEndpointCache"
 import { DEFAULT_HEADERS } from "./constants"
 import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler } from "../index"
+import { XmlMatcher, type XmlMatcherResult } from "../../utils/xml-matcher"
+import {
+	announceStreamedToolDebugFile,
+	logStreamedToolDebug,
+	STREAMED_TOOL_DEBUG_ENABLED,
+} from "../../utils/streamed-tool-debug"
 import path from "path"
 import fs from "fs"
 
@@ -55,6 +61,31 @@ interface CompletionUsage {
 	}
 }
 
+function logOpenRouterStreamDebug(event: string, payload: Record<string, unknown>) {
+	if (!STREAMED_TOOL_DEBUG_ENABLED) {
+		return
+	}
+
+	const serializedPayload = JSON.stringify(payload, (_key, value) => {
+		if (typeof value === "bigint") {
+			return value.toString()
+		}
+
+		if (value instanceof Error) {
+			return {
+				name: value.name,
+				message: value.message,
+				stack: value.stack,
+			}
+		}
+
+		return value
+	})
+
+	console.log(`[OpenRouterToolDebug] ${event} ${serializedPayload}`)
+	logStreamedToolDebug("OpenRouterToolDebug", event, payload)
+}
+
 export class OpenRouterHandler extends BaseProvider implements SingleCompletionHandler {
 	protected options: ApiHandlerOptions
 	private client: OpenAI
@@ -67,6 +98,7 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 	constructor(options: ApiHandlerOptions) {
 		super()
 		this.options = options
+		announceStreamedToolDebugFile()
 
 		const baseURL = this.options.openRouterBaseUrl || "https://openrouter.ai/api/v1"
 		const apiKey = this.options.openRouterApiKey ?? "not-provided"
@@ -177,6 +209,69 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 		const stream = await this.client.chat.completions.create(completionParams)
 
 		let lastUsage: CompletionUsage | undefined = undefined
+		const thinkingMatcher = new XmlMatcher(
+			"thinking",
+			(chunk: XmlMatcherResult) =>
+				({
+					type: chunk.matched ? "reasoning" : "text",
+					text: chunk.data,
+				}) as const,
+			Number.MAX_SAFE_INTEGER,
+		)
+		const thinkMatcher = new XmlMatcher(
+			"think",
+			(chunk: XmlMatcherResult) =>
+				({
+					type: chunk.matched ? "reasoning" : "text",
+					text: chunk.data,
+				}) as const,
+			Number.MAX_SAFE_INTEGER,
+		)
+
+		function* yieldTaggedContent(content: string, finalize = false) {
+			const thinkingChunks = finalize ? thinkingMatcher.final(content) : thinkingMatcher.update(content)
+
+			logOpenRouterStreamDebug("yieldTaggedContent:start", {
+				finalize,
+				content,
+				thinkingChunkCount: thinkingChunks.length,
+			})
+
+			for (const chunk of thinkingChunks) {
+				if (chunk.type === "reasoning") {
+					logOpenRouterStreamDebug("yieldTaggedContent:reasoning", {
+						source: "thinking",
+						text: chunk.text,
+					})
+					yield chunk
+					continue
+				}
+
+				const thinkChunks = thinkMatcher.update(chunk.text)
+				logOpenRouterStreamDebug("yieldTaggedContent:text", {
+					text: chunk.text,
+					thinkChunkCount: thinkChunks.length,
+				})
+				for (const thinkChunk of thinkChunks) {
+					logOpenRouterStreamDebug("yieldTaggedContent:emit", {
+						source: "think-or-text",
+						type: thinkChunk.type,
+						text: thinkChunk.text,
+					})
+					yield thinkChunk
+				}
+			}
+
+			if (finalize) {
+				for (const thinkChunk of thinkMatcher.final()) {
+					logOpenRouterStreamDebug("yieldTaggedContent:final", {
+						type: thinkChunk.type,
+						text: thinkChunk.text,
+					})
+					yield thinkChunk
+				}
+			}
+		}
 
 		for await (const chunk of stream) {
 			// OpenRouter returns an error object instead of the OpenAI SDK throwing an error.
@@ -188,17 +283,50 @@ export class OpenRouterHandler extends BaseProvider implements SingleCompletionH
 
 			const delta = chunk.choices?.[0]?.delta
 
+			logOpenRouterStreamDebug("stream:chunk", {
+				hasDelta: !!delta,
+				reasoning_content:
+					delta && "reasoning_content" in delta && typeof delta.reasoning_content === "string"
+						? delta.reasoning_content
+						: undefined,
+				reasoning:
+					delta && "reasoning" in delta && typeof delta.reasoning === "string" ? delta.reasoning : undefined,
+				content: delta?.content,
+				hasUsage: !!chunk.usage,
+			})
+
+			if (
+				delta &&
+				"reasoning_content" in delta &&
+				delta.reasoning_content &&
+				typeof delta.reasoning_content === "string"
+			) {
+				logOpenRouterStreamDebug("stream:emit-reasoning_content", {
+					text: delta.reasoning_content,
+				})
+				yield { type: "reasoning", text: delta.reasoning_content }
+			}
+
 			if (delta && "reasoning" in delta && delta.reasoning && typeof delta.reasoning === "string") {
+				logOpenRouterStreamDebug("stream:emit-reasoning", {
+					text: delta.reasoning,
+				})
 				yield { type: "reasoning", text: delta.reasoning }
 			}
 
 			if (delta?.content) {
-				yield { type: "text", text: delta.content }
+				for (const matcherChunk of yieldTaggedContent(delta.content)) {
+					yield matcherChunk
+				}
 			}
 
 			if (chunk.usage) {
 				lastUsage = chunk.usage
 			}
+		}
+
+		for (const matcherChunk of yieldTaggedContent("", true)) {
+			yield matcherChunk
 		}
 
 		if (lastUsage) {
