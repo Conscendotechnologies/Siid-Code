@@ -193,6 +193,13 @@ const METADATA_TYPE_CONFIG: Record<string, MetadataTypeConfig> = {
 		description: "Bot",
 		defaultPath: "force-app/main/default/bots",
 	},
+	CustomMetadata: {
+		cliType: "CustomMetadata",
+		supportsDeployment: true,
+		description: "Custom Metadata Record",
+		defaultPath: "force-app/main/default/customMetadata",
+		fileExtension: ".md-meta.xml",
+	},
 }
 
 /**

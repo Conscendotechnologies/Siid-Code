@@ -381,6 +381,7 @@ export interface ClineSayTool {
 		| "insertContent"
 		| "deploySfMetadata"
 		| "retrieveSfMetadata"
+		| "sfExecuteAnonymous"
 	path?: string
 	diff?: string
 	content?: string

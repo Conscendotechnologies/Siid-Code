@@ -30,6 +30,7 @@ Supported Metadata Types and Commands:
 - AssignmentRules: Retrieves all assignment rules for an object (use format: ObjectName, e.g., Case or Lead)
 - PathAssistant: Retrieves Sales Path / Path Assistant definition
 - PathAssistantSettings: Retrieves Path Assistant settings
+- CustomMetadata: Retrieves custom metadata records (use format: TypeApi.RecordApi, e.g., Support_Tier.Bronze)
 
 Parameters:
 - metadata_type: (required) The type of Salesforce metadata to retrieve (e.g., ApexClass, CustomObject, LightningComponentBundle, StandardValueSet, Layout, etc.)
@@ -41,6 +42,7 @@ Parameters:
   - For AssignmentRule: Use format ObjectName.RuleName (e.g., Case.Standard_Case_Assignment)
   - For AssignmentRules: Use the object name (e.g., Case, Lead)
   - For PathAssistant: Use the path name (e.g., Opportunity_Path)
+  - For CustomMetadata: Use format TypeApi.RecordApi (e.g., Support_Tier.Bronze)
 
 Usage:
 <retrieve_sf_metadata>
@@ -116,6 +118,12 @@ Example: Retrieve a Sales Path
 <retrieve_sf_metadata>
 <metadata_type>PathAssistant</metadata_type>
 <metadata_name>Opportunity_Path</metadata_name>
+</retrieve_sf_metadata>
+
+Example: Retrieve a custom metadata record
+<retrieve_sf_metadata>
+<metadata_type>CustomMetadata</metadata_type>
+<metadata_name>Support_Tier.Bronze</metadata_name>
 </retrieve_sf_metadata>
 
 Example: List all Sales Paths

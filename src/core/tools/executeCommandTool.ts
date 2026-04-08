@@ -20,6 +20,28 @@ import { t } from "../../i18n"
 
 class ShellIntegrationError extends Error {}
 
+function getBlockedSalesforceCommandMessage(command: string): string | undefined {
+	const normalized = command.trim().toLowerCase()
+
+	const rawDeployPatterns = [
+		/^sf\s+project\s+deploy\s+start\b/,
+		/^sfdx\s+force:source:deploy\b/,
+		/^sfdx\s+force:mdapi:deploy\b/,
+	]
+
+	const rawAnonymousPatterns = [/^sf\s+apex\s+run\b/, /^sfdx\s+force:apex:execute\b/]
+
+	if (rawDeployPatterns.some((pattern) => pattern.test(normalized))) {
+		return "Raw Salesforce deploy commands are blocked here. Use the sf_deploy_metadata tool so deployment runs automatically through the Salesforce workflow."
+	}
+
+	if (rawAnonymousPatterns.some((pattern) => pattern.test(normalized))) {
+		return "Raw Salesforce anonymous Apex commands are blocked here. Use the sf_execute_anonymous tool so execution runs automatically through the Salesforce workflow."
+	}
+
+	return undefined
+}
+
 export async function executeCommandTool(
 	task: Task,
 	block: ToolUse,
@@ -54,6 +76,11 @@ export async function executeCommandTool(
 			task.consecutiveMistakeCount = 0
 
 			command = unescapeHtmlEntities(command) // Unescape HTML entities.
+			const blockedSalesforceCommandMessage = getBlockedSalesforceCommandMessage(command)
+			if (blockedSalesforceCommandMessage) {
+				pushToolResult(formatResponse.toolError(blockedSalesforceCommandMessage))
+				return
+			}
 			const didApprove = await askApproval("command", command)
 
 			if (!didApprove) {

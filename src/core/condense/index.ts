@@ -25,7 +25,7 @@ CRITICAL RETRY INSTRUCTION:
 `
 
 const TOOL_LIKE_TAG_PATTERN =
-	/<(read_file|get_task_guides|search_files|list_files|list_code_definition_names|retrieve_sf_metadata|apply_diff|write_to_file|execute_command|ask_followup_question|attempt_completion|new_task|switch_mode)\b/i
+	/<(read_file|get_task_guides|search_files|list_files|list_code_definition_names|retrieve_sf_metadata|sf_execute_anonymous|apply_diff|write_to_file|execute_command|ask_followup_question|attempt_completion|new_task|switch_mode)\b/i
 const REQUIRED_SUMMARY_SECTIONS = [
 	"1. Previous Conversation:",
 	"2. Current Work:",
@@ -207,6 +207,7 @@ const TOOLS_TO_TRIM_RESULTS: string[] = [
 	"execute_command",
 	"read_file",
 	"sf_deploy_metadata",
+	"sf_execute_anonymous",
 	"update_todo_list",
 	"write_to_file",
 	"apply_diff",
