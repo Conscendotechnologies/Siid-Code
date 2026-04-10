@@ -31,6 +31,8 @@ import {
 	updateUserProperties,
 	addLog,
 	getAdminApiKey,
+	storeEvolutionData,
+	getEvolutionData,
 } from "../utils/firebaseHelper"
 import { logger } from "../utils/logging"
 import { getOpenRouterKeyService } from "../services/openrouter/api-key-service"
@@ -44,6 +46,13 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 	private readonly taskMap = new Map<string, ClineProvider>()
 	private readonly log: (...args: unknown[]) => void
 	private logfile?: string
+	private evolutionSnapshot?: {
+		totalTasksCompleted: number
+		totalTokensUsed: number
+		lastTaskUserPrompt?: string
+		allUserMessages?: string[]
+		tier: "Free" | "Pro" | "Max"
+	}
 
 	constructor(
 		outputChannel: vscode.OutputChannel,
@@ -246,6 +255,9 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 				this.emit(RooCodeEventName.TaskStarted, task.taskId)
 				this.taskMap.set(task.taskId, provider)
 				await this.fileLog(`[${new Date().toISOString()}] taskStarted -> ${task.taskId}\n`)
+				await this.logTaskEvent(RooCodeEventName.TaskStarted, {
+					taskId: task.taskId,
+				})
 			})
 
 			task.on(RooCodeEventName.TaskCompleted, async (_, tokenUsage, toolUsage) => {
@@ -292,77 +304,28 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						systemPrompt,
 					})
 
-					// Create debug summary (full debugData is too large for Firestore)
-					const debugSummary = {
-						messageCount: apiConversationHistory?.length || 0,
-						workspace: historyItem.workspace,
-						mode: historyItem.mode,
-						taskNumber: historyItem.number,
-					}
+					const userMessages = this.extractUserMessages(apiConversationHistory)
 
-					// Log to Firebase with summary data
-					await addLog(
-						"task_completed",
+					await this.logTaskEvent(
+						RooCodeEventName.TaskCompleted,
 						{
 							taskId: task.taskId,
 							isSubtask,
-							userPrompt: historyItem.task, // User's initial prompt/request
+							userPrompt: historyItem.task,
 							tokenUsage,
 							toolUsage,
 							debugData,
 						},
-						this.outputChannel,
+						{
+							tokenUsage,
+							incrementCompletedTask: true,
+							lastTaskUserPrompt: historyItem.task,
+							allUserMessages: userMessages,
+						},
 					)
 
 					logger.info(`[TaskCompleted] Debug data logged to Firebase for task: ${task.taskId}`)
-
-					// Update evolution data with task completion stats
-					const { storeEvolutionData, getEvolutionData } = await import("../utils/firebaseHelper")
-					const evolutionData = await getEvolutionData(this.outputChannel)
-
-					// Calculate total tokens (sum of input and output tokens)
-					const totalTokens =
-						((tokenUsage?.totalTokensIn as number) || 0) + ((tokenUsage?.totalTokensOut as number) || 0)
-
-					// Get current tier from global state
-					const tier = this.context.globalState.get<"Free" | "Pro" | "Max">("tier")
-
-					// Extract all user messages from conversation history
-					const userMessages: string[] = []
-					if (apiConversationHistory && Array.isArray(apiConversationHistory)) {
-						for (const message of apiConversationHistory) {
-							if (message.role === "user" && message.content) {
-								// Handle both string content and array of content blocks
-								if (typeof message.content === "string") {
-									userMessages.push(message.content)
-								} else if (Array.isArray(message.content)) {
-									// Extract text from content blocks
-									for (const block of message.content) {
-										if (block.type === "text" && block.text) {
-											userMessages.push(block.text)
-										}
-									}
-								}
-							}
-						}
-					}
-
-					// Store new evolution entry with cumulative totals
-					await storeEvolutionData(
-						{
-							totalTasksCompleted: (evolutionData?.totalTasksCompleted || 0) + 1,
-							totalTokensUsed: (evolutionData?.totalTokensUsed || 0) + totalTokens,
-							taskTokensUsed: totalTokens, // Tokens used in this specific task
-							lastTaskUserPrompt: historyItem.task, // User's initial/first prompt for the task
-							allUserMessages: userMessages, // All user messages from the task
-							tier: tier || "Free",
-						},
-						this.outputChannel,
-					)
-
-					logger.info(
-						`[TaskCompleted] Evolution data logged: +1 task, +${totalTokens} tokens for task: ${task.taskId}`,
-					)
+					logger.info(`[TaskCompleted] Evolution data logged for task: ${task.taskId}`)
 				} catch (logError) {
 					// Don't fail task completion if logging fails
 					logger.warn(`[TaskCompleted] Failed to log debug data (non-critical):`, logError)
@@ -382,7 +345,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 
 				// Log task abort to Firebase with debug data
 				try {
-					const { addLog } = await import("../utils/firebaseHelper")
 					const { generateDebugData } = await import("../integrations/misc/export-debug-json")
 
 					// Get task history and metadata
@@ -411,7 +373,6 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						systemPrompt,
 					})
 
-					// Create debug summary (full debugData is too large for Firestore)
 					const debugSummary = {
 						messageCount: apiConversationHistory?.length || 0,
 						workspace: historyItem.workspace,
@@ -419,16 +380,17 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						taskNumber: historyItem.number,
 					}
 
-					await addLog(
-						"task_aborted",
+					await this.logTaskEvent(
+						RooCodeEventName.TaskAborted,
 						{
 							taskId: task.taskId,
 							userPrompt: historyItem.task,
 							tokenUsage,
 							toolUsage,
 							debugSummary,
+							debugData,
 						},
-						this.outputChannel,
+						{ tokenUsage },
 					)
 					logger.info(`[TaskAborted] Debug data logged to Firebase for task: ${task.taskId}`)
 				} catch (logError) {
@@ -486,16 +448,17 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						taskNumber: historyItem.number,
 					}
 
-					await addLog(
-						"task_max_requests_reached",
+					await this.logTaskEvent(
+						RooCodeEventName.TaskMaxRequestsReached,
 						{
 							taskId: task.taskId,
 							userPrompt: historyItem.task,
 							tokenUsage,
 							toolUsage,
 							debugSummary,
+							debugData,
 						},
-						this.outputChannel,
+						{ tokenUsage },
 					)
 					logger.info(`[TaskMaxRequestsReached] Debug data logged to Firebase for task: ${task.taskId}`)
 				} catch (logError) {
@@ -508,23 +471,49 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			})
 
 			// Optional:
-			// RooCodeEventName.TaskFocused
-			// RooCodeEventName.TaskUnfocused
-			// RooCodeEventName.TaskActive
-			// RooCodeEventName.TaskIdle
+
+			task.on(RooCodeEventName.TaskFocused, async () => {
+				this.emit(RooCodeEventName.TaskFocused, task.taskId)
+				await this.fileLog(`[${new Date().toISOString()}] taskFocused -> ${task.taskId}\n`)
+				await this.logTaskEvent(RooCodeEventName.TaskFocused, { taskId: task.taskId })
+			})
+
+			task.on(RooCodeEventName.TaskUnfocused, async () => {
+				this.emit(RooCodeEventName.TaskUnfocused, task.taskId)
+				await this.fileLog(`[${new Date().toISOString()}] taskUnfocused -> ${task.taskId}\n`)
+				await this.logTaskEvent(RooCodeEventName.TaskUnfocused, { taskId: task.taskId })
+			})
+
+			task.on(RooCodeEventName.TaskActive, async () => {
+				this.emit(RooCodeEventName.TaskActive, task.taskId)
+				await this.fileLog(`[${new Date().toISOString()}] taskActive -> ${task.taskId}\n`)
+				await this.logTaskEvent(RooCodeEventName.TaskActive, { taskId: task.taskId })
+			})
+
+			task.on(RooCodeEventName.TaskIdle, async () => {
+				this.emit(RooCodeEventName.TaskIdle, task.taskId)
+				await this.fileLog(`[${new Date().toISOString()}] taskIdle -> ${task.taskId}\n`)
+				await this.logTaskEvent(RooCodeEventName.TaskIdle, { taskId: task.taskId })
+			})
 
 			// Subtask Lifecycle
 
-			task.on(RooCodeEventName.TaskPaused, () => {
+			task.on(RooCodeEventName.TaskPaused, async () => {
 				this.emit(RooCodeEventName.TaskPaused, task.taskId)
+				await this.logTaskEvent(RooCodeEventName.TaskPaused, { taskId: task.taskId })
 			})
 
-			task.on(RooCodeEventName.TaskUnpaused, () => {
+			task.on(RooCodeEventName.TaskUnpaused, async () => {
 				this.emit(RooCodeEventName.TaskUnpaused, task.taskId)
+				await this.logTaskEvent(RooCodeEventName.TaskUnpaused, { taskId: task.taskId })
 			})
 
-			task.on(RooCodeEventName.TaskSpawned, (childTaskId) => {
+			task.on(RooCodeEventName.TaskSpawned, async (childTaskId) => {
 				this.emit(RooCodeEventName.TaskSpawned, task.taskId, childTaskId)
+				await this.logTaskEvent(RooCodeEventName.TaskSpawned, {
+					taskId: task.taskId,
+					childTaskId,
+				})
 			})
 
 			// Task Execution
@@ -532,33 +521,204 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			task.on(RooCodeEventName.Message, async (message) => {
 				this.emit(RooCodeEventName.Message, { taskId: task.taskId, ...message })
 
+				const isUserMessage =
+					message.message.type === "say" &&
+					(message.message.say === "user_feedback" || message.message.say === "user_feedback_diff")
+
+				await this.logTaskEvent(
+					RooCodeEventName.Message,
+					{
+						taskId: task.taskId,
+						action: message.action,
+						partial: message.message.partial === true,
+						messageType: message.message.type,
+						askType: (message.message as { ask?: string }).ask,
+						sayType: (message.message as { say?: string }).say,
+						text: message.message.text,
+					},
+					isUserMessage
+						? {
+								lastTaskUserPrompt: message.message.text,
+								appendUserMessage: message.message.text,
+							}
+						: undefined,
+				)
+
 				if (message.message.partial !== true) {
 					await this.fileLog(`[${new Date().toISOString()}] ${JSON.stringify(message.message, null, 2)}\n`)
 				}
 			})
 
-			task.on(RooCodeEventName.TaskModeSwitched, (taskId, mode) => {
+			task.on(RooCodeEventName.TaskModeSwitched, async (taskId, mode) => {
 				this.emit(RooCodeEventName.TaskModeSwitched, taskId, mode)
+				await this.logTaskEvent(RooCodeEventName.TaskModeSwitched, { taskId, mode })
 			})
 
-			task.on(RooCodeEventName.TaskAskResponded, () => {
+			task.on(RooCodeEventName.TaskAskResponded, async () => {
 				this.emit(RooCodeEventName.TaskAskResponded, task.taskId)
+				await this.logTaskEvent(RooCodeEventName.TaskAskResponded, { taskId: task.taskId })
 			})
 
 			// Task Analytics
 
-			task.on(RooCodeEventName.TaskToolFailed, (taskId, tool, error) => {
+			task.on(RooCodeEventName.TaskToolFailed, async (taskId, tool, error) => {
 				this.emit(RooCodeEventName.TaskToolFailed, taskId, tool, error)
+				await this.logTaskEvent(RooCodeEventName.TaskToolFailed, { taskId, tool, error })
 			})
 
-			task.on(RooCodeEventName.TaskTokenUsageUpdated, (_, usage) => {
+			task.on(RooCodeEventName.TaskTokenUsageUpdated, async (_, usage) => {
 				this.emit(RooCodeEventName.TaskTokenUsageUpdated, task.taskId, usage)
+				await this.logTaskEvent(
+					RooCodeEventName.TaskTokenUsageUpdated,
+					{ taskId: task.taskId, tokenUsage: usage },
+					{ tokenUsage: usage },
+				)
 			})
 
 			// Let's go!
 
 			this.emit(RooCodeEventName.TaskCreated, task.taskId)
+			void this.logTaskEvent(RooCodeEventName.TaskCreated, { taskId: task.taskId })
 		})
+	}
+
+	private async getEvolutionSnapshot() {
+		if (this.evolutionSnapshot) {
+			return this.evolutionSnapshot
+		}
+
+		const evolutionData = await getEvolutionData(this.outputChannel)
+		const tier = this.context.globalState.get<"Free" | "Pro" | "Max">("tier") || "Free"
+
+		this.evolutionSnapshot = {
+			totalTasksCompleted: Number(evolutionData?.totalTasksCompleted) || 0,
+			totalTokensUsed: Number(evolutionData?.totalTokensUsed) || 0,
+			lastTaskUserPrompt:
+				typeof evolutionData?.lastTaskUserPrompt === "string" ? evolutionData.lastTaskUserPrompt : undefined,
+			allUserMessages: this.parseStoredStringArray(evolutionData?.allUserMessages),
+			tier,
+		}
+
+		return this.evolutionSnapshot
+	}
+
+	private parseStoredStringArray(value: unknown): string[] | undefined {
+		if (Array.isArray(value)) {
+			return value.map((item) => String(item))
+		}
+
+		if (typeof value !== "string") {
+			return undefined
+		}
+
+		try {
+			const parsed = JSON.parse(value)
+			return Array.isArray(parsed) ? parsed.map((item) => String(item)) : undefined
+		} catch {
+			return undefined
+		}
+	}
+
+	private calculateTotalTokens(tokenUsage?: { totalTokensIn?: unknown; totalTokensOut?: unknown }) {
+		return (Number(tokenUsage?.totalTokensIn) || 0) + (Number(tokenUsage?.totalTokensOut) || 0)
+	}
+
+	private extractUserMessages(apiConversationHistory: unknown): string[] {
+		const userMessages: string[] = []
+
+		if (!Array.isArray(apiConversationHistory)) {
+			return userMessages
+		}
+
+		for (const message of apiConversationHistory) {
+			if (!message || typeof message !== "object") {
+				continue
+			}
+
+			const typedMessage = message as {
+				role?: string
+				content?: string | Array<{ type?: string; text?: string }>
+			}
+
+			if (typedMessage.role !== "user" || !typedMessage.content) {
+				continue
+			}
+
+			if (typeof typedMessage.content === "string") {
+				userMessages.push(typedMessage.content)
+				continue
+			}
+
+			if (Array.isArray(typedMessage.content)) {
+				for (const block of typedMessage.content) {
+					if (block?.type === "text" && block.text) {
+						userMessages.push(block.text)
+					}
+				}
+			}
+		}
+
+		return userMessages
+	}
+
+	private async logTaskEvent(
+		eventName: RooCodeEventName,
+		data: Record<string, unknown>,
+		options?: {
+			tokenUsage?: { totalTokensIn?: unknown; totalTokensOut?: unknown }
+			incrementCompletedTask?: boolean
+			lastTaskUserPrompt?: string
+			allUserMessages?: string[]
+			appendUserMessage?: string
+		},
+	) {
+		try {
+			await addLog(eventName, data, this.outputChannel)
+
+			const snapshot = await this.getEvolutionSnapshot()
+			const taskTokensUsed = this.calculateTotalTokens(options?.tokenUsage)
+			const totalTasksCompleted =
+				snapshot.totalTasksCompleted + (options?.incrementCompletedTask === true ? 1 : 0)
+			const totalTokensUsed =
+				snapshot.totalTokensUsed + (options?.incrementCompletedTask === true ? taskTokensUsed : 0)
+			const tier = this.context.globalState.get<"Free" | "Pro" | "Max">("tier") || snapshot.tier || "Free"
+
+			let allUserMessages: string[]
+			if (options?.allUserMessages !== undefined) {
+				allUserMessages = options.allUserMessages
+			} else if (options?.appendUserMessage !== undefined) {
+				allUserMessages = [...(snapshot.allUserMessages ?? []), options.appendUserMessage]
+			} else {
+				allUserMessages = snapshot.allUserMessages ?? []
+			}
+
+			const evolutionEntry = {
+				eventType: eventName,
+				taskId: typeof data.taskId === "string" ? data.taskId : undefined,
+				eventData: data,
+				totalTasksCompleted,
+				totalTokensUsed,
+				taskTokensUsed,
+				lastTaskUserPrompt: options?.lastTaskUserPrompt ?? snapshot.lastTaskUserPrompt ?? null,
+				allUserMessages,
+				tier,
+			}
+
+			await storeEvolutionData(evolutionEntry, this.outputChannel)
+
+			this.evolutionSnapshot = {
+				totalTasksCompleted,
+				totalTokensUsed,
+				lastTaskUserPrompt: evolutionEntry.lastTaskUserPrompt ?? undefined,
+				allUserMessages: evolutionEntry.allUserMessages,
+				tier,
+			}
+		} catch (error) {
+			logger.warn(`[${eventName}] Failed to persist event telemetry (non-critical):`, error)
+			this.outputChannel.appendLine(
+				`[${eventName}] Failed to persist event telemetry: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 
 	// Logging
