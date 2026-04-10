@@ -345,7 +345,7 @@ export async function retrieveSfMetadataTool(
 
 			// Format and return the result
 			// const formattedResult = formatSfOutput(output, metadataType, metadataName)
-			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully. output: ${output}`)
+			cline.say("completion_result", `Retrieved ${metadataType} metadata successfully.`)
 			pushToolResult(output)
 		} catch (execError: any) {
 			// Handle execution errors

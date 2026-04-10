@@ -81,6 +81,7 @@ import { TerminalRegistry } from "../../integrations/terminal/TerminalRegistry"
 import { calculateApiCostAnthropic } from "../../shared/cost"
 import { getWorkspacePath } from "../../utils/path"
 import { getHackDate, isLoginAllowed } from "../../utils/hackDateStorage"
+import { STREAMED_TOOL_DEBUG_ENABLED } from "../../utils/streamed-tool-debug"
 
 // prompts
 import { formatResponse } from "../prompts/responses"
@@ -250,6 +251,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private askResponse?: ClineAskResponse
 	private askResponseText?: string
 	private askResponseImages?: string[]
+	private activeAskTs?: number
 	public lastMessageTs?: number
 
 	// Tool Use
@@ -347,6 +349,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.diffViewProvider = new DiffViewProvider(this.cwd, this)
 		this.enableCheckpoints = enableCheckpoints
 
+		this.isAssistantMessageParserEnabled = STREAMED_TOOL_DEBUG_ENABLED
+		this.assistantMessageParser = STREAMED_TOOL_DEBUG_ENABLED ? new AssistantMessageParser() : undefined
+
 		this.rootTask = rootTask
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
@@ -381,14 +386,33 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			// Check experiment asynchronously and update strategy if needed.
 			provider.getState().then((state) => {
+				const isAssistantMessageParserEnabled =
+					STREAMED_TOOL_DEBUG_ENABLED ||
+					experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.ASSISTANT_MESSAGE_PARSER)
 				const isMultiFileApplyDiffEnabled = experiments.isEnabled(
 					state.experiments ?? {},
 					EXPERIMENT_IDS.MULTI_FILE_APPLY_DIFF,
 				)
 
+				this.isAssistantMessageParserEnabled = isAssistantMessageParserEnabled
+				this.assistantMessageParser = isAssistantMessageParserEnabled
+					? (this.assistantMessageParser ?? new AssistantMessageParser())
+					: undefined
+
 				if (isMultiFileApplyDiffEnabled) {
 					this.diffStrategy = new MultiFileSearchReplaceDiffStrategy(this.fuzzyMatchThreshold)
 				}
+			})
+		} else {
+			provider.getState().then((state) => {
+				const isAssistantMessageParserEnabled =
+					STREAMED_TOOL_DEBUG_ENABLED ||
+					experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.ASSISTANT_MESSAGE_PARSER)
+
+				this.isAssistantMessageParserEnabled = isAssistantMessageParserEnabled
+				this.assistantMessageParser = isAssistantMessageParserEnabled
+					? (this.assistantMessageParser ?? new AssistantMessageParser())
+					: undefined
 			})
 		}
 
@@ -825,6 +849,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		// Detect if the task will enter an idle state.
+		this.activeAskTs = askTs
 		const isReady = this.askResponse !== undefined || this.lastMessageTs !== askTs
 
 		if (!partial && !isReady && isBlockingAsk(type)) {
@@ -841,6 +866,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Could happen if we send multiple asks in a row i.e. with
 			// command_output. It's important that when we know an ask could
 			// fail, it is handled gracefully.
+			if (this.activeAskTs === askTs) {
+				this.activeAskTs = undefined
+			}
 			throw new Error("Current ask promise was ignored")
 		}
 
@@ -848,6 +876,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.askResponse = undefined
 		this.askResponseText = undefined
 		this.askResponseImages = undefined
+		if (this.activeAskTs === askTs) {
+			this.activeAskTs = undefined
+		}
 
 		// Switch back to an active state.
 		if (this.blockingAsk) {
@@ -869,8 +900,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[], messageTs?: number) {
 		if (messageTs !== undefined) {
-			const lastMessage = this.clineMessages.at(-1)
-			if (!lastMessage || lastMessage.type !== "ask" || lastMessage.ts !== messageTs) {
+			if (this.activeAskTs !== messageTs) {
 				return
 			}
 		}
@@ -1191,6 +1221,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	): Promise<undefined> {
 		if (this.abort) {
 			throw new Error(`[RooCode#say] task ${this.taskId}.${this.instanceId} aborted`)
+		}
+
+		if (type === "reasoning" && partial === true && (text ?? "").trim().length === 0) {
+			return
 		}
 
 		if (partial !== undefined) {
@@ -2197,9 +2231,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 					switch (chunk.type) {
 						case "reasoning":
-							// Buffer reasoning chunks and present as a single
-							// reasoning message after the stream completes.
 							reasoningMessage += chunk.text
+							await this.say("reasoning", reasoningMessage, undefined, true)
 							break
 						case "usage":
 							inputTokens += chunk.inputTokens
@@ -2225,10 +2258,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 								// false in case previous content set this to true.
 								this.userMessageContentReady = false
 							}
-							// Do not present partial assistant content while the
-							// model is still streaming reasoning; we'll present a
-							// single final assistant message after the stream
-							// completes to ensure thinking appears first.
+
+							// Present content to user.
+							presentAssistantMessage(this)
 							break
 						}
 					}
@@ -2332,24 +2364,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			this.didCompleteReadingStream = true
 
-			// If the model streamed reasoning chunks, present them once as a
-			// single complete reasoning message to avoid multiple partial
-			// updates in the UI. Trim whitespace-only content to avoid blank
-			// thinking boxes at the start or end of a stream.
-			const reasoningTrim = reasoningMessage.trim()
-			if (reasoningTrim.length > 0) {
-				try {
-					await this.say("reasoning", reasoningTrim, undefined, false)
-				} catch (err) {
-					// Non-fatal: log and continue
-					console.error("Error presenting combined reasoning message:", err)
-				}
-			}
-
-			// Set any blocks to be complete so presentation can finish and
-			// set `userMessageContentReady` to true. We'll present assistant
-			// content once (after reasoning has been shown) to avoid
-			// interleaving partial thinking updates with content updates.
+			// Set any blocks to be complete to allow `presentAssistantMessage`
+			// to finish and set `userMessageContentReady` to true.
+			// (Could be a text block that had no subsequent tool uses, or a
+			// text block at the very end, or an invalid tool use, etc. Whatever
+			// the case, `presentAssistantMessage` relies on these blocks either
+			// to be completed or the user to reject a block in order to proceed
+			// and eventually set userMessageContentReady to true.)
 			const partialBlocks = this.assistantMessageContent.filter((block) => block.partial)
 			partialBlocks.forEach((block) => (block.partial = false))
 
@@ -2363,8 +2384,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 			// When using old parser, no finalization needed - parsing already happened during streaming
 
-			// Present assistant content once (if any) after reasoning has been emitted
-			if (assistantMessage.length > 0 || partialBlocks.length > 0) {
+			if (partialBlocks.length > 0) {
+				// If there is content to update then it will complete and
+				// update `this.userMessageContentReady` to true, which we
+				// `pWaitFor` before making the next request. All this is really
+				// doing is presenting the last partial message that we just set
+				// to complete.
+				console.log(
+					"[Aman] presentAssistantMessage: Present assistant content once (if any) after reasoning has been emitted",
+				)
+
 				presentAssistantMessage(this)
 			}
 
@@ -2444,6 +2473,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						this.userMessageContentReady = false
 
 						// Present and execute the tool through normal flow
+						console.log("[AMAN] presentAssistantMessage: Present and execute the tool through normal flow")
+
 						presentAssistantMessage(this)
 						await pWaitFor(() => this.userMessageContentReady)
 

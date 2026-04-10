@@ -1,0 +1,4 @@
+{"ts":"2026-04-04T19:20:45.045Z","scope":"StreamedToolDebug","event":"session:start","payload":{"filePath":"C:\\Users\\Aman\\Documents\\DEV\\Siid-Code\\debug\\streamed-tool-debug.jsonl","pid":24384}}
+{"ts":"2026-04-04T19:20:45.046Z","scope":"AssistantMessageParserDebug","event":"processChunk:start","payload":{"chunk":"Hel","accumulatorLengthBefore":0}}
+{"ts":"2026-04-04T19:20:45.047Z","scope":"AssistantMessageParserDebug","event":"processChunk:end","payload":{"blockCount":1,"blocks":[{"type":"text","content":"Hel","partial":true}]}}
+{"ts":"2026-04-04T19:20:45.047Z","scope":"AssistantMessageParserDebug","event":"processChunk:start","payload":{"chunk":"l","accumulatorLengthBefore":3}}
