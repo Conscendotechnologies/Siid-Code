@@ -53,6 +53,8 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 		allUserMessages?: string[]
 		tier: "Free" | "Pro" | "Max"
 	}
+	// Serializes logTaskEvent calls so concurrent events don't race on the snapshot.
+	private logTaskEventQueue: Promise<void> = Promise.resolve()
 
 	constructor(
 		outputChannel: vscode.OutputChannel,
@@ -304,7 +306,14 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						systemPrompt,
 					})
 
-					const userMessages = this.extractUserMessages(apiConversationHistory)
+					// Build the definitive user message list for this task:
+					// - historyItem.task is the initial prompt (never arrives as a user_feedback event)
+					// - snapshot.allUserMessages holds any user_feedback messages accumulated during the task
+					const snapshot = await this.getEvolutionSnapshot()
+					const accumulatedFeedback = snapshot.allUserMessages ?? []
+					const allUserMessages = historyItem.task
+						? [historyItem.task, ...accumulatedFeedback]
+						: accumulatedFeedback
 
 					await this.logTaskEvent(
 						RooCodeEventName.TaskCompleted,
@@ -320,7 +329,7 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 							tokenUsage,
 							incrementCompletedTask: true,
 							lastTaskUserPrompt: historyItem.task,
-							allUserMessages: userMessages,
+							allUserMessages,
 						},
 					)
 
@@ -525,26 +534,32 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 					message.message.type === "say" &&
 					(message.message.say === "user_feedback" || message.message.say === "user_feedback_diff")
 
-				await this.logTaskEvent(
-					RooCodeEventName.Message,
-					{
-						taskId: task.taskId,
-						action: message.action,
-						partial: message.message.partial === true,
-						messageType: message.message.type,
-						askType: (message.message as { ask?: string }).ask,
-						sayType: (message.message as { say?: string }).say,
-						text: message.message.text,
-					},
-					isUserMessage
-						? {
-								lastTaskUserPrompt: message.message.text,
-								appendUserMessage: message.message.text,
-							}
-						: undefined,
-				)
+				const isPartial = message.message.partial === true
 
-				if (message.message.partial !== true) {
+				// Always log user messages so evolution data is captured even if task is aborted.
+				// Skip Firebase writes for partial non-user messages (assistant streaming chunks).
+				if (isUserMessage || !isPartial) {
+					await this.logTaskEvent(
+						RooCodeEventName.Message,
+						{
+							taskId: task.taskId,
+							action: message.action,
+							partial: isPartial,
+							messageType: message.message.type,
+							askType: (message.message as { ask?: string }).ask,
+							sayType: (message.message as { say?: string }).say,
+							text: message.message.text,
+						},
+						isUserMessage
+							? {
+									lastTaskUserPrompt: message.message.text,
+									appendUserMessage: message.message.text,
+								}
+							: undefined,
+					)
+				}
+
+				if (!isPartial) {
 					await this.fileLog(`[${new Date().toISOString()}] ${JSON.stringify(message.message, null, 2)}\n`)
 				}
 			})
@@ -661,7 +676,24 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 		return userMessages
 	}
 
-	private async logTaskEvent(
+	private logTaskEvent(
+		eventName: RooCodeEventName,
+		data: Record<string, unknown>,
+		options?: {
+			tokenUsage?: { totalTokensIn?: unknown; totalTokensOut?: unknown }
+			incrementCompletedTask?: boolean
+			lastTaskUserPrompt?: string
+			allUserMessages?: string[]
+			appendUserMessage?: string
+		},
+	): Promise<void> {
+		// Chain onto the queue so concurrent events execute one-at-a-time,
+		// preventing snapshot read/write races that wipe accumulated user messages.
+		this.logTaskEventQueue = this.logTaskEventQueue.then(() => this._logTaskEvent(eventName, data, options))
+		return this.logTaskEventQueue
+	}
+
+	private async _logTaskEvent(
 		eventName: RooCodeEventName,
 		data: Record<string, unknown>,
 		options?: {
@@ -695,11 +727,10 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			const evolutionEntry = {
 				eventType: eventName,
 				taskId: typeof data.taskId === "string" ? data.taskId : undefined,
-				eventData: data,
 				totalTasksCompleted,
 				totalTokensUsed,
 				taskTokensUsed,
-				lastTaskUserPrompt: options?.lastTaskUserPrompt ?? snapshot.lastTaskUserPrompt ?? null,
+				lastTaskUserPrompt: options?.lastTaskUserPrompt ?? snapshot.lastTaskUserPrompt ?? undefined,
 				allUserMessages,
 				tier,
 			}
