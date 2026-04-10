@@ -389,6 +389,13 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 						taskNumber: historyItem.number,
 					}
 
+					// Build the definitive user message list (same as taskCompleted)
+					const snapshot = await this.getEvolutionSnapshot()
+					const accumulatedFeedback = snapshot.allUserMessages ?? []
+					const allUserMessages = historyItem.task
+						? [historyItem.task, ...accumulatedFeedback]
+						: accumulatedFeedback
+
 					await this.logTaskEvent(
 						RooCodeEventName.TaskAborted,
 						{
@@ -399,7 +406,7 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 							debugSummary,
 							debugData,
 						},
-						{ tokenUsage },
+						{ tokenUsage, lastTaskUserPrompt: historyItem.task, allUserMessages },
 					)
 					logger.info(`[TaskAborted] Debug data logged to Firebase for task: ${task.taskId}`)
 				} catch (logError) {
