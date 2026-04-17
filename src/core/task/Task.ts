@@ -32,6 +32,7 @@ import {
 	isBlockingAsk,
 	ANTHROPIC_DEFAULT_MAX_TOKENS,
 } from "@siid-code/types"
+import type { AgentSessionState } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
 import { CloudService } from "@roo-code/cloud"
 
@@ -923,112 +924,277 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
-	public async condenseContext(isAutomaticTrigger = false, forcedApiHandler?: ApiHandler): Promise<boolean> {
-		const systemPrompt = await this.getSystemPrompt()
+	// --- Condense helpers (inlined from former stateCapture.ts) ---
 
-		// Get condensing configuration
-		// Using type assertion to handle the case where Phase 1 hasn't been implemented yet
-		const state = await this.providerRef.deref()?.getState()
-		const customCondensingPrompt = state ? (state as any).customCondensingPrompt : undefined
-		const condensingApiConfigId = state ? (state as any).condensingApiConfigId : undefined
-		const listApiConfigMeta = state ? (state as any).listApiConfigMeta : undefined
+	private static isCondenseSafe(task: Task): boolean {
+		if (task.isStreaming) {
+			console.warn("[isCondenseSafe] Cannot condense while streaming")
+			return false
+		}
+		if (task.isWaitingForFirstChunk) {
+			console.warn("[isCondenseSafe] Cannot condense while waiting for first chunk")
+			return false
+		}
+		if (task.abort || task.abandoned) {
+			console.warn("[isCondenseSafe] Cannot condense - task is aborted or abandoned")
+			return false
+		}
+		return true
+	}
 
-		// Determine API handler to use
-		let condensingApiHandler: ApiHandler | undefined
+	private static async pauseTaskForCondense(task: Task): Promise<boolean> {
+		try {
+			if (task.isStreaming) {
+				console.log("[pauseTaskForCondense] Cancelling active streaming request...")
+				task.terminalProcess?.abort()
+				task.abort = true
 
-		// If a forced handler is provided (e.g., previous model during model switch), use it
-		if (forcedApiHandler) {
-			condensingApiHandler = forcedApiHandler
-		} else if (condensingApiConfigId && listApiConfigMeta && Array.isArray(listApiConfigMeta)) {
-			// Using type assertion for the id property to avoid implicit any
-			const matchingConfig = listApiConfigMeta.find((config: any) => config.id === condensingApiConfigId)
-			if (matchingConfig) {
-				const profile = await this.providerRef.deref()?.providerSettingsManager.getProfile({
-					id: condensingApiConfigId,
-				})
-				// Ensure profile and apiProvider exist before trying to build handler
-				if (profile && profile.apiProvider) {
-					condensingApiHandler = buildApiHandler(profile)
+				const startTime = Date.now()
+				while (task.isStreaming && Date.now() - startTime < 2000) {
+					await new Promise((resolve) => setTimeout(resolve, 100))
+				}
+
+				if (task.isStreaming) {
+					console.warn(
+						"[pauseTaskForCondense] Stream did not stop gracefully after 2s, proceeding with condense",
+					)
+				} else {
+					console.log("[pauseTaskForCondense] Stream stopped successfully")
 				}
 			}
+			return true
+		} catch (error) {
+			console.error("[pauseTaskForCondense] Error pausing task:", error)
+			return false
 		}
+	}
 
-		const { contextTokens: prevContextTokens } = this.getTokenUsage()
-		const {
-			messages,
-			summary,
-			cost,
-			newContextTokens = 0,
-			error,
-		} = await summarizeConversation(
-			this.apiConversationHistory,
-			this.api, // Main API handler (fallback)
-			systemPrompt, // Default summarization prompt (fallback)
-			this.taskId,
-			prevContextTokens,
-			isAutomaticTrigger,
-			customCondensingPrompt, // User's custom prompt
-			condensingApiHandler, // Specific handler for condensing
-		)
-		if (error) {
-			this.say(
-				"condense_context_error",
+	private static async captureAgentSessionState(task: Task): Promise<AgentSessionState | null> {
+		try {
+			const now = Date.now()
+			const currentGoal = task.taskId + (task.isStreaming ? " (streaming)" : "")
+
+			let executionState: AgentSessionState["executionState"] = "idle"
+			if (task.isStreaming) {
+				executionState = "awaiting_response"
+			} else if (task.isPaused) {
+				executionState = "paused"
+			} else if (task.abort || task.abandoned) {
+				executionState = "idle"
+			}
+
+			const toolCallsLog = Object.entries(task.toolUsage ?? {}).map(([toolName, count]: [string, any]) => ({
+				timestamp: now - 60000,
+				toolName,
+				status: "completed" as const,
+			}))
+
+			const pendingSteps: string[] = []
+			const completedSteps: string[] = []
+			if (task.toolUsage) {
+				Object.keys(task.toolUsage).forEach((tool) => {
+					completedSteps.push(`Executed ${tool}`)
+				})
+			}
+
+			return {
+				currentGoal,
+				completedSteps: completedSteps.length > 0 ? completedSteps : undefined,
+				pendingSteps: pendingSteps.length > 0 ? pendingSteps : undefined,
+				executionState,
+				toolCallsLog: toolCallsLog.length > 0 ? toolCallsLog : undefined,
+				reasoningTrace: undefined,
+				capturedAt: now,
+				isCondensingInProgress: false,
+				hadActiveLlmRequest: task.isStreaming || task.isWaitingForFirstChunk,
+				lastActiveTool: undefined,
+			}
+		} catch (error) {
+			console.error("[captureAgentSessionState] Error capturing state:", error)
+			return null
+		}
+	}
+
+	private static buildCondensationContext(
+		task: Task,
+		state: AgentSessionState,
+	): {
+		state: AgentSessionState
+		taskId: string
+		timestamp: number
+	} {
+		return {
+			state,
+			taskId: task.taskId,
+			timestamp: Date.now(),
+		}
+	}
+
+	public async condenseContext(isAutomaticTrigger = false, forcedApiHandler?: ApiHandler): Promise<boolean> {
+		try {
+			// ===== SAFETY CHECK: Is it safe to condense? =====
+			if (!Task.isCondenseSafe(this)) {
+				console.warn("[condenseContext] Condense is not safe - attempting to pause task...")
+
+				// Try to gracefully pause the task
+				const pauseSucceeded = await Task.pauseTaskForCondense(this)
+				if (!pauseSucceeded) {
+					console.error("[condenseContext] Failed to pause task for condensation")
+					this.say(
+						"condense_context_error",
+						"Cannot condense: active LLM request in progress and unable to pause safely",
+						undefined,
+						false,
+						undefined,
+						undefined,
+						{ isNonInteractive: true },
+					)
+					return false
+				}
+			}
+
+			// ===== CAPTURE STATE: Preserve execution context =====
+			const agentState = await Task.captureAgentSessionState(this)
+			if (!agentState) {
+				console.warn("[condenseContext] Failed to capture agent state, continuing without state")
+			}
+
+			const systemPrompt = await this.getSystemPrompt()
+
+			// Get condensing configuration
+			// Using type assertion to handle the case where Phase 1 hasn't been implemented yet
+			const state = await this.providerRef.deref()?.getState()
+			const customCondensingPrompt = state ? (state as any).customCondensingPrompt : undefined
+			const condensingApiConfigId = state ? (state as any).condensingApiConfigId : undefined
+			const listApiConfigMeta = state ? (state as any).listApiConfigMeta : undefined
+
+			// Determine API handler to use
+			let condensingApiHandler: ApiHandler | undefined
+
+			// If a forced handler is provided (e.g., previous model during model switch), use it
+			if (forcedApiHandler) {
+				condensingApiHandler = forcedApiHandler
+			} else if (condensingApiConfigId && listApiConfigMeta && Array.isArray(listApiConfigMeta)) {
+				// Using type assertion for the id property to avoid implicit any
+				const matchingConfig = listApiConfigMeta.find((config: any) => config.id === condensingApiConfigId)
+				if (matchingConfig) {
+					const profile = await this.providerRef.deref()?.providerSettingsManager.getProfile({
+						id: condensingApiConfigId,
+					})
+					// Ensure profile and apiProvider exist before trying to build handler
+					if (profile && profile.apiProvider) {
+						condensingApiHandler = buildApiHandler(profile)
+					}
+				}
+			}
+
+			const { contextTokens: prevContextTokens } = this.getTokenUsage()
+
+			// ===== PERFORM SUMMARIZATION: Lower token usage with filtered messages =====
+			const {
+				messages,
+				summary,
+				cost,
+				newContextTokens = 0,
 				error,
+				rateLimitHit,
+			} = await summarizeConversation(
+				this.apiConversationHistory,
+				this.api, // Main API handler (fallback)
+				systemPrompt, // Default summarization prompt (fallback)
+				this.taskId,
+				prevContextTokens,
+				isAutomaticTrigger,
+				customCondensingPrompt, // User's custom prompt
+				condensingApiHandler, // Specific handler for condensing
+			)
+
+			// ===== HANDLE RATE LIMIT ERRORS: Safely defer if 429 hit =====
+			if (rateLimitHit) {
+				console.warn("[condenseContext] Rate limit (429) encountered during condensation")
+				this.say(
+					"condense_context_error",
+					"⏳ Rate limited by provider. Deferring context condensation. Please try again in a few moments.",
+					undefined,
+					false,
+					undefined,
+					undefined,
+					{ isNonInteractive: true },
+				)
+				return false // Condensing deferred, not failed
+			}
+
+			if (error) {
+				this.say(
+					"condense_context_error",
+					error,
+					undefined /* images */,
+					false /* partial */,
+					undefined /* checkpoint */,
+					undefined /* progressStatus */,
+					{ isNonInteractive: true } /* options */,
+				)
+				return false // Condensing failed
+			}
+
+			// Check if context size actually decreased (or at least didn't increase)
+			if (newContextTokens >= prevContextTokens) {
+				const increase = newContextTokens - prevContextTokens
+				const increasePercent = ((increase / prevContextTokens) * 100).toFixed(1)
+
+				console.log(
+					`[condenseContext] Skipping summarization - context size increased:\n` +
+						`  Before: ${prevContextTokens} tokens\n` +
+						`  After: ${newContextTokens} tokens\n` +
+						`  Increase: ${increase} tokens (${increasePercent}%)`,
+				)
+
+				// Don't show error, just skip - this is normal for small conversations
+				return false // Condensing skipped
+			}
+
+			// ===== REPLACE HISTORY: Update with condensed messages =====
+			await this.overwriteApiConversationHistory(messages)
+
+			// ===== REHYDRATE CONTEXT: Persist state for resumption =====
+			if (agentState) {
+				const condensationContext = Task.buildCondensationContext(this, agentState)
+				console.log(`[condenseContext] Condensation context created for taskId: ${condensationContext.taskId}`)
+				// State will be persisted in conversation for future resumption
+			}
+
+			// ===== NOTIFY USER: Report successful condensation =====
+			const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
+			await this.say(
+				"condense_context",
+				undefined /* text */,
 				undefined /* images */,
 				false /* partial */,
 				undefined /* checkpoint */,
 				undefined /* progressStatus */,
 				{ isNonInteractive: true } /* options */,
+				contextCondense,
+				agentState /* agentSessionState */,
 			)
-			return false // Condensing failed
-		}
-
-		// Check if context size actually decreased (or at least didn't increase)
-		if (newContextTokens >= prevContextTokens) {
-			const increase = newContextTokens - prevContextTokens
-			const increasePercent = ((increase / prevContextTokens) * 100).toFixed(1)
 
 			console.log(
-				`[condenseContext] Skipping summarization - context size increased:\n` +
-					`  Before: ${prevContextTokens} tokens\n` +
-					`  After: ${newContextTokens} tokens\n` +
-					`  Increase: ${increase} tokens (${increasePercent}%)`,
+				`[condenseContext] Successfully condensed context: ${prevContextTokens} → ${newContextTokens} tokens (saved ${prevContextTokens - newContextTokens} tokens)`,
 			)
 
-			// this.say(
-			// 	"condense_context_error",
-			// 	`⚠️ **Context Condensing Skipped**\n\n` +
-			// 		`Summarization would increase context size instead of reducing it:\n\n` +
-			// 		`• Before: **${prevContextTokens.toLocaleString()}** tokens\n` +
-			// 		`• After: **${newContextTokens.toLocaleString()}** tokens\n` +
-			// 		`• Increase: **${increase.toLocaleString()}** tokens (**${increasePercent}%**)\n\n` +
-			// 		`This can happen when:\n` +
-			// 		`1. Conversation is already very concise\n` +
-			// 		`2. Summary model generated verbose output\n` +
-			// 		`3. Message count is too small to benefit from condensing\n\n` +
-			// 		`Keeping original conversation history.`,
-			// 	undefined /* images */,
-			// 	false /* partial */,
-			// 	undefined /* checkpoint */,
-			// 	undefined /* progressStatus */,
-			// 	{ isNonInteractive: true } /* options */,
-			// )
-			// return false // Condensing skipped
+			return true // Condensing succeeded
+		} catch (error) {
+			console.error("[condenseContext] Unexpected error during condensation:", error)
+			this.say(
+				"condense_context_error",
+				`Unexpected error during context condensation: ${error instanceof Error ? error.message : String(error)}`,
+				undefined,
+				false,
+				undefined,
+				undefined,
+				{ isNonInteractive: true },
+			)
+			return false
 		}
-
-		await this.overwriteApiConversationHistory(messages)
-		const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
-		await this.say(
-			"condense_context",
-			undefined /* text */,
-			undefined /* images */,
-			false /* partial */,
-			undefined /* checkpoint */,
-			undefined /* progressStatus */,
-			{ isNonInteractive: true } /* options */,
-			contextCondense,
-		)
-		return true // Condensing succeeded
 	}
 
 	/**
@@ -1218,6 +1384,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			isNonInteractive?: boolean
 		} = {},
 		contextCondense?: ContextCondense,
+		agentSessionState?: any, // AgentSessionState from types
 	): Promise<undefined> {
 		if (this.abort) {
 			throw new Error(`[RooCode#say] task ${this.taskId}.${this.instanceId} aborted`)
@@ -1240,6 +1407,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					lastMessage.images = images
 					lastMessage.partial = partial
 					lastMessage.progressStatus = progressStatus
+					if (contextCondense) lastMessage.contextCondense = contextCondense
+					if (agentSessionState) lastMessage.agentSessionState = agentSessionState
 					this.updateClineMessage(lastMessage)
 				} else {
 					// This is a new partial message, so add it with partial state.
@@ -1257,6 +1426,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						images,
 						partial,
 						contextCondense,
+						agentSessionState,
 					})
 				}
 			} else {
@@ -1298,7 +1468,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						this.lastMessageTs = sayTs
 					}
 
-					await this.addToClineMessages({ ts: sayTs, type: "say", say: type, text, images, contextCondense })
+					await this.addToClineMessages({
+						ts: sayTs,
+						type: "say",
+						say: type,
+						text,
+						images,
+						contextCondense,
+						agentSessionState,
+					})
 					try {
 						const provider = this.providerRef.deref()
 						const notificationsEnabled = provider?.contextProxy.getValue("notificationsEnabled")
@@ -1332,6 +1510,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				images,
 				checkpoint,
 				contextCondense,
+				agentSessionState,
 			})
 			try {
 				const provider = this.providerRef.deref()
