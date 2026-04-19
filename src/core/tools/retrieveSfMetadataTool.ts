@@ -1,9 +1,34 @@
 import * as path from "path"
-import { execSync } from "child_process"
+import { exec } from "child_process"
 
 import { Task } from "../task/Task"
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag } from "../../shared/tools"
 import { formatResponse } from "../prompts/responses"
+import type { SfRetrieveExecutionStatus } from "@siid-code/types"
+
+function runSfCliRetrieve(command: string, cwd: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		exec(
+			command,
+			{ cwd, encoding: "utf-8", timeout: 120000, maxBuffer: 10 * 1024 * 1024, windowsHide: true },
+			(error, stdout, stderr) => {
+				if (error) {
+					const wrapped = error as Error & { stdout?: string; stderr?: string; killed?: boolean }
+					wrapped.stdout = stdout
+					wrapped.stderr = stderr
+					reject(wrapped)
+					return
+				}
+				resolve(stdout)
+			},
+		)
+	})
+}
+
+async function sendRetrieveStatus(cline: Task, status: SfRetrieveExecutionStatus): Promise<void> {
+	const provider = cline.providerRef.deref()
+	provider?.postMessageToWebview({ type: "sfRetrieveExecutionStatus", text: JSON.stringify(status) })
+}
 
 /**
  * Metadata type configuration for SF CLI commands
@@ -333,15 +358,13 @@ export async function retrieveSfMetadataTool(
 		}
 
 		// Execute the SF CLI command
+		const executionId = `${cline.taskId}-${Date.now()}`
+		await sendRetrieveStatus(cline, { executionId, status: "retrieving", metadataType, metadataName })
+
 		try {
-			// Execute command synchronously with timeout
-			const output = execSync(command, {
-				cwd: cline.cwd,
-				encoding: "utf-8",
-				timeout: 120000, // 2 minute timeout
-				maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-				stdio: ["pipe", "pipe", "pipe"],
-			})
+			const output = await runSfCliRetrieve(command, cline.cwd)
+
+			await sendRetrieveStatus(cline, { executionId, status: "completed" })
 
 			// Format and return the result
 			const formattedResult = formatSfOutput(output, metadataType, metadataName)
@@ -357,6 +380,7 @@ export async function retrieveSfMetadataTool(
 			} else if (execError.stdout) {
 				// Sometimes SF CLI returns error info in stdout with non-zero exit
 				const formattedResult = formatSfOutput(execError.stdout, metadataType, metadataName)
+				await sendRetrieveStatus(cline, { executionId, status: "error", error: "SF CLI command failed" })
 				cline.say("error", `SF CLI command failed.`)
 				pushToolResult(formattedResult)
 				return
@@ -375,6 +399,7 @@ export async function retrieveSfMetadataTool(
 				errorMessage =
 					"Salesforce CLI (sf) is not installed. Please install it from https://developer.salesforce.com/tools/salesforcecli"
 			}
+			await sendRetrieveStatus(cline, { executionId, status: "error", error: errorMessage })
 			cline.say("error", formatResponse.toolError(`SF CLI Error: ${errorMessage}`))
 			pushToolResult(formatResponse.toolError(`SF CLI Error: ${errorMessage}`))
 		}

@@ -104,6 +104,9 @@ export interface ExtensionMessage {
 		| "setHistoryPreviewCollapsed"
 		| "commandExecutionStatus"
 		| "mcpExecutionStatus"
+		| "sfDeployExecutionStatus"
+		| "sfRetrieveExecutionStatus"
+		| "taskCancelling"
 		| "vsCodeSetting"
 		| "authenticatedUser"
 		| "condenseTaskContextResponse"
@@ -247,7 +250,6 @@ export type ExtensionState = Pick<
 	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowExecute"
-	
 	| "alwaysAllowDeploySfMetadata"
 	| "alwaysAllowRetrieveSfMetadata"
 	| "allowedCommands"
