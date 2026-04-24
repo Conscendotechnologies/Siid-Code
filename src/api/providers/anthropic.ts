@@ -43,96 +43,66 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 	): ApiStream {
 		let stream: AnthropicStream<Anthropic.Messages.RawMessageStreamEvent>
 		const cacheControl: CacheControlEphemeral = { type: "ephemeral" }
-		let { id: modelId, betas = [], maxTokens, temperature, reasoning: thinking } = this.getModel()
+		let { id: modelId, info, betas = [], maxTokens, temperature, reasoning: thinking } = this.getModel()
 
-		switch (modelId) {
-			case "claude-sonnet-4-20250514":
-			case "claude-opus-4-1-20250805":
-			case "claude-opus-4-20250514":
-			case "claude-3-7-sonnet-20250219":
-			case "claude-3-5-sonnet-20241022":
-			case "claude-3-5-haiku-20241022":
-			case "claude-3-opus-20240229":
-			case "claude-3-haiku-20240307": {
-				/**
-				 * The latest message will be the new user message, one before
-				 * will be the assistant message from a previous request, and
-				 * the user message before that will be a previously cached user
-				 * message. So we need to mark the latest user message as
-				 * ephemeral to cache it for the next request, and mark the
-				 * second to last user message as ephemeral to let the server
-				 * know the last message to retrieve from the cache for the
-				 * current request.
-				 */
-				const userMsgIndices = messages.reduce(
-					(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
-					[] as number[],
-				)
+		if (info.supportsPromptCache) {
+			/**
+			 * The latest message will be the new user message, one before
+			 * will be the assistant message from a previous request, and
+			 * the user message before that will be a previously cached user
+			 * message. So we need to mark the latest user message as
+			 * ephemeral to cache it for the next request, and mark the
+			 * second to last user message as ephemeral to let the server
+			 * know the last message to retrieve from the cache for the
+			 * current request.
+			 */
+			const userMsgIndices = messages.reduce(
+				(acc, msg, index) => (msg.role === "user" ? [...acc, index] : acc),
+				[] as number[],
+			)
 
-				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
-				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
+			const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
+			const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 
-				stream = await this.client.messages.create(
-					{
-						model: modelId,
-						max_tokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
-						temperature,
-						thinking,
-						// Setting cache breakpoint for system prompt so new tasks can reuse it.
-						system: [{ text: systemPrompt, type: "text", cache_control: cacheControl }],
-						messages: messages.map((message, index) => {
-							if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-								return {
-									...message,
-									content:
-										typeof message.content === "string"
-											? [{ type: "text", text: message.content, cache_control: cacheControl }]
-											: message.content.map((content, contentIndex) =>
-													contentIndex === message.content.length - 1
-														? { ...content, cache_control: cacheControl }
-														: content,
-												),
-								}
-							}
-							return message
-						}),
-						stream: true,
-					},
-					(() => {
-						// prompt caching: https://x.com/alexalbert__/status/1823751995901272068
-						// https://github.com/anthropics/anthropic-sdk-typescript?tab=readme-ov-file#default-headers
-						// https://github.com/anthropics/anthropic-sdk-typescript/commit/c920b77fc67bd839bfeb6716ceab9d7c9bbe7393
+			betas.push("prompt-caching-2024-07-31")
 
-						// Then check for models that support prompt caching
-						switch (modelId) {
-							case "claude-sonnet-4-20250514":
-							case "claude-opus-4-1-20250805":
-							case "claude-opus-4-20250514":
-							case "claude-3-7-sonnet-20250219":
-							case "claude-3-5-sonnet-20241022":
-							case "claude-3-5-haiku-20241022":
-							case "claude-3-opus-20240229":
-							case "claude-3-haiku-20240307":
-								betas.push("prompt-caching-2024-07-31")
-								return { headers: { "anthropic-beta": betas.join(",") } }
-							default:
-								return undefined
-						}
-					})(),
-				)
-				break
-			}
-			default: {
-				stream = (await this.client.messages.create({
+			stream = await this.client.messages.create(
+				{
 					model: modelId,
 					max_tokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
 					temperature,
-					system: [{ text: systemPrompt, type: "text" }],
-					messages,
+					thinking,
+					// Setting cache breakpoint for system prompt so new tasks can reuse it.
+					system: [{ text: systemPrompt, type: "text", cache_control: cacheControl }],
+					messages: messages.map((message, index) => {
+						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+							return {
+								...message,
+								content:
+									typeof message.content === "string"
+										? [{ type: "text", text: message.content, cache_control: cacheControl }]
+										: message.content.map((content, contentIndex) =>
+												contentIndex === message.content.length - 1
+													? { ...content, cache_control: cacheControl }
+													: content,
+											),
+							}
+						}
+						return message
+					}),
 					stream: true,
-				})) as any
-				break
-			}
+				},
+				{ headers: { "anthropic-beta": betas.join(",") } },
+			)
+		} else {
+			stream = (await this.client.messages.create({
+				model: modelId,
+				max_tokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
+				temperature,
+				system: [{ text: systemPrompt, type: "text" }],
+				messages,
+				stream: true,
+			})) as any
 		}
 
 		let inputTokens = 0
