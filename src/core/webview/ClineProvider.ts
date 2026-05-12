@@ -1334,6 +1334,9 @@ export class ClineProvider
 
 		await cline.abortTask()
 
+		// Notify webview immediately so cancel button shows "Cancelling..." without waiting for pWaitFor
+		this.postMessageToWebview({ type: "taskCancelling" })
+
 		await pWaitFor(
 			() =>
 				this.getCurrentCline()! === undefined ||

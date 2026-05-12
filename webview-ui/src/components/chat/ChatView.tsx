@@ -15,7 +15,7 @@ import type { ClineAsk, ClineMessage } from "@siid-code/types"
 import { ClineSayBrowserAction, ClineSayTool, ExtensionMessage } from "@roo/ExtensionMessage"
 import { McpServer, McpTool } from "@roo/mcp"
 import { findLast } from "@roo/array"
-import {  SuggestionItem } from "@siid-code/types"
+import { SuggestionItem } from "@siid-code/types"
 import { combineApiRequests } from "@roo/combineApiRequests"
 import { combineCommandSequences } from "@roo/combineCommandSequences"
 import { getApiMetrics } from "@roo/getApiMetrics"
@@ -192,13 +192,13 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		allowedCommands,
 		deniedCommands,
 		writeDelayMs,
-		
+
 		mode,
 		setMode,
 		autoApprovalEnabled,
 		alwaysAllowModeSwitch,
 		alwaysAllowSubtasks,
-		
+
 		alwaysAllowDeploySfMetadata,
 		alwaysAllowRetrieveSfMetadata,
 		customModes,
@@ -1075,6 +1075,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						setIsCondensing(false)
 					}
 					break
+				case "taskCancelling":
+					setDidClickCancel(true)
+					break
 			}
 			// textAreaRef.current is not explicitly required here since React
 			// guarantees that ref will be stable across re-renders, and we're
@@ -1391,8 +1394,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				return false
 			}
 
-			
-
 			if (message.ask === "browser_action_launch") {
 				return alwaysAllowBrowser
 			}
@@ -1419,8 +1420,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				if (!tool) {
 					return false
 				}
-
-				
 
 				if (tool?.tool === "deploySfMetadata") {
 					return alwaysAllowDeploySfMetadata
@@ -1476,9 +1475,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			isAllowedCommand,
 			alwaysAllowMcp,
 			isMcpToolAlwaysAllowed,
-			
+
 			alwaysAllowSubtasks,
-			
+
 			alwaysAllowDeploySfMetadata,
 			alwaysAllowRetrieveSfMetadata,
 		],
@@ -1972,7 +1971,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		alwaysAllowWrite,
 		alwaysAllowWriteOutsideWorkspace,
 		alwaysAllowExecute,
-		
+
 		alwaysAllowMcp,
 		messages,
 		allowedCommands,
@@ -1982,7 +1981,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		lastMessage,
 		writeDelayMs,
 		isWriteToolAction,
-		
+
 		handleSuggestionClickInRow,
 		isAllowedCommand,
 		isDeniedCommand,
@@ -2469,7 +2468,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 												disabled={!enableButtons && !(isStreaming && !didClickCancel)}
 												className={isStreaming ? "flex-[2] ml-0" : "flex-1 ml-[6px]"}
 												onClick={() => handleSecondaryButtonClick(inputValue, selectedImages)}>
-												{isStreaming ? t("chat:cancel.title") : secondaryButtonText}
+												{isStreaming
+													? didClickCancel
+														? "Cancelling..."
+														: t("chat:cancel.title")
+													: secondaryButtonText}
 											</VSCodeButton>
 										</StandardTooltip>
 									)}
