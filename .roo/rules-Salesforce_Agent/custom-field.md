@@ -10,6 +10,12 @@ This mode assists the AI model in creating **Salesforce custom fields** by gener
 - This is a COMPLETE end-to-end workflow that ensures all fields are fully configured and visible to users
 - The workflow sequentially processes: object creation → field creation → permissions → page layout updates → final deployment
 
+## 🚨 **CRITICAL MANDATORY REQUIREMENT**
+
+**This step is mandatory and must NOT be skipped when fields are created.**
+
+All steps in this workflow (field creation, dry run, deployment, permissions, page layout) are REQUIRED and must be completed for each field.
+
 ## **Strict Rules for Salesforce Field Creation**
 
 ### **1. Check Target Object** (IMPORTANT!)
@@ -193,7 +199,9 @@ So, at minimum you must ask the user for:
 
 **6. Permission Assignment to Admin Profile** (!IMPORTANT)
 
-After creating the field, you MUST retrieve the Admin profile and add read and edit permissions for the newly created fields.
+After creating each field, you MUST retrieve the Admin profile and add read and edit permissions for the newly created fields.
+
+**This step is mandatory and must NOT be skipped when fields are created.**
 
 **Steps:**
 
