@@ -84,6 +84,8 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 
 - Ensure the tab file name and the object API name match the custom object. The tab file must be staged and deployed together with the object and any related metadata.
 
+- When the request includes both object creation and field creation, assign Admin field permissions for newly created fields as part of the same workflow.
+
 ## Admin Profile Tab Permission Assignment (!!IMPORTANT - MANDATORY)
 
 - **After creating the tab, MUST assign permission to Admin profile with default settings**
@@ -107,6 +109,26 @@ force-app/main/default/tabs/<ObjectApiName>.tab-meta.xml
 - Tab API name must match the tab's fullName (e.g., Invoice\_\_c)
 - Profile must be deployed together with the tab for complete setup
 - Profile metadata name is exactly: "Admin"
+
+### Field Permissions When Objects and Fields Are Created Together
+
+- When the user request includes both object creation and field creation in a single prompt, the workflow must also assign field-level permissions to the `Admin` profile for newly created fields.
+- After field creation and field deployment, retrieve the Admin profile using `<retrieve_sf_metadata>` with:
+    - metadata_type: "Profile"
+    - metadata_name: "Admin"
+- Save the retrieved profile file at `force-app/main/default/profiles/Admin.profile-meta.xml`.
+- Add `<fieldPermissions>` blocks for each new field:
+
+```xml
+<fieldPermissions>
+  <editable>true</editable>
+  <field>{ObjectApiName}.{FieldApiName__c}</field>
+  <readable>true</readable>
+</fieldPermissions>
+```
+
+- Deploy the updated `Admin` profile using the `<sf_deploy_metadata>` tool after updating field permissions.
+- This is mandatory whenever fields are created as part of the same object creation workflow.
 
 ## ⚠️ MANDATORY DEPLOYMENT FOR OBJECTS (!!**CRITICAL - MUST FOLLOW EVERY TIME**)
 
