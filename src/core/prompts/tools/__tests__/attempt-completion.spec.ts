@@ -47,8 +47,8 @@ describe("getAttemptCompletionDescription", () => {
 		const description = getAttemptCompletionDescription(args)
 
 		// Check example format
-		expect(description).toContain("Example: Requesting to attempt completion with a result")
-		expect(description).toContain("I've updated the CSS")
+		expect(description).toContain("Example: Sending a final status summary")
+		expect(description).toContain("Updated the CSS. Deployment is still pending.")
 		expect(description).not.toContain("Example: Requesting to attempt completion with a result and command")
 	})
 
@@ -58,6 +58,8 @@ describe("getAttemptCompletionDescription", () => {
 		// Should contain core functionality
 		const coreText = "After each tool use, the user will respond with the result of that tool use"
 		expect(description).toContain(coreText)
+		expect(description).toContain("present a final status summary")
+		expect(description).toContain("does not need to claim the task is complete")
 
 		// Should contain the important note
 		const importantNote = "IMPORTANT NOTE: This tool CANNOT be used until you've confirmed"

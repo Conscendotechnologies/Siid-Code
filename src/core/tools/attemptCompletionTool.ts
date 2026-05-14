@@ -47,7 +47,7 @@ export async function attemptCompletionTool(
 
 		pushToolResult(
 			formatResponse.toolError(
-				"Cannot complete task while there are incomplete todos. Please finish all todos before attempting completion.",
+				"Cannot provide a final summary while there are incomplete todos. Please finish all todos before attempting completion.",
 			),
 		)
 
@@ -79,7 +79,6 @@ export async function attemptCompletionTool(
 			} else {
 				// No command, still outputting partial result
 				await cline.say("completion_result", removeClosingTag("result", result), undefined, block.partial)
-				cline.taskCompleted = true
 			}
 			return
 		} else {
