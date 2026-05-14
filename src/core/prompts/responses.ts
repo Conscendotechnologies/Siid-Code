@@ -25,7 +25,7 @@ ${toolUseInstructionsReminder}
 
 # Next Steps
 
-If you have completed the user's task, use the attempt_completion tool. 
+If you are ready to stop and report status to the user, use the attempt_completion tool with an accurate summary. 
 If you require additional information from the user, use the ask_followup_question tool. 
 Otherwise, if you have not completed the task and do not need additional information, then proceed with the next step of the task. 
 (This is an automated message, so do not respond to it conversationally.)`,
@@ -204,7 +204,7 @@ For example, to use the attempt_completion tool:
 
 <attempt_completion>
 <result>
-I have completed the task...
+Here is the current status summary...
 </result>
 </attempt_completion>
 
