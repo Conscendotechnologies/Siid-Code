@@ -304,6 +304,17 @@ describe("writeToFileTool", () => {
 			expect(mockedUnescapeHtmlEntities).not.toHaveBeenCalled()
 		})
 
+		it("preserves XML entities when writing XML files", async () => {
+			mockCline.api.getModel.mockReturnValue({ id: "gpt-4" })
+
+			await executeWriteFileTool({
+				path: "force-app/main/default/objects/Account/validationRules/AnnualRevenue.validationRule-meta.xml",
+				content: "&lt;ValidationRule&gt;",
+			})
+
+			expect(mockedUnescapeHtmlEntities).not.toHaveBeenCalled()
+		})
+
 		it("strips line numbers from numbered content", async () => {
 			const contentWithLineNumbers = "1 | line one\n2 | line two"
 			mockedEveryLineHasLineNumbers.mockReturnValue(true)
