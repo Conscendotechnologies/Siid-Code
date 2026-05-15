@@ -27,6 +27,10 @@ function logWriteToolDebug(event: string, payload: Record<string, unknown>) {
 	logStreamedToolDebug("WriteToFileToolDebug", event, payload)
 }
 
+function shouldPreserveXmlEntities(relPath: string): boolean {
+	return relPath.toLowerCase().endsWith(".xml")
+}
+
 export async function writeToFileTool(
 	cline: Task,
 	block: ToolUse,
@@ -123,7 +127,7 @@ export async function writeToFileTool(
 		newContent = newContent.split("\n").slice(0, -1).join("\n")
 	}
 
-	if (!cline.api.getModel().id.includes("claude")) {
+	if (!cline.api.getModel().id.includes("claude") && !shouldPreserveXmlEntities(relPath)) {
 		newContent = unescapeHtmlEntities(newContent)
 	}
 
