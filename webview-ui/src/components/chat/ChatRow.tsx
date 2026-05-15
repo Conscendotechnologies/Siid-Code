@@ -212,6 +212,15 @@ export const ChatRowContent = ({
 	const successColor = "var(--vscode-charts-green)"
 	const cancelledColor = "var(--vscode-descriptionForeground)"
 
+	const isRetrievalSuccess = useMemo(() => {
+		if (type !== "completion_result" || !message.text) {
+			return false
+		}
+
+		const normalizedText = message.text.toLowerCase()
+		return /\b(retriev(ed|al)|retrieval)\b/.test(normalizedText)
+	}, [type, message.text])
+
 	const [icon, title] = useMemo(() => {
 		const getIconSpan = (iconName: string, color: string) => (
 			<div
@@ -236,9 +245,22 @@ export const ChatRowContent = ({
 					<span style={{ color: errorColor, fontWeight: "bold" }}>{t("chat:error")}</span>,
 				]
 			case "completion_result":
+				if (message.partial) {
+					return [
+						<ProgressIndicator />,
+						<span style={{ color: normalColor, fontWeight: "bold" }}>
+							{t("chat:summaryInProgress", "Preparing Summary")}
+						</span>,
+					]
+				}
+
 				return [
 					getIconSpan("check", successColor),
-					<span style={{ color: successColor, fontWeight: "bold" }}>{t("chat:taskCompleted")}</span>,
+					<span style={{ color: successColor, fontWeight: "bold" }}>
+						{isRetrievalSuccess
+							? t("chat:retrieveSuccessful", "Retrieve Successful")
+							: t("chat:taskSummary", "Task Summary")}
+					</span>,
 				]
 			case "api_req_retry_delayed":
 				return []
@@ -314,8 +336,10 @@ export const ChatRowContent = ({
 		apiReqCancelReason,
 		cost,
 		apiRequestFailedMessage,
+		isRetrievalSuccess,
 		isCommandExecuting,
 		isMcpServerResponding,
+		message.partial,
 		cancelledColor,
 		normalColor,
 		errorColor,

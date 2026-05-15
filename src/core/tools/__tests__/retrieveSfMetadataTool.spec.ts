@@ -1,14 +1,11 @@
 import { describe, expect, test, vi } from "vitest"
 import { normalizeSfMetadataParams } from "../sfMetadataParams"
+import { formatSfOutput } from "../retrieveSfMetadataTool"
 
 /**
  * Tests for retrieveSfMetadataTool
  * This file tests the helper functions used by the Salesforce metadata retrieval tool
  */
-
-// Import the functions we'll test by extracting them from the module
-// Since they're not exported, we'll need to test the main function's behavior
-// For now, we'll create standalone tests for the command building and output formatting logic
 
 describe("retrieveSfMetadataTool - buildSfCommand logic", () => {
 	describe("Command generation for specific metadata types", () => {
@@ -125,56 +122,18 @@ describe("retrieveSfMetadataTool - buildSfCommand logic", () => {
 })
 
 describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
-	// Helper function to simulate formatSfOutput behavior
-	function formatSfOutput(output: string, metadataType: string, metadataName: string | undefined): string {
-		try {
-			const jsonOutput = JSON.parse(output)
-
-			if (jsonOutput.status === 0) {
-				const result = jsonOutput.result
-
-				if (!metadataName) {
-					// Listing mode - show count and status only
-					const files = result?.files || []
-					if (files.length === 0) {
-						return `No ${metadataType} metadata found in the org.`
-					}
-					return `Successfully retrieved ${files.length} ${metadataType} component(s). Files have been retrieved to your local project directory.`
-				}
-
-				// Specific component retrieval
-				const files = result?.files || []
-				if (files.length === 0) {
-					return `${metadataType} '${metadataName}' was retrieved but no files were found. The component may not exist in the org.`
-				}
-				return `Successfully retrieved ${metadataType} '${metadataName}'\nThe metadata has been saved to your local project directory. You can now read the files to inspect the metadata content.`
-			} else {
-				// Error in SF CLI response
-				const errorMessage = jsonOutput.message || jsonOutput.result?.message || "Unknown error occurred"
-				const errorName = jsonOutput.name || "SfError"
-				return `SF CLI Error (${errorName}): ${errorMessage}`
-			}
-		} catch (parseError) {
-			// If JSON parsing fails, return raw output
-			if (output.includes("ERROR") || output.includes("error")) {
-				return `SF CLI Error:\n${output}`
-			}
-			return `SF CLI Output:\n${output}`
-		}
-	}
-
 	describe("Successful retrieval responses", () => {
 		test("should return summary for successful single component retrieval", () => {
 			const sfOutput = JSON.stringify({
 				status: 0,
 				result: {
-					files: ["force-app/main/default/classes/AccountController.cls"],
+					files: [{ fullName: "AccountController", state: "Retrieved" }],
 				},
 			})
 
 			const result = formatSfOutput(sfOutput, "ApexClass", "AccountController")
-			expect(result).toContain("Successfully retrieved ApexClass 'AccountController'")
-			expect(result).toContain("metadata has been saved to your local project directory")
+			expect(result).toContain("Retrieved ApexClass 'AccountController' from the org")
+			expect(result).not.toContain("metadata has been saved to your local project directory")
 			expect(result).not.toContain("AccountController.cls") // Should not include file paths
 		})
 
@@ -183,15 +142,15 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 				status: 0,
 				result: {
 					files: [
-						"force-app/main/default/lwc/myComponent/myComponent.js",
-						"force-app/main/default/lwc/myComponent/myComponent.html",
-						"force-app/main/default/lwc/myComponent/myComponent.css",
+						{ fullName: "myComponent", state: "Retrieved" },
+						{ fullName: "myComponent", state: "Retrieved" },
+						{ fullName: "myComponent", state: "Retrieved" },
 					],
 				},
 			})
 
 			const result = formatSfOutput(sfOutput, "LightningComponentBundle", "myComponent")
-			expect(result).toContain("Successfully retrieved LightningComponentBundle 'myComponent'")
+			expect(result).toContain("Retrieved LightningComponentBundle 'myComponent' from the org")
 			expect(result).not.toContain(".js") // Should not include file extensions
 			expect(result).not.toContain("force-app") // Should not include file paths
 		})
@@ -205,8 +164,8 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 			})
 
 			const result = formatSfOutput(sfOutput, "ApexClass", "NonExistentClass")
-			expect(result).toContain("ApexClass 'NonExistentClass' was retrieved but no files were found")
-			expect(result).toContain("component may not exist")
+			expect(result).toContain("No files were retrieved for ApexClass 'NonExistentClass'.")
+			expect(result).toContain("may not exist")
 		})
 
 		test("should return count summary for listing mode", () => {
@@ -214,18 +173,17 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 				status: 0,
 				result: {
 					files: [
-						"force-app/main/default/classes/Class1.cls",
-						"force-app/main/default/classes/Class2.cls",
-						"force-app/main/default/classes/Class3.cls",
-						"force-app/main/default/classes/Class4.cls",
-						"force-app/main/default/classes/Class5.cls",
+						{ fullName: "Class1", state: "Retrieved" },
+						{ fullName: "Class2", state: "Retrieved" },
+						{ fullName: "Class3", state: "Retrieved" },
+						{ fullName: "Class4", state: "Retrieved" },
+						{ fullName: "Class5", state: "Retrieved" },
 					],
 				},
 			})
 
 			const result = formatSfOutput(sfOutput, "ApexClass", undefined)
-			expect(result).toContain("Successfully retrieved 5 ApexClass component(s)")
-			expect(result).toContain("Files have been retrieved to your local project directory")
+			expect(result).toContain("Retrieved 5 ApexClass component(s) from the org")
 			expect(result).not.toContain("Class1.cls") // Should not include individual file names
 		})
 
@@ -319,13 +277,13 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 			})
 
 			const result = formatSfOutput(sfOutput, "ApexClass", "MyClass")
-			expect(result).toContain("Successfully retrieved ApexClass 'MyClass'")
+			expect(result).toContain("Retrieved ApexClass 'MyClass' from the org")
 			// Warnings are not included in summary - only success message
 			expect(result).not.toContain("warning")
 		})
 
 		test("should return summary for large file list without listing files", () => {
-			const largeFileList = Array.from({ length: 100 }, (_, i) => `force-app/main/default/classes/Class${i}.cls`)
+			const largeFileList = Array.from({ length: 100 }, (_, i) => ({ fullName: `Class${i}`, state: "Retrieved" }))
 			const sfOutput = JSON.stringify({
 				status: 0,
 				result: {
@@ -334,7 +292,7 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 			})
 
 			const result = formatSfOutput(sfOutput, "ApexClass", undefined)
-			expect(result).toContain("Successfully retrieved 100 ApexClass component(s)")
+			expect(result).toContain("Retrieved 100 ApexClass component(s) from the org")
 			expect(result).not.toContain("Class0.cls") // Should not list individual files
 			expect(result).not.toContain("Class99.cls")
 		})
@@ -344,16 +302,16 @@ describe("retrieveSfMetadataTool - formatSfOutput logic", () => {
 				status: 0,
 				result: {
 					files: [
-						"force-app/main/default/lwc/myComponent/myComponent.js",
-						"force-app/main/default/lwc/myComponent/myComponent.html",
-						"force-app/main/default/lwc/myComponent/myComponent.css",
-						"force-app/main/default/lwc/myComponent/myComponent.js-meta.xml",
+						{ fullName: "myComponent", state: "Retrieved" },
+						{ fullName: "myComponent", state: "Retrieved" },
+						{ fullName: "myComponent", state: "Retrieved" },
+						{ fullName: "myComponent", state: "Retrieved" },
 					],
 				},
 			})
 
 			const result = formatSfOutput(sfOutput, "LightningComponentBundle", "myComponent")
-			expect(result).toContain("Successfully retrieved LightningComponentBundle 'myComponent'")
+			expect(result).toContain("Retrieved LightningComponentBundle 'myComponent' from the org")
 			expect(result).not.toContain("myComponent.js") // Should not list files
 			expect(result).not.toContain("myComponent.html")
 		})

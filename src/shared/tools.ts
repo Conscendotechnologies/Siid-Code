@@ -207,7 +207,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	use_mcp_tool: "use mcp tools",
 	access_mcp_resource: "access mcp resources",
 	ask_followup_question: "ask questions",
-	attempt_completion: "complete tasks",
+	attempt_completion: "provide task summary",
 	switch_mode: "switch modes",
 	new_task: "create new task",
 	insert_content: "insert content",
