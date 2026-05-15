@@ -105,12 +105,13 @@ Before writing ANY code, verify:
 - [ ] 🔤 Will follow naming conventions (list/set/map/str/int prefixes)
 - [ ] 🔒 Will use `WITH USER_MODE` or `WITH SECURITY_ENFORCED` in SOQL
 - [ ] 📦 Will use `with sharing` on classes
-- [ ] 📄 Will create XML metadata files for each class
+- [ ] 📄 Will create both `.cls` and `.cls-meta.xml` metadata files for each Apex class
+- [ ] ❗ If `.cls-meta.xml` is missing, deployment will fail
 
 ### Step 4: ⚡ Create Classes in This Order
 
 1. **First**: Create Service class(es) with SOQL queries and business logic
-2. **Second**: Create corresponding XML metadata files for each class
+2. **Second**: Create the corresponding XML metadata file for each class immediately after the class file is created **(no exceptions)**
 
 ### ❌ ANTI-PATTERNS TO AVOID
 
@@ -172,7 +173,10 @@ Service Class (@AuraEnabled wrapper methods)
 
 ## Creation of XML: (!!**IMPORTANT**)
 
-- After creation of apex class immediatly create it's XML file too WITHOUT ASKING.
+- After creation of an Apex class, immediately create its `.cls-meta.xml` file too WITHOUT ASKING.
+- Create the class file first: `MyClass.cls`
+- Then create the matching metadata file: `MyClass.cls-meta.xml`
+- If the `.cls-meta.xml` file is missing or misnamed, deployment will fail.
 
 ## User-Provided Guidelines Priority (**HIGHEST PRIORITY**)
 
