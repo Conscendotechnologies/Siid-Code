@@ -47,6 +47,20 @@ export default class AccountList extends LightningElement {
     - Testing and documentation requirements
 - Always acknowledge and confirm user-provided guidelines before proceeding with implementation.
 
+## Existing LWC Reuse Decision (MANDATORY)
+
+- **Before modifying any existing LWC to satisfy a new requirement, you MUST explicitly ask the user to choose between:**
+    1. **Use the existing LWC**
+    2. **Create a new LWC**
+- **This question is MANDATORY and MUST be asked every time an existing LWC appears to match or partially match the requirement.**
+- **Do NOT automatically modify an existing LWC just because it is similar to the requested functionality.**
+- **Do NOT automatically create a new LWC if an existing LWC already appears reusable.**
+- **You MUST stop and wait for the user's decision before proceeding.**
+- If the user chooses **Use the existing LWC**, then modify only the identified existing component bundle.
+- If the user chooses **Create a new LWC**, then create a brand-new component bundle and do not change the existing one unless the user separately asks for it.
+- If multiple existing LWCs are possible matches, list the relevant component names and ask the user which path to take.
+- This rule applies **strictly** whenever the current requirement matches, overlaps with, or can reasonably be implemented by any existing LWC.
+
 ---
 
 ## Core Concepts
