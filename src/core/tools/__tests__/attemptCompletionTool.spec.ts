@@ -2,6 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { TodoItem } from "@siid-code/types"
 import { AttemptCompletionToolUse } from "../../../shared/tools"
 
+vi.mock("@siid-code/telemetry", () => ({
+	TelemetryService: {
+		instance: {
+			captureTaskCompleted: vi.fn(),
+		},
+	},
+}))
+
 // Mock the formatResponse module before importing the tool
 vi.mock("../../prompts/responses", () => ({
 	formatResponse: {
@@ -43,7 +51,7 @@ describe("attemptCompletionTool", () => {
 		mockPushToolResult = vi.fn()
 		mockAskApproval = vi.fn()
 		mockHandleError = vi.fn()
-		mockRemoveClosingTag = vi.fn()
+		mockRemoveClosingTag = vi.fn((_tag: string, value: string) => value)
 		mockToolDescription = vi.fn()
 		mockAskFinishSubTaskApproval = vi.fn()
 		mockGetConfiguration = vi.fn(() => ({
@@ -59,9 +67,18 @@ describe("attemptCompletionTool", () => {
 		vi.mocked(vscode.workspace.getConfiguration).mockImplementation(mockGetConfiguration)
 
 		mockTask = {
+			taskId: "test-task",
+			taskNumber: 1,
+			toolUsage: {},
+			parentTask: undefined,
+			clineMessages: [],
 			consecutiveMistakeCount: 0,
 			recordToolError: vi.fn(),
 			todoList: undefined,
+			say: vi.fn(),
+			ask: vi.fn().mockResolvedValue({ response: "yesButtonClicked" }),
+			emit: vi.fn(),
+			getTokenUsage: vi.fn().mockReturnValue({}),
 		}
 	})
 
@@ -186,7 +203,7 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(1)
 			expect(mockTask.recordToolError).toHaveBeenCalledWith("attempt_completion")
 			expect(mockPushToolResult).toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
 		})
 
@@ -229,7 +246,7 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(1)
 			expect(mockTask.recordToolError).toHaveBeenCalledWith("attempt_completion")
 			expect(mockPushToolResult).toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
 		})
 
@@ -273,7 +290,7 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(1)
 			expect(mockTask.recordToolError).toHaveBeenCalledWith("attempt_completion")
 			expect(mockPushToolResult).toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
 		})
 
@@ -317,8 +334,70 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(0)
 			expect(mockTask.recordToolError).not.toHaveBeenCalled()
 			expect(mockPushToolResult).not.toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
+		})
+
+		it("should allow final summary by default when there are incomplete todos", async () => {
+			const block: AttemptCompletionToolUse = {
+				type: "tool_use",
+				name: "attempt_completion",
+				params: { result: "Task completed successfully" },
+				partial: false,
+			}
+
+			mockTask.todoList = [{ id: "1", content: "Finish implementation", status: "in_progress" }]
+
+			await attemptCompletionTool(
+				mockTask as Task,
+				block,
+				mockAskApproval,
+				mockHandleError,
+				mockPushToolResult,
+				mockRemoveClosingTag,
+				mockToolDescription,
+				mockAskFinishSubTaskApproval,
+			)
+
+			expect(mockTask.consecutiveMistakeCount).toBe(0)
+			expect(mockTask.recordToolError).not.toHaveBeenCalled()
+			expect(mockTask.say).toHaveBeenCalledWith(
+				"completion_result",
+				"Task completed successfully",
+				undefined,
+				false,
+			)
+		})
+
+		it("should not mark task completed while completion result is partial", async () => {
+			const block: AttemptCompletionToolUse = {
+				type: "tool_use",
+				name: "attempt_completion",
+				params: { result: "Task completed successfully" },
+				partial: true,
+			}
+
+			mockTask.taskCompleted = false
+
+			await attemptCompletionTool(
+				mockTask as Task,
+				block,
+				mockAskApproval,
+				mockHandleError,
+				mockPushToolResult,
+				mockRemoveClosingTag,
+				mockToolDescription,
+				mockAskFinishSubTaskApproval,
+			)
+
+			expect(mockTask.say).toHaveBeenCalledWith(
+				"completion_result",
+				"Task completed successfully",
+				undefined,
+				true,
+			)
+			expect(mockTask.taskCompleted).toBe(false)
+			expect(mockTask.emit).not.toHaveBeenCalled()
 		})
 
 		it("should prevent completion when setting is enabled with incomplete todos", async () => {
@@ -361,7 +440,7 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(1)
 			expect(mockTask.recordToolError).toHaveBeenCalledWith("attempt_completion")
 			expect(mockPushToolResult).toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
 		})
 
@@ -405,7 +484,7 @@ describe("attemptCompletionTool", () => {
 			expect(mockTask.consecutiveMistakeCount).toBe(0)
 			expect(mockTask.recordToolError).not.toHaveBeenCalled()
 			expect(mockPushToolResult).not.toHaveBeenCalledWith(
-				expect.stringContaining("Cannot complete task while there are incomplete todos"),
+				expect.stringContaining("Cannot provide a final summary while there are incomplete todos"),
 			)
 		})
 	})

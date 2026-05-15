@@ -185,7 +185,7 @@ function buildSfCommand(metadataType: string, metadataName: string | undefined, 
  * Parse and format the SF CLI output to reduce context size
  * Returns component names with their status
  */
-function formatSfOutput(output: string, metadataType: string, metadataName: string | undefined): string {
+export function formatSfOutput(output: string, metadataType: string, metadataName: string | undefined): string {
 	try {
 		const jsonOutput = JSON.parse(output)
 
@@ -197,7 +197,7 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 				if (!metadataName) {
 					return `No ${metadataType} metadata found in the org.`
 				}
-				return `${metadataType} '${metadataName}' does not exist in the org. No files were retrieved.`
+				return `No files were retrieved for ${metadataType} '${metadataName}'. The component may not exist in the org.`
 			}
 
 			// Build a map of unique components with their status
@@ -229,18 +229,18 @@ function formatSfOutput(output: string, metadataType: string, metadataName: stri
 					.map(([name, status]) => `${name}: ${status}`)
 					.join("\n")
 
-				return `Found ${totalCount} ${metadataType} component(s) (${statusSummary}):\n${first10}\n... and ${totalCount - 10} more`
+				return `Retrieved ${totalCount} ${metadataType} component(s) from the org (${statusSummary}):\n${first10}\n... and ${totalCount - 10} more`
 			}
 
 			// 10 or fewer - show full list
 			const componentList = entries.map(([name, status]) => `${name}: ${status}`).join("\n")
 
 			if (!metadataName) {
-				return `Found ${totalCount} ${metadataType} component(s):\n${componentList}`
+				return `Retrieved ${totalCount} ${metadataType} component(s) from the org:\n${componentList}`
 			}
 
 			// Specific component retrieval
-			return `Successfully retrieved ${metadataType} '${metadataName}':\n${componentList}`
+			return `Retrieved ${metadataType} '${metadataName}' from the org:\n${componentList}`
 		} else {
 			// Error in SF CLI response
 			const errorMessage = jsonOutput.message || jsonOutput.result?.message || "Unknown error occurred"
