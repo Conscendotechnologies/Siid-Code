@@ -552,8 +552,25 @@ export async function readFileTool(
 						const lineRangeAttr = ` lines="${range.start}-${range.end}"`
 						rangeResults.push(`<content${lineRangeAttr}>\n${content}</content>`)
 					}
+
+					let xmlInfo = rangeResults.join("\n")
+
+					if (maxReadFileLine > 0 && totalLines > maxReadFileLine) {
+						try {
+							const defResult = await parseSourceCodeDefinitionsForFile(
+								fullPath,
+								cline.rooIgnoreController,
+							)
+							if (defResult) {
+								xmlInfo += `\n<list_code_definition_names>${defResult}</list_code_definition_names>`
+							}
+						} catch (error) {
+							// Ignore extraction errors
+						}
+					}
+
 					updateFileResult(relPath, {
-						xmlContent: `<file><path>${relPath}</path>\n${rangeResults.join("\n")}\n</file>`,
+						xmlContent: `<file><path>${relPath}</path>\n${xmlInfo}\n</file>`,
 					})
 					continue
 				}
