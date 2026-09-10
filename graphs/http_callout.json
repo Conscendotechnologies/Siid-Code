@@ -1,0 +1,108 @@
+{
+	"flow_name": "Random_User_Details_HTTP_Callout",
+	"process_type": "Flow",
+	"api_version": 66.0,
+	"status": "Active",
+	"description": "Screen flow that calls GetRandomQuote.Get Random Quote and displays the response.",
+	"nodes": [
+		{
+			"id": "Start",
+			"type": "Start",
+			"label": "Start",
+			"metadata": {
+				"name": "Start",
+				"original_tag": "start",
+				"position": {
+					"x": 50,
+					"y": 0
+				}
+			}
+		},
+		{
+			"id": "Get_Random_Quote",
+			"type": "ActionCall",
+			"label": "Get Random Quote",
+			"metadata": {
+				"name": "Get_Random_Quote",
+				"original_tag": "actionCalls",
+				"action_name": "GetRandomQuote.Get Random Quote",
+				"action_type": "externalService",
+				"flow_transaction_model": "CurrentTransaction",
+				"store_output_automatically": true,
+				"nameSegment": "GetRandomQuote.Get Random Quote",
+				"offset": 0,
+				"position": {
+					"x": 250,
+					"y": 100
+				}
+			}
+		},
+		{
+			"id": "Random_User_Details",
+			"type": "Screen",
+			"label": "Random User Details",
+			"metadata": {
+				"name": "Random_User_Details",
+				"original_tag": "screens",
+				"allowBack": true,
+				"allowFinish": true,
+				"allowPause": false,
+				"showFooter": true,
+				"showHeader": true,
+				"fields": [
+					{
+						"name": "Callout_Response",
+						"fieldType": "DisplayText",
+						"fieldText": "<p>{!Get_Random_Quote}</p>",
+						"styleProperties": {
+							"verticalAlignment": {
+								"stringValue": "top"
+							},
+							"width": {
+								"stringValue": "12"
+							}
+						}
+					}
+				],
+				"position": {
+					"x": 450,
+					"y": 200
+				}
+			}
+		},
+		{
+			"id": "End",
+			"type": "End",
+			"label": "End",
+			"metadata": {
+				"position": {
+					"x": 650,
+					"y": 300
+				}
+			}
+		}
+	],
+	"edges": [
+		{
+			"from": "Start",
+			"to": "Get_Random_Quote",
+			"metadata": {}
+		},
+		{
+			"from": "Get_Random_Quote",
+			"to": "Random_User_Details",
+			"metadata": {}
+		},
+		{
+			"from": "Random_User_Details",
+			"to": "End",
+			"metadata": {}
+		}
+	],
+	"usage": {
+		"prompt_tokens": 12877,
+		"completion_tokens": 894,
+		"total_tokens": 13771,
+		"cost": null
+	}
+}

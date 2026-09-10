@@ -1,58 +1,112 @@
 import os
 import subprocess
 import json
-from dotenv import load_dotenv
+import sys
 from pathlib import Path
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+# Ensure UTF-8 output on Windows terminals
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+except ImportError:
+    pass  # dotenv optional; env var can be set externally
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
-    raise RuntimeError("OPENROUTER_API_KEY not found in .env")
+    raise RuntimeError("OPENROUTER_API_KEY not found in .env or environment")
 
 os.environ["OPENROUTER_API_KEY"] = OPENROUTER_API_KEY
 
-TESTS = [
-    {
-        "name": "http_callout",
-        "prompt": "Create a screen flow that performs an HTTP callout named GetRandomQuote.Get Random Quote and displays the response in a screen called Random User Details with showFooter and allowBack. The flow transaction model is CurrentTransaction.",
-        "reference": "flows-xml/HTTP_Callout_Flow.flow-meta.xml",
-        "version": "67.0",
-        "status": "Active"
-    },
-    {
-        "name": "dynamic_choice",
-        "prompt": "Create a screen flow for an Employee Leave Request. Add a dynamic choice set called LeaveTypeChoices pulling from Leave_Type__c on Leave_Request__c. Include 2 screens and a CreateRecords node to create the leave request.",
-        "reference": "flows-xml/Employee_Leave_Request_Flow.flow-meta.xml",
-        "version": "67.0",
-        "status": "Active"
-    }
-]
+from flow_test_scenarios import TESTS
 
-report = {"tests": [], "passed": 0, "fixes": [], "unsupported": []}
+os.makedirs("graphs", exist_ok=True)
+os.makedirs("flows", exist_ok=True)
+
+passed_count = 0
+failed_count = 0
 
 for test in TESTS:
-    print(f"\nRunning test: {test['name']}")
-    
-    # 1. Generate Graph
-    graph_path = f"graphs/{test['name']}.json"
-    cmd = ["python", "python/prompt_to_graph.py", test['prompt'], "--output", graph_path]
-    subprocess.run(cmd, capture_output=True, text=True)
-    
-    # 2. Convert to XML
-    xml_path = f"flows/{test['name']}.flow-meta.xml"
-    os.makedirs("flows", exist_ok=True)
-    cmd2 = ["python", "python/graph_to_flow_xml.py", graph_path, xml_path, "--api-version", test['version'], "--status", test['status']]
-    subprocess.run(cmd2, capture_output=True, text=True)
-    
-    # 3. Compare with reference semantically
-    cmd3 = ["python", "python/flow_validator.py", test['reference'], xml_path]
-    res3 = subprocess.run(cmd3, capture_output=True, text=True)
-    
-    try:
-        val_report = json.loads(res3.stdout)
-        print(f"Score: {val_report['score']:.2f}%")
-        print(f"Passed: {val_report['passed']}")
-    except json.JSONDecodeError:
-        pass
+    name = test["name"]
+    print(f"\n{'='*60}")
+    print(f"Test: {name}")
+    print(f"{'='*60}")
 
+    graph_path = f"graphs/{name}.json"
+    xml_path = f"flows/{name}.flow-meta.xml"
+
+    # 1. Generate Graph
+    cmd = ["python", "python/prompt_to_graph.py", test["prompt"], "--output", graph_path]
+    r1 = subprocess.run(cmd, capture_output=True, text=True)
+    if r1.returncode != 0:
+        print(f"  [FAIL] prompt_to_graph.py failed (exit {r1.returncode})")
+        print(f"  stderr: {r1.stderr.strip()[:400]}")
+        failed_count += 1
+        continue
+
+    # 2. Convert to XML
+    cmd2 = ["python", "python/graph_to_flow_xml.py", graph_path, xml_path,
+            "--api-version", test.get("version", "67.0"), "--status", test.get("status", "Active")]
+    r2 = subprocess.run(cmd2, capture_output=True, text=True)
+    if r2.returncode != 0:
+        print(f"  [FAIL] graph_to_flow_xml.py failed (exit {r2.returncode})")
+        print(f"  stderr: {r2.stderr.strip()[:400]}")
+        failed_count += 1
+        continue
+
+    # 3. Semantic comparison against reference (skipped when reference is None)
+    reference = test.get("reference")
+    if not reference:
+        print(f"  Score : n/a  PASS  (no reference — generation-only test)")
+        passed_count += 1
+        continue
+
+    cmd3 = ["python", "python/flow_validator.py", reference, xml_path]
+    r3 = subprocess.run(cmd3, capture_output=True, text=True)
+
+    try:
+        rep = json.loads(r3.stdout)
+    except json.JSONDecodeError:
+        print(f"  [FAIL] flow_validator.py produced no JSON")
+        if r3.stderr:
+            print(f"  stderr: {r3.stderr.strip()[:300]}")
+        failed_count += 1
+        continue
+
+    score = rep.get("score", 0.0)
+    ok = rep.get("passed", False)
+    print(f"  Score : {score:.2f}%  {'PASS' if ok else 'FAIL'}")
+
+    if rep.get("node_diffs"):
+        print(f"  Node diffs ({len(rep['node_diffs'])}):")
+        for d in rep["node_diffs"][:5]:
+            print(f"    - {d}")
+
+    if rep.get("connector_diffs"):
+        print(f"  Connector diffs ({len(rep['connector_diffs'])}):")
+        for d in rep["connector_diffs"][:3]:
+            print(f"    - {d}")
+
+    if rep.get("parameter_diffs"):
+        print(f"  Parameter diffs:")
+        for d in rep["parameter_diffs"][:3]:
+            print(f"    - {d}")
+
+    if rep.get("recommended_fixes"):
+        print(f"  Recommended fixes:")
+        for f in rep["recommended_fixes"][:3]:
+            print(f"    > {f}")
+
+    if ok:
+        passed_count += 1
+    else:
+        failed_count += 1
+
+print(f"\n{'='*60}")
+print(f"Results: {passed_count}/{passed_count + failed_count} passed")
+print(f"{'='*60}")
+
+if failed_count > 0:
+    sys.exit(1)

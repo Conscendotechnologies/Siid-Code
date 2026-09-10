@@ -945,6 +945,11 @@ assign_null_values_if_no_records_found: true = if no records found, set variable
 To reference trigger record field: {"elementReference": "$Record.FieldApiName"}
 To reference a formula: {"elementReference": "Formula_Name"}
 To reference a hard-coded value: {"stringValue": "value"}, {"numberValue": 42}, {"booleanValue": true}
+NEVER use JavaScript string concatenation ("a" + "b") inside JSON — it is invalid JSON.
+  - To combine a literal and a field reference in a Description or similar text field, create a
+    Formula node of dataType Text with expression CONCAT("Opportunity closed: ", $Record.Name)
+    and reference it with {"elementReference": "Formula_Name"}.
+  - If only a literal is needed: {"stringValue": "literal text"}.
 
 COMPLEX FILTER LOGIC (positional) — for combining 3+ filters with mixed AND/OR:
 "filter_logic": "1 AND 2 AND 3 AND 4"     — all filters 1-4 must match
@@ -1105,16 +1110,28 @@ Used to configure screen-level settings like progress indicators:
 }
 Add a "custom_properties" array at the top level for Screen Flows.
 
-═══ CUSTOM ERRORS (for error messages in flows) ═══
-Used to show user-facing error messages:
+═══ CUSTOM ERRORS (for validation errors in before-save flows) ═══
+Use a CustomError NODE (not an ActionCall) when the flow must prevent a record save and show an error.
+NEVER use action_type "displayError" or "addError" — those are not valid Salesforce InvocableActionType values.
+
+Add CustomError as a node in the "nodes" array and connect to it from a Decision outcome:
 {
-  "name": "Error",
-  "label": "Error",
-  "customErrorMessages": [
-    {"errorMessage": "This GST Number Already Exists.", "isFieldError": false}
-  ]
+  "id": "Err_Amount_Negative",
+  "type": "CustomError",
+  "label": "Amount Cannot Be Negative",
+  "metadata": {
+    "customErrorMessages": [
+      {"errorMessage": "Opportunity Amount cannot be negative", "isFieldError": true, "fieldSelection": "Amount"}
+    ]
+  }
 }
-Add a "custom_errors" array at the top level. Connect to via fault_connector_target.
+
+Set isFieldError=true and fieldSelection to the API field name to display the error on a specific field.
+Set isFieldError=false to show a page-level error.
+CustomError nodes are terminal — do NOT add an outgoing edge from them.
+Connect a Decision outcome to a CustomError node exactly like any other node: add an edge {"source": "Decision_Id", "target": "Err_Amount_Negative", "condition": "negative"}.
+
+Do NOT use the legacy top-level "custom_errors" array for new flows.
 
 ═══ DATE VALUES — CRITICAL ═══
 NEVER use relative date strings like "+7D", "TODAY+7", or "+7 days" inside a "dateValue" field.
@@ -1159,6 +1176,11 @@ Other date formula examples:
   30 days from now → "expression": "TODAY() + 30"
   Yesterday        → "expression": "TODAY() - 1"
   In 2 weeks       → "expression": "TODAY() + 14"
+  65 years ago     → "expression": "DATE(YEAR(TODAY()) - 65, MONTH(TODAY()), DAY(TODAY()))"
+  18 years ago     → "expression": "DATE(YEAR(TODAY()) - 18, MONTH(TODAY()), DAY(TODAY()))"
+
+NEVER emit a node with type "Formula". Formulas belong ONLY in the top-level "formulas" array.
+For "X years ago" comparisons, declare a formula in the "formulas" array with the DATE(YEAR(TODAY())-X, ...) expression and reference it with {"elementReference": "Formula_Name"} in filter conditions or assignments.
 
 ═══ LOOP NODE (type: Loop) ═══
 Iterate through a collection (e.g., records from GetRecords) and perform actions on each item.
@@ -1505,7 +1527,26 @@ Return ONLY valid JSON. No markdown, no explanations, no code fences."""
         json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
         if json_match:
             content = json_match.group(1)
-        
+
+        # Strip JS-style // line comments the model sometimes emits after JSON values.
+        # (?<!:) guards against stripping the "//" inside "http://..." string values.
+        # ponytail: naive heuristic, not a real tokenizer — could mis-strip a literal
+        # "//" inside a string value; upgrade to a proper JSON5 parser if that happens.
+        content = re.sub(r'(?<!:)//[^\n]*', '', content)
+
+        # Sanitize JS-style string concatenation the model sometimes emits, e.g.:
+        #   "stringValue": "Opportunity closed: " + "$Record.Name"
+        # Collapse adjacent quoted strings joined by + into one string, repeating
+        # until stable so chained `+` (A + B + C) is fully folded.
+        _prev = None
+        while _prev != content:
+            _prev = content
+            content = re.sub(
+                r'"((?:[^"\\]|\\.)*?)"\s*\+\s*"((?:[^"\\]|\\.)*?)"',
+                lambda m: '"' + m.group(1) + m.group(2) + '"',
+                content,
+            )
+
         try:
             graph = json.loads(content)
         except json.JSONDecodeError as e:
@@ -1527,6 +1568,9 @@ Return ONLY valid JSON. No markdown, no explanations, no code fences."""
         if "edges" not in graph or not isinstance(graph.get("edges"), list):
             raise PromptToGraphError("Graph must have an edges array", usage=self.last_usage)
 
+        # Ensure a Start node exists — the LLM sometimes omits it for screen flows.
+        _ensure_start_node(graph)
+
         if isinstance(usage, dict) and usage:
             graph["usage"] = {
                 "prompt_tokens": usage.get("prompt_tokens"),
@@ -1540,8 +1584,82 @@ Return ONLY valid JSON. No markdown, no explanations, no code fences."""
             }
 
         validate_before_save_graph(graph)
+        _validate_input_references(graph)
 
         return graph
+
+
+def _ensure_start_node(graph: Dict[str, Any]) -> None:
+    """Inject a default Start node if the LLM omitted one (common in screen flows)."""
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        return
+    for node in nodes:
+        if isinstance(node, dict) and node.get("type") == "Start":
+            return  # Start node already present
+    # Build a default screen-flow Start node
+    start_node = {
+        "id": "Start",
+        "type": "Start",
+        "label": "Start",
+        "metadata": {
+            "name": "Start",
+            "original_tag": "start",
+            "position": {"x": 50, "y": 0},
+        },
+    }
+    nodes.insert(0, start_node)
+    # Wire Start → first node that has no incoming edge
+    edges = graph.get("edges")
+    if not isinstance(edges, list):
+        graph["edges"] = []
+        edges = graph["edges"]
+    targets_with_incoming = {e.get("to") for e in edges if isinstance(e, dict)}
+    for node in nodes[1:]:  # skip the Start node we just inserted
+        nid = node.get("id") if isinstance(node, dict) else None
+        if nid and nid not in targets_with_incoming:
+            edges.insert(0, {"from": "Start", "to": nid, "metadata": {}})
+            return
+    # Fallback: if every node already has an incoming edge, connect to the second node anyway
+    if len(nodes) > 1:
+        nid = nodes[1].get("id") if isinstance(nodes[1], dict) else None
+        if nid:
+            edges.insert(0, {"from": "Start", "to": nid, "metadata": {}})
+
+
+def _validate_input_references(graph: Dict[str, Any]) -> None:
+    """Strip input_reference values that point to non-existent or wrong-type nodes.
+
+    The LLM sometimes sets input_reference to a Loop node name instead of a
+    collection variable or GetRecords node.  When the referenced id is not a
+    valid node in the graph, remove it so the emitter falls back to filters.
+    """
+    nodes = graph.get("nodes")
+    if not isinstance(nodes, list):
+        return
+    node_ids = {n.get("id") for n in nodes if isinstance(n, dict) and n.get("id")}
+    # Also collect variable names so references like "contactsToSave" are valid
+    variables = graph.get("variables")
+    var_names: set = set()
+    if isinstance(variables, list):
+        for v in variables:
+            if isinstance(v, dict) and v.get("name"):
+                var_names.add(v["name"])
+
+    valid_refs = node_ids | var_names
+
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if node.get("type") not in ("UpdateRecords", "DeleteRecords"):
+            continue
+        meta = node.get("metadata")
+        if not isinstance(meta, dict):
+            continue
+        ref = meta.get("input_reference")
+        if ref and ref not in valid_refs:
+            # Drop the invalid reference — emitter will use filters instead
+            del meta["input_reference"]
 
 
 def _graph_trigger_type(graph: Dict[str, Any]) -> Optional[str]:

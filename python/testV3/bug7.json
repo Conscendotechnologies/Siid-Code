@@ -1,0 +1,28 @@
+{
+	"flow_name": "CaseCreationFollowUpTask",
+	"description": "When a Case is created with Status = New, create a Task due in 3 days assigned to the case owner.",
+	"trigger": {
+		"type": "record",
+		"object": "Case",
+		"event": "created",
+		"trigger_type": "RecordBeforeSave"
+	},
+	"nodes": [
+		{
+			"id": "Create_Task",
+			"type": "recordCreates",
+			"label": "Create Task",
+			"object": "Task",
+			"position": { "x": 250, "y": 200 },
+			"input_assignments": [
+				{ "field": "Subject", "value": { "stringValue": "Follow-up" } },
+				{ "field": "OwnerId", "value": { "elementReference": "$Record.OwnerId" } },
+				{ "field": "WhatId", "value": { "elementReference": "$Record.Id" } },
+				{ "field": "ActivityDate", "value": { "elementReference": "Due_Date_3_Days" } }
+			]
+		}
+	],
+	"formulas": [
+		{ "name": "Due_Date_3_Days", "dataType": "Date", "expression": { "elementReference": "Today_Plus_3_Days" } }
+	]
+}

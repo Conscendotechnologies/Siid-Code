@@ -1,0 +1,205 @@
+{
+	"flow_name": "Employee_Leave_Request",
+	"process_type": "Flow",
+	"api_version": 66.0,
+	"status": "Active",
+	"description": "Screen flow that collects employee leave request details and creates a Leave_Request__c record.",
+	"nodes": [
+		{
+			"id": "Start",
+			"type": "Start",
+			"label": "Start",
+			"metadata": {
+				"name": "Start",
+				"original_tag": "start",
+				"position": {
+					"x": 50,
+					"y": 0
+				}
+			}
+		},
+		{
+			"id": "Enter_Leave_Request_Details",
+			"type": "Screen",
+			"label": "Enter Leave Request Details",
+			"metadata": {
+				"name": "Enter_Leave_Request_Details",
+				"original_tag": "screens",
+				"allowBack": true,
+				"allowFinish": false,
+				"allowPause": false,
+				"showFooter": true,
+				"showHeader": true,
+				"fields": [
+					{
+						"name": "Employee_Name",
+						"fieldType": "InputField",
+						"dataType": "String",
+						"fieldText": "Employee Name",
+						"isRequired": true
+					},
+					{
+						"name": "Leave_Type",
+						"fieldType": "DropdownBox",
+						"dataType": "String",
+						"fieldText": "Leave Type",
+						"isRequired": true,
+						"choice_references": ["LeaveTypeChoices"]
+					},
+					{
+						"name": "Start_Date",
+						"fieldType": "InputField",
+						"dataType": "Date",
+						"fieldText": "Start Date",
+						"isRequired": true
+					},
+					{
+						"name": "End_Date",
+						"fieldType": "InputField",
+						"dataType": "Date",
+						"fieldText": "End Date",
+						"isRequired": true
+					},
+					{
+						"name": "Reason",
+						"fieldType": "LargeTextArea",
+						"dataType": "String",
+						"fieldText": "Reason for Leave",
+						"isRequired": false
+					}
+				],
+				"position": {
+					"x": 250,
+					"y": 100
+				}
+			}
+		},
+		{
+			"id": "Review_Leave_Request",
+			"type": "Screen",
+			"label": "Review Leave Request",
+			"metadata": {
+				"name": "Review_Leave_Request",
+				"original_tag": "screens",
+				"allowBack": true,
+				"allowFinish": true,
+				"allowPause": false,
+				"showFooter": true,
+				"showHeader": true,
+				"fields": [
+					{
+						"name": "Review_Message",
+						"fieldType": "DisplayText",
+						"fieldText": "<p>Please review the leave request details, then click Finish to submit.</p>",
+						"styleProperties": {
+							"verticalAlignment": {
+								"stringValue": "top"
+							},
+							"width": {
+								"stringValue": "12"
+							}
+						}
+					}
+				],
+				"position": {
+					"x": 250,
+					"y": 250
+				}
+			}
+		},
+		{
+			"id": "Create_Leave_Request",
+			"type": "CreateRecords",
+			"label": "Create Leave Request",
+			"metadata": {
+				"name": "Create_Leave_Request",
+				"original_tag": "recordCreates",
+				"object": "Leave_Request__c",
+				"input_assignments": [
+					{
+						"field": "Employee_Name__c",
+						"value": {
+							"elementReference": "Employee_Name"
+						}
+					},
+					{
+						"field": "Leave_Type__c",
+						"value": {
+							"elementReference": "Leave_Type"
+						}
+					},
+					{
+						"field": "Start_Date__c",
+						"value": {
+							"elementReference": "Start_Date"
+						}
+					},
+					{
+						"field": "End_Date__c",
+						"value": {
+							"elementReference": "End_Date"
+						}
+					},
+					{
+						"field": "Reason__c",
+						"value": {
+							"elementReference": "Reason"
+						}
+					}
+				],
+				"position": {
+					"x": 250,
+					"y": 400
+				}
+			}
+		},
+		{
+			"id": "End",
+			"type": "End",
+			"label": "End",
+			"metadata": {
+				"position": {
+					"x": 250,
+					"y": 550
+				}
+			}
+		}
+	],
+	"edges": [
+		{
+			"from": "Start",
+			"to": "Enter_Leave_Request_Details",
+			"metadata": {}
+		},
+		{
+			"from": "Enter_Leave_Request_Details",
+			"to": "Review_Leave_Request",
+			"metadata": {}
+		},
+		{
+			"from": "Review_Leave_Request",
+			"to": "Create_Leave_Request",
+			"metadata": {}
+		},
+		{
+			"from": "Create_Leave_Request",
+			"to": "End",
+			"metadata": {}
+		}
+	],
+	"choices": [
+		{
+			"name": "LeaveTypeChoices",
+			"type": "dynamicChoiceSets",
+			"dataType": "Picklist",
+			"picklistField": "Leave_Type__c",
+			"picklistObject": "Leave_Request__c"
+		}
+	],
+	"usage": {
+		"prompt_tokens": 12880,
+		"completion_tokens": 1702,
+		"total_tokens": 14582,
+		"cost": null
+	}
+}

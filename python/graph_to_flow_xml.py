@@ -37,7 +37,9 @@ SUPPORTED_NODE_TYPES = {
     "SendEmail",
     "ActionCall",
     "Subflow",
+    "CustomError",
     "End",
+    "Formula",  # LLM sometimes emits Formula as a node; treated as top-level formula resource
 }
 SUPPORTED_ASSIGNMENT_TAGS = {"assignments", "actionCalls", "subflows"}
 SUPPORTED_UPDATE_TAGS = {"recordUpdates", "recordCreates", "recordDeletes"}
@@ -128,6 +130,11 @@ def normalize_condition(value: Any) -> Optional[str]:
 def is_before_save_flow(graph: IndexedGraph) -> bool:
     trigger_type = normalize_condition(graph.start_node.metadata.get("trigger_type") or graph.start_node.metadata.get("triggerType"))
     return trigger_type == "RecordBeforeSave"
+
+
+def is_record_triggered(graph: IndexedGraph) -> bool:
+    trigger_type = normalize_condition(graph.start_node.metadata.get("trigger_type") or graph.start_node.metadata.get("triggerType"))
+    return trigger_type is not None and "Record" in trigger_type
 
 
 def validate_fast_field_update_target(graph: IndexedGraph, node: IndexedNode, input_reference: Optional[str], object_name: Optional[str]) -> None:
@@ -954,6 +961,8 @@ def effective_original_tag(node: IndexedNode) -> str:
         return node.original_tag or "recordCreates"
     if node.type == "Loop":
         return node.original_tag or "loops"
+    if node.type == "CustomError":
+        return "customErrors"
     if node.type == "Screen":
         return node.original_tag or "screens"
     return node.original_tag or node.type
@@ -964,7 +973,7 @@ def iter_nodes_for_emission(nodes: Sequence[IndexedNode]) -> Iterable[IndexedNod
     emission_order: List[str] = []
 
     for node in nodes:
-        if node.type in {"Start", "End"}:
+        if node.type in {"Start", "End", "Formula"}:
             continue
 
         tag_name = effective_original_tag(node)
@@ -1014,6 +1023,11 @@ def append_serialized_value(parent: ET.Element, tag_name: str, value: Any) -> No
 
 
 def serialize_value_payload(parent: ET.Element, value: Any) -> None:
+    # Flatten double-nested elementReference: {"elementReference": {"elementReference": "X"}} → {"elementReference": "X"}
+    if isinstance(value, dict) and set(value.keys()) == {"elementReference"} and isinstance(value["elementReference"], dict):
+        inner = value["elementReference"]
+        if set(inner.keys()) == {"elementReference"}:
+            value = inner
     if isinstance(value, dict):
         for key, nested_value in value.items():
             if isinstance(nested_value, list):
@@ -1055,8 +1069,14 @@ def append_filters(element: ET.Element, metadata: Mapping[str, Any]) -> None:
         filter_mapping = ensure_mapping(filter_item, "filter")
         filter_element = ET.SubElement(element, flow_tag("filters"))
         append_text_element(filter_element, "field", filter_mapping.get("field"))
-        append_text_element(filter_element, "operator", filter_mapping.get("operator"))
-        append_serialized_value(filter_element, "value", filter_mapping.get("value"))
+        operator = filter_mapping.get("operator") or ""
+        value = filter_mapping.get("value")
+        # IsNotNull is not a valid FlowRecordFilterOperator — rewrite as IsNull + false
+        if operator == "IsNotNull":
+            operator = "IsNull"
+            value = {"booleanValue": False}
+        append_text_element(filter_element, "operator", operator)
+        append_serialized_value(filter_element, "value", value)
 
 
 def append_assignment_items(element: ET.Element, metadata: Mapping[str, Any], item_tag: str) -> None:
@@ -1254,7 +1274,24 @@ def append_screen_fields(element: ET.Element, graph: IndexedGraph, node: Indexed
             )
 
 
-def append_conditions(parent: ET.Element, conditions: Sequence[Mapping[str, Any]]) -> None:
+def _needs_record_prefix(ref: str) -> bool:
+    """Return True if a bare field name needs $Record. prefix in record-triggered flows."""
+    if not ref or ref.startswith("$") or ref.startswith("{!") or "." in ref:
+        return False
+    # Known non-field prefixes (variables, collections, etc.)
+    _SAFE = ("var", "Loop_", "Get_", "Update_", "Create_", "Delete_",
+             "Fast_", "Screen_", "Decision_", "Assignment_", "Subflow_",
+             "Action_", "Wait_", "Transform_")
+    if any(ref.startswith(p) for p in _SAFE):
+        return False
+    # Salesforce global variables
+    if ref in ("IsNew", "IsNewRecord", "Is_New", "IsChanged", "PriorValue"):
+        return False
+    # Starts with uppercase → likely a bare field name
+    return ref[0].isupper() if ref else False
+
+
+def append_conditions(parent: ET.Element, conditions: Sequence[Mapping[str, Any]], record_triggered: bool = False) -> None:
     for condition in conditions:
         condition_element = ET.SubElement(parent, flow_tag("conditions"))
 
@@ -1265,6 +1302,9 @@ def append_conditions(parent: ET.Element, conditions: Sequence[Mapping[str, Any]
             field = condition.get("field")
             if field is not None:
                 left_ref = f"$Record.{field}"
+        # Safety net: auto-prefix bare field names in record-triggered flows
+        if record_triggered and left_ref and _needs_record_prefix(left_ref):
+            left_ref = f"$Record.{left_ref}"
 
         append_text_element(condition_element, "leftValueReference", left_ref)
         append_text_element(condition_element, "operator", condition.get("operator"))
@@ -1556,7 +1596,9 @@ def plan_decision_connectors(graph: IndexedGraph, node: IndexedNode) -> Decision
 
     return DecisionPlan(
         default_edge=default_edge,
-        default_label=default_label if default_edge is not None else None,
+        # Salesforce requires defaultConnectorLabel on every Decision element,
+        # even when there's no explicit default branch (implicit end).
+        default_label=default_label,
         rule_plans=rule_plans,
         fault_edge=fault_edge,
     )
@@ -1706,7 +1748,7 @@ def build_root_defaults(
     flow_name: str,
     process_type: str,
 ) -> None:
-    append_text_element(root, "environments", "Default")
+    # Note: <environments> is emitted before <formulas> in build_flow_tree; not here.
     append_text_element(root, "interviewLabel", f"{flow_name}{DEFAULT_INTERVIEW_LABEL_SUFFIX}")
     append_text_element(root, "label", flow_name)
     for name, value in DEFAULT_PROCESS_METADATA_VALUES:
@@ -1828,6 +1870,9 @@ def build_assignment_element(root: ET.Element, graph: IndexedGraph, node: Indexe
                 or im.get("variable")
                 or im.get("target")
             )
+            # Safety net: auto-prefix bare field names in record-triggered flows
+            if assign_to and is_record_triggered(graph) and _needs_record_prefix(assign_to):
+                assign_to = f"$Record.{assign_to}"
             operator = im.get("operator") or im.get("op") or "Assign"
             value = im.get("value")
             normalized_items.append({
@@ -2037,7 +2082,9 @@ def build_decision_element(root: ET.Element, graph: IndexedGraph, node: IndexedN
         # When it routes to End, Salesforce Flow Builder expects the element to be absent.
         if default_target is not None:
             append_connector(element, "defaultConnector", default_target)
-        append_text_element(element, "defaultConnectorLabel", plan.default_label)
+    # defaultConnectorLabel is required on every Decision element regardless of
+    # whether there's an explicit default branch (Salesforce rejects it if absent).
+    append_text_element(element, "defaultConnectorLabel", plan.default_label)
 
     emitted_rule_indexes: set[int] = set()
     for rule_plan in plan.rule_plans:
@@ -2055,6 +2102,7 @@ def build_decision_element(root: ET.Element, graph: IndexedGraph, node: IndexedN
         append_conditions(
             rule_element,
             [ensure_mapping(item, f"Decision {node.id} rule condition") for item in ensure_sequence(rule_metadata.get("conditions"), f"Decision {node.id} rule conditions")],
+            record_triggered=is_record_triggered(graph),
         )
         append_connector(rule_element, "connector", target_reference_name(graph, rule_plan.edge))
         append_text_element(rule_element, "label", rule_label or rule_name)
@@ -2091,6 +2139,7 @@ def build_decision_element(root: ET.Element, graph: IndexedGraph, node: IndexedN
                 ensure_mapping(item, f"Decision {node.id} rule condition")
                 for item in conditions_to_emit
             ],
+            record_triggered=is_record_triggered(graph),
         )
         append_text_element(rule_element, "label", rule_label or normalized_rule_name)
 
@@ -2222,11 +2271,35 @@ def build_send_email_element(root: ET.Element, graph: IndexedGraph, node: Indexe
         append_connector(element, "faultConnector", target_reference_name(graph, fault_edge))
 
 
+def build_custom_error_node_element(root: ET.Element, graph: IndexedGraph, node: IndexedNode) -> None:
+    """Emit a <customErrors> element for a CustomError node (before-save validation errors)."""
+    element = ET.SubElement(root, flow_tag("customErrors"))
+    append_common_node_fields(element, node)
+
+    messages = ensure_sequence(
+        node.metadata.get("custom_error_messages") or node.metadata.get("customErrorMessages"),
+        f"CustomError node {node.id} messages",
+    )
+    for msg in messages:
+        mm = ensure_mapping(msg, "custom_error_message")
+        msg_el = ET.SubElement(element, flow_tag("customErrorMessages"))
+        append_text_element(msg_el, "errorMessage", mm.get("error_message") or mm.get("errorMessage") or "")
+        is_field = mm.get("is_field_error") or mm.get("isFieldError") or False
+        append_bool_element(msg_el, "isFieldError", is_field)
+        field_name = mm.get("field_selection") or mm.get("fieldSelection") or mm.get("field")
+        if field_name:
+            append_text_element(msg_el, "fieldSelection", field_name)
+
+    # CustomError nodes terminate the flow — no outgoing connector needed
+
+
 def build_node_element(root: ET.Element, graph: IndexedGraph, node: IndexedNode) -> None:
     if node.type == "Start":
         return
     if node.type == "End":
         return
+    if node.type == "Formula":
+        return  # emitted as top-level <formulas> by build_formulas_elements
     if node.type == "Decision":
         build_decision_element(root, graph, node)
         return
@@ -2274,6 +2347,9 @@ def build_node_element(root: ET.Element, graph: IndexedGraph, node: IndexedNode)
         return
     if node.type == "SendEmail":
         build_send_email_element(root, graph, node)
+        return
+    if node.type == "CustomError":
+        build_custom_error_node_element(root, graph, node)
         return
     if node.type == "Subflow":
         # Route Subflow through Assignment with subflows tag
@@ -2370,6 +2446,15 @@ def _collect_auto_formulas(graph: Mapping[str, Any]) -> Dict[str, str]:
         elif isinstance(value, list):
             for item in value:
                 walk(item)
+        elif isinstance(value, str):
+            # Condition values (Decision leftValueReference/operator/value, filter
+            # values, assignment due dates) can carry bare relative-date strings
+            # like "TODAY() - 7" that Salesforce rejects inside <dateValue>. Catch
+            # them here so the auto-formula name matches what _sanitize_value
+            # generates when it walks the same value later.
+            days = _parse_relative_date_days(value)
+            if days is not None:
+                auto[_formula_name_for_days(days)] = _formula_expr_for_days(days)
 
     walk(graph)
     return auto
@@ -2388,8 +2473,18 @@ def _sanitize_value(
         if formula_name is None:
             return value
         return {"elementReference": formula_name}
+    if isinstance(value, list):
+        return [_sanitize_value(item, auto_formulas) for item in value]
     if not isinstance(value, dict):
         return value
+    # Guard: {"elementReference": bare_relative_date} must not recurse into the
+    # string and re-wrap it as {"elementReference": {"elementReference": "…"}}.
+    if set(value.keys()) == {"elementReference"}:
+        inner = value["elementReference"]
+        if isinstance(inner, str):
+            formula_name = _relative_date_formula_name(inner)
+            if formula_name is not None:
+                return {"elementReference": formula_name}
     raw_date = value.get("dateValue") or value.get("DateValue")
     if raw_date is None:
         return {key: _sanitize_value(nested_value, auto_formulas) for key, nested_value in value.items()}
@@ -2404,8 +2499,9 @@ def build_formulas_elements(
     root: ET.Element,
     graph: Mapping[str, Any],
     auto_formulas: Mapping[str, str],
+    formula_nodes: Sequence[IndexedNode] = (),
 ) -> None:
-    """Emit <formulas> elements: explicit ones from graph metadata + auto-generated."""
+    """Emit <formulas> elements: explicit ones from graph metadata + Formula nodes + auto-generated."""
     explicit = ensure_sequence(graph.get("formulas"), "graph formulas")
     emitted_names: Set[str] = set()
 
@@ -2418,7 +2514,25 @@ def build_formulas_elements(
         el = ET.SubElement(root, flow_tag("formulas"))
         append_text_element(el, "name", name)
         append_text_element(el, "dataType", fm.get("data_type") or fm.get("dataType") or "Date")
-        append_text_element(el, "expression", fm.get("expression"))
+        expr = fm.get("expression")
+        # Unwrap JSON-like dict expressions: {"elementReference":"Today_Plus_3_Days"}
+        # → resolve to the actual formula text from auto_formulas so XML stays valid.
+        if isinstance(expr, dict) and "elementReference" in expr:
+            ref = expr["elementReference"]
+            expr = auto_formulas.get(ref) if ref in auto_formulas else f"TODAY() + 3"
+        append_text_element(el, "expression", expr)
+
+    # Emit formulas from Formula-typed graph nodes (LLM sometimes uses node type "Formula")
+    for node in formula_nodes:
+        name = node.metadata.get("name") or node.reference_name
+        if not name or name in emitted_names:
+            continue
+        emitted_names.add(name)
+        el = ET.SubElement(root, flow_tag("formulas"))
+        append_text_element(el, "name", name)
+        append_text_element(el, "dataType", node.metadata.get("data_type") or node.metadata.get("dataType") or "Date")
+        append_text_element(el, "description", node.metadata.get("description"))
+        append_text_element(el, "expression", node.metadata.get("expression"))
 
     for name, expr in auto_formulas.items():
         if name in emitted_names:
@@ -2571,6 +2685,18 @@ def build_flow_tree(
     api_version: str = DEFAULT_API_VERSION,
     status: str = DEFAULT_STATUS,
 ) -> ET.ElementTree:
+    # Scheduled flows must be Active to run; promote Draft → Active automatically
+    if status == DEFAULT_STATUS:
+        nodes_raw = ensure_sequence(graph.get("nodes"), "nodes")
+        for raw_node in nodes_raw:
+            if isinstance(raw_node, dict):
+                meta = raw_node.get("metadata") or {}
+                if isinstance(meta, dict):
+                    tt = meta.get("trigger_type") or meta.get("triggerType")
+                    if tt == "Scheduled":
+                        status = "Active"
+                        break
+
     # Collect any auto-formulas needed before we index the graph, so that
     # build_node_element can reference them during value serialization.
     auto_formulas = _collect_auto_formulas(graph)
@@ -2593,7 +2719,10 @@ def build_flow_tree(
     build_constants_elements(root, graph)
     build_custom_properties_elements(root, graph)
     build_custom_errors_elements(root, graph)
-    build_formulas_elements(root, graph, auto_formulas)
+    # <environments> must come before <formulas> in SF Flow XML schema ordering
+    append_text_element(root, "environments", "Default")
+    formula_nodes = [n for n in indexed_graph.nodes if n.type == "Formula"]
+    build_formulas_elements(root, graph, auto_formulas, formula_nodes)
     build_root_defaults(
         root,
         indexed_graph.flow_name,
@@ -2620,26 +2749,9 @@ def _patch_graph_relative_dates(
     auto_formulas: Mapping[str, str],
 ) -> Mapping[str, Any]:
     """Return a deep-patched copy of graph with relative dateValues replaced."""
-    import copy
-    patched = copy.deepcopy(dict(graph))
-    def walk_in_place(value: Any) -> Any:
-        sanitized = _sanitize_value(value, auto_formulas)
-        if sanitized is not value:
-            return sanitized
-        if isinstance(value, dict):
-            for key, nested_value in list(value.items()):
-                new_nested = walk_in_place(nested_value)
-                if new_nested is not nested_value:
-                    value[key] = new_nested
-        elif isinstance(value, list):
-            for index, item in enumerate(list(value)):
-                new_item = walk_in_place(item)
-                if new_item is not item:
-                    value[index] = new_item
-        return value
-
-    walk_in_place(patched)
-    return patched
+    # _sanitize_value already recurses through dicts and lists, so a single
+    # call replaces every relative-date shorthand anywhere in the graph.
+    return _sanitize_value(graph, auto_formulas)
 
 
 def generate_flow_xml_text(

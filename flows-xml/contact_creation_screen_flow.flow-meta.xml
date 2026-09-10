@@ -1,0 +1,150 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <apiVersion>62.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <screens>
+        <name>Enter_Contact_Information</name>
+        <label>Enter Contact Information</label>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Call_Create_Contact_Subflow</targetReference>
+        </connector>
+        <fields>
+            <name>Display_Text</name>
+            <fieldText>Please enter the Contact details below.</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>FirstName</name>
+            <dataType>String</dataType>
+            <fieldText>First Name</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>LastName</name>
+            <dataType>String</dataType>
+            <fieldText>Last Name</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>Email</name>
+            <dataType>String</dataType>
+            <fieldText>Email</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>Phone</name>
+            <dataType>String</dataType>
+            <fieldText>Phone</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+    <screens>
+        <name>Contact_Created_Successfully</name>
+        <label>Contact Created Successfully</label>
+        <locationX>450</locationX>
+        <locationY>0</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Success_Message</name>
+            <fieldText>Contact Created Successfully!</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>Contact_ID</name>
+            <fieldText>Contact ID: {!ContactId}</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <fields>
+            <name>Contact_Summary</name>
+            <fieldText>First Name: {!FirstName}, Last Name: {!LastName}, Email: {!Email}, Phone: {!Phone}</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+    <subflows>
+        <name>Call_Create_Contact_Subflow</name>
+        <label>Call Create Contact Subflow</label>
+        <locationX>250</locationX>
+        <locationY>0</locationY>
+        <flowName>Create_Contact</flowName>
+        <inputAssignments>
+            <name>FirstName</name>
+            <value>
+                <elementReference>FirstName</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <name>LastName</name>
+            <value>
+                <elementReference>LastName</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <name>Email</name>
+            <value>
+                <elementReference>Email</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <name>Phone</name>
+            <value>
+                <elementReference>Phone</elementReference>
+            </value>
+        </inputAssignments>
+        <outputAssignments>
+        <assignToReference>ContactId</assignToReference>
+        <name>ContactId</name>
+        </outputAssignments>
+        <connector>
+            <targetReference>Contact_Created_Successfully</targetReference>
+        </connector>
+    </subflows>
+    <description>A screen flow to create a new contact and display the details.</description>
+    <environments>Default</environments>
+    <interviewLabel>Contact_Creation_Screen_Flow {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Contact_Creation_Screen_Flow</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>Flow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Enter_Contact_Information</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>ContactId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>true</isOutput>
+    </variables>
+</Flow>
