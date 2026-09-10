@@ -6,7 +6,15 @@ import { useEffect, useState } from "react"
  * falls back to a local clock while waiting for the first heartbeat. The parent unmounts it once the
  * result row arrives, and only renders it while the task is actively streaming (no runaway counter).
  */
-export const SiidForgeRunning = ({ feature, elapsedMs }: { feature?: string; elapsedMs?: number }) => {
+export const SiidForgeRunning = ({
+	feature,
+	elapsedMs,
+	label,
+}: {
+	feature?: string
+	elapsedMs?: number
+	label?: string
+}) => {
 	const [localElapsed, setLocalElapsed] = useState(0)
 
 	useEffect(() => {
@@ -31,7 +39,7 @@ export const SiidForgeRunning = ({ feature, elapsedMs }: { feature?: string; ela
 			}}>
 			<span className="codicon codicon-loading codicon-modifier-spin" aria-hidden="true" />
 			<span>
-				Running {feature ?? "command"}… <strong>{elapsed}s</strong>
+				{label ?? `Running ${feature ?? "command"}…`} <strong>{elapsed}s</strong>
 			</span>
 		</div>
 	)

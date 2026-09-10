@@ -74,6 +74,8 @@ export const toolParamNames = [
 	"section",
 	"task_type",
 	"feature",
+	"prompt",
+	"output_path",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]
@@ -195,6 +197,12 @@ export interface SiidForgeToolUse extends ToolUse {
 		Partial<Pick<Record<ToolParamName, string>, "args">>
 }
 
+export interface GenerateSfFlowToolUse extends ToolUse {
+	name: "generate_sf_flow"
+	params: Required<Pick<Record<ToolParamName, string>, "prompt">> &
+		Partial<Pick<Record<ToolParamName, string>, "output_path">>
+}
+
 // Define tool group configuration
 export type ToolGroupConfig = {
 	tools: readonly string[]
@@ -224,6 +232,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	retrieve_sf_metadata: "retrieve salesforce metadata",
 	sf_deploy_metadata: "deploy salesforce metadata",
 	siid_forge: "use SIID Forge Salesforce features",
+	generate_sf_flow: "generate Salesforce Flow XML",
 } as const
 
 // Define available tool groups.
@@ -241,7 +250,14 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 		],
 	},
 	edit: {
-		tools: ["apply_diff", "write_to_file", "insert_content", "search_and_replace", "sf_deploy_metadata"],
+		tools: [
+			"apply_diff",
+			"write_to_file",
+			"insert_content",
+			"search_and_replace",
+			"sf_deploy_metadata",
+			"generate_sf_flow",
+		],
 	},
 	browser: {
 		tools: ["browser_action"],

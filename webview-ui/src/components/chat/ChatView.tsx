@@ -742,6 +742,16 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 				if (text || images.length > 0) {
 					if (sendingDisabled && !fromQueue) {
+						if (clineAsk === "api_req_failed") {
+							// User typed message during retry state — send it as retry response
+							postAskResponse({ askResponse: "yesButtonClicked", text, images })
+							setInputValue("")
+							setSelectedImages([])
+							setSendingDisabled(true)
+							setClineAsk(undefined)
+							setEnableButtons(false)
+							return
+						}
 						// Generate a more unique ID using timestamp + random component
 						const messageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 						setMessageQueue((prev: QueuedMessage[]) => [...prev, { id: messageId, text, images }])
@@ -794,7 +804,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				// but for now we'll just log it
 			}
 		},
-		[handleChatReset, markFollowUpAsAnswered, sendingDisabled, postAskResponse, addedFiles], // messagesRef and clineAskRef are stable
+		[handleChatReset, markFollowUpAsAnswered, sendingDisabled, postAskResponse, addedFiles, clineAsk], // messagesRef and clineAskRef are stable
 	)
 
 	useEffect(() => {
@@ -1036,9 +1046,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						}
 						setIsCondensing(false)
 					}
-					break
-				case "taskCancelling":
-					setDidClickCancel(true)
 					break
 			}
 			// textAreaRef.current is not explicitly required here since React
@@ -2262,11 +2269,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 												disabled={!enableButtons && !(isStreaming && !didClickCancel)}
 												className={isStreaming ? "flex-[2] ml-0" : "flex-1 ml-[6px]"}
 												onClick={() => handleSecondaryButtonClick(inputValue, selectedImages)}>
-												{isStreaming
-													? didClickCancel
-														? "Cancelling..."
-														: t("chat:cancel.title")
-													: secondaryButtonText}
+												{isStreaming ? t("chat:cancel.title") : secondaryButtonText}
 											</VSCodeButton>
 										</StandardTooltip>
 									)}

@@ -77,6 +77,7 @@ export const NineRouter = ({
 		const key = apiConfiguration.nineRouterApiKey
 		const url = apiConfiguration.nineRouterBaseUrl || "http://localhost:20128/v1"
 
+		vscode.postMessage({ type: "flushRouterModels", text: "9router" })
 		vscode.postMessage({ type: "requestRouterModels", values: { nineRouterApiKey: key, nineRouterBaseUrl: url } })
 	}, [apiConfiguration, setRefreshStatus, setRefreshError])
 

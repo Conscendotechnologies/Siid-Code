@@ -105,5 +105,6 @@ With specified tests:
 Workflow guidance:
 1. Deploy dependencies first (objects before fields, fields before rules/layouts where applicable).
 2. Use one-component deploys while debugging.
-3. If dry run fails, fix the reported issue before retrying.`
+3. If dry run fails, fix the reported issue before retrying.
+4. Exception: if the failing metadata_type is Flow and the file was produced by generate_sf_flow, do NOT hand-edit the .flow-meta.xml — call generate_sf_flow again with the original prompt plus the deployment error appended, and let it regenerate the file.`
 }

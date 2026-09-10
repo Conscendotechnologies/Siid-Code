@@ -64,13 +64,17 @@ export async function getNineRouterModels(
 		const cleanBaseUrl = baseUrl ? baseUrl.trim().replace(/\/+$/, "") : "http://localhost:20128/v1"
 		const modelsEndpoint = cleanBaseUrl.endsWith("/models") ? cleanBaseUrl : `${cleanBaseUrl}/models`
 
+		const isLocal = cleanBaseUrl.includes("localhost") || cleanBaseUrl.includes("127.0.0.1")
+		// ponytail: bypass proxy env vars for local servers, corporate HTTP_PROXY breaks localhost calls
+		const axiosConfig = { headers, timeout: 15000, proxy: isLocal ? (false as const) : undefined }
+
 		let response
 		try {
-			response = await axios.get(modelsEndpoint, { headers, timeout: 15000 })
+			response = await axios.get(modelsEndpoint, axiosConfig)
 		} catch (firstErr) {
 			if (cleanBaseUrl.includes("localhost")) {
 				const fallbackEndpoint = modelsEndpoint.replace("localhost", "127.0.0.1")
-				response = await axios.get(fallbackEndpoint, { headers, timeout: 15000 })
+				response = await axios.get(fallbackEndpoint, axiosConfig)
 			} else {
 				throw firstErr
 			}
@@ -149,6 +153,17 @@ export async function getNineRouterModels(
 
 				models[modelId] = parseModelInfo(typeof model === "object" ? model : {}, modelId)
 			}
+		}
+
+		// ponytail: debug dump, remove when done inspecting
+		try {
+			const fs = require("fs")
+			const os = require("os")
+			const dumpPath = require("path").join(os.tmpdir(), "9router_models.json")
+			fs.writeFileSync(dumpPath, JSON.stringify(models, null, 2))
+			console.log(`[9Router] Models dumped to ${dumpPath}`)
+		} catch (dumpErr) {
+			console.warn("[9Router] Failed to dump models:", dumpErr)
 		}
 
 		return models

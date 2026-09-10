@@ -18,7 +18,7 @@ Parameters:
 ${taskTypesList}
 
 Usage Notes:
-- Use this tool BEFORE starting any task to get complete guidance
+- Use this tool if your task matches a known type and you need guidance
 - All related instructions are combined and returned in one response
 - The tool also provides the recommended mode for the task
 - If a todo list already exists, update it instead of recreating

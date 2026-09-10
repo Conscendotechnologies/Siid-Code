@@ -27,6 +27,7 @@ import { getRetrieveSfMetadataDescription } from "./retrieve-sf-metadata"
 import { CodeIndexManager } from "../../../services/code-index/manager"
 import { getSfDeployMetadataDescription } from "./sf-deploy-metadata"
 import { getSiidForgeDescription } from "./siid-forge"
+import { getGenerateSfFlowDescription } from "./generate-sf-flow"
 
 // Map of tool names to their description functions
 const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined> = {
@@ -53,6 +54,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	retrieve_sf_metadata: (args) => getRetrieveSfMetadataDescription(args),
 	sf_deploy_metadata: (args) => getSfDeployMetadataDescription(args),
 	siid_forge: (args) => getSiidForgeDescription(args),
+	generate_sf_flow: (args) => getGenerateSfFlowDescription(args),
 }
 
 export function getToolDescriptionsForMode(

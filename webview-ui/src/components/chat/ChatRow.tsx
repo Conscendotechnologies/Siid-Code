@@ -1337,6 +1337,125 @@ export const ChatRowContent = ({
 					</>
 				)
 			}
+			case "generate_sf_flow": {
+				// Renders the approval/anchor row and folds the result INTO it; the separate result
+				// AND progress say-rows are suppressed so it's one element (like siidForge).
+				if (tool.success !== undefined || tool.phase !== undefined) {
+					return null
+				}
+				// Progress/result rows belong to the FIRST approval row above them. Calling the same
+				// feature twice in a task would otherwise let this row bind to the next call's
+				// result, showing one run as finished while it is still awaiting approval - so stop
+				// at the next approval row (no phase, no success) for this feature.
+				const allFlowRows = (followingMessages ?? [])
+					.map((m) => (m.say === "tool" || m.ask === "tool" ? safeJsonParse<ClineSayTool>(m.text) : null))
+					.filter(
+						(t): t is ClineSayTool => !!t && t.tool === "generate_sf_flow" && t.feature === tool.feature,
+					)
+				const nextInvocation = allFlowRows.findIndex((t) => t.phase === undefined && t.success === undefined)
+				const followers = nextInvocation === -1 ? allFlowRows : allFlowRows.slice(0, nextInvocation)
+				const flowResult = followers.find((t) => t.success !== undefined) ?? null
+				const lastProgress = [...followers]
+					.reverse()
+					.find((t) => t.phase !== undefined && t.success === undefined)
+				const flowDone = !!flowResult
+				const flowOk = flowResult?.success
+				const flowElapsedMs = flowResult?.elapsedMs ?? lastProgress?.elapsedMs
+				const flowRunning = !flowDone && (!!lastProgress || (isLast && isStreaming))
+				const flowIcon = !flowDone ? "server-process" : flowOk ? "pass-filled" : "error"
+				const flowIconColor = !flowDone
+					? undefined
+					: flowOk
+						? "var(--vscode-charts-green)"
+						: "var(--vscode-errorForeground)"
+				const FLOW_PHASE_LABELS: Record<string, string> = {
+					"schema-detecting": "Retrieving org schema…",
+					"schema-done": "Schema retrieved",
+					"schema-failed": "Schema retrieval skipped",
+					"graph-generating": "Converting prompt to flow graph (AI step)…",
+					"graph-done": "Flow graph generated",
+					"xml-generating": "Generating Flow XML…",
+					"xml-done": "Flow XML generated",
+					"pkg-updated": "Updated package.xml",
+				}
+				const flowStepLabel = lastProgress?.phase ? FLOW_PHASE_LABELS[lastProgress.phase] : undefined
+				const borderColor = !flowDone
+					? "var(--vscode-badge-background)"
+					: flowOk
+						? "var(--vscode-charts-green)"
+						: "var(--vscode-errorForeground)"
+				return (
+					<div
+						style={{
+							marginTop: "4px",
+							marginBottom: "8px",
+							backgroundColor: "var(--vscode-editor-background)",
+							border: `1px solid ${borderColor}`,
+							borderRadius: "4px",
+							overflow: "hidden",
+						}}>
+						<div style={{ ...headerStyle, padding: "10px 12px", marginBottom: 0 }}>
+							<span
+								className={`codicon codicon-${flowIcon}`}
+								style={{ marginRight: 6, color: flowIconColor }}></span>
+							<span style={{ fontWeight: "bold" }}>
+								SIID Flow
+								{flowRunning && " — running"}
+								{flowDone && (flowOk ? " — success" : " — failed")}
+								{flowDone && flowElapsedMs !== undefined && ` (${(flowElapsedMs / 1000).toFixed(1)}s)`}
+							</span>
+						</div>
+						<div
+							style={{
+								padding: "0 12px 10px",
+								color: "var(--vscode-descriptionForeground)",
+								fontSize: "var(--vscode-font-size)",
+							}}>
+							{tool.feature}
+						</div>
+						{tool.content && (
+							<div style={{ padding: "0 16px 12px" }}>
+								<MarkdownBlock markdown={"```\n" + tool.content + "\n```"} />
+							</div>
+						)}
+						{!flowDone &&
+							(flowRunning ? (
+								<SiidForgeRunning
+									label={flowStepLabel ?? "Working…"}
+									elapsedMs={lastProgress?.elapsedMs}
+								/>
+							) : (
+								isLast && (
+									<div
+										style={{
+											padding: "0 12px 10px",
+											color: "var(--vscode-descriptionForeground)",
+											fontSize: "var(--vscode-font-size)",
+										}}>
+										Awaiting approval…
+									</div>
+								)
+							))}
+						{flowDone && flowResult?.content && (
+							<details style={{ borderTop: `1px solid ${borderColor}` }}>
+								<summary
+									style={{
+										padding: "8px 16px",
+										cursor: "pointer",
+										userSelect: "none",
+										color: "var(--vscode-descriptionForeground)",
+										fontSize: "var(--vscode-font-size)",
+									}}>
+									{flowOk ? "Result" : "Error details"}
+								</summary>
+								<div style={{ padding: "0 16px 12px" }}>
+									<MarkdownBlock markdown={"```\n" + flowResult.content + "\n```"} />
+								</div>
+							</details>
+						)}
+					</div>
+				)
+			}
 			default:
 				return null
 		}

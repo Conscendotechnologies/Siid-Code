@@ -77,6 +77,7 @@ import { t } from "../../i18n"
 
 import { buildApiHandler } from "../../api"
 import { forceFullModelDetailsLoad, hasLoadedFullDetails } from "../../api/providers/fetchers/lmstudio"
+import { flushModels, getModels } from "../../api/providers/fetchers/modelCache"
 
 import { ContextProxy } from "../config/ContextProxy"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
@@ -699,6 +700,14 @@ export class ClineProvider
 		})
 
 		await this.addClineToStack(task)
+
+		// Refresh 9router model list on task start so new combos are visible without manual refresh.
+		// Flush + re-fetch in background; other providers will return from cache in requestRouterModels.
+		if (apiConfiguration.apiProvider === "9router") {
+			void flushModels("9router").then(() =>
+				webviewMessageHandler(this, { type: "requestRouterModels" } as WebviewMessage, this.marketplaceManager),
+			)
+		}
 
 		// Analyze task complexity and create planning file if needed (asynchronously in background)
 		let planningFilePath: string | undefined
@@ -1343,9 +1352,6 @@ export class ClineProvider
 		const parentTask = cline.parentTask
 
 		await cline.abortTask()
-
-		// Notify webview immediately so cancel button shows "Cancelling..." without waiting for pWaitFor
-		this.postMessageToWebview({ type: "taskCancelling" })
 
 		await pWaitFor(
 			() =>

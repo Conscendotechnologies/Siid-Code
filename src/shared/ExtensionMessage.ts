@@ -390,6 +390,7 @@ export interface ClineSayTool {
 		| "deploySfMetadata"
 		| "retrieveSfMetadata"
 		| "siidForge"
+		| "generate_sf_flow"
 	path?: string
 	feature?: string // siidForge: the feature name (e.g. "sfRun")
 	mutating?: boolean // siidForge: whether it required approval
