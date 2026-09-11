@@ -262,6 +262,10 @@ export function validateModelId(apiConfiguration: ProviderSettings, routerModels
 		return i18next.t("settings:validation.modelId")
 	}
 
+	if (provider === "9router" || provider === "litellm") {
+		return undefined
+	}
+
 	const models = routerModels?.[provider]
 
 	if (models && Object.keys(models).length > 1 && !Object.keys(models).includes(modelId)) {

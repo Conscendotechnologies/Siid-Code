@@ -289,7 +289,7 @@ function resolveMetadataPath(metadataType: string, metadataName: string, cwd: st
 /**
  * Build the SF CLI deploy command based on metadata type, name, and options
  */
-function buildSfDeployCommand(
+export function buildSfDeployCommand(
 	metadataType: string,
 	metadataName: string,
 	sourceDir: string | undefined,
@@ -386,7 +386,7 @@ function buildSfDeployCommand(
 /**
  * Parse and format the SF CLI deploy output for dry run
  */
-function formatDryRunResult(
+export function formatDryRunResult(
 	output: string,
 	metadataType: string,
 	metadataName: string,
@@ -585,7 +585,7 @@ function extractDeployedFilePaths(jsonOutput: any): string[] {
  * Execute an SF CLI command asynchronously so the extension host event loop
  * remains responsive while long-running deployments execute.
  */
-function runSfCliCommand(command: string, cwd: string, timeoutMs: number): Promise<string> {
+export function runSfCliCommand(command: string, cwd: string, timeoutMs: number): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(
 			command,

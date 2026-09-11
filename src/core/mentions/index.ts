@@ -10,7 +10,8 @@ import { getCommitInfo, getWorkingState } from "../../utils/git"
 import { getWorkspacePath } from "../../utils/path"
 
 import { openFile } from "../../integrations/misc/open-file"
-import { extractTextFromFile } from "../../integrations/misc/extract-text"
+import { extractTextFromFile, addLineNumbers } from "../../integrations/misc/extract-text"
+import { readLines } from "../../integrations/misc/read-lines"
 import { diagnosticsToProblemsString } from "../../integrations/diagnostics"
 
 import { UrlContentFetcher } from "../../services/browser/UrlContentFetcher"
@@ -186,7 +187,12 @@ export async function parseMentions(
 			}
 			parsedText += `\n\n<url_content url="${mention}">\n${result}\n</url_content>`
 		} else if (mention.startsWith("/")) {
-			const mentionPath = mention.slice(1)
+			// A mention may carry an optional line range: @/src/a.ts:22-29
+			const rangeMatch = mention.match(/^(.*):(\d+)-(\d+)$/)
+			const mentionPath = (rangeMatch ? rangeMatch[1] : mention).slice(1)
+			const lineRange = rangeMatch
+				? { start: parseInt(rangeMatch[2], 10), end: parseInt(rangeMatch[3], 10) }
+				: undefined
 			try {
 				const content = await getFileOrFolderContent(
 					mentionPath,
@@ -194,11 +200,15 @@ export async function parseMentions(
 					rooIgnoreController,
 					showRooIgnoredFiles,
 					maxReadFileLine,
+					lineRange,
 				)
 				if (mention.endsWith("/")) {
 					parsedText += `\n\n<folder_content path="${mentionPath}">\n${content}\n</folder_content>`
 				} else {
-					parsedText += `\n\n<file_content path="${mentionPath}">\n${content}\n</file_content>`
+					const attrs = lineRange
+						? ` path="${mentionPath}" lines="${lineRange.start}-${lineRange.end}"`
+						: ` path="${mentionPath}"`
+					parsedText += `\n\n<file_content${attrs}>\n${content}\n</file_content>`
 					if (fileContextTracker) {
 						await fileContextTracker.trackFileContext(mentionPath, "file_mentioned")
 					}
@@ -272,6 +282,7 @@ async function getFileOrFolderContent(
 	rooIgnoreController?: any,
 	showRooIgnoredFiles: boolean = true,
 	maxReadFileLine?: number,
+	lineRange?: { start: number; end: number },
 ): Promise<string> {
 	const unescapedPath = unescapeSpaces(mentionPath)
 	const absPath = path.resolve(cwd, unescapedPath)
@@ -284,6 +295,13 @@ async function getFileOrFolderContent(
 				return `(File ${mentionPath} is ignored by .rooignore)`
 			}
 			try {
+				if (lineRange) {
+					// readLines takes 0-based inclusive bounds; mentions are 1-based.
+					const start = Math.max(1, lineRange.start)
+					const end = Math.max(start, lineRange.end)
+					const content = await readLines(absPath, end - 1, start - 1)
+					return addLineNumbers(content, start)
+				}
 				const content = await extractTextFromFile(absPath, maxReadFileLine)
 				return content
 			} catch (error) {

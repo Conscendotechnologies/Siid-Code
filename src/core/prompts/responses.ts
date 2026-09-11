@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as path from "path"
 import * as diff from "diff"
+import { toolNames } from "@siid-code/types"
 import { RooIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/RooIgnoreController"
 import { RooProtectedController } from "../protect/RooProtectedController"
 
@@ -18,8 +19,8 @@ export const formatResponse = {
 	rooIgnoreError: (path: string) =>
 		`Access to ${path} is blocked by the .rooignore file settings. You must try to continue in the task without using this file, or ask the user to update the .rooignore file.`,
 
-	noToolsUsed: () =>
-		`[ERROR] You did not use a tool in your previous response! Please retry with a tool use.
+	noToolsUsed: (assistantText?: string) =>
+		`[ERROR] ${describeMissingToolUse(assistantText)} Please retry with a tool use.
 
 ${toolUseInstructionsReminder}
 
@@ -189,6 +190,60 @@ const formatImagesIntoBlocks = (images?: string[]): Anthropic.ImageBlockParam[] 
 			})
 		: []
 }
+
+/**
+ * Distinguish "wrote prose" from "called a tool that doesn't exist".
+ *
+ * A model that invents a tool name reads the generic "you did not use a tool"
+ * as false - it *did* emit one - so it retries the same invented call verbatim
+ * until the mistake limit kills the task. Naming the bad tag gives it something
+ * to correct against.
+ *
+ * Only the first unknown tag is reported: the model needs one correction, not
+ * an inventory, and the retry re-runs this anyway.
+ */
+const describeMissingToolUse = (assistantText?: string): string => {
+	const generic = "You did not use a tool in your previous response!"
+
+	if (!assistantText) {
+		return generic
+	}
+
+	// Tool tags are always at the start of a line in the prompt's format. Allow
+	// the kebab-case and dotted names models tend to invent, not just snake.
+	const known = new Set<string>(toolNames)
+	const invented = Array.from(assistantText.matchAll(/^\s*<([a-zA-Z][\w.-]*)>/gm))
+		.map((match) => match[1])
+		.find((tag) => !known.has(tag) && !IGNORED_UNKNOWN_TAGS.has(tag))
+
+	if (!invented) {
+		return generic
+	}
+
+	return `'${invented}' is not an available tool, so nothing was executed. The available tools are: ${toolNames.join(", ")}. Note there is no tool for creating directories - they are created automatically by write_to_file.`
+}
+
+/**
+ * Tags that appear in assistant output without being tool calls: parameter
+ * names, the thinking channel, and tool-call framing some models emit natively.
+ */
+const IGNORED_UNKNOWN_TAGS = new Set([
+	"thinking",
+	"tool_call",
+	"path",
+	"content",
+	"result",
+	"question",
+	"answer",
+	"task",
+	"command",
+	"todos",
+	"args",
+	"file",
+	"mode",
+	"message",
+	"reason",
+])
 
 const toolUseInstructionsReminder = `# Reminder: Instructions for Tool Use
 

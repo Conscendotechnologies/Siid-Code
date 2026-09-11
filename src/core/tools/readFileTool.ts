@@ -131,8 +131,23 @@ export async function readFileTool(
 			const parsed = parseXml(argsXmlTag) as any
 			const files = Array.isArray(parsed.file) ? parsed.file : [parsed.file].filter(Boolean)
 
+			// A model that lists the same path twice in one call gets one read, not two.
+			// Only exact duplicates are dropped - the same file at different line ranges is
+			// a legitimate request, so the range is part of the identity.
+			const seen = new Set<string>()
+
 			for (const file of files) {
 				if (!file.path) continue // Skip if no path in a file entry
+
+				const rangeKey = file.line_range
+					? JSON.stringify(Array.isArray(file.line_range) ? file.line_range : [file.line_range])
+					: ""
+
+				if (seen.has(`${file.path}#${rangeKey}`)) {
+					continue
+				}
+
+				seen.add(`${file.path}#${rangeKey}`)
 
 				const fileEntry: FileEntry = {
 					path: file.path,

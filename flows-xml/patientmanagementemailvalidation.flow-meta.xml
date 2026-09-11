@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Clear_Email_Validation_Flag</name>
+        <label>Clear Email Validation Flag</label>
+        <locationX>250</locationX>
+        <locationY>300</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Email_Validation_Failed__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Set_Email_Validation_Failed</name>
+        <label>Set Email Validation Failed</label>
+        <locationX>50</locationX>
+        <locationY>300</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Email_Validation_Failed__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>$Record.Email__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue></stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <decisions>
+        <name>Check_Email_Validation</name>
+        <label>Check Email Validation</label>
+        <locationX>50</locationX>
+        <locationY>100</locationY>
+        <defaultConnector>
+            <targetReference>Clear_Email_Validation_Flag</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Valid Email</defaultConnectorLabel>
+        <rules>
+            <name>Invalid_Email_Format</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Email__c</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Check_REGEX_Pattern</targetReference>
+            </connector>
+            <label>Invalid Email Format</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Check_REGEX_Pattern</name>
+        <label>Check REGEX Pattern</label>
+        <locationX>50</locationX>
+        <locationY>200</locationY>
+        <defaultConnector>
+            <targetReference>Clear_Email_Validation_Flag</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Valid Pattern</defaultConnectorLabel>
+        <rules>
+            <name>Pattern_Does_Not_Match</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Is_Email_Valid_Formula</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Email_Validation_Failed</targetReference>
+            </connector>
+            <label>Pattern Does Not Match</label>
+        </rules>
+    </decisions>
+    <description>Validates email addresses on Patient Management records using REGEX pattern matching. Sets Email_Validation_Failed__c flag and clears invalid emails.</description>
+    <formulas>
+        <name>Is_Email_Valid_Formula</name>
+        <dataType>Boolean</dataType>
+        <expression>REGEX({!$Record.Email__c}, &quot;^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$&quot;)</expression>
+    </formulas>
+    <interviewLabel>Patient Management Email Validation {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Patient Management Email Validation</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Check_Email_Validation</targetReference>
+        </connector>
+        <filterFormula>NOT(ISBLANK({!$Record.Email__c}))</filterFormula>
+        <object>Patient_Management__c</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

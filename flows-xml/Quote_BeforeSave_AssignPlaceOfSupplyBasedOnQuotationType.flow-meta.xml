@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Assign_Place_of_supply</name>
+        <label>Assign Place of supply</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Place_of_Supply__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Direct Supply</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <description>if Quotation type is FC place of supply direct supply</description>
+    <environments>Default</environments>
+    <interviewLabel>Quote-BeforeSave-AssignPlaceOfSupplyFromQuotationType {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Quote-BeforeSave-AssignPlaceOfSupplyBasedOnQuotationType</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Assign_Place_of_supply</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Quotation_Type__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>FC</stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>CurrencyIsoCode</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue>INR</stringValue>
+            </value>
+        </filters>
+        <object>Quote</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

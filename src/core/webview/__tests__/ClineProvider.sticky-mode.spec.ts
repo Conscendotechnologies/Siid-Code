@@ -28,6 +28,7 @@ vi.mock("vscode", () => ({
 		showWarningMessage: vi.fn(),
 		showErrorMessage: vi.fn(),
 		onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
+		onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
 		// Called at module scope by DecorationController, which this suite pulls in
 		// transitively via checkpoints -> DiffViewProvider.
 		createTextEditorDecorationType: vi.fn(() => ({ dispose: vi.fn() })),

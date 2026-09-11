@@ -1,11 +1,22 @@
 import React from "react"
+import { useEvent } from "react-use"
 import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useRooPortal } from "@/components/ui/hooks/useRooPortal"
 import { Popover, PopoverContent, PopoverTrigger, StandardTooltip } from "@/components/ui"
 import { useAppTranslation } from "@/i18n/TranslationContext"
-import { getModelsForMode } from "@roo/mode-models"
+import { getModelsForMode, getRecommendedModelForMode } from "@roo/mode-models"
+import { useExtensionState } from "@/context/ExtensionStateContext"
+import { vscode } from "@/utils/vscode"
 import { Mode } from "@roo/modes"
+import { ExtensionMessage } from "@roo/ExtensionMessage"
+
+type CustomProviderInfo = {
+	apiProvider?: string
+	openAiBaseUrl?: string
+	openAiApiKey?: string
+	openAiHeaders?: Record<string, string>
+}
 
 interface ModelSelectorProps {
 	value: string // Current model ID
@@ -16,6 +27,7 @@ interface ModelSelectorProps {
 	triggerClassName?: string
 	useFreeModels?: boolean // Filter to show only free models
 	developerMode?: boolean // Developer mode shows all models
+	customProvider?: CustomProviderInfo // When apiProvider is a custom endpoint (openai), fetch models from it
 }
 
 export const ModelSelector = ({
@@ -27,38 +39,88 @@ export const ModelSelector = ({
 	triggerClassName = "",
 	useFreeModels = false,
 	developerMode = false,
+	customProvider,
 }: ModelSelectorProps) => {
 	const [open, setOpen] = React.useState(false)
+	const [customModels, setCustomModels] = React.useState<string[] | null>(null)
 	const portalContainer = useRooPortal("roo-portal")
 	const { t } = useAppTranslation()
+	const { modeModelListVersion } = useExtensionState()
+
+	// Opening the picker is the moment the list has to be right, so it doubles
+	// as the refresh trigger. The extension throttles, so reopening is cheap.
+	const handleOpenChange = React.useCallback((isOpen: boolean) => {
+		setOpen(isOpen)
+		if (isOpen) {
+			vscode.postMessage({ type: "refreshModeModelList" })
+		}
+	}, [])
 	const formatTierLabel = React.useCallback((tier: string) => {
 		if (!tier) return tier
 		return tier.charAt(0).toUpperCase() + tier.slice(1)
 	}, [])
 
+	const isCustomEndpoint = customProvider?.apiProvider === "openai" && !!customProvider.openAiBaseUrl
+
+	// Fetch models from the custom endpoint when the popover opens
+	React.useEffect(() => {
+		if (!open || !isCustomEndpoint) return
+		vscode.postMessage({
+			type: "requestOpenAiModels",
+			values: {
+				baseUrl: customProvider!.openAiBaseUrl,
+				apiKey: customProvider!.openAiApiKey,
+				openAiHeaders: customProvider!.openAiHeaders,
+			},
+		})
+	}, [open, isCustomEndpoint, customProvider])
+
+	const onMessage = React.useCallback(
+		(event: MessageEvent) => {
+			if (!isCustomEndpoint) return
+			const message: ExtensionMessage = event.data
+			if (message.type === "openAiModels") {
+				setCustomModels(message.openAiModels ?? [])
+			}
+		},
+		[isCustomEndpoint],
+	)
+	useEvent("message", onMessage)
+
 	// Get available models for the current mode with filtering
 	const availableModels = React.useMemo(() => {
+		// Custom endpoint (9Router/OmniRoute): show the endpoint's model list
+		if (isCustomEndpoint) {
+			const ids = customModels ?? (value ? [value] : [])
+			return ids.map((id) => ({ modelId: id, displayName: id, tier: "" as string, priority: 999 }))
+		}
+
 		const allModels = getModelsForMode(mode)
+
+		// The recommended model is per-mode, so the suffix is added here rather
+		// than baked into the shared list's display names. Names already ending
+		// in a parenthetical ("GLM 4.5 Air (Free)") absorb the suffix; others
+		// get their own so the result never has an unbalanced paren.
+		const recommended = getRecommendedModelForMode(mode)
+		const withSuffix = (name: string) =>
+			name.endsWith(")") ? `${name.slice(0, -1)}, Recommended)` : `${name} (Recommended)`
+		const labelled = recommended
+			? allModels.map((model) =>
+					model.modelId === recommended ? { ...model, displayName: withSuffix(model.displayName) } : model,
+				)
+			: allModels
 
 		// Developer mode shows all models
 		if (developerMode) {
-			// Sort by priority for developer mode too
-			return [...allModels].sort((a, b) => (a.priority || 999) - (b.priority || 999))
+			return labelled
 		}
 
-		// Filter based on useFreeModels setting
-		let filtered: typeof allModels
-		if (useFreeModels === true) {
-			// Show only free tier models when useFreeModels is enabled
-			filtered = allModels.filter((model) => model.tier === "Free")
-		} else {
-			// Show all models when useFreeModels is false (both free and paid)
-			filtered = allModels
-		}
-
-		// Sort by priority (lower number = higher priority)
-		return [...filtered].sort((a, b) => (a.priority || 999) - (b.priority || 999))
-	}, [mode, useFreeModels, developerMode])
+		// Show only free tier models when useFreeModels is enabled,
+		// otherwise show everything (free and paid)
+		return useFreeModels === true ? labelled.filter((model) => model.tier === "Free") : labelled
+		// modeModelListVersion is the signal that the shared list was replaced.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [mode, useFreeModels, developerMode, modeModelListVersion, isCustomEndpoint, customModels, value])
 
 	// Find the selected model info
 	const selectedModel = React.useMemo(() => {
@@ -78,7 +140,10 @@ export const ModelSelector = ({
 		return null
 	}
 
-	const displayName = selectedModel?.displayName || value
+	// A stored model that is no longer offered (delisted by the provider, or
+	// filtered out) has no entry to name. Prompt for a new one rather than
+	// showing a bare id, and never switch on the user's behalf.
+	const displayName = selectedModel?.displayName || t("chat:modelSelector.selectModel")
 
 	const triggerContent = (
 		<PopoverTrigger
@@ -105,7 +170,7 @@ export const ModelSelector = ({
 	)
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={handleOpenChange}>
 			{title ? <StandardTooltip content={title}>{triggerContent}</StandardTooltip> : triggerContent}
 			<PopoverContent
 				align="start"

@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <assignments>
+        <name>Assign_Offer_Validity</name>
+        <label>Assign Offer Validity</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Offer_Validity__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>OfferValidity</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Get_Existing_Quotes</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Assign_Revision_Number</name>
+        <label>Assign Revision Number</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Revision_Number__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>V1</stringValue>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Set_Active_True</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Assign_Revision_Number_Multiple</name>
+        <label>Assign Revision Number Multiple</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Revision_Number__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>RevisionNoMultiple</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Set_Active_True</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Set_Active_True</name>
+        <label>Set Active True</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Is_Active_Version__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <booleanValue>true</booleanValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Set_Current_Revision</name>
+        <label>Set Current Revision</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>varCurrentRevision</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>ExtractRevisionNumber</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Is_Current_Max</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Set_Custom_LP_on_Quote</name>
+        <label>Set Custom LP on Quote</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Custom_LP_On_Quote__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>No</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Set_LP_required_on_Quote</name>
+        <label>Set LP required on Quote</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.LP_required_on_Quote__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>No</stringValue>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <assignments>
+        <name>Set_Quotation_Date</name>
+        <label>Set Quotation Date</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.Quotation_Date__c</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>$Flow.CurrentDate</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Custom_LP_Checked</targetReference>
+        </connector>
+    </assignments>
+    <assignments>
+        <name>Update_Max_Revision</name>
+        <label>Update Max Revision</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>varMaxRevision</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>varCurrentRevision</elementReference>
+            </value>
+        </assignmentItems>
+        <connector>
+            <targetReference>Loop_through_Quotes</targetReference>
+        </connector>
+    </assignments>
+    <customErrors>
+        <name>Custom_Error</name>
+        <label>Custom Error</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Loop_through_Quotes</targetReference>
+        </connector>
+        <customErrorMessages>
+            <errorMessage>Accepted quote already exists for this Opportunity. You cannot create another quote.</errorMessage>
+            <isFieldError>false</isFieldError>
+        </customErrorMessages>
+    </customErrors>
+    <customErrors>
+        <name>Only_1_Accepted_Quote</name>
+        <label>Only 1 Accepted Quote</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Is_status_Presented</targetReference>
+        </connector>
+        <customErrorMessages>
+            <errorMessage>This Opportunity already has an accepted quote. Multiple accepted quotes are not allowed.</errorMessage>
+            <isFieldError>false</isFieldError>
+        </customErrorMessages>
+    </customErrors>
+    <decisions>
+        <name>Accepted_Quote</name>
+        <label>Accepted Quote?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Set_Current_Revision</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Accepted</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Loop_through_Quotes.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Accepted</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Custom_Error</targetReference>
+            </connector>
+            <label>Accepted?</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Custom_LP_Checked</name>
+        <label>Custom LP Checked</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Custom_LP_Checked</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Custom_LP_On_Quote__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_LP_required_on_Quote</targetReference>
+            </connector>
+            <label>Outcome 1 of Custom LP Checked</label>
+        </rules>
+        <rules>
+            <name>Outcome_2_of_Custom_LP_Checked</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.LP_required_on_Quote__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Yes</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Custom_LP_on_Quote</targetReference>
+            </connector>
+            <label>Outcome 2 of Custom LP Checked</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>First_Quote</name>
+        <label>First Quote?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Assign_Revision_Number_Multiple</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_First_Quote</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>varMaxRevision</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <numberValue>0.0</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Revision_Number</targetReference>
+            </connector>
+            <label>Outcome 1 of First Quote?</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Is_Accepted_Quote_present</name>
+        <label>Is Accepted Quote present</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Is_status_Presented</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Found_Existing_Accepted_Quotes</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Existing_Quote_Records</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Accepted</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Only_1_Accepted_Quote</targetReference>
+            </connector>
+            <label>Found Existing Accepted Quotes</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Is_Current_Max</name>
+        <label>Is Current &gt; Max?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Loop_through_Quotes</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Is_Current_Max</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>varCurrentRevision</leftValueReference>
+                <operator>GreaterThan</operator>
+                <rightValue>
+                    <elementReference>varMaxRevision</elementReference>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Update_Max_Revision</targetReference>
+            </connector>
+            <label>Outcome 1 of Is Current &gt; Max?</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Is_New_Record</name>
+        <label>Is New Record?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Get_Existing_Quote_Records</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Is_New_Record</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Id</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>true</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Assign_Offer_Validity</targetReference>
+            </connector>
+            <label>Outcome 1 of Is New Record?</label>
+        </rules>
+    </decisions>
+    <decisions>
+        <name>Is_status_Presented</name>
+        <label>Is status Presented?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnector>
+            <targetReference>Custom_LP_Checked</targetReference>
+        </defaultConnector>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Is_status_Presented</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Status</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Presented</stringValue>
+                </rightValue>
+            </conditions>
+            <conditions>
+                <leftValueReference>$Record__Prior.Status</leftValueReference>
+                <operator>NotEqualTo</operator>
+                <rightValue>
+                    <stringValue>Presented</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Quotation_Date</targetReference>
+            </connector>
+            <label>Outcome 1 of Is status Presented?</label>
+        </rules>
+    </decisions>
+    <environments>Default</environments>
+    <formulas>
+        <name>ExtractRevisionNumber</name>
+        <dataType>Number</dataType>
+        <expression>IF(
+ISBLANK({!Loop_through_Quotes.Revision_Number__c}),
+0,
+IF(
+LEFT({!Loop_through_Quotes.Revision_Number__c},2) = &quot;V1&quot;,
+1,
+VALUE(
+RIGHT(
+{!Loop_through_Quotes.Revision_Number__c},
+LEN({!Loop_through_Quotes.Revision_Number__c}) - 5
+)
+)
+)
+)</expression>
+        <scale>2</scale>
+    </formulas>
+    <formulas>
+        <name>OfferValidity</name>
+        <dataType>Date</dataType>
+        <expression>{!$Flow.CurrentDate}+90</expression>
+    </formulas>
+    <formulas>
+        <name>RevisionNoMultiple</name>
+        <dataType>String</dataType>
+        <expression>&quot;REV_V&quot; &amp; TEXT({!varMaxRevision} + 1)</expression>
+    </formulas>
+    <interviewLabel>Quote Before Save Flow {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Quote Before Save Flow</label>
+    <loops>
+        <name>Loop_through_Quotes</name>
+        <label>Loop through Quotes</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <collectionReference>Get_Existing_Quotes</collectionReference>
+        <iterationOrder>Asc</iterationOrder>
+        <nextValueConnector>
+            <targetReference>Accepted_Quote</targetReference>
+        </nextValueConnector>
+        <noMoreValuesConnector>
+            <targetReference>First_Quote</targetReference>
+        </noMoreValuesConnector>
+    </loops>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <name>Get_Existing_Quote_Records</name>
+        <label>Get Existing Quote Records</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Is_Accepted_Quote_present</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>OpportunityId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.OpportunityId</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Id</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Status</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Accepted</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Quote</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <recordLookups>
+        <name>Get_Existing_Quotes</name>
+        <label>Get Existing Quotes</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Loop_through_Quotes</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>OpportunityId</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.OpportunityId</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Id</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Quote</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Is_New_Record</targetReference>
+        </connector>
+        <object>Quote</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+    <variables>
+        <name>varCurrentRevision</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>2</scale>
+    </variables>
+    <variables>
+        <name>varMaxRevision</name>
+        <dataType>Number</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <scale>2</scale>
+        <value>
+            <numberValue>0.0</numberValue>
+        </value>
+    </variables>
+</Flow>

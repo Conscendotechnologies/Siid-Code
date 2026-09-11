@@ -25,7 +25,6 @@ export async function getFirebaseAPI(outputChannel?: vscode.OutputChannel): Prom
 
 	// Return cached instance if available
 	if (cachedFirebaseAPI) {
-		log("Returning cached Firebase API instance")
 		return cachedFirebaseAPI
 	}
 
@@ -98,10 +97,6 @@ export async function isAuthenticated(outputChannel?: vscode.OutputChannel): Pro
 			return false
 		}
 
-		// Log available methods for debugging
-		const methods = Object.keys(api)
-		log("Available Firebase API methods:", methods)
-
 		// Check if the API has isAuthenticated method
 		if (typeof api.isAuthenticated !== "function") {
 			log("isAuthenticated method not available, trying getCurrentSession")
@@ -117,7 +112,7 @@ export async function isAuthenticated(outputChannel?: vscode.OutputChannel): Pro
 		}
 
 		const isAuth = await api.isAuthenticated()
-		log("Authentication status:", !!isAuth)
+		// log("Authentication status:", !!isAuth)
 		return !!isAuth
 	} catch (error) {
 		log("Error checking authentication:", error)

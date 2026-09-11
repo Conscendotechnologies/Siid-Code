@@ -162,5 +162,39 @@ export function parseAssistantMessage(assistantMessage: string): AssistantMessag
 		contentBlocks.push(currentTextContent)
 	}
 
-	return contentBlocks
+	return stripToolCallFraming(contentBlocks)
+}
+
+/**
+ * Drop native tool-call framing that leaks into the text channel.
+ *
+ * Models trained on their own tool-call format (Nemotron and friends) wrap XML tool
+ * uses in `<tool_call>`/`</tool_call>`. Those tags are not tools here, so the parser
+ * passes them through as prose and the user sees a bare `</tool_call>` in the chat.
+ *
+ * Only the framing tags themselves are removed - never surrounding content - and a
+ * block that becomes empty is dropped rather than left as a blank bubble.
+ */
+function stripToolCallFraming(blocks: AssistantMessageContent[]): AssistantMessageContent[] {
+	const result: AssistantMessageContent[] = []
+
+	for (const block of blocks) {
+		if (block.type !== "text") {
+			result.push(block)
+			continue
+		}
+
+		const content = block.content.replace(/<\/?tool_call>/g, "").trim()
+
+		// A block that was nothing but framing has no reason to render. This holds
+		// while still streaming too: an empty bubble is noise either way, and real
+		// text arriving later comes through as a fresh block.
+		if (content.length === 0) {
+			continue
+		}
+
+		result.push({ ...block, content })
+	}
+
+	return result
 }

@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Warteschlange Nachrichten:",
 		"clickToEdit": "Klicken zum Bearbeiten der Nachricht"
+	},
+	"modelSelector": {
+		"selectModel": "Modell auswählen"
 	}
 }

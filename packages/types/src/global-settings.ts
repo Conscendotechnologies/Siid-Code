@@ -219,6 +219,7 @@ export const SECRET_STATE_KEYS = [
 	"huggingFaceApiKey",
 	"sambaNovaApiKey",
 	"fireworksApiKey",
+	"nineRouterApiKey",
 ] as const satisfies readonly (keyof ProviderSettings)[]
 export type SecretState = Pick<ProviderSettings, (typeof SECRET_STATE_KEYS)[number]>
 

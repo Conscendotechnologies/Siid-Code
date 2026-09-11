@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <apiVersion>66.0</apiVersion>
+    <label>Lead_Scoring_Advanced_Flow_v2</label>
+    <processType>Flow</processType>
+
+    <!-- METADATA -->
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value><stringValue>LightningFlowBuilder</stringValue></value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value><stringValue>AUTO_LAYOUT_CANVAS</stringValue></value>
+    </processMetadataValues>
+
+    <!-- START -->
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>scr_CollectLeadInfo</targetReference>
+        </connector>
+    </start>
+
+    <!-- SCREENS -->
+    <screens>
+        <name>scr_CollectLeadInfo</name>
+        <label>Lead Info</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+
+        <connector>
+            <targetReference>asn_MapInputs</targetReference>
+        </connector>
+
+        <fields>
+            <name>fld_NameInput</name>
+            <dataType>String</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Name</fieldText>
+            <isRequired>true</isRequired>
+        </fields>
+
+        <fields>
+            <name>fld_EmailInput</name>
+            <dataType>String</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Email</fieldText>
+            <isRequired>true</isRequired>
+        </fields>
+
+        <fields>
+            <name>fld_BudgetInput</name>
+            <dataType>Number</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Budget</fieldText>
+            <isRequired>true</isRequired>
+        </fields>
+
+        <fields>
+            <name>fld_CountryInput</name>
+            <dataType>String</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Country</fieldText>
+            <isRequired>true</isRequired>
+        </fields>
+    </screens>
+
+    <screens>
+        <name>scr_Result</name>
+        <label>Result</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+
+        <fields>
+            <name>msg</name>
+            <fieldType>DisplayText</fieldType>
+            <fieldText>{!var_FinalMessage}</fieldText>
+        </fields>
+    </screens>
+
+    <!-- ASSIGNMENTS (ALL TOGETHER) -->
+    <assignments>
+        <name>asn_MapInputs</name>
+        <label>Map Inputs</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <assignmentItems>
+            <assignToReference>var_LeadName</assignToReference>
+            <operator>Assign</operator>
+            <value><elementReference>fld_NameInput</elementReference></value>
+        </assignmentItems>
+
+        <assignmentItems>
+            <assignToReference>var_LeadBudget</assignToReference>
+            <operator>Assign</operator>
+            <value><elementReference>fld_BudgetInput</elementReference></value>
+        </assignmentItems>
+
+        <connector>
+            <targetReference>dec_Budget</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>asn_Hot</name>
+        <label>Hot</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <assignmentItems>
+            <assignToReference>var_FinalMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Hello {!var_LeadName}, you are HOT 🔥</stringValue>
+            </value>
+        </assignmentItems>
+
+        <connector>
+            <targetReference>scr_Result</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>asn_Warm</name>
+        <label>Warm</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <assignmentItems>
+            <assignToReference>var_FinalMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Hello {!var_LeadName}, you are Warm 🙂</stringValue>
+            </value>
+        </assignmentItems>
+
+        <connector>
+            <targetReference>scr_Result</targetReference>
+        </connector>
+    </assignments>
+
+    <assignments>
+        <name>asn_Cold</name>
+        <label>Cold</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <assignmentItems>
+            <assignToReference>var_FinalMessage</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <stringValue>Hello {!var_LeadName}, you are Cold ❄️</stringValue>
+            </value>
+        </assignmentItems>
+
+        <connector>
+            <targetReference>scr_Result</targetReference>
+        </connector>
+    </assignments>
+
+    <!-- DECISION -->
+            <decisions>
+        <name>dec_Budget</name>
+        <label>Budget Check</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+
+        <!-- DEFAULT OUTCOME -->
+        <defaultConnector>
+            <targetReference>asn_Cold</targetReference>
+        </defaultConnector>
+
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+
+        <!-- HOT -->
+        <rules>
+            <name>Hot</name>
+            <label>Hot</label>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>var_LeadBudget</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <numberValue>100000</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>asn_Hot</targetReference>
+            </connector>
+        </rules>
+
+        <!-- WARM -->
+        <rules>
+            <name>Warm</name>
+            <label>Warm</label>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>var_LeadBudget</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <numberValue>50000</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>asn_Warm</targetReference>
+            </connector>
+        </rules>
+
+    </decisions>
+
+    <!-- VARIABLES -->
+    <variables>
+        <name>var_LeadName</name>
+        <dataType>String</dataType>
+    </variables>
+
+    <variables>
+        <name>var_LeadBudget</name>
+        <dataType>Number</dataType>
+    </variables>
+
+    <variables>
+        <name>var_FinalMessage</name>
+        <dataType>String</dataType>
+    </variables>
+
+    <status>Draft</status>
+
+</Flow>

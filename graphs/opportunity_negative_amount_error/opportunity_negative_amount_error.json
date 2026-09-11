@@ -1,0 +1,113 @@
+{
+	"flow_name": "Opportunity_Negative_Amount_Error",
+	"process_type": "AutoLaunchedFlow",
+	"api_version": 66.0,
+	"status": "Active",
+	"description": "Prevents saving an Opportunity when Amount is negative.",
+	"nodes": [
+		{
+			"id": "Start",
+			"type": "Start",
+			"label": "Start",
+			"metadata": {
+				"name": "Start",
+				"original_tag": "start",
+				"triggerType": "RecordBeforeSave",
+				"recordTriggerType": "CreateAndUpdate",
+				"object": "Opportunity",
+				"filterLogic": "and",
+				"filters": [],
+				"filter_formula": null,
+				"position": {
+					"x": 50,
+					"y": 0
+				}
+			}
+		},
+		{
+			"id": "Check_Amount_Negative",
+			"type": "Decision",
+			"label": "Check Amount Negative",
+			"metadata": {
+				"name": "Check_Amount_Negative",
+				"original_tag": "decisions",
+				"default_connector_target": "End",
+				"default_connector_label": "Default Outcome",
+				"rules": [
+					{
+						"name": "Outcome_1_of_Check_Amount_Negative",
+						"label": "Amount Is Negative",
+						"conditionLogic": "and",
+						"conditions": [
+							{
+								"left_value_reference": "$Record.Amount",
+								"operator": "LessThan",
+								"right_value": {
+									"numberValue": 0
+								}
+							}
+						],
+						"connector_target": "Err_Amount_Negative"
+					}
+				],
+				"position": {
+					"x": 200,
+					"y": 100
+				}
+			}
+		},
+		{
+			"id": "Err_Amount_Negative",
+			"type": "CustomError",
+			"label": "Amount Cannot Be Negative",
+			"metadata": {
+				"customErrorMessages": [
+					{
+						"errorMessage": "Opportunity Amount cannot be negative",
+						"isFieldError": true,
+						"fieldSelection": "Amount"
+					}
+				],
+				"position": {
+					"x": 350,
+					"y": 200
+				}
+			}
+		},
+		{
+			"id": "End",
+			"type": "End",
+			"label": "End",
+			"metadata": {
+				"position": {
+					"x": 350,
+					"y": 350
+				}
+			}
+		}
+	],
+	"edges": [
+		{
+			"from": "Start",
+			"to": "Check_Amount_Negative",
+			"metadata": {}
+		},
+		{
+			"from": "Check_Amount_Negative",
+			"to": "Err_Amount_Negative",
+			"condition": "Amount Is Negative",
+			"metadata": {}
+		},
+		{
+			"from": "Check_Amount_Negative",
+			"to": "End",
+			"metadata": {}
+		}
+	],
+	"usage": {
+		"prompt_tokens": 12866,
+		"completion_tokens": 1039,
+		"total_tokens": 13905,
+		"cost": null
+	}
+}

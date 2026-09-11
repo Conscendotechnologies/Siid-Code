@@ -298,13 +298,17 @@ export class McpHub {
 			const content = await fs.readFile(filePath, "utf-8")
 			let config: any
 
-			try {
-				config = JSON.parse(content)
-			} catch (parseError) {
-				const errorMessage = t("mcp:errors.invalid_settings_syntax")
-				console.error(errorMessage, parseError)
-				vscode.window.showErrorMessage(errorMessage)
-				return
+			if (content.trim().length === 0) {
+				config = { mcpServers: {} }
+			} else {
+				try {
+					config = JSON.parse(content)
+				} catch (parseError) {
+					const errorMessage = t("mcp:errors.invalid_settings_syntax")
+					console.error(errorMessage, parseError)
+					vscode.window.showErrorMessage(errorMessage)
+					return
+				}
 			}
 
 			const result = McpSettingsSchema.safeParse(config)
@@ -384,13 +388,17 @@ export class McpHub {
 			const content = await fs.readFile(projectMcpPath, "utf-8")
 			let config: any
 
-			try {
-				config = JSON.parse(content)
-			} catch (parseError) {
-				const errorMessage = t("mcp:errors.invalid_settings_syntax")
-				console.error(errorMessage, parseError)
-				vscode.window.showErrorMessage(errorMessage)
-				return
+			if (content.trim().length === 0) {
+				config = { mcpServers: {} }
+			} else {
+				try {
+					config = JSON.parse(content)
+				} catch (parseError) {
+					const errorMessage = t("mcp:errors.invalid_settings_syntax")
+					console.error(errorMessage, parseError)
+					vscode.window.showErrorMessage(errorMessage)
+					return
+				}
 			}
 
 			// Validate configuration structure

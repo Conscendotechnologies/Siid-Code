@@ -47,6 +47,7 @@ Parameters:
   - For AssignmentRule use ObjectApi.RuleApi
   - For AssignmentRules use ObjectApi (example: Lead)
 - test_level: (optional) NoTestRun | RunLocalTests | RunAllTestsInOrg | RunSpecifiedTests
+  WARNING: do NOT pass test_level to run tests. Deploy without it, then run tests with the siid_forge \`runApexTests\` feature — it returns structured pass/fail, per-failure messages, coverage, and debug logs, none of which a deploy test_level gives you.
 - tests: (optional) Required only with RunSpecifiedTests (comma-separated test class names)
 - ignore_warnings: (optional) true | false
 - source_dir: (optional) currently ignored by the tool command builder
@@ -104,5 +105,6 @@ With specified tests:
 Workflow guidance:
 1. Deploy dependencies first (objects before fields, fields before rules/layouts where applicable).
 2. Use one-component deploys while debugging.
-3. If dry run fails, fix the reported issue before retrying.`
+3. If dry run fails, fix the reported issue before retrying.
+4. Exception: if the failing metadata_type is Flow and the file was produced by generate_sf_flow, do NOT hand-edit the .flow-meta.xml — call generate_sf_flow again with the original prompt plus the deployment error appended, and let it regenerate the file.`
 }

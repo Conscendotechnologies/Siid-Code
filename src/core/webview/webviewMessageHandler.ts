@@ -46,7 +46,8 @@ import { TelemetrySetting } from "../../shared/TelemetrySetting"
 import { getWorkspacePath } from "../../utils/path"
 import { ensureSettingsDirectoryExists } from "../../utils/globalContext"
 import { Mode, defaultModeSlug } from "../../shared/modes"
-import { getModelsForMode } from "../../shared/mode-models"
+import { getModelsForMode, getModelList } from "../../shared/mode-models"
+import { refreshModelList } from "../../services/model-list"
 import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
 import { GetModelsOptions } from "../../shared/api"
 import { generateSystemPrompt } from "./generateSystemPrompt"
@@ -669,6 +670,13 @@ export const webviewMessageHandler = async (
 			const routerNameFlush: RouterName = toRouterName(message.text)
 			await flushModels(routerNameFlush)
 			break
+		case "refreshModeModelList": {
+			// Sent when the model picker opens. The fetch is throttled, so this
+			// usually returns the list already in memory.
+			await refreshModelList()
+			await provider.postMessageToWebview({ type: "modeModelList", modeModelList: getModelList() })
+			break
+		}
 		case "requestRouterModels":
 			const { apiConfiguration } = await provider.getState()
 
@@ -680,6 +688,7 @@ export const webviewMessageHandler = async (
 				litellm: {},
 				ollama: {},
 				lmstudio: {},
+				"9router": {},
 			}
 
 			const safeGetModels = async (options: GetModelsOptions): Promise<ModelRecord> => {
@@ -702,6 +711,15 @@ export const webviewMessageHandler = async (
 				modelFetchPromises.push({
 					key: "litellm",
 					options: { provider: "litellm", apiKey: litellmApiKey, baseUrl: litellmBaseUrl },
+				})
+			}
+
+			const nineRouterApiKey = apiConfiguration.nineRouterApiKey || message?.values?.nineRouterApiKey
+			const nineRouterBaseUrl = apiConfiguration.nineRouterBaseUrl || message?.values?.nineRouterBaseUrl
+			if (nineRouterBaseUrl || apiConfiguration.apiProvider === "9router") {
+				modelFetchPromises.push({
+					key: "9router",
+					options: { provider: "9router", apiKey: nineRouterApiKey, baseUrl: nineRouterBaseUrl },
 				})
 			}
 
@@ -805,7 +823,7 @@ export const webviewMessageHandler = async (
 			break
 		}
 		case "requestOpenAiModels":
-			if (message?.values?.baseUrl && message?.values?.apiKey) {
+			if (message?.values?.baseUrl) {
 				const openAiModels = await getOpenAiModels(
 					message?.values?.baseUrl,
 					message?.values?.apiKey,
@@ -1063,6 +1081,219 @@ export const webviewMessageHandler = async (
 				vscode.window.showErrorMessage(t("mcp:errors.create_json", { error: `${error}` }))
 			}
 
+			break
+		}
+		case "installMcpPreset": {
+			const preset = message.values?.preset as { name: string; config: Record<string, any> } | undefined
+			const target = (message.values?.target as "global" | "project") ?? "project"
+			if (!preset?.name || !preset?.config) {
+				vscode.window.showErrorMessage("MCP preset payload missing name or config")
+				break
+			}
+
+			let mcpPath: string | undefined
+			try {
+				if (target === "project") {
+					if (!vscode.workspace.workspaceFolders?.length) {
+						vscode.window.showErrorMessage(t("common:errors.no_workspace"))
+						break
+					}
+					const rooDir = path.join(vscode.workspace.workspaceFolders[0].uri.fsPath, ".roo")
+					await fs.mkdir(rooDir, { recursive: true })
+					mcpPath = path.join(rooDir, "mcp.json")
+				} else {
+					mcpPath = await provider.getMcpHub()?.getMcpSettingsFilePath()
+				}
+				if (!mcpPath) break
+
+				let current: { mcpServers?: Record<string, any> } = { mcpServers: {} }
+				if (await fileExistsAtPath(mcpPath)) {
+					const raw = (await fs.readFile(mcpPath, "utf8")).trim()
+					if (raw.length > 0) {
+						try {
+							current = JSON.parse(raw) || { mcpServers: {} }
+						} catch {
+							vscode.window.showErrorMessage(`Could not parse ${mcpPath} — fix or delete it first`)
+							break
+						}
+					}
+				}
+				current.mcpServers = current.mcpServers ?? {}
+				if (current.mcpServers[preset.name]) {
+					const choice = await vscode.window.showWarningMessage(
+						`MCP server "${preset.name}" already exists. Overwrite?`,
+						{ modal: true },
+						"Overwrite",
+					)
+					if (choice !== "Overwrite") break
+				}
+				current.mcpServers[preset.name] = preset.config
+				await safeWriteJson(mcpPath, current)
+				vscode.window.showInformationMessage(`Installed MCP preset "${preset.name}"`)
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to install MCP preset: ${error}`)
+			}
+			break
+		}
+		case "testMcpPreset": {
+			const presetId = (message.values?.presetId as string) ?? ""
+			const mode = ((message.values?.mode as string) ?? "connect") as "connect" | "detect"
+			const post = (values: Record<string, any>) =>
+				provider.postMessageToWebview({
+					type: "mcpPresetTestResult",
+					values: { presetId, mode, ...values },
+				})
+			try {
+				const { execFile } = await import("child_process")
+				const { promisify } = await import("util")
+				const run = promisify(execFile)
+				const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+				const shell = process.platform === "win32"
+
+				if (presetId === "salesforce") {
+					const { stdout } = (await run("sf", ["org", "display", "--json"], {
+						cwd,
+						timeout: 15000,
+						encoding: "utf8",
+						shell,
+					} as any)) as unknown as { stdout: string; stderr: string }
+					const parsed = JSON.parse(stdout)
+					const result = parsed?.result ?? {}
+					const username = result.username as string | undefined
+					const instanceUrl = result.instanceUrl as string | undefined
+					if (!username || !instanceUrl) {
+						await post({ ok: false, message: "No default org set. Run `sf org login web`." })
+						break
+					}
+					await post({
+						ok: true,
+						message: `Connected as ${username} @ ${instanceUrl}`,
+						fields: { username, instanceUrl },
+					})
+					break
+				}
+
+				if (presetId === "memory") {
+					// probe: npx can resolve the package.
+					await run("npx", ["-y", "--package=@modelcontextprotocol/server-memory", "node", "-e", "0"], {
+						cwd,
+						timeout: 60000,
+						encoding: "utf8",
+						shell,
+					} as any)
+					await post({ ok: true, message: "npx can resolve @modelcontextprotocol/server-memory." })
+					break
+				}
+
+				if (presetId === "fetch") {
+					const probeUvx = async () =>
+						(await run("uvx", ["--version"], {
+							cwd,
+							timeout: 10000,
+							encoding: "utf8",
+							shell,
+						} as any)) as unknown as { stdout: string; stderr: string }
+
+					try {
+						const { stdout } = await probeUvx()
+						await post({
+							ok: true,
+							message: `uvx present (${stdout.trim()}). Server will fetch on first run.`,
+						})
+						break
+					} catch {
+						// fall through to install attempt
+					}
+
+					if (process.platform !== "win32") {
+						await post({
+							ok: false,
+							message: "uvx not found. Install `uv` (https://docs.astral.sh/uv/) and try again.",
+						})
+						break
+					}
+
+					try {
+						await run(
+							"winget",
+							[
+								"install",
+								"--id=astral-sh.uv",
+								"-e",
+								"--accept-source-agreements",
+								"--accept-package-agreements",
+								"--silent",
+							],
+							{ cwd, timeout: 180000, encoding: "utf8", shell } as any,
+						)
+					} catch (e: any) {
+						const detail = (e?.stderr || e?.stdout || e?.message || "").toString().trim().slice(0, 300)
+						await post({
+							ok: false,
+							message: `winget install failed. ${detail || "Install `uv` manually."}`,
+						})
+						break
+					}
+
+					// winget adds uv to PATH via a new user-env entry that this process didn't inherit.
+					// Pull the fresh User+Machine PATH from the registry and retry with it merged in,
+					// so the user doesn't have to reopen the IDE.
+					try {
+						const { stdout } = await probeUvx()
+						await post({
+							ok: true,
+							message: `Installed uv via winget (${stdout.trim()}). Fetch server ready.`,
+						})
+						break
+					} catch {}
+
+					try {
+						const { stdout: freshPath } = (await run(
+							"powershell",
+							[
+								"-NoProfile",
+								"-Command",
+								"[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')",
+							],
+							{ cwd, timeout: 10000, encoding: "utf8", shell: true } as any,
+						)) as unknown as { stdout: string; stderr: string }
+						const mergedPath = freshPath.trim()
+						if (mergedPath) {
+							const { stdout } = (await run("uvx", ["--version"], {
+								cwd,
+								timeout: 10000,
+								encoding: "utf8",
+								shell,
+								env: { ...process.env, Path: mergedPath },
+							} as any)) as unknown as { stdout: string; stderr: string }
+							// Persist onto this extension host's own env so the real MCP server spawn
+							// (which inherits process.env, not our test-only override) can find uvx too.
+							process.env.Path = mergedPath
+							await post({
+								ok: true,
+								message: `Installed uv via winget (${stdout.trim()}). Fetch server ready.`,
+							})
+							break
+						}
+					} catch {}
+
+					await post({
+						ok: false,
+						message: "Installed via winget but uvx not on PATH. Reopen the IDE and re-test.",
+					})
+					break
+				}
+
+				await post({ ok: false, message: "This preset has no connection test." })
+			} catch (error: any) {
+				const stderr = (error?.stderr as string) || ""
+				let msg = stderr.trim() || error?.message || String(error)
+				try {
+					const parsed = JSON.parse(stderr || error?.stdout || "")
+					if (parsed?.message) msg = parsed.message
+				} catch {}
+				await post({ ok: false, message: msg.slice(0, 500) })
+			}
 			break
 		}
 		case "deleteMcpServer": {

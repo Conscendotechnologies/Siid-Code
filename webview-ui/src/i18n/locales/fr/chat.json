@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Messages en file d'attente :",
 		"clickToEdit": "Cliquez pour modifier le message"
+	},
+	"modelSelector": {
+		"selectModel": "Sélectionner un modèle"
 	}
 }

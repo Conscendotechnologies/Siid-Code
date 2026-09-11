@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Сообщения в очереди:",
 		"clickToEdit": "Нажмите, чтобы редактировать сообщение"
+	},
+	"modelSelector": {
+		"selectModel": "Выберите модель"
 	}
 }

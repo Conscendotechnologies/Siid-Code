@@ -41,6 +41,7 @@ import { applyDiffToolLegacy } from "../tools/applyDiffTool"
 import { retrieveSfMetadataTool } from "../tools/retrieveSfMetadataTool"
 import { deploySfMetadataTool } from "../tools/sfDeployMetadataTool"
 import { siidForgeTool } from "../tools/siidForgeTool"
+import { generateSfFlowTool } from "../tools/generateSfFlowTool"
 
 /**
  * Processes and presents assistant message content to the user interface.
@@ -270,6 +271,8 @@ export async function presentAssistantMessage(cline: Task) {
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
 					case "siid_forge":
 						return `[${block.name}: ${block.params.feature ?? "?"}]`
+					case "generate_sf_flow":
+						return `[${block.name}: ${block.params.prompt?.slice(0, 60) ?? "?"}]`
 					default:
 						return `[${block.name}]`
 				}
@@ -586,6 +589,9 @@ export async function presentAssistantMessage(cline: Task) {
 					break
 				case "siid_forge":
 					await siidForgeTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
+					break
+				case "generate_sf_flow":
+					await generateSfFlowTool(cline, block, askApproval, handleError, pushToolResult, removeClosingTag)
 					break
 			}
 

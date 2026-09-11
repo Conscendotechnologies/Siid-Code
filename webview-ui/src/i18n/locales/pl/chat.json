@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Wiadomości w kolejce:",
 		"clickToEdit": "Kliknij, aby edytować wiadomość"
+	},
+	"modelSelector": {
+		"selectModel": "Wybierz model"
 	}
 }

@@ -125,6 +125,7 @@ Examples:
 IMPORTANT: You MUST use this Efficient Reading Strategy:
 - You MUST read all related files and implementations together in a single operation (up to 5 files at once)
 - You MUST obtain all necessary context before proceeding with changes
+- You MUST NOT re-read a file whose contents are already in the conversation, unless you have changed it since — the earlier result is still valid, and re-reading wastes context
 
 - When you need to read more than 5 files, prioritize the most critical files first, then use subsequent read_file requests for additional files
 
@@ -416,8 +417,8 @@ Available features:
     args: rawLog: string — The raw Apex debug log text.
     returns: LogAnalysis {limits[], hotMethods[], dataOps[], insights[], counts, errors[], truncated, isFinest}.
 - runApexTests: Run a class's Apex tests against the org and return structured results.
-    args: className: string — Apex test class name to run.; projectRoot?: string — Optional project root override.
-    returns: {passing, failing, testsRan, classCoverage?, reportPath, logFiles[]}. Includes coverage — a separate getCoverage call is usually unnecessary.
+    args: className: string — Apex test class name to run.; debug?: boolean — Capture debug logs and return their paths in logFiles[]. Defaults to true — pass false only to skip the trace-flag setup on a routine run.; projectRoot?: string — Optional project root override.
+    returns: {passing, failing, testsRan, classCoverage?, reportPath, logFiles[], result}. `result.summary.outcome` is Passed/Failed and `result.tests[]` carries each failure's Message and StackTrace. Includes coverage — a separate getCoverage call is usually unnecessary. Debug logs are captured by default; read one with analyzeLogFile when Message/StackTrace is not enough.
 - getUsername: Get the resolved username of the default org.
     args: (no args)
 - getUserId: Get the user Id of the default org's user.
@@ -647,6 +648,7 @@ Parameters:
   - For AssignmentRule use ObjectApi.RuleApi
   - For AssignmentRules use ObjectApi (example: Lead)
 - test_level: (optional) NoTestRun | RunLocalTests | RunAllTestsInOrg | RunSpecifiedTests
+  WARNING: do NOT pass test_level to run tests. Deploy without it, then run tests with the siid_forge `runApexTests` feature — it returns structured pass/fail, per-failure messages, coverage, and debug logs, none of which a deploy test_level gives you.
 - tests: (optional) Required only with RunSpecifiedTests (comma-separated test class names)
 - ignore_warnings: (optional) true | false
 - source_dir: (optional) currently ignored by the tool command builder

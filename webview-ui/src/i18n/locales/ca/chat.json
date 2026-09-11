@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Missatges en cua:",
 		"clickToEdit": "Feu clic per editar el missatge"
+	},
+	"modelSelector": {
+		"selectModel": "Selecciona un model"
 	}
 }

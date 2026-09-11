@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <description>Email action that notifies a user upon payment method creation.</description>
+        <name>ACH_Payment_Method_Created</name>
+        <label>ACH Payment Method Created</label>
+        <locationX>176</locationX>
+        <locationY>323</locationY>
+        <actionName>OrderApi__Payment_Method__c.ACH_Payment_Method_Created</actionName>
+        <actionType>emailAlert</actionType>
+        <connector>
+            <targetReference>Set_ACH_Mandate_Email_Sent_Date</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>SObjectRowId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+    </actionCalls>
+    <apiVersion>58.0</apiVersion>
+    <description>Sends an email alert once an ACH payment method record is created in the system</description>
+    <environments>Default</environments>
+    <interviewLabel>ACH Payment Method Created {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>ACH Payment Method Created Notification</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordUpdates>
+        <name>Set_ACH_Mandate_Email_Sent_Date</name>
+        <label>Set ACH Mandate Email Sent Date</label>
+        <locationX>176</locationX>
+        <locationY>431</locationY>
+        <inputAssignments>
+            <field>ACH_Mandate_Email_Sent_Date__c</field>
+            <value>
+                <elementReference>$Flow.CurrentDateTime</elementReference>
+            </value>
+        </inputAssignments>
+        <inputReference>$Record</inputReference>
+    </recordUpdates>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>ACH_Payment_Method_Created</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Account_Holder_Email__c</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <stringValue></stringValue>
+            </value>
+        </filters>
+        <filters>
+            <field>OrderApi__Payment_Method_Type__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>bank_account</stringValue>
+            </value>
+        </filters>
+        <object>OrderApi__Payment_Method__c</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

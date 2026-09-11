@@ -29,6 +29,7 @@ import { createOutputChannelLogger, createDualLogger } from "./utils/outputChann
 import { Package } from "./shared/package"
 import { formatLanguage } from "./shared/language"
 import { ContextProxy } from "./core/config/ContextProxy"
+import { initializeModelList } from "./services/model-list"
 import { ClineProvider } from "./core/webview/ClineProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { TerminalRegistry } from "./integrations/terminal/TerminalRegistry"
@@ -98,7 +99,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	try {
 		if (cloudService.telemetryClient) {
-			TelemetryService.instance.register(cloudService.telemetryClient)
+			TelemetryService.instance.register(cloudService.telemetryClient as any)
 		}
 	} catch (error) {
 		outputChannel.appendLine(
@@ -137,6 +138,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	}
 
 	const contextProxy = await ContextProxy.getInstance(context)
+
+	// Apply the cached model list before anything reads it, so a cold start is
+	// correct offline. Refreshing is event-driven and happens later.
+	await initializeModelList()
 
 	// Store activation start time for performance tracking (recorded at function start)
 	await contextProxy.setValue("activationStartTime", activationStartTime)

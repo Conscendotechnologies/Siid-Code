@@ -219,7 +219,7 @@ describe("ZAiHandler", () => {
 			expect(mockCreate).toHaveBeenCalledWith(
 				expect.objectContaining({
 					model: modelId,
-					max_tokens: modelInfo.maxTokens,
+					max_tokens: 8192, // capped at 16384 by base provider; modelInfo.maxTokens (98304) exceeds cap
 					temperature: ZAI_DEFAULT_TEMPERATURE,
 					messages: expect.arrayContaining([{ role: "system", content: systemPrompt }]),
 					stream: true,

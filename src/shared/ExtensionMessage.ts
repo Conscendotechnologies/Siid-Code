@@ -17,6 +17,7 @@ import { GitCommit } from "../utils/git"
 import { McpServer } from "./mcp"
 import { Mode } from "./modes"
 import { ModelRecord, RouterModels } from "./api"
+import type { ModelListData } from "./mode-models"
 import type { MarketplaceItem } from "@siid-code/types"
 
 // Command interface for frontend/backend communication
@@ -64,6 +65,7 @@ export interface ExtensionMessage {
 		| "action"
 		| "state"
 		| "selectedImages"
+		| "activeEditorChanged"
 		| "theme"
 		| "workspaceUpdated"
 		| "invoke"
@@ -73,6 +75,7 @@ export interface ExtensionMessage {
 		| "commitSearchResults"
 		| "listApiConfig"
 		| "routerModels"
+		| "modeModelList"
 		| "openAiModels"
 		| "ollamaModels"
 		| "lmStudioModels"
@@ -130,6 +133,7 @@ export interface ExtensionMessage {
 		| "fileCreated"
 		| "fileChanges"
 		| "fileChangesStatistics"
+		| "mcpPresetTestResult"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
@@ -156,6 +160,8 @@ export interface ExtensionMessage {
 	}>
 	clineMessage?: ClineMessage
 	routerModels?: RouterModels
+	/** The runtime model list, so the webview picker reflects fetched updates. */
+	modeModelList?: ModelListData
 	openAiModels?: string[]
 	ollamaModels?: string[]
 	lmStudioModels?: ModelRecord
@@ -384,6 +390,7 @@ export interface ClineSayTool {
 		| "deploySfMetadata"
 		| "retrieveSfMetadata"
 		| "siidForge"
+		| "generate_sf_flow"
 	path?: string
 	feature?: string // siidForge: the feature name (e.g. "sfRun")
 	mutating?: boolean // siidForge: whether it required approval

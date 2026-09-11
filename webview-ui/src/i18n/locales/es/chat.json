@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Mensajes en cola:",
 		"clickToEdit": "Haz clic para editar el mensaje"
+	},
+	"modelSelector": {
+		"selectModel": "Selecciona un modelo"
 	}
 }

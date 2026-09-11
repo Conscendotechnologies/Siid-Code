@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "队列消息:",
 		"clickToEdit": "点击编辑消息"
+	},
+	"modelSelector": {
+		"selectModel": "选择模型"
 	}
 }

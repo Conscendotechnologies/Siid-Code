@@ -50,6 +50,7 @@ import { getApiMetrics } from "../../shared/getApiMetrics"
 import { ClineAskResponse } from "../../shared/WebviewMessage"
 import { defaultModeSlug } from "../../shared/modes"
 import { DiffStrategy } from "../../shared/tools"
+import { isModelUnavailableError, refreshModelList } from "../../services/model-list"
 import {
 	is429Error,
 	getNextModelOnError,
@@ -119,6 +120,50 @@ import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoL
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
 
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
+
+/**
+ * How long to wait for the first chunk before treating the request as dead.
+ *
+ * A provider that accepts the connection and then goes quiet never errors, so
+ * without this the stream waits forever: the task looks idle, the UI still
+ * renders its buttons, and clicking them re-issues a request that stalls the
+ * same way. Timing out turns that into a normal api_req_failed with a working
+ * Retry button.
+ *
+ * Generous on purpose - a large prompt against a slow model can legitimately
+ * take a while to produce its first token.
+ */
+const FIRST_CHUNK_TIMEOUT_MS = 120_000
+
+/**
+ * Reject if the first chunk hasn't arrived in time, so a silently stalled
+ * provider surfaces as an error instead of an apparently-idle task.
+ *
+ * The timer is always cleared, including on the success path, so a resolved
+ * request never leaves a pending timeout behind.
+ */
+async function withFirstChunkTimeout<T>(promise: Promise<T>): Promise<T> {
+	let timer: NodeJS.Timeout | undefined
+
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<never>((_, reject) => {
+				timer = setTimeout(
+					() =>
+						reject(
+							new Error(
+								`No response from the API provider after ${FIRST_CHUNK_TIMEOUT_MS / 1000}s. The request may have stalled upstream - check the provider or proxy, then retry.`,
+							),
+						),
+					FIRST_CHUNK_TIMEOUT_MS,
+				)
+			}),
+		])
+	} finally {
+		clearTimeout(timer)
+	}
+}
 
 export type TaskOptions = {
 	provider: ClineProvider
@@ -1029,8 +1074,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					`  Will fit: ${contextCheck.willFit}`,
 			)
 
-			// Check if condensing is needed
-			if (!contextCheck.willFit) {
+			// Check if condensing is needed when switching to a model with lower context or if usage exceeds 90%
+			const shouldCondenseOnSwitch = !contextCheck.willFit || contextCheck.percentUsed >= MAX_CONDENSE_THRESHOLD
+			if (shouldCondenseOnSwitch) {
 				// Show user feedback about condensing
 				// await this.say(
 				// 	"text",
@@ -2432,7 +2478,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const didToolUse = this.assistantMessageContent.some((block) => block.type === "tool_use")
 
 				if (!didToolUse) {
-					this.userMessageContent.push({ type: "text", text: formatResponse.noToolsUsed() })
+					// Pass the reply through so an invented tool name can be named
+					// back to the model instead of a generic "no tool used".
+					const assistantText = this.assistantMessageContent
+						.filter((block) => block.type === "text")
+						.map((block) => block.content)
+						.join("\n")
+
+					this.userMessageContent.push({ type: "text", text: formatResponse.noToolsUsed(assistantText) })
 					this.consecutiveMistakeCount++
 				} else {
 					// Reset count when tools are successfully used
@@ -2796,7 +2849,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		try {
 			// Awaiting first chunk to see if it will throw an error.
 			this.isWaitingForFirstChunk = true
-			const firstChunk = await iterator.next()
+			const firstChunk = await withFirstChunkTimeout(iterator.next())
 			this.isWaitingForFirstChunk = false
 			await this.updateApiRequestProgressStatus("Receiving response...", "sync")
 			yield firstChunk.value
@@ -2804,6 +2857,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Only the timeout check and 429 errors trigger model switches
 		} catch (error) {
 			this.isWaitingForFirstChunk = false
+
+			// A model the provider no longer serves means our list is stale, so
+			// refresh it: the replacement may already be published. The user is
+			// not switched automatically — the picker shows the list is short.
+			if (isModelUnavailableError(error)) {
+				refreshModelList(true).catch(() => {})
+			}
+
 			// Handle 429 errors with automatic model toggle (GLM <-> Qwen)
 			if (is429Error(error)) {
 				// Show 429 error message to user

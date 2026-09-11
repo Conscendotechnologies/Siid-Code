@@ -37,7 +37,7 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 		if (taskGuidesFetched) {
 			preTask += `**Note:** Task guides already loaded. Focus on execution.\n\n`
 		} else {
-			preTask += `**IMPORTANT:** Use 'get_task_guides' tool to get all required instructions for your task.\n\n`
+			preTask += `**Optional:** Use 'get_task_guides' tool ONLY if your task exactly matches one of the listed types below. If no type matches your task, skip it and proceed directly.\n\n`
 		}
 
 		// Dynamic todo list reminder

@@ -16,6 +16,7 @@ import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
 import { MdmService } from "../services/mdm/MdmService"
 import { t } from "../i18n"
+import { getOpenAiModels } from "../api/providers/openai"
 
 /**
  * Helper to get the visible ClineProvider instance or log if not found.
@@ -377,6 +378,93 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 				`Failed to create OpenRouter API key: ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
+	},
+	addCustomProvider: async () => {
+		const visibleProvider = getVisibleProviderOrLog(outputChannel)
+		if (!visibleProvider) {
+			return
+		}
+
+		const name = await vscode.window.showInputBox({
+			prompt: "Profile name (e.g. 9router, omniroute)",
+			ignoreFocusOut: true,
+			validateInput: (v) => (v.trim() ? undefined : "Name required"),
+		})
+		if (!name) return
+
+		const baseUrl = await vscode.window.showInputBox({
+			prompt: "OpenAI-compatible endpoint (base URL, without /models)",
+			placeHolder: "https://api.9router.ai/v1",
+			ignoreFocusOut: true,
+			validateInput: (v) => (URL.canParse(v.trim()) ? undefined : "Invalid URL"),
+		})
+		if (!baseUrl) return
+
+		const apiKey = await vscode.window.showInputBox({
+			prompt: "API key",
+			password: true,
+			ignoreFocusOut: true,
+			validateInput: (v) => (v.trim() ? undefined : "API key required"),
+		})
+		if (!apiKey) return
+
+		const trimmedUrl = baseUrl.trim()
+		const models = await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: "Fetching models…" },
+			() => getOpenAiModels(trimmedUrl, apiKey.trim()),
+		)
+
+		let modelId: string | undefined
+		if (models.length > 0) {
+			modelId = await vscode.window.showQuickPick([...models, "$(edit) Enter manually…"], {
+				placeHolder: "Select model",
+				ignoreFocusOut: true,
+			})
+			if (modelId === "$(edit) Enter manually…") modelId = undefined
+			else if (!modelId) return
+		}
+		if (!modelId) {
+			modelId = await vscode.window.showInputBox({
+				prompt: "Model ID",
+				ignoreFocusOut: true,
+				validateInput: (v) => (v.trim() ? undefined : "Model ID required"),
+			})
+			if (!modelId) return
+		}
+
+		await visibleProvider.upsertProviderProfile(name.trim(), {
+			apiProvider: "openai",
+			openAiBaseUrl: trimmedUrl,
+			openAiApiKey: apiKey.trim(),
+			openAiModelId: modelId.trim(),
+		})
+		vscode.window.showInformationMessage(`Custom provider "${name.trim()}" saved and activated.`)
+	},
+	switchModel: async () => {
+		const visibleProvider = getVisibleProviderOrLog(outputChannel)
+		if (!visibleProvider) {
+			return
+		}
+
+		const profiles = await visibleProvider.providerSettingsManager.listConfig()
+		if (profiles.length === 0) {
+			vscode.window.showWarningMessage("No provider profiles found.")
+			return
+		}
+
+		const current = visibleProvider.contextProxy.getValue("currentApiConfigName") as string | undefined
+		const picked = await vscode.window.showQuickPick(
+			profiles.map((p) => ({
+				label: p.name === current ? `$(check) ${p.name}` : p.name,
+				description: p.apiProvider,
+				profileName: p.name,
+			})),
+			{ placeHolder: "Switch model / provider profile", ignoreFocusOut: true },
+		)
+		if (!picked) return
+
+		await visibleProvider.activateProviderProfile({ name: picked.profileName })
+		vscode.window.showInformationMessage(`Switched to "${picked.profileName}".`)
 	},
 	openChatView: async () => {
 		// Open the sidebar view first

@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <apiVersion>62.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <decisions>
+        <name>Check_Stage_Name</name>
+        <label>Is StageName Closed Won?</label>
+        <locationX>150</locationX>
+        <locationY>100</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Check_Stage_Name</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.StageName</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>Closed Won</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Set_Close_Date</targetReference>
+            </connector>
+            <label>StageName is Closed Won</label>
+        </rules>
+    </decisions>
+    <assignments>
+        <name>Set_Close_Date</name>
+        <label>Set CloseDate to Today</label>
+        <locationX>250</locationX>
+        <locationY>200</locationY>
+        <assignmentItems>
+            <assignToReference>$Record.CloseDate</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>Today_Plus_0_Days</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+    <description>Updates CloseDate to today's date when Opportunity StageName is 'Closed Won'.</description>
+    <formulas>
+        <name>Today_Plus_0_Days</name>
+        <dataType>Date</dataType>
+        <expression>TODAY()</expression>
+    </formulas>
+    <environments>Default</environments>
+    <interviewLabel>OpportunityCloseDateUpdate {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>OpportunityCloseDateUpdate</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Check_Stage_Name</targetReference>
+        </connector>
+        <object>Opportunity</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

@@ -192,6 +192,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 		expect(mockClineProvider.postMessageToWebview).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,
@@ -279,6 +280,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 		expect(mockClineProvider.postMessageToWebview).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,
@@ -316,6 +318,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 		expect(mockClineProvider.postMessageToWebview).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: {},
 				glama: mockModels,

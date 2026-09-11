@@ -13,6 +13,7 @@ import {
 import { TelemetryService } from "@siid-code/telemetry"
 
 import { Mode, modes } from "../../shared/modes"
+import { getDefaultModelId, getDefaultPaidModelId } from "../../shared/mode-models"
 import { logger } from "../../utils/logging"
 
 export interface SyncCloudProfilesResult {
@@ -45,40 +46,44 @@ export class ProviderSettingsManager {
 	private readonly defaultConfigId = "default-config-id"
 	private readonly paidApiConfigId = "paid-config-id"
 
-	private readonly defaultProviderProfiles: ProviderProfiles = {
-		currentApiConfigName: "default",
-		apiConfigs: {
-			default: {
-				id: this.defaultConfigId,
-				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.5-air:free",
-				// openRouterApiKey will be set from Firebase
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
+	// A getter, not a field: the model ids come from the runtime list, which can
+	// be replaced after this instance is constructed.
+	private get defaultProviderProfiles(): ProviderProfiles {
+		return {
+			currentApiConfigName: "default",
+			apiConfigs: {
+				default: {
+					id: this.defaultConfigId,
+					apiProvider: "openrouter",
+					openRouterModelId: getDefaultModelId(),
+					// openRouterApiKey will be set from Firebase
+					rateLimitSeconds: 0,
+					diffEnabled: true,
+					fuzzyMatchThreshold: 1.0,
+					consecutiveMistakeLimit: 3,
+					todoListEnabled: true,
+				},
+				paidApiConfig: {
+					id: this.paidApiConfigId,
+					apiProvider: "openrouter",
+					openRouterModelId: getDefaultPaidModelId() ?? getDefaultModelId(),
+					// openRouterApiKey will be set from Firebase
+					rateLimitSeconds: 0,
+					diffEnabled: true,
+					fuzzyMatchThreshold: 1.0,
+					consecutiveMistakeLimit: 3,
+					todoListEnabled: true,
+				},
 			},
-			paidApiConfig: {
-				id: this.paidApiConfigId,
-				apiProvider: "openrouter",
-				openRouterModelId: "z-ai/glm-4.6",
-				// openRouterApiKey will be set from Firebase
-				rateLimitSeconds: 0,
-				diffEnabled: true,
-				fuzzyMatchThreshold: 1.0,
-				consecutiveMistakeLimit: 3,
-				todoListEnabled: true,
+			migrations: {
+				rateLimitSecondsMigrated: true, // Mark as migrated on fresh installs
+				diffSettingsMigrated: true, // Mark as migrated on fresh installs
+				openAiHeadersMigrated: true, // Mark as migrated on fresh installs
+				consecutiveMistakeLimitMigrated: true, // Mark as migrated on fresh installs
+				todoListEnabledMigrated: true, // Mark as migrated on fresh installs
+				useFreeModelsMigrated: true, // Mark as migrated on fresh installs
 			},
-		},
-		migrations: {
-			rateLimitSecondsMigrated: true, // Mark as migrated on fresh installs
-			diffSettingsMigrated: true, // Mark as migrated on fresh installs
-			openAiHeadersMigrated: true, // Mark as migrated on fresh installs
-			consecutiveMistakeLimitMigrated: true, // Mark as migrated on fresh installs
-			todoListEnabledMigrated: true, // Mark as migrated on fresh installs
-			useFreeModelsMigrated: true, // Mark as migrated on fresh installs
-		},
+		}
 	}
 
 	private readonly context: ExtensionContext

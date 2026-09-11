@@ -14,6 +14,7 @@ import { ExtensionMessage, ExtensionState, MarketplaceInstalledMetadata, Command
 import { findLastIndex } from "@roo/array"
 import { McpServer } from "@roo/mcp"
 import { Mode, defaultModeSlug, defaultPrompts } from "@roo/modes"
+import { setModelList } from "@roo/mode-models"
 import { CustomSupportPrompts } from "@roo/support-prompt"
 import { experimentDefault } from "@roo/experiments"
 import { TelemetrySetting } from "@roo/TelemetrySetting"
@@ -139,6 +140,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	autoCondenseContextPercent: number
 	setAutoCondenseContextPercent: (value: number) => void
 	routerModels?: RouterModels
+	/** Bumped when the runtime model list is replaced, to re-render the picker. */
+	modeModelListVersion: number
 
 	alwaysAllowDeploySfMetadata?: boolean
 	alwaysAllowSiidForgeRead?: boolean
@@ -272,6 +275,9 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [mcpServers, setMcpServers] = useState<McpServer[]>([])
 	const [currentCheckpoint, setCurrentCheckpoint] = useState<string>()
 	const [extensionRouterModels, setExtensionRouterModels] = useState<RouterModels | undefined>(undefined)
+	// The model list lives in a shared module rather than state; this counter is
+	// what tells components reading it that it changed.
+	const [modeModelListVersion, setModeModelListVersion] = useState(0)
 	const [marketplaceItems, setMarketplaceItems] = useState<any[]>([])
 	const [marketplaceInstalledMetadata, setMarketplaceInstalledMetadata] = useState<MarketplaceInstalledMetadata>({
 		project: {},
@@ -380,6 +386,15 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					setExtensionRouterModels(message.routerModels)
 					break
 				}
+				case "modeModelList": {
+					// The picker reads the list through the shared module, so apply
+					// it there and bump a counter to re-render what depends on it.
+					if (message.modeModelList) {
+						setModelList(message.modeModelList)
+						setModeModelListVersion((version) => version + 1)
+					}
+					break
+				}
 				case "marketplaceData": {
 					if (message.marketplaceItems !== undefined) {
 						setMarketplaceItems(message.marketplaceItems)
@@ -428,6 +443,7 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		writeDelayMs: state.writeDelayMs,
 		screenshotQuality: state.screenshotQuality,
 		routerModels: extensionRouterModels,
+		modeModelListVersion,
 		cloudIsAuthenticated: state.cloudIsAuthenticated ?? false,
 		organizationSettingsVersion: state.organizationSettingsVersion ?? -1,
 		marketplaceItems,

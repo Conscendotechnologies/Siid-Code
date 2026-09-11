@@ -23,6 +23,36 @@ function summarizeArgs(feature: string, args: Record<string, unknown>): string {
 	return line.length > 200 ? line.slice(0, 197) + "…" : line
 }
 
+/**
+ * Did the feature's *work* succeed, as opposed to merely not throwing?
+ *
+ * Some features report a failing outcome in their payload rather than raising:
+ * `runApexTests` returns `{result: {summary: {outcome: "Failed", failing: 1}}}`
+ * for a red test run and resolves normally. Reporting that row as a success
+ * puts a ✅ next to a failing test run.
+ *
+ * Only an explicitly negative outcome flips this to false - a feature that says
+ * nothing about its outcome is still a success, since it returned without error.
+ */
+function didFeatureSucceed(result: unknown): boolean {
+	const summary = (result as { result?: { summary?: { outcome?: unknown; failing?: unknown } } })?.result?.summary
+
+	if (!summary) {
+		return true
+	}
+
+	// sf CLI reports "Passed" | "Failed" | "Skipped" here.
+	if (typeof summary.outcome === "string") {
+		return summary.outcome.toLowerCase() !== "failed"
+	}
+
+	if (typeof summary.failing === "number") {
+		return summary.failing === 0
+	}
+
+	return true
+}
+
 /** Bind the SIID Forge public API at runtime, or return undefined if unavailable. Never throws. */
 async function resolveForge(): Promise<SiidForgeApi | undefined> {
 	try {
@@ -170,8 +200,11 @@ export async function siidForgeTool(
 		// the command runs; the terminal phase carries the final elapsedMs.
 		let lastElapsedMs: number | undefined
 		let lastProgressAt = 0
+		const startedAt = Date.now()
 		const onStatus = (s: { phase: string; elapsedMs: number }) => {
-			lastElapsedMs = s.elapsedMs
+			// Forge reports real elapsed time; for the synthetic "started" below there is
+			// none yet, so fall back to our own clock rather than reporting 0.0s.
+			lastElapsedMs = s.elapsedMs || Date.now() - startedAt
 			const now = Date.now()
 			// Throttle "running" heartbeats to ~1/s; always emit terminal phases.
 			const terminal = s.phase !== "started" && s.phase !== "running"
@@ -186,10 +219,20 @@ export async function siidForgeTool(
 					feature: feature.name,
 					mutating: feature.mutating,
 					phase: s.phase,
-					elapsedMs: s.elapsedMs,
+					// Omitted when Forge has no real figure yet (the synthetic "started"
+					// below): the row then runs its own live timer instead of freezing
+					// on a static 0s that never updates.
+					elapsedMs: s.elapsedMs || undefined,
 				} satisfies ClineSayTool),
 			).catch(() => {})
 		}
+
+		// Approval is done, so the row must stop saying "Awaiting approval…" even for
+		// features that report no progress of their own. Only `sfRun` forwards Forge's
+		// onStatus; everything else (runApexTests among them) would otherwise look
+		// unapproved for its whole run. A synthetic "started" is enough - the UI treats
+		// any progress row as "running", and a real heartbeat just supersedes it.
+		onStatus({ phase: "started", elapsedMs: 0 })
 
 		// Dispatch, then emit a success/failure result row.
 		try {
@@ -202,7 +245,7 @@ export async function siidForgeTool(
 						tool: "siidForge",
 						feature: feature.name,
 						mutating: feature.mutating,
-						success: true,
+						success: didFeatureSucceed(result),
 						elapsedMs: lastElapsedMs,
 						content: text,
 					} satisfies ClineSayTool),
@@ -230,3 +273,6 @@ export async function siidForgeTool(
 		await handleError(`running siid_forge feature "${featureName ?? "?"}"`, error as Error)
 	}
 }
+
+/** Internals exposed for tests only. */
+export const __testing = { didFeatureSucceed }

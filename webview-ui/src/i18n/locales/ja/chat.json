@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "キューメッセージ:",
 		"clickToEdit": "クリックしてメッセージを編集"
+	},
+	"modelSelector": {
+		"selectModel": "モデルを選択"
 	}
 }

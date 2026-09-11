@@ -69,4 +69,5 @@ export const PROVIDERS = [
 	{ value: "sambanova", label: "SambaNova" },
 	{ value: "zai", label: "Z AI" },
 	{ value: "fireworks", label: "Fireworks AI" },
+	{ value: "9router", label: "9Router" },
 ].sort((a, b) => a.label.localeCompare(b.label))

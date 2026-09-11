@@ -60,6 +60,13 @@ interface ChatTextAreaProps {
 	onCondenseContext?: () => void
 	isCondensing?: boolean
 	taskId?: string
+	// The active editor, offered as context but not attached until the user clicks +.
+	// Undefined once it has been added (it moves into addedFiles) or when no editor is open.
+	activeFileSuggestion?: { mention: string; path: string }
+	// Files the user has added, each frozen with the line range it had when added.
+	addedFiles?: { mention: string; path: string }[]
+	onAddActiveFile?: () => void
+	onRemoveAddedFile?: (mention: string) => void
 }
 
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -86,6 +93,10 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			onCondenseContext,
 			isCondensing = false,
 			taskId,
+			activeFileSuggestion,
+			addedFiles,
+			onAddActiveFile,
+			onRemoveAddedFile,
 		},
 		ref,
 	) => {
@@ -948,6 +959,12 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								title={t("chat:selectModel", { defaultValue: "Select model" })}
 								useFreeModels={useFreeModels}
 								developerMode={developerMode}
+								customProvider={{
+									apiProvider: apiConfiguration?.apiProvider,
+									openAiBaseUrl: apiConfiguration?.openAiBaseUrl,
+									openAiApiKey: apiConfiguration?.openAiApiKey,
+									openAiHeaders: apiConfiguration?.openAiHeaders,
+								}}
 							/>
 						</div>
 					)}
@@ -1208,6 +1225,46 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					"mr-auto",
 					"box-border",
 				)}>
+				{!isEditMode && ((addedFiles?.length ?? 0) > 0 || activeFileSuggestion) && (
+					<div className="flex flex-wrap gap-1 px-1">
+						{/* Added: solid, with × to drop. Each was frozen at the moment + was
+						    clicked, so its line range stays put while the editor moves on. */}
+						{addedFiles?.map((file) => (
+							<StandardTooltip
+								key={file.mention}
+								content={`${file.path} — will be sent with your message`}>
+								<div className="flex items-center gap-1 max-w-full px-1.5 py-0.5 rounded border border-vscode-input-border bg-vscode-badge-background text-vscode-badge-foreground text-xs">
+									<span className="codicon codicon-file text-[12px] shrink-0" />
+									{/* Basename only - the full path is in the tooltip. Keeps
+									    any :22-29 line range, which is part of the identity. */}
+									<span className="truncate">{file.mention.split("/").pop()}</span>
+									<button
+										onClick={() => onRemoveAddedFile?.(file.mention)}
+										aria-label={`Remove ${file.path} from context`}
+										className="shrink-0 opacity-60 hover:opacity-100 cursor-pointer bg-transparent border-none p-0 text-inherit">
+										<span className="codicon codicon-close text-[12px]" />
+									</button>
+								</div>
+							</StandardTooltip>
+						))}
+
+						{/* Suggestion: dashed and dimmed so it never reads as already attached. */}
+						{activeFileSuggestion && (
+							<StandardTooltip content={`${activeFileSuggestion.path} — click + to add it as context`}>
+								<div className="flex items-center gap-1 max-w-full px-1.5 py-0.5 rounded border border-dashed border-vscode-input-border text-vscode-descriptionForeground opacity-80 text-xs">
+									<span className="codicon codicon-file text-[12px] shrink-0" />
+									<span className="truncate">{activeFileSuggestion.mention.split("/").pop()}</span>
+									<button
+										onClick={onAddActiveFile}
+										aria-label={`Add ${activeFileSuggestion.path} as context`}
+										className="shrink-0 opacity-60 hover:opacity-100 cursor-pointer bg-transparent border-none p-0 text-inherit">
+										<span className="codicon codicon-add text-[12px]" />
+									</button>
+								</div>
+							</StandardTooltip>
+						)}
+					</div>
+				)}
 				<div className="relative">
 					<div
 						className={cn("chat-text-area", "relative", "flex", "flex-col", "outline-none")}

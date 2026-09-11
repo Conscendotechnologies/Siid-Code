@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>63.0</apiVersion>
+    <customErrors>
+        <description>A Topic with this Keyword already exists.</description>
+        <name>Block_Duplicate</name>
+        <label>Block Duplicate</label>
+        <locationX>50</locationX>
+        <locationY>503</locationY>
+        <customErrorMessages>
+            <errorMessage>A Topic with this {!$Record.OrderApi__Keyword__c} already exists.</errorMessage>
+            <fieldSelection>OrderApi__Keyword__c</fieldSelection>
+            <isFieldError>true</isFieldError>
+        </customErrorMessages>
+    </customErrors>
+    <decisions>
+        <name>Duplicate_Found</name>
+        <label>Duplicate Found?</label>
+        <locationX>182</locationX>
+        <locationY>395</locationY>
+        <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
+        <rules>
+            <name>True</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Get_Topics</leftValueReference>
+                <operator>IsNull</operator>
+                <rightValue>
+                    <booleanValue>false</booleanValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Block_Duplicate</targetReference>
+            </connector>
+            <label>True</label>
+        </rules>
+    </decisions>
+    <environments>Default</environments>
+    <formulas>
+        <name>lowerCaseKeyword</name>
+        <dataType>String</dataType>
+        <expression>LOWER({!$Record.OrderApi__Keyword__c})</expression>
+    </formulas>
+    <formulas>
+        <name>UppercaseKeyword</name>
+        <dataType>String</dataType>
+        <expression>UPPER({!$Record.OrderApi__Keyword__c})</expression>
+    </formulas>
+    <interviewLabel>Prevent Duplicate Topic Keyword {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Prevent Duplicate Topic Keyword</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <name>Get_Topics</name>
+        <label>Get Topics</label>
+        <locationX>182</locationX>
+        <locationY>287</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Duplicate_Found</targetReference>
+        </connector>
+        <filterLogic>2 AND (1 OR 3 OR 4)</filterLogic>
+        <filters>
+            <field>OrderApi__Keyword__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>$Record.OrderApi__Keyword__c</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Id</field>
+            <operator>NotEqualTo</operator>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>OrderApi__Keyword__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>UppercaseKeyword</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>OrderApi__Keyword__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference>lowerCaseKeyword</elementReference>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>OrderApi__Topic__c</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+    <start>
+        <locationX>56</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Topics</targetReference>
+        </connector>
+        <object>OrderApi__Topic__c</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

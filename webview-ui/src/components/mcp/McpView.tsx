@@ -1,4 +1,5 @@
-import React, { useState } from "react"
+import React, { useCallback, useState } from "react"
+import { useEvent } from "react-use"
 import { Trans } from "react-i18next"
 import {
 	VSCodeButton,
@@ -32,6 +33,7 @@ import McpToolRow from "./McpToolRow"
 import McpResourceRow from "./McpResourceRow"
 import McpEnabledToggle from "./McpEnabledToggle"
 import { McpErrorRow } from "./McpErrorRow"
+import { MCP_PRESETS, type McpPreset } from "./mcpPresets"
 
 type McpViewProps = {
 	onDone: () => void
@@ -47,6 +49,70 @@ const McpView = ({ onDone }: McpViewProps) => {
 	} = useExtensionState()
 
 	const { t } = useAppTranslation()
+	const [showPresetDialog, setShowPresetDialog] = useState(false)
+	const [presetId, setPresetId] = useState<string>(MCP_PRESETS[0]?.id ?? "")
+	const [presetTarget, setPresetTarget] = useState<"project" | "global">("project")
+	const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "error">("idle")
+	const [testMessage, setTestMessage] = useState<string>("")
+	const [detectState, setDetectState] = useState<"idle" | "detecting" | "ok" | "error">("idle")
+	const [detectMessage, setDetectMessage] = useState<string>("")
+	const [credentials, setCredentials] = useState<Record<string, string>>({})
+
+	const currentPreset: McpPreset | undefined = MCP_PRESETS.find((p) => p.id === presetId)
+
+	const installPreset = () => {
+		if (!currentPreset) return
+		vscode.postMessage({
+			type: "installMcpPreset",
+			values: {
+				preset: { name: currentPreset.name, config: currentPreset.config },
+				target: presetTarget,
+				credentials,
+			},
+		})
+		setShowPresetDialog(false)
+	}
+
+	const testPreset = () => {
+		setTestState("testing")
+		setTestMessage("")
+		vscode.postMessage({ type: "testMcpPreset", values: { presetId, mode: "connect" } })
+	}
+
+	const detectPreset = () => {
+		setDetectState("detecting")
+		setDetectMessage("")
+		vscode.postMessage({ type: "testMcpPreset", values: { presetId, mode: "detect" } })
+	}
+
+	const onMessage = useCallback(
+		(e: MessageEvent) => {
+			const m = e.data
+			if (m?.type !== "mcpPresetTestResult" || m.values?.presetId !== presetId) return
+			const mode = (m.values?.mode ?? "connect") as "connect" | "detect"
+			if (mode === "detect") {
+				setDetectState(m.values.ok ? "ok" : "error")
+				setDetectMessage(String(m.values.message ?? ""))
+				if (m.values.ok && m.values.fields && typeof m.values.fields === "object") {
+					setCredentials((prev) => ({ ...prev, ...m.values.fields }))
+				}
+			} else {
+				setTestState(m.values.ok ? "ok" : "error")
+				setTestMessage(String(m.values.message ?? ""))
+			}
+		},
+		[presetId],
+	)
+	useEvent("message", onMessage)
+
+	// Reset per-preset UI state when the user switches preset in the dropdown.
+	React.useEffect(() => {
+		setTestState("idle")
+		setTestMessage("")
+		setDetectState("idle")
+		setDetectMessage("")
+		setCredentials({})
+	}, [presetId])
 
 	return (
 		<Tab>
@@ -155,6 +221,13 @@ const McpView = ({ onDone }: McpViewProps) => {
 								<span className="codicon codicon-refresh" style={{ marginRight: "6px" }}></span>
 								{t("mcp:refreshMCP")}
 							</Button>
+							<Button
+								variant="secondary"
+								style={{ width: "100%" }}
+								onClick={() => setShowPresetDialog(true)}>
+								<span className="codicon codicon-add" style={{ marginRight: "6px" }}></span>
+								Add from preset
+							</Button>
 							{/* <StandardTooltip content={t("mcp:marketplace")}>
 								<Button
 									variant="secondary"
@@ -192,6 +265,154 @@ const McpView = ({ onDone }: McpViewProps) => {
 					</>
 				)}
 			</TabContent>
+
+			<Dialog open={showPresetDialog} onOpenChange={setShowPresetDialog}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Add MCP server from preset</DialogTitle>
+						<DialogDescription>
+							Writes the selected server into your MCP settings file and opens it so you can fill in
+							credentials and paths.
+						</DialogDescription>
+					</DialogHeader>
+					<div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0" }}>
+						<label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+							<span>Preset</span>
+							<select
+								value={presetId}
+								onChange={(e) => setPresetId(e.target.value)}
+								style={{
+									padding: "4px 6px",
+									background: "var(--vscode-input-background)",
+									color: "var(--vscode-input-foreground)",
+									border: "1px solid var(--vscode-input-border, transparent)",
+								}}>
+								{MCP_PRESETS.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.label}
+									</option>
+								))}
+							</select>
+						</label>
+						<label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+							<span>Install to</span>
+							<select
+								value={presetTarget}
+								onChange={(e) => setPresetTarget(e.target.value as "project" | "global")}
+								style={{
+									padding: "4px 6px",
+									background: "var(--vscode-input-background)",
+									color: "var(--vscode-input-foreground)",
+									border: "1px solid var(--vscode-input-border, transparent)",
+								}}>
+								<option value="project">Project (.roo/mcp.json)</option>
+								<option value="global">Global settings</option>
+							</select>
+						</label>
+						<div
+							style={{
+								fontSize: 12,
+								color: "var(--vscode-descriptionForeground)",
+								whiteSpace: "pre-wrap",
+							}}>
+							{currentPreset?.description}
+						</div>
+						{currentPreset?.credentials && currentPreset.credentials.length > 0 && (
+							<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+								{currentPreset.credentials.map((c) => (
+									<label
+										key={c.key}
+										style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+										<span>{c.label}</span>
+										<input
+											type="text"
+											value={credentials[c.key] ?? ""}
+											placeholder={c.placeholder}
+											onChange={(e) =>
+												setCredentials((prev) => ({ ...prev, [c.key]: e.target.value }))
+											}
+											style={{
+												padding: "4px 6px",
+												background: "var(--vscode-input-background)",
+												color: "var(--vscode-input-foreground)",
+												border: "1px solid var(--vscode-input-border, transparent)",
+											}}
+										/>
+									</label>
+								))}
+								{currentPreset.detectable && (
+									<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+										<Button
+											variant="secondary"
+											onClick={detectPreset}
+											disabled={detectState === "detecting"}
+											style={{ alignSelf: "flex-start" }}>
+											<span
+												className={`codicon ${detectState === "detecting" ? "codicon-loading codicon-modifier-spin" : "codicon-search"}`}
+												style={{ marginRight: 6 }}></span>
+											{detectState === "detecting" ? "Detecting..." : "Detect"}
+										</Button>
+										{detectState !== "idle" && detectState !== "detecting" && (
+											<div
+												style={{
+													fontSize: 12,
+													padding: "6px 8px",
+													border: "1px solid var(--vscode-input-border, transparent)",
+													color:
+														detectState === "ok"
+															? "var(--vscode-testing-iconPassed)"
+															: "var(--vscode-testing-iconFailed)",
+													whiteSpace: "pre-wrap",
+												}}>
+												{detectState === "ok" ? "✅ " : "❌ "}
+												{detectMessage}
+											</div>
+										)}
+									</div>
+								)}
+							</div>
+						)}
+						{currentPreset?.testable && (
+							<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+								<Button
+									variant="secondary"
+									onClick={testPreset}
+									disabled={testState === "testing"}
+									style={{ alignSelf: "flex-start" }}>
+									<span
+										className={`codicon ${testState === "testing" ? "codicon-loading codicon-modifier-spin" : "codicon-plug"}`}
+										style={{ marginRight: 6 }}></span>
+									{testState === "testing" ? "Testing..." : "Test connection"}
+								</Button>
+								{testState !== "idle" && testState !== "testing" && (
+									<div
+										style={{
+											fontSize: 12,
+											padding: "6px 8px",
+											border: "1px solid var(--vscode-input-border, transparent)",
+											color:
+												testState === "ok"
+													? "var(--vscode-testing-iconPassed)"
+													: "var(--vscode-testing-iconFailed)",
+											whiteSpace: "pre-wrap",
+										}}>
+										{testState === "ok" ? "✅ " : "❌ "}
+										{testMessage}
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button variant="secondary" onClick={() => setShowPresetDialog(false)}>
+							Cancel
+						</Button>
+						<Button variant="default" onClick={installPreset}>
+							Install
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</Tab>
 	)
 }

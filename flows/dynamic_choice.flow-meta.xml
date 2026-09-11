@@ -1,0 +1,153 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <apiVersion>67.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <screens>
+        <name>Enter_Leave_Request_Details</name>
+        <label>Enter Leave Request Details</label>
+        <locationX>250</locationX>
+        <locationY>100</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>false</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Review_Leave_Request</targetReference>
+        </connector>
+        <fields>
+            <name>Employee_Name</name>
+            <dataType>String</dataType>
+            <fieldText>Employee Name</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>Leave_Type</name>
+            <choiceReferences>LeaveTypeChoices</choiceReferences>
+            <dataType>String</dataType>
+            <fieldText>Leave Type</fieldText>
+            <fieldType>DropdownBox</fieldType>
+        </fields>
+        <fields>
+            <name>Start_Date</name>
+            <dataType>Date</dataType>
+            <fieldText>Start Date</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>End_Date</name>
+            <dataType>Date</dataType>
+            <fieldText>End Date</fieldText>
+            <fieldType>InputField</fieldType>
+        </fields>
+        <fields>
+            <name>Reason</name>
+            <dataType>String</dataType>
+            <fieldText>Reason for Leave</fieldText>
+            <fieldType>LargeTextArea</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+    <screens>
+        <name>Review_Leave_Request</name>
+        <label>Review Leave Request</label>
+        <locationX>250</locationX>
+        <locationY>250</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector>
+            <targetReference>Create_Leave_Request</targetReference>
+        </connector>
+        <fields>
+            <name>Review_Message</name>
+            <fieldText>&lt;p&gt;Please review the leave request details, then click Finish to submit.&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+            <styleProperties>
+                <verticalAlignment>
+                    <stringValue>top</stringValue>
+                </verticalAlignment>
+                <width>
+                    <stringValue>12</stringValue>
+                </width>
+            </styleProperties>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+    <recordCreates>
+        <name>Create_Leave_Request</name>
+        <label>Create Leave Request</label>
+        <locationX>250</locationX>
+        <locationY>400</locationY>
+        <inputAssignments>
+            <field>Employee_Name__c</field>
+            <value>
+                <elementReference>Employee_Name</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Leave_Type__c</field>
+            <value>
+                <elementReference>Leave_Type</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Start_Date__c</field>
+            <value>
+                <elementReference>Start_Date</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>End_Date__c</field>
+            <value>
+                <elementReference>End_Date</elementReference>
+            </value>
+        </inputAssignments>
+        <inputAssignments>
+            <field>Reason__c</field>
+            <value>
+                <elementReference>Reason</elementReference>
+            </value>
+        </inputAssignments>
+        <object>Leave_Request__c</object>
+    </recordCreates>
+    <description>Screen flow that collects employee leave request details and creates a Leave_Request__c record.</description>
+    <dynamicChoiceSets>
+        <name>LeaveTypeChoices</name>
+        <dataType>Picklist</dataType>
+        <displayField xsi:nil="true" />
+        <object xsi:nil="true" />
+        <picklistField>Leave_Type__c</picklistField>
+        <picklistObject>Leave_Request__c</picklistObject>
+    </dynamicChoiceSets>
+    <environments>Default</environments>
+    <interviewLabel>Employee_Leave_Request {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Employee_Leave_Request</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>Flow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Enter_Leave_Request_Details</targetReference>
+        </connector>
+    </start>
+    <status>Active</status>
+</Flow>

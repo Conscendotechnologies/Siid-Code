@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Berichten in wachtrij:",
 		"clickToEdit": "Klik om bericht te bewerken"
+	},
+	"modelSelector": {
+		"selectModel": "Selecteer een model"
 	}
 }

@@ -9,7 +9,7 @@ import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 
 export const N_MESSAGES_TO_KEEP = 0 // Changed: Now we don't keep any messages, only the summary
 export const MIN_CONDENSE_THRESHOLD = 5 // Minimum percentage of context window to trigger condensing
-export const MAX_CONDENSE_THRESHOLD = 80 // Maximum percentage of context window to trigger condensing
+export const MAX_CONDENSE_THRESHOLD = 90 // Maximum percentage of context window to trigger condensing
 const CONTINUATION_PROMPT = "Please continue from where we left off based on the summary above."
 const MAX_SUMMARY_ATTEMPTS = 2
 const MIN_SUMMARY_CHARS_ABSOLUTE = 350
@@ -96,16 +96,34 @@ function formatMessageContentForTranscript(content: ApiMessage["content"]): stri
 					return `[tool_use] name=${block.name} id=${block.id}\n${inputSummary}`
 				}
 				case "tool_result": {
+					let textContent = ""
 					if (typeof block.content === "string") {
-						return `[tool_result] tool_use_id=${block.tool_use_id}${block.is_error ? " error=true" : ""}\n${block.content}`
+						textContent = block.content
+					} else {
+						textContent = (block.content ?? [])
+							.map((nestedBlock: { type: string; text?: string }) =>
+								nestedBlock.type === "text"
+									? (nestedBlock.text ?? "")
+									: `[${nestedBlock.type} omitted]`,
+							)
+							.join("\n")
 					}
 
-					const nestedContent = (block.content ?? [])
-						.map((nestedBlock: { type: string; text?: string }) =>
-							nestedBlock.type === "text" ? (nestedBlock.text ?? "") : `[${nestedBlock.type} omitted]`,
-						)
-						.join("\n")
-					return `[tool_result] tool_use_id=${block.tool_use_id}${block.is_error ? " error=true" : ""}\n${nestedContent}`
+					// Always keep full content for error results (critical for debugging)
+					if (block.is_error) {
+						return `[tool_result] tool_use_id=${block.tool_use_id} error=true\n${textContent}`
+					}
+
+					// Truncate large non-error tool outputs to keep summary transcript high-signal
+					const MAX_RESULT_CHARS = 1000
+					if (textContent.length > MAX_RESULT_CHARS) {
+						const head = textContent.slice(0, 400)
+						const tail = textContent.slice(-200)
+						const omitted = textContent.length - 600
+						textContent = `${head}\n... [${omitted} characters omitted for summary] ...\n${tail}`
+					}
+
+					return `[tool_result] tool_use_id=${block.tool_use_id}\n${textContent}`
 				}
 				case "image":
 					return "[image omitted]"

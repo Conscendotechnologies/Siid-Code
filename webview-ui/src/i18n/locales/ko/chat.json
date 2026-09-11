@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "대기열 메시지:",
 		"clickToEdit": "클릭하여 메시지 편집"
+	},
+	"modelSelector": {
+		"selectModel": "모델 선택"
 	}
 }

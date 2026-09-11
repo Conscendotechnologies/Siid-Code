@@ -59,6 +59,8 @@ export abstract class BaseOpenAiCompatibleProvider<ModelName extends string>
 			baseURL,
 			apiKey: this.options.apiKey,
 			defaultHeaders: DEFAULT_HEADERS,
+			timeout: 60000, // 60s timeout to prevent indefinite hanging on stuck proxy requests
+			maxRetries: 2,
 		})
 	}
 
@@ -69,10 +71,17 @@ export abstract class BaseOpenAiCompatibleProvider<ModelName extends string>
 	): ApiStream {
 		const {
 			id: model,
-			info: { maxTokens: max_tokens },
+			info: { maxTokens: rawMaxTokens },
 		} = this.getModel()
 
 		const temperature = this.options.modelTemperature ?? this.defaultTemperature
+
+		const max_tokens =
+			typeof rawMaxTokens === "number" && rawMaxTokens > 0 && rawMaxTokens <= 16384
+				? rawMaxTokens
+				: this.options.modelMaxTokens && this.options.modelMaxTokens <= 16384
+					? this.options.modelMaxTokens
+					: 8192
 
 		const params: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
 			model,

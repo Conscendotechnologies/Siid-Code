@@ -147,14 +147,27 @@ export const FORGE_FEATURES: ForgeFeature[] = [
 		name: "runApexTests",
 		summary: "Run a class's Apex tests against the org and return structured results.",
 		returns:
-			"{passing, failing, testsRan, classCoverage?, reportPath, logFiles[]}. Includes coverage — a separate getCoverage call is usually unnecessary.",
+			"{passing, failing, testsRan, classCoverage?, reportPath, logFiles[], result}. `result.summary.outcome` is Passed/Failed and `result.tests[]` carries each failure's Message and StackTrace. Includes coverage — a separate getCoverage call is usually unnecessary. Debug logs are captured by default; read one with analyzeLogFile when Message/StackTrace is not enough.",
 		mutating: false,
 		args: [
 			{ name: "className", type: "string", required: true, description: "Apex test class name to run." },
+			{
+				name: "debug",
+				type: "boolean",
+				required: false,
+				description:
+					"Capture debug logs and return their paths in logFiles[]. Defaults to true — pass false only to skip the trace-flag setup on a routine run.",
+			},
 			{ name: "projectRoot", type: "string", required: false, description: "Optional project root override." },
 		],
+		// debug defaults ON: a failing run is the common case for calling this, and
+		// without it logFiles[] is always empty, so the log is gone by the time
+		// anyone wants it.
 		run: async (forge, a) =>
-			forge.apexTests.run(str(a, "className"), { projectRoot: opt<string>(a, "projectRoot") }),
+			forge.apexTests.run(str(a, "className"), {
+				debug: opt<boolean>(a, "debug") ?? true,
+				projectRoot: opt<string>(a, "projectRoot"),
+			}),
 	},
 	{
 		name: "getUsername",

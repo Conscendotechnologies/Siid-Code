@@ -36,6 +36,7 @@ import { useExtensionState } from "@src/context/ExtensionStateContext"
 import { useSelectedModel } from "@src/components/ui/hooks/useSelectedModel"
 import RooHero from "@src/components/welcome/RooHero"
 import { StandardTooltip } from "@src/components/ui"
+import { convertToMentionPath } from "@src/utils/path-mentions"
 import { useAutoApprovalState } from "@src/hooks/useAutoApprovalState"
 import { useAutoApprovalToggles } from "@src/hooks/useAutoApprovalToggles"
 
@@ -53,7 +54,6 @@ import { useFileChangesBackend } from "./useFileChangesBackend"
 import ProfileViolationWarning from "./ProfileViolationWarning"
 import { CheckpointWarning } from "./CheckpointWarning"
 import QueuedMessages from "./QueuedMessages"
-import { ActiveFileIndicator } from "./ActiveFileIndicator"
 import { getLatestTodo } from "@roo/todo"
 import { QueuedMessage } from "@siid-code/types"
 
@@ -211,6 +211,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		notificationsEnabled,
 		soundEnabled,
 		soundVolume,
+		cwd,
 	} = useExtensionState()
 
 	const selectedModel = useSelectedModel(apiConfiguration)
@@ -253,6 +254,17 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	const [inputValue, setInputValue] = useState("")
 	const textAreaRef = useRef<HTMLTextAreaElement>(null)
 	const [sendingDisabled, setSendingDisabled] = useState(false)
+	// Path of the editor tab the user is looking at, offered as an attachment,
+	// plus the selected line range when the user has one.
+	const [activeEditorPath, setActiveEditorPath] = useState<string | undefined>(undefined)
+	const [activeEditorSelection, setActiveEditorSelection] = useState<
+		{ startLine: number; endLine: number } | undefined
+	>(undefined)
+	// Opt-in context. The active editor is only ever a *suggestion*; clicking + freezes
+	// it into this list as it was at that moment (including any line range), so the user
+	// can then select different lines or switch files and add those too. A boolean
+	// "current file is added" cannot express that - the add has to outlive the cursor.
+	const [addedFiles, setAddedFiles] = useState<{ mention: string; path: string }[]>([])
 	const [selectedImages, setSelectedImages] = useState<string[]>([])
 	const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([])
 	const isProcessingQueueRef = useRef(false)
@@ -685,6 +697,22 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		disableAutoScrollRef.current = false
 	}, [])
 
+	// The active editor as an @mention the server-side parser already knows how to
+	// resolve. Recomputed as the user moves around; it is only a suggestion until
+	// clicking + copies it into addedFiles.
+	const activeFileMention = useMemo(() => {
+		if (!activeEditorPath) {
+			return undefined
+		}
+		const base = convertToMentionPath(activeEditorPath, cwd)
+		return activeEditorSelection
+			? `${base}:${activeEditorSelection.startLine}-${activeEditorSelection.endLine}`
+			: base
+	}, [activeEditorPath, activeEditorSelection, cwd])
+
+	// Already added, so the suggestion chip has nothing left to offer.
+	const activeFileAlreadyAdded = !!activeFileMention && addedFiles.some((f) => f.mention === activeFileMention)
+
 	/**
 	 * Handles sending messages to the extension
 	 * @param text - The message text to send
@@ -696,8 +724,34 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			try {
 				text = text.trim()
 
+				// Prepend the attached file as an @mention so the existing mention
+				// parser resolves its contents server-side. Skip if the user already
+				// mentioned it themselves.
+				const mentionsToSend = addedFiles.map((f) => f.mention).filter((m) => !text.includes(m))
+
+				if (mentionsToSend.length > 0) {
+					const prefix = mentionsToSend.join(" ")
+					text = text ? `${prefix} ${text}` : prefix
+				}
+
+				if (addedFiles.length > 0) {
+					// The adds applied to this message: the files are now in the
+					// conversation, so re-sending them every turn would waste context.
+					setAddedFiles([])
+				}
+
 				if (text || images.length > 0) {
 					if (sendingDisabled && !fromQueue) {
+						if (clineAsk === "api_req_failed") {
+							// User typed message during retry state — send it as retry response
+							postAskResponse({ askResponse: "yesButtonClicked", text, images })
+							setInputValue("")
+							setSelectedImages([])
+							setSendingDisabled(true)
+							setClineAsk(undefined)
+							setEnableButtons(false)
+							return
+						}
 						// Generate a more unique ID using timestamp + random component
 						const messageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 						setMessageQueue((prev: QueuedMessage[]) => [...prev, { id: messageId, text, images }])
@@ -750,7 +804,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				// but for now we'll just log it
 			}
 		},
-		[handleChatReset, markFollowUpAsAnswered, sendingDisabled, postAskResponse], // messagesRef and clineAskRef are stable
+		[handleChatReset, markFollowUpAsAnswered, sendingDisabled, postAskResponse, addedFiles, clineAsk], // messagesRef and clineAskRef are stable
 	)
 
 	useEffect(() => {
@@ -949,6 +1003,14 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							break
 					}
 					break
+				case "activeEditorChanged": {
+					// Only the suggestion follows the editor. Anything already added stays
+					// added - that is the whole point of freezing it on +.
+					const selection = message.values as { startLine: number; endLine: number } | undefined
+					setActiveEditorPath(message.text)
+					setActiveEditorSelection(selection)
+					break
+				}
 				case "selectedImages":
 					// Only handle selectedImages if it's not for editing context
 					// When context is "edit", ChatRow will handle the images
@@ -984,9 +1046,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 						}
 						setIsCondensing(false)
 					}
-					break
-				case "taskCancelling":
-					setDidClickCancel(true)
 					break
 			}
 			// textAreaRef.current is not explicitly required here since React
@@ -2001,7 +2060,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	// Files changed during this task, derived from the task's shadow git repo.
 	// The extension pushes an update whenever a checkpoint is saved.
-	const { files: fileChanges } = useFileChangesBackend(currentTaskItem?.id)
+	// Gated on `task`: currentTaskItem outlives the open task, so passing it
+	// unconditionally keeps fetching (and rendering) on the welcome screen.
+	const { files: fileChanges } = useFileChangesBackend(task ? currentTaskItem?.id : undefined)
 
 	// Open diff in VS Code's native diff editor
 	const openVsCodeDiff = useCallback((file: FileChange) => {
@@ -2208,11 +2269,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 												disabled={!enableButtons && !(isStreaming && !didClickCancel)}
 												className={isStreaming ? "flex-[2] ml-0" : "flex-1 ml-[6px]"}
 												onClick={() => handleSecondaryButtonClick(inputValue, selectedImages)}>
-												{isStreaming
-													? didClickCancel
-														? "Cancelling..."
-														: t("chat:cancel.title")
-													: secondaryButtonText}
+												{isStreaming ? t("chat:cancel.title") : secondaryButtonText}
 											</VSCodeButton>
 										</StandardTooltip>
 									)}
@@ -2230,7 +2287,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					setMessageQueue((prev) => prev.map((msg, i) => (i === index ? { ...msg, text: newText } : msg)))
 				}}
 			/>
-			{fileChanges.length > 0 && (
+			{task && fileChanges.length > 0 && (
 				<FileChanges
 					files={fileChanges}
 					variant="list"
@@ -2240,11 +2297,26 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					className="px-3.5 mb-2"
 				/>
 			)}
-			<div style={{ position: "relative" }}>
-				<ActiveFileIndicator messages={messages} isStreaming={isStreaming} />
-			</div>
 			<ChatTextArea
 				ref={textAreaRef}
+				activeFileSuggestion={
+					activeFileMention && !activeFileAlreadyAdded
+						? { mention: activeFileMention, path: activeEditorPath! }
+						: undefined
+				}
+				addedFiles={addedFiles}
+				onAddActiveFile={() =>
+					activeFileMention &&
+					activeEditorPath &&
+					setAddedFiles((prev) =>
+						prev.some((f) => f.mention === activeFileMention)
+							? prev
+							: [...prev, { mention: activeFileMention, path: activeEditorPath }],
+					)
+				}
+				onRemoveAddedFile={(mention: string) =>
+					setAddedFiles((prev) => prev.filter((f) => f.mention !== mention))
+				}
 				inputValue={inputValue}
 				setInputValue={setInputValue}
 				sendingDisabled={sendingDisabled || isProfileDisabled}

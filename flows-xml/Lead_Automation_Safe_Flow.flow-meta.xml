@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+
+    <apiVersion>66.0</apiVersion>
+    <label>Lead_Automation_Safe_Flow</label>
+    <processType>Flow</processType>
+
+    <!-- REQUIRED METADATA -->
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+
+    <!-- START -->
+    <start>
+        <locationX>50</locationX>
+        <locationY>50</locationY>
+        <connector>
+            <targetReference>User_Input</targetReference>
+        </connector>
+    </start>
+
+    <!-- SCREENS -->
+    <screens>
+        <name>User_Input</name>
+        <label>User Input</label>
+        <locationX>200</locationX>
+        <locationY>200</locationY>
+
+        <connector>
+            <targetReference>Budget_Check</targetReference>
+        </connector>
+
+        <fields>
+            <name>Name</name>
+            <dataType>String</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Name</fieldText>
+        </fields>
+
+        <fields>
+            <name>Email</name>
+            <dataType>String</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Email</fieldText>
+        </fields>
+
+        <fields>
+            <name>Budget</name>
+            <dataType>Number</dataType>
+            <fieldType>InputField</fieldType>
+            <fieldText>Budget</fieldText>
+            <scale>0</scale>
+        </fields>
+    </screens>
+
+    <screens>
+        <name>Final_Screen</name>
+        <label>Success</label>
+        <locationX>400</locationX>
+        <locationY>800</locationY>
+
+        <fields>
+            <name>message</name>
+            <fieldType>DisplayText</fieldType>
+            <fieldText>
+                &lt;p&gt;Thank you {!Name}!&lt;/p&gt;
+                &lt;p&gt;Lead created successfully ✅&lt;/p&gt;
+            </fieldText>
+        </fields>
+    </screens>
+
+    <!-- DECISION -->
+    <decisions>
+        <name>Budget_Check</name>
+        <label>Budget Check</label>
+        <locationX>400</locationX>
+        <locationY>400</locationY>
+
+        <defaultConnector>
+            <targetReference>Create_Lead_Cold</targetReference>
+        </defaultConnector>
+
+        <defaultConnectorLabel>Cold</defaultConnectorLabel>
+
+        <rules>
+            <name>Hot</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Budget</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <numberValue>100000</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Create_Lead_Hot</targetReference>
+            </connector>
+        </rules>
+
+        <rules>
+            <name>Warm</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>Budget</leftValueReference>
+                <operator>GreaterThanOrEqualTo</operator>
+                <rightValue>
+                    <numberValue>50000</numberValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference>Create_Lead_Warm</targetReference>
+            </connector>
+        </rules>
+    </decisions>
+
+    <!-- RECORD CREATES -->
+    <recordCreates>
+        <name>Create_Lead_Hot</name>
+        <label>Create Lead Hot</label>
+        <locationX>200</locationX>
+        <locationY>600</locationY>
+        <object>Lead</object>
+
+        <inputAssignments>
+            <field>LastName</field>
+            <value>
+                <stringValue>{!Name}</stringValue>
+            </value>
+        </inputAssignments>
+
+        <inputAssignments>
+            <field>Company</field>
+            <value>
+                <stringValue>Default Company</stringValue>
+            </value>
+        </inputAssignments>
+
+        <connector>
+            <targetReference>Final_Screen</targetReference>
+        </connector>
+    </recordCreates>
+
+    <recordCreates>
+        <name>Create_Lead_Warm</name>
+        <label>Create Lead Warm</label>
+        <locationX>400</locationX>
+        <locationY>600</locationY>
+        <object>Lead</object>
+
+        <inputAssignments>
+            <field>LastName</field>
+            <value>
+                <stringValue>{!Name}</stringValue>
+            </value>
+        </inputAssignments>
+
+        <inputAssignments>
+            <field>Company</field>
+            <value>
+                <stringValue>Default Company</stringValue>
+            </value>
+        </inputAssignments>
+
+        <connector>
+            <targetReference>Final_Screen</targetReference>
+        </connector>
+    </recordCreates>
+
+    <recordCreates>
+        <name>Create_Lead_Cold</name>
+        <label>Create Lead Cold</label>
+        <locationX>600</locationX>
+        <locationY>600</locationY>
+        <object>Lead</object>
+
+        <inputAssignments>
+            <field>LastName</field>
+            <value>
+                <stringValue>{!Name}</stringValue>
+            </value>
+        </inputAssignments>
+
+        <inputAssignments>
+            <field>Company</field>
+            <value>
+                <stringValue>Default Company</stringValue>
+            </value>
+        </inputAssignments>
+
+        <connector>
+            <targetReference>Final_Screen</targetReference>
+        </connector>
+    </recordCreates>
+
+    <status>Draft</status>
+
+</Flow>

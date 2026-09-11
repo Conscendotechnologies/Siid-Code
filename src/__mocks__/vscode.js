@@ -59,6 +59,7 @@ export const workspace = {
 export const window = {
 	activeTextEditor: null,
 	onDidChangeActiveTextEditor: () => mockDisposable,
+	onDidChangeTextEditorSelection: () => mockDisposable,
 	showErrorMessage: () => Promise.resolve(),
 	showWarningMessage: () => Promise.resolve(),
 	showInformationMessage: () => Promise.resolve(),

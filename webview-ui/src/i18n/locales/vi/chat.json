@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Tin nhắn trong hàng đợi:",
 		"clickToEdit": "Nhấp để chỉnh sửa tin nhắn"
+	},
+	"modelSelector": {
+		"selectModel": "Chọn một mô hình"
 	}
 }

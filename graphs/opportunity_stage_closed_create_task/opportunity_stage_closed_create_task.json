@@ -1,0 +1,126 @@
+{
+	"flow_name": "Opportunity_Stage_Closed_Create_Task",
+	"process_type": "AutoLaunchedFlow",
+	"api_version": 66.0,
+	"status": "Active",
+	"description": "Creates a follow-up Task when an Opportunity StageName changes to Closed Won or Closed Lost.",
+	"nodes": [
+		{
+			"id": "Start",
+			"type": "Start",
+			"label": "Start",
+			"metadata": {
+				"name": "Start",
+				"original_tag": "start",
+				"triggerType": "RecordAfterSave",
+				"recordTriggerType": "Update",
+				"object": "Opportunity",
+				"filterLogic": "1 AND (2 OR 3)",
+				"filters": [
+					{
+						"field": "StageName",
+						"operator": "IsChanged",
+						"value": {
+							"booleanValue": true
+						}
+					},
+					{
+						"field": "StageName",
+						"operator": "EqualTo",
+						"value": {
+							"stringValue": "Closed Won"
+						}
+					},
+					{
+						"field": "StageName",
+						"operator": "EqualTo",
+						"value": {
+							"stringValue": "Closed Lost"
+						}
+					}
+				],
+				"filter_formula": null,
+				"position": {
+					"x": 50,
+					"y": 0
+				}
+			}
+		},
+		{
+			"id": "Create_Opportunity_Closed_Task",
+			"type": "CreateRecords",
+			"label": "Create Opportunity Closed Task",
+			"metadata": {
+				"name": "Create_Opportunity_Closed_Task",
+				"original_tag": "recordCreates",
+				"object": "Task",
+				"input_assignments": [
+					{
+						"field": "Subject",
+						"value": {
+							"stringValue": "Opportunity closed"
+						}
+					},
+					{
+						"field": "OwnerId",
+						"value": {
+							"elementReference": "$Record.OwnerId"
+						}
+					},
+					{
+						"field": "WhatId",
+						"value": {
+							"elementReference": "$Record.Id"
+						}
+					},
+					{
+						"field": "ActivityDate",
+						"value": {
+							"elementReference": "Today_Date"
+						}
+					}
+				],
+				"position": {
+					"x": 250,
+					"y": 200
+				}
+			}
+		},
+		{
+			"id": "End",
+			"type": "End",
+			"label": "End",
+			"metadata": {
+				"position": {
+					"x": 250,
+					"y": 400
+				}
+			}
+		}
+	],
+	"edges": [
+		{
+			"from": "Start",
+			"to": "Create_Opportunity_Closed_Task",
+			"metadata": {}
+		},
+		{
+			"from": "Create_Opportunity_Closed_Task",
+			"to": "End",
+			"metadata": {}
+		}
+	],
+	"formulas": [
+		{
+			"name": "Today_Date",
+			"dataType": "Date",
+			"expression": "TODAY()"
+		}
+	],
+	"usage": {
+		"prompt_tokens": 12871,
+		"completion_tokens": 881,
+		"total_tokens": 13752,
+		"cost": null
+	}
+}

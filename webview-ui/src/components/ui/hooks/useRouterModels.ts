@@ -14,7 +14,7 @@ const getRouterModels = async () =>
 		const timeout = setTimeout(() => {
 			cleanup()
 			reject(new Error("Router models request timed out"))
-		}, 10000)
+		}, 20000)
 
 		const handler = (event: MessageEvent) => {
 			const message: ExtensionMessage = event.data

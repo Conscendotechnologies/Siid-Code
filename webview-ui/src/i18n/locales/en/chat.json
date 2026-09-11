@@ -255,13 +255,8 @@
 		"defaultResult": "Please continue to the next task.",
 		"completionInstructions": "Subtask completed! You can review the results and suggest any corrections or next steps. If everything looks good, confirm to return the result to the parent task."
 	},
-	"taskCompleted": "Task Completed",
-	"retrieveSuccessful": "Retrieve Successful",
-	"error": "Error",
-	"diffError": {
-		"hasQuestion": "SIID Code has a question:"
-	},
 	"taskCompleted": "Result",
+	"retrieveSuccessful": "Retrieve Successful",
 	"error": "Error",
 	"diffError": {
 		"title": "Edit Unsuccessful"
@@ -371,5 +366,8 @@
 	"queuedMessages": {
 		"title": "Queued Messages:",
 		"clickToEdit": "Click to edit message"
+	},
+	"modelSelector": {
+		"selectModel": "Select a model"
 	}
 }

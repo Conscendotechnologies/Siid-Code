@@ -148,6 +148,7 @@ vi.mock("vscode", () => ({
 		showWarningMessage: vi.fn(),
 		showErrorMessage: vi.fn(),
 		onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
+		onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
 		// Called at module scope by DecorationController, which this suite pulls in
 		// transitively via checkpoints -> DiffViewProvider.
 		createTextEditorDecorationType: vi.fn(() => ({ dispose: vi.fn() })),
@@ -2563,6 +2564,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,
@@ -2608,6 +2610,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: {},
 				glama: mockModels,
@@ -2718,6 +2721,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				"9router": {},
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,

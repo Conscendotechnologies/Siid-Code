@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "कतार में संदेश:",
 		"clickToEdit": "संदेश संपादित करने के लिए क्लिक करें"
+	},
+	"modelSelector": {
+		"selectModel": "मॉडल चुनें"
 	}
 }

@@ -384,5 +384,8 @@
 	"queuedMessages": {
 		"title": "Pesan Antrian:",
 		"clickToEdit": "Klik untuk mengedit pesan"
+	},
+	"modelSelector": {
+		"selectModel": "Pilih model"
 	}
 }

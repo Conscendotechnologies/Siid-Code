@@ -17,7 +17,7 @@
  */
 
 import type { ProviderSettings } from "@siid-code/types"
-import { MODE_TO_MODELS, type ModeModelInfo } from "./mode-models"
+import { getModelsForMode } from "./mode-models"
 
 // 3 minutes in milliseconds
 const MODEL_TIMEOUT_MS = 3 * 60 * 1000
@@ -28,12 +28,11 @@ const MODEL_TIMEOUT_MS = 3 * 60 * 1000
  * @returns Array of model IDs in fallback order
  */
 function getFallbackChainForMode(mode: string): string[] {
-	const modeModels = MODE_TO_MODELS[mode] || []
-	// Filter to only free tier models and sort by priority
-	const freeModels = modeModels
+	// Free tier models only; list order is already priority order.
+	// Read through the accessor so a runtime list update is picked up here too.
+	return getModelsForMode(mode)
 		.filter((m) => m.tier === "Free")
-		.sort((a, b) => (a.priority || 999) - (b.priority || 999)) // Lower priority number = higher priority
-	return freeModels.map((m) => m.modelId)
+		.map((m) => m.modelId)
 }
 
 /**

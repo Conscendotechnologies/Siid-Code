@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>Send_SLA_Breached_Alert</name>
+        <label>Send SLA Breached Alert</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>emailSimple</actionName>
+        <actionType>emailSimple</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>recipientAddresses</name>
+            <value>
+                <collectionElements>
+                    <elementReference>$Record.Owner:User.Email</elementReference>
+                </collectionElements>
+                <collectionElements>
+                    <elementReference>$Record.Owner:User.Manager.Email</elementReference>
+                </collectionElements>
+                <collectionElements>
+                    <elementReference>$Record.Owner:User.Product_Manager__r.Email</elementReference>
+                </collectionElements>
+                <collectionElements>
+                    <elementReference>$Record.Sales_Person__r.Email</elementReference>
+                </collectionElements>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderType</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>OrgWideEmailAddress</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>senderAddress</name>
+            <value>
+                <inputConfiguratorMode>Custom</inputConfiguratorMode>
+                <stringValue>pavan.puli@conscendo.io</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>composeEmailContent</name>
+            <value>
+                <stringValue>True</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailSubject</name>
+            <value>
+                <stringValue>SLA Breached: Lead Follow-up Pending Over 24 Hours</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>emailBody</name>
+            <value>
+                <elementReference>EmailContent</elementReference>
+                <inputConfiguratorMode>Resource</inputConfiguratorMode>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>sendRichBody</name>
+            <value>
+                <booleanValue>false</booleanValue>
+            </value>
+        </inputParameters>
+        <nameSegment>emailSimple</nameSegment>
+        <offset>0</offset>
+        <versionString>2.0.1</versionString>
+    </actionCalls>
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <environments>Default</environments>
+    <interviewLabel>SLA Breached Alert {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>SLA Breached Alert</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Status</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>New</stringValue>
+            </value>
+        </filters>
+        <object>Lead</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <scheduledPaths>
+            <name>SLA_Breached</name>
+            <connector>
+                <targetReference>Send_SLA_Breached_Alert</targetReference>
+            </connector>
+            <label>SLA Breached</label>
+            <offsetNumber>1</offsetNumber>
+            <offsetUnit>Days</offsetUnit>
+            <timeSource>RecordTriggerEvent</timeSource>
+        </scheduledPaths>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Draft</status>
+    <textTemplates>
+        <name>EmailContent</name>
+        <isViewedAsPlainText>true</isViewedAsPlainText>
+        <text>Hello Team,
+
+This is to notify you that the SLA for timely follow-up on the Lead &quot;{!$Record.LastName}&quot; has been breached.
+
+Lead Details:
+Lead Name: {!$Record.LastName}
+Company: {!$Record.Company}
+Email: {!$Record.Email}
+Phone: {!$Record.MobilePhone}
+Lead Owner: {!$Record.Owner:User.LastName}
+Created Date: {!$Record.CreatedDate}
+
+Please take immediate action to engage with the lead and ensure follow-up is completed promptly.
+
+Thank you for your attention to this matter.
+
+Best regards,
+Inkarp Instruments Pvt Ltd</text>
+    </textTemplates>
+</Flow>

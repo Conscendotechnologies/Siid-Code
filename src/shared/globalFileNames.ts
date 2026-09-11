@@ -7,6 +7,7 @@ export const GlobalFileNames = {
 	lwcInstructions: "code/lwc-guide.md",
 	apexInstructions: "code/apex-guide.md",
 	asynchronousApexInstructions: "code/asynchronous-apex-guide.md",
+	invocableApexInstructions: "code/invocable-apex-guide.md",
 	// Salesforce Agent Instructions
 	assignmentRulesInstructions: "Salesforce_Agent/assignment-rules.md",
 	customFieldInstructions: "Salesforce_Agent/custom-field.md",

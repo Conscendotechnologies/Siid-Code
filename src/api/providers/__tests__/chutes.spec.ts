@@ -349,7 +349,7 @@ describe("ChutesHandler", () => {
 		expect(mockCreate).toHaveBeenCalledWith(
 			expect.objectContaining({
 				model: modelId,
-				max_tokens: modelInfo.maxTokens,
+				max_tokens: 8192, // capped at 16384 by base provider; modelInfo.maxTokens (32768) exceeds cap
 				temperature: 0.5,
 				messages: expect.arrayContaining([{ role: "system", content: systemPrompt }]),
 				stream: true,

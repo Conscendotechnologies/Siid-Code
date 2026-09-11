@@ -378,5 +378,8 @@
 	"queuedMessages": {
 		"title": "Sıradaki Mesajlar:",
 		"clickToEdit": "Mesajı düzenlemek için tıkla"
+	},
+	"modelSelector": {
+		"selectModel": "Bir model seçin"
 	}
 }

@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <apiVersion>62.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <decisions>
+        <name>Check_Amount</name>
+        <label>Is Amount Negative?</label>
+        <locationX>150</locationX>
+        <locationY>100</locationY>
+        <defaultConnectorLabel>Valid Amount</defaultConnectorLabel>
+        <rules>
+            <name>Outcome_1_of_Check_Amount</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference>$Record.Amount</leftValueReference>
+                <operator>LessThan</operator>
+                <rightValue>
+                    <numberValue>0</numberValue>
+                </rightValue>
+            </conditions>
+            <label>Amount is Negative</label>
+        </rules>
+    </decisions>
+    <description>Validates Opportunity Amount before saving.</description>
+    <environments>Default</environments>
+    <interviewLabel>Opportunity_Amount_Validation {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Opportunity_Amount_Validation</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Check_Amount</targetReference>
+        </connector>
+        <object>Opportunity</object>
+        <recordTriggerType>CreateAndUpdate</recordTriggerType>
+        <triggerType>RecordBeforeSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

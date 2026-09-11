@@ -72,6 +72,7 @@ ${isMultipleReadsEnabled ? "3. " : "2. "}Reading an entire file:
 IMPORTANT: You MUST use this Efficient Reading Strategy:
 - ${isMultipleReadsEnabled ? `You MUST read all related files and implementations together in a single operation (up to ${maxConcurrentReads} files at once)` : "You MUST read files one at a time, as multiple file reads are currently disabled"}
 - You MUST obtain all necessary context before proceeding with changes
+- You MUST NOT re-read a file whose contents are already in the conversation, unless you have changed it since — the earlier result is still valid, and re-reading wastes context
 ${
 	args.partialReadsEnabled
 		? `- You MUST use line ranges to read specific portions of large files, rather than reading entire files when not needed

@@ -23,6 +23,7 @@
 		"install:vsix": "pnpm install --frozen-lockfile && pnpm clean && pnpm vsix && node scripts/install-vsix.js",
 		"changeset:version": "cp CHANGELOG.md src/CHANGELOG.md && changeset version && cp -vf src/CHANGELOG.md .",
 		"knip": "knip --include files",
+		"check:models": "node scripts/check-model-availability.js --warn-only",
 		"update-contributors": "node scripts/update-contributors.js",
 		"version:update": "node scripts/update-version.js",
 		"version:patch": "node scripts/update-version.js patch",
