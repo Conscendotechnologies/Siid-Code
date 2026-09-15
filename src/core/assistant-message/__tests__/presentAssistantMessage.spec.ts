@@ -26,6 +26,10 @@ describe("presentAssistantMessage", () => {
 			didRejectTool: false,
 			userMessageContent: [],
 			abort: false,
+			currentStreamingContentIndex: 0,
+			didCompleteReadingStream: false,
+			instanceId: "test-instance",
+			taskId: "test-task",
 			providerRef: {
 				deref: () => ({
 					getState: async () => ({
@@ -72,7 +76,7 @@ describe("presentAssistantMessage", () => {
 		expect(mockCline.userMessageContent![0]).toEqual(
 			expect.objectContaining({
 				type: "text",
-				text: expect.stringContaining("Error: Only one tool may be used at a time"),
+				text: expect.stringContaining("Only one tool may be used per message"),
 			}),
 		)
 	})
@@ -89,8 +93,8 @@ describe("presentAssistantMessage", () => {
 
 		await presentAssistantMessage(mockCline as Task)
 
-		expect(mockCline.userMessageContent).toHaveLength(1)
-		expect(mockCline.userMessageContent![0]).toEqual(
+		expect(mockCline.userMessageContent).toHaveLength(2)
+		expect(mockCline.userMessageContent![1]).toEqual(
 			expect.objectContaining({
 				type: "text",
 				text: expect.stringContaining("Error: Invalid tool tag mismatch"),
