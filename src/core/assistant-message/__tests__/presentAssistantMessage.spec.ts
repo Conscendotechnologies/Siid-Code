@@ -9,6 +9,8 @@ vi.mock("../../prompts/responses", () => ({
 	},
 }))
 
+vi.mock("@siid-code/telemetry")
+
 describe("presentAssistantMessage", () => {
 	let mockCline: Partial<Task>
 	let executeCommandMock: ReturnType<typeof vi.fn>
@@ -35,6 +37,7 @@ describe("presentAssistantMessage", () => {
 					getState: async () => ({
 						alwaysAllowExecute: false,
 						alwaysAllowMcp: false,
+						experiments: {},
 					}),
 				}),
 			} as any,
@@ -46,13 +49,6 @@ describe("presentAssistantMessage", () => {
 			} as any,
 			browserSession: {
 				closeBrowser: vi.fn(),
-			} as any,
-			providerRef: {
-				deref: () => ({
-					getState: async () => ({
-						experiments: {},
-					}),
-				}),
 			} as any,
 		} as Partial<Task>
 	})

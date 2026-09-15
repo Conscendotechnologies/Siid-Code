@@ -78,7 +78,7 @@ export async function presentAssistantMessage(cline: Task) {
 
 	// Check if multiple tool calls per message experiment is enabled
 	const multiToolProvider = cline.providerRef?.deref()
-	const state = multiToolProvider ? await multiToolProvider.getState() : {}
+	const state = multiToolProvider ? await multiToolProvider.getState() : ({} as any)
 	const isMultipleToolCallsEnabled = experiments.isEnabled(
 		state.experiments ?? {},
 		EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS,
@@ -405,6 +405,14 @@ export async function presentAssistantMessage(cline: Task) {
 				return text.replace(tagRegex, "")
 			}
 
+			if ((block.name as any) === "invalid_tool_tag_mismatch") {
+				cline.consecutiveMistakeCount++
+				pushToolResult(
+					formatResponse.toolError("Invalid tool tag mismatch. Closing tag did not match opening tag."),
+				)
+				break
+			}
+
 			if (block.name !== "browser_action") {
 				await cline.browserSession.closeBrowser()
 			}
@@ -412,14 +420,6 @@ export async function presentAssistantMessage(cline: Task) {
 			if (!block.partial) {
 				cline.recordToolUsage(block.name)
 				TelemetryService.instance.captureToolUsage(cline.taskId, block.name)
-			}
-
-			if (block.name === "invalid_tool_tag_mismatch") {
-				cline.consecutiveMistakeCount++
-				pushToolResult(
-					formatResponse.toolError("Invalid tool tag mismatch. Closing tag did not match opening tag."),
-				)
-				break
 			}
 
 			// Validate tool use before execution.
