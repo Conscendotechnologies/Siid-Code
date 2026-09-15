@@ -26,6 +26,14 @@ describe("presentAssistantMessage", () => {
 			didRejectTool: false,
 			userMessageContent: [],
 			abort: false,
+			providerRef: {
+				deref: () => ({
+					getState: async () => ({
+						alwaysAllowExecute: false,
+						alwaysAllowMcp: false,
+					}),
+				}),
+			},
 			say: vi.fn(),
 			ask: vi.fn().mockResolvedValue(true),
 		} as Partial<Task>

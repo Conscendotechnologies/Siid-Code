@@ -84,7 +84,6 @@ import {
 	XAI,
 	ZAi,
 	Fireworks,
-	NineRouter,
 } from "./providers"
 
 import { MODELS_BY_PROVIDER, PROVIDERS } from "./constants"
@@ -562,15 +561,6 @@ const ApiOptions = ({
 
 			{selectedProvider === "fireworks" && (
 				<Fireworks apiConfiguration={apiConfiguration} setApiConfigurationField={setApiConfigurationField} />
-			)}
-
-			{selectedProvider === "9router" && (
-				<NineRouter
-					apiConfiguration={apiConfiguration}
-					setApiConfigurationField={setApiConfigurationField}
-					organizationAllowList={organizationAllowList}
-					modelValidationError={modelValidationError}
-				/>
 			)}
 
 			{selectedProviderModels.length > 0 && (

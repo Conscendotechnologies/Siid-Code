@@ -127,7 +127,6 @@ describe("getEnvironmentDetails", () => {
 		})
 		;(isToolAllowedForMode as Mock).mockReturnValue(true)
 		;(listFiles as Mock).mockResolvedValue([["file1.ts", "file2.ts"], false])
-		;(formatResponse.formatFilesList as Mock).mockReturnValue("file1.ts\nfile2.ts")
 		;(arePathsEqual as Mock).mockReturnValue(false)
 		;(Terminal.compressTerminalOutput as Mock).mockImplementation((output: string) => output)
 		;(TerminalRegistry.getTerminals as Mock).mockReturnValue([])
@@ -155,20 +154,11 @@ describe("getEnvironmentDetails", () => {
 		expect(result).toContain("Files")
 
 		expect(listFiles).toHaveBeenCalledWith(mockCwd, false, 50)
-
-		expect(formatResponse.formatFilesList).toHaveBeenCalledWith(
-			mockCwd,
-			["file1.ts", "file2.ts"],
-			false,
-			mockCline.rooIgnoreController,
-			true,
-		)
 	})
 
 	it("should not include file details when includeFileDetails is false", async () => {
 		await getEnvironmentDetails(mockCline as Task, false)
 		expect(listFiles).not.toHaveBeenCalled()
-		expect(formatResponse.formatFilesList).not.toHaveBeenCalled()
 	})
 
 	it("should handle desktop directory specially", async () => {
@@ -188,7 +178,6 @@ describe("getEnvironmentDetails", () => {
 
 		expect(listFiles).not.toHaveBeenCalled()
 		expect(result).toContain("Workspace files context disabled")
-		expect(formatResponse.formatFilesList).not.toHaveBeenCalled()
 	})
 
 	it("should include recently modified files if any", async () => {
