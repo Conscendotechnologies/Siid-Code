@@ -40,6 +40,20 @@ describe("presentAssistantMessage", () => {
 			} as any,
 			say: vi.fn(),
 			ask: vi.fn().mockResolvedValue(true),
+			recordToolUsage: vi.fn(),
+			toolRepetitionDetector: {
+				check: vi.fn(() => ({ allowExecution: true, agentHint: "" })),
+			} as any,
+			browserSession: {
+				closeBrowser: vi.fn(),
+			} as any,
+			providerRef: {
+				deref: () => ({
+					getState: async () => ({
+						experiments: {},
+					}),
+				}),
+			} as any,
 		} as Partial<Task>
 	})
 
@@ -60,6 +74,13 @@ describe("presentAssistantMessage", () => {
 	it("should refuse a second complete tool block in the same message", async () => {
 		// Mock that one tool has already been used
 		mockCline.didAlreadyUseTool = true
+		mockCline.providerRef = {
+			deref: () => ({
+				getState: async () => ({
+					experiments: { multipleToolCalls: false },
+				}),
+			}),
+		} as any
 
 		mockCline.assistantMessageContent = [
 			{

@@ -77,12 +77,12 @@ export async function presentAssistantMessage(cline: Task) {
 	cline.presentAssistantMessageHasPendingUpdates = false
 
 	// Check if multiple tool calls per message experiment is enabled
-	const multiToolProvider = cline.providerRef.deref()
-	let isMultipleToolCallsEnabled = false
-	if (multiToolProvider) {
-		const state = await multiToolProvider.getState()
-		isMultipleToolCallsEnabled = experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
-	}
+	const multiToolProvider = cline.providerRef?.deref()
+	const state = multiToolProvider ? await multiToolProvider.getState() : {}
+	const isMultipleToolCallsEnabled = experiments.isEnabled(
+		state.experiments ?? {},
+		EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS,
+	)
 
 	if (cline.currentStreamingContentIndex >= cline.assistantMessageContent.length) {
 		// This may happen if the last content block was completed before
@@ -414,6 +414,14 @@ export async function presentAssistantMessage(cline: Task) {
 				TelemetryService.instance.captureToolUsage(cline.taskId, block.name)
 			}
 
+			if (block.name === "invalid_tool_tag_mismatch") {
+				cline.consecutiveMistakeCount++
+				pushToolResult(
+					formatResponse.toolError("Invalid tool tag mismatch. Closing tag did not match opening tag."),
+				)
+				break
+			}
+
 			// Validate tool use before execution.
 			const { mode, customModes } = (await cline.providerRef.deref()?.getState()) ?? {}
 
@@ -649,11 +657,7 @@ export async function presentAssistantMessage(cline: Task) {
 						removeClosingTag,
 					)
 					break
-				case "invalid_tool_tag_mismatch" as any:
-					pushToolResult(
-						formatResponse.toolError("Invalid tool tag mismatch. Closing tag did not match opening tag."),
-					)
-					break
+
 				default:
 					await handleError("executing tool", new Error(`Tool ${block.name} is not supported.`))
 					break
