@@ -33,7 +33,7 @@ describe("presentAssistantMessage", () => {
 						alwaysAllowMcp: false,
 					}),
 				}),
-			},
+			} as any,
 			say: vi.fn(),
 			ask: vi.fn().mockResolvedValue(true),
 		} as Partial<Task>
