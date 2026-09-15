@@ -26,8 +26,15 @@ export type ParsedApiReqStartedTextType = {
  * const { totalTokensIn, totalTokensOut, totalCost } = getApiMetrics(messages);
  * // Result: { totalTokensIn: 10, totalTokensOut: 20, totalCost: 0.005 }
  */
-export function getApiMetrics(messages: ClineMessage[]) {
-	const result: TokenUsage = {
+export function getApiMetrics(
+	messages: ClineMessage[],
+): TokenUsage & { lastTokensIn?: number; lastTokensOut?: number; lastCacheWrites?: number; lastCacheReads?: number } {
+	const result: TokenUsage & {
+		lastTokensIn?: number
+		lastTokensOut?: number
+		lastCacheWrites?: number
+		lastCacheReads?: number
+	} = {
 		totalTokensIn: 0,
 		totalTokensOut: 0,
 		totalCacheWrites: undefined,
@@ -74,6 +81,11 @@ export function getApiMetrics(messages: ClineMessage[]) {
 			try {
 				const parsedText: ParsedApiReqStartedTextType = JSON.parse(message.text)
 				const { tokensIn, tokensOut, cacheWrites, cacheReads, apiProtocol } = parsedText
+
+				result.lastTokensIn = tokensIn
+				result.lastTokensOut = tokensOut
+				result.lastCacheWrites = cacheWrites
+				result.lastCacheReads = cacheReads
 
 				// Calculate context tokens based on API protocol
 				if (apiProtocol === "anthropic") {

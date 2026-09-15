@@ -50,9 +50,11 @@ export function parseAssistantMessageV2(assistantMessage: string): AssistantMess
 	// Precompute tags for faster lookups.
 	const toolUseOpenTags = new Map<string, ToolName>()
 	const toolParamOpenTags = new Map<string, ToolParamName>()
+	const allToolCloseTags: string[] = ["</tool>", "</function>", "</invoke>"]
 
 	for (const name of toolNames) {
 		toolUseOpenTags.set(`<${name}>`, name)
+		allToolCloseTags.push(`</${name}>`)
 	}
 
 	for (const name of toolParamNames) {
@@ -63,6 +65,33 @@ export function parseAssistantMessageV2(assistantMessage: string): AssistantMess
 
 	for (let i = 0; i < len; i++) {
 		const currentCharIndex = i
+
+		// Check for mismatched tool close tags (to prevent hanging on hallucinated tags)
+		if (currentToolUse && !currentParamName) {
+			const expectedToolCloseTag = `</${currentToolUse.name}>`
+			let foundMismatchedToolCloseTag = false
+			for (const invalidTag of allToolCloseTags) {
+				if (
+					invalidTag !== expectedToolCloseTag &&
+					currentCharIndex >= invalidTag.length - 1 &&
+					assistantMessage.startsWith(invalidTag, currentCharIndex - invalidTag.length + 1)
+				) {
+					foundMismatchedToolCloseTag = true
+					break
+				}
+			}
+
+			if (foundMismatchedToolCloseTag) {
+				// Mismatched closing tag found. Invalidate the tool block.
+				currentToolUse.name = "invalid_tool_tag_mismatch" as any
+				currentToolUse.partial = false
+				contentBlocks.push(currentToolUse)
+				currentToolUse = undefined
+				currentParamName = undefined
+				currentTextContentStart = currentCharIndex + 1
+				continue
+			}
+		}
 
 		// Parsing a tool parameter
 		if (currentToolUse && currentParamName) {

@@ -30,8 +30,6 @@ function getTaskDisplayName(task: string): string {
 		record_types: "Record Types Instructions",
 		role_creation: "Role Creation Instructions",
 		validation_rules: "Validation Rules Instructions",
-		// Adaptive Response Agent Instructions
-		adaptive_response_agent: "Adaptive Response Agent Instructions",
 	}
 
 	return taskNames[task] || task

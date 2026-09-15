@@ -7,12 +7,32 @@ import { FileChangesService } from "../../services/file-changes"
 
 export interface PreTaskOptions {
 	globalStorageUri: vscode.Uri | undefined
-	taskGuidesFetched?: boolean
-	hasTodoList?: boolean
-	cwd?: string
-	experiments?: Experiments
 	taskId?: string
 	planningFilePath?: string
+}
+
+/**
+ * Generates static pre-task instructions for the AI, included in system prompt.
+ */
+export function getStaticPreTaskInstructions(): string {
+	let instructions = `### Task Guide Instructions\n`
+	instructions += `**IMPORTANT:** Use 'get_task_guides' tool to get all required instructions for your task.\n`
+	instructions += `(If you have already loaded task guides, you can focus on execution.)\n\n`
+
+	instructions += `---\n\n`
+	instructions += `- **code:** Apex, async Apex, LWC, triggers, test classes, development\n\n`
+	instructions += `---\n\n`
+
+	instructions += `### Available Task Types for get_task_guides\n\n`
+	const taskTypes = Object.entries(TaskTypeMapping)
+	for (const [taskType, config] of taskTypes) {
+		instructions += `- **${taskType}:** ${config.description}\n`
+	}
+	instructions += `\nExample:\n`
+	instructions += `<get_task_guides>\n`
+	instructions += `<task_type>create-lwc-with-apex</task_type>\n`
+	instructions += `</get_task_guides>\n`
+	return instructions
 }
 
 /**
@@ -20,30 +40,11 @@ export interface PreTaskOptions {
  * Content is dynamic based on current task state.
  */
 export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined, options?: Partial<PreTaskOptions>) {
-	const {
-		taskGuidesFetched = false,
-		hasTodoList = false,
-		cwd,
-		experiments: exps,
-		taskId,
-		planningFilePath,
-	} = options || {}
+	const { taskId, planningFilePath } = options || {}
 
-	let preTask = "<pre-task>\n\n"
+	let preTask = ""
 
 	if (globalStorageUri) {
-		// Dynamic instruction based on whether guides were already fetched
-		if (taskGuidesFetched) {
-			preTask += `**Note:** Task guides already loaded. Focus on execution.\n\n`
-		} else {
-			preTask += `**IMPORTANT:** Use 'get_task_guides' tool to get all required instructions for your task.\n\n`
-		}
-
-		// Dynamic todo list reminder
-		if (hasTodoList) {
-			preTask += `**Todo List:** A todo list exists. UPDATE it as you progress - don't recreate.\n\n`
-		}
-
 		// Planning file instructions if exists
 		if (planningFilePath) {
 			preTask += `**Planning File:** A planning file has been created at \`${planningFilePath}\`. This file contains task phases and a progress log.\n`
@@ -71,29 +72,12 @@ export async function getPreTaskDetails(globalStorageUri: vscode.Uri | undefined
 				// Ignore errors — file changes service may not be initialized
 			}
 		}
-
-		preTask += `---\n\n`
-
-		preTask += `- **code:** Apex, async Apex, LWC, triggers, test classes, development\n\n`
-
-		preTask += `---\n\n`
-
-		// Available Task Types (from TaskTypeMapping)
-		if (!taskGuidesFetched) {
-			preTask += `### Available Task Types for get_task_guides\n\n`
-			const taskTypes = Object.entries(TaskTypeMapping)
-			for (const [taskType, config] of taskTypes) {
-				preTask += `- **${taskType}:** ${config.description}\n`
-			}
-			preTask += `\nExample:\n`
-			preTask += `<get_task_guides>\n`
-			preTask += `<task_type>create-lwc-with-apex</task_type>\n`
-			preTask += `</get_task_guides>\n`
-		}
 	}
 
-	preTask += `\n</pre-task>`
-	return preTask
+	if (preTask.length > 0) {
+		return `<pre-task>\n\n${preTask}\n</pre-task>`
+	}
+	return ""
 }
 
 /**

@@ -21,7 +21,7 @@ export const experimentConfigsMap: Record<ExperimentKey, ExperimentConfig> = {
 	POWER_STEERING: { enabled: false },
 	PREVENT_FOCUS_DISRUPTION: { enabled: false },
 	ASSISTANT_MESSAGE_PARSER: { enabled: false },
-	MULTIPLE_TOOL_CALLS: { enabled: true },
+	MULTIPLE_TOOL_CALLS: { enabled: false },
 }
 
 export const experimentDefault = Object.fromEntries(

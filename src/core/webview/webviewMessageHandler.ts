@@ -688,8 +688,8 @@ export const webviewMessageHandler = async (
 			// Don't fetch Ollama and LM Studio models by default anymore
 			// They have their own specific handlers: requestOllamaModels and requestLmStudioModels
 
-			const litellmApiKey = apiConfiguration.litellmApiKey || message?.values?.litellmApiKey
-			const litellmBaseUrl = apiConfiguration.litellmBaseUrl || message?.values?.litellmBaseUrl
+			const litellmApiKey = message?.values?.litellmApiKey || apiConfiguration.litellmApiKey
+			const litellmBaseUrl = message?.values?.litellmBaseUrl || apiConfiguration.litellmBaseUrl
 			if (litellmApiKey && litellmBaseUrl) {
 				modelFetchPromises.push({
 					key: "litellm",
@@ -697,8 +697,8 @@ export const webviewMessageHandler = async (
 				})
 			}
 
-			const nineRouterApiKey = apiConfiguration.nineRouterApiKey || message?.values?.nineRouterApiKey
-			const nineRouterBaseUrl = apiConfiguration.nineRouterBaseUrl || message?.values?.nineRouterBaseUrl
+			const nineRouterApiKey = message?.values?.nineRouterApiKey || apiConfiguration.nineRouterApiKey
+			const nineRouterBaseUrl = message?.values?.nineRouterBaseUrl || apiConfiguration.nineRouterBaseUrl
 			if (nineRouterBaseUrl || apiConfiguration.apiProvider === "9router") {
 				modelFetchPromises.push({
 					key: "9router",

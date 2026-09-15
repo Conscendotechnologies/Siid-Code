@@ -67,7 +67,7 @@ interface SearchLineResult {
 	column?: number
 }
 // Constants
-const MAX_RESULTS = 300
+const MAX_RESULTS = 30
 const MAX_LINE_LENGTH = 500
 
 /**
@@ -96,7 +96,7 @@ export async function getBinPath(vscodeAppRoot: string): Promise<string | undefi
 	)
 }
 
-async function execRipgrep(bin: string, args: string[]): Promise<string> {
+async function execRipgrep(bin: string, args: string[], maxLines: number = MAX_RESULTS * 5): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const rgProcess = childProcess.spawn(bin, args)
 		// cross-platform alternative to head, which is ripgrep author's recommendation for limiting output.
@@ -107,7 +107,6 @@ async function execRipgrep(bin: string, args: string[]): Promise<string> {
 
 		let output = ""
 		let lineCount = 0
-		const maxLines = MAX_RESULTS * 5 // limiting ripgrep output with max lines since there's no other way to limit results. it's okay that we're outputting as json, since we're parsing it line by line and ignore anything that's not part of a match. This assumes each result is at most 5 lines.
 
 		rl.on("line", (line) => {
 			if (lineCount < maxLines) {
@@ -148,6 +147,22 @@ export async function regexSearchFiles(
 
 	if (!rgPath) {
 		throw new Error("Could not find ripgrep binary")
+	}
+
+	const countArgs = ["-c", "-H", "-e", regex, "--glob", filePattern || "*", directoryPath]
+	let trueTotalMatches = 0
+	let trueTotalFiles = 0
+	try {
+		const countOutput = await execRipgrep(rgPath, countArgs, Infinity)
+		countOutput.split("\n").forEach((line) => {
+			const match = line.match(/^(.*?):(\d+)$/)
+			if (match) {
+				trueTotalFiles++
+				trueTotalMatches += parseInt(match[2], 10)
+			}
+		})
+	} catch (error) {
+		// Ignore errors from count-matches pass
 	}
 
 	const args = ["--json", "-e", regex, "--glob", filePattern || "*", "--context", "1", directoryPath]
@@ -217,28 +232,45 @@ export async function regexSearchFiles(
 		? results.filter((result) => rooIgnoreController.validateAccess(result.file))
 		: results
 
-	return formatResults(filteredResults, cwd)
+	return formatResults(filteredResults, cwd, trueTotalMatches, trueTotalFiles)
 }
 
-function formatResults(fileResults: SearchFileResult[], cwd: string): string {
+function formatResults(
+	fileResults: SearchFileResult[],
+	cwd: string,
+	trueTotalMatches?: number,
+	trueTotalFiles?: number,
+): string {
 	const groupedResults: { [key: string]: SearchResult[] } = {}
 
-	let totalResults = fileResults.reduce((sum, file) => sum + file.searchResults.length, 0)
+	let totalMatches = trueTotalMatches ?? fileResults.reduce((sum, file) => sum + file.searchResults.length, 0)
+	let totalFiles = trueTotalFiles ?? fileResults.length
+
 	let output = ""
-	if (totalResults >= MAX_RESULTS) {
-		output += `Showing first ${MAX_RESULTS} of ${MAX_RESULTS}+ results. Use a more specific search if necessary.\n\n`
+	if (totalMatches >= MAX_RESULTS) {
+		output += `Found ${totalMatches === 1 ? "1 match" : `${totalMatches.toLocaleString()} matches`} across ${totalFiles === 1 ? "1 file" : `${totalFiles.toLocaleString()} files`}.\nShowing first ${MAX_RESULTS} results. Use a more specific search if necessary.\n\n`
+	} else if (totalMatches > 0) {
+		output += `Found ${totalMatches === 1 ? "1 match" : `${totalMatches.toLocaleString()} matches`} across ${totalFiles === 1 ? "1 file" : `${totalFiles.toLocaleString()} files`}.\n\n`
 	} else {
-		output += `Found ${totalResults === 1 ? "1 result" : `${totalResults.toLocaleString()} results`}.\n\n`
+		output += "No results found.\n\n"
 	}
 
+	let resultCount = 0
+
 	// Group results by file name
-	fileResults.slice(0, MAX_RESULTS).forEach((file) => {
+	fileResults.forEach((file) => {
+		if (resultCount >= MAX_RESULTS) return
+
 		const relativeFilePath = path.relative(cwd, file.file)
 		if (!groupedResults[relativeFilePath]) {
 			groupedResults[relativeFilePath] = []
-
-			groupedResults[relativeFilePath].push(...file.searchResults)
 		}
+
+		// Calculate how many results we can still add
+		const spaceLeft = MAX_RESULTS - resultCount
+		const resultsToAdd = file.searchResults.slice(0, spaceLeft)
+		groupedResults[relativeFilePath].push(...resultsToAdd)
+		resultCount += resultsToAdd.length
 	})
 
 	for (const [filePath, fileResults] of Object.entries(groupedResults)) {

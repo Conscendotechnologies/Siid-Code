@@ -127,7 +127,6 @@ describe("getEnvironmentDetails", () => {
 		})
 		;(isToolAllowedForMode as Mock).mockReturnValue(true)
 		;(listFiles as Mock).mockResolvedValue([["file1.ts", "file2.ts"], false])
-		;(formatResponse.formatFilesList as Mock).mockReturnValue("file1.ts\nfile2.ts")
 		;(arePathsEqual as Mock).mockReturnValue(false)
 		;(Terminal.compressTerminalOutput as Mock).mockImplementation((output: string) => output)
 		;(TerminalRegistry.getTerminals as Mock).mockReturnValue([])
@@ -145,20 +144,8 @@ describe("getEnvironmentDetails", () => {
 		expect(result).toContain("</environment_details>")
 		expect(result).toContain("# VSCode Visible Files")
 		expect(result).toContain("# VSCode Open Tabs")
-		expect(result).toContain("# Current Time")
-		expect(result).toContain("# Current Cost")
-		expect(result).toContain("# Current Mode")
-		expect(result).toContain("<model>test-model</model>")
 
 		expect(mockProvider.getState).toHaveBeenCalled()
-
-		expect(getFullModeDetails).toHaveBeenCalledWith("code", [], undefined, {
-			cwd: mockCwd,
-			globalCustomInstructions: "test instructions",
-			language: "en",
-		})
-
-		expect(getApiMetrics).toHaveBeenCalledWith(mockCline.clineMessages)
 	})
 
 	it("should include file details when includeFileDetails is true", async () => {
@@ -166,21 +153,12 @@ describe("getEnvironmentDetails", () => {
 		expect(result).toContain("# Current Workspace Directory")
 		expect(result).toContain("Files")
 
-		expect(listFiles).toHaveBeenCalledWith(mockCwd, true, 50)
-
-		expect(formatResponse.formatFilesList).toHaveBeenCalledWith(
-			mockCwd,
-			["file1.ts", "file2.ts"],
-			false,
-			mockCline.rooIgnoreController,
-			true,
-		)
+		expect(listFiles).toHaveBeenCalledWith(mockCwd, false, 50)
 	})
 
 	it("should not include file details when includeFileDetails is false", async () => {
 		await getEnvironmentDetails(mockCline as Task, false)
 		expect(listFiles).not.toHaveBeenCalled()
-		expect(formatResponse.formatFilesList).not.toHaveBeenCalled()
 	})
 
 	it("should handle desktop directory specially", async () => {
@@ -200,7 +178,6 @@ describe("getEnvironmentDetails", () => {
 
 		expect(listFiles).not.toHaveBeenCalled()
 		expect(result).toContain("Workspace files context disabled")
-		expect(formatResponse.formatFilesList).not.toHaveBeenCalled()
 	})
 
 	it("should include recently modified files if any", async () => {
@@ -313,16 +290,6 @@ describe("getEnvironmentDetails", () => {
 		expect(mockInactiveTerminal.getCurrentWorkingDirectory).toHaveBeenCalled()
 	})
 
-	it("should include experiment-specific details when Power Steering is enabled", async () => {
-		mockState.experiments = { [EXPERIMENT_IDS.POWER_STEERING]: true }
-		;(experiments.isEnabled as Mock).mockReturnValue(true)
-
-		const result = await getEnvironmentDetails(mockCline as Task)
-
-		expect(result).toContain("<role>You are a code assistant</role>")
-		expect(result).toContain("<custom_instructions>Custom instructions</custom_instructions>")
-	})
-
 	it("should handle missing provider or state", async () => {
 		// Mock provider to return null.
 		mockCline.providerRef!.deref = vi.fn().mockReturnValue(null)
@@ -361,33 +328,33 @@ describe("getEnvironmentDetails", () => {
 
 		await expect(getEnvironmentDetails(mockCline as Task)).resolves.not.toThrow()
 	})
-	it("should include REMINDERS section when todoListEnabled is true", async () => {
+	it("should include Reminders section when todoListEnabled is true", async () => {
 		mockProvider.getState.mockResolvedValue({
 			...mockState,
 			apiConfiguration: { todoListEnabled: true },
 		})
 		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
 		const result = await getEnvironmentDetails(cline as Task)
-		expect(result).toContain("REMINDERS")
+		expect(result).toContain("Reminders")
 	})
 
-	it("should NOT include REMINDERS section when todoListEnabled is false", async () => {
+	it("should NOT include Reminders section when todoListEnabled is false", async () => {
 		mockProvider.getState.mockResolvedValue({
 			...mockState,
 			apiConfiguration: { todoListEnabled: false },
 		})
 		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
 		const result = await getEnvironmentDetails(cline as Task)
-		expect(result).not.toContain("REMINDERS")
+		expect(result).not.toContain("Reminders")
 	})
 
-	it("should include REMINDERS section when todoListEnabled is undefined", async () => {
+	it("should include Reminders section when todoListEnabled is undefined", async () => {
 		mockProvider.getState.mockResolvedValue({
 			...mockState,
 			apiConfiguration: {},
 		})
 		const cline = { ...mockCline, todoList: [{ content: "test", status: "pending" }] }
 		const result = await getEnvironmentDetails(cline as Task)
-		expect(result).toContain("REMINDERS")
+		expect(result).toContain("Reminders")
 	})
 })

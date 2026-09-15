@@ -1,6 +1,7 @@
 import * as path from "path"
 import * as vscode from "vscode"
 import os from "os"
+import fs from "fs/promises"
 import crypto from "crypto"
 import EventEmitter from "events"
 
@@ -240,6 +241,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	diffEnabled: boolean = false
 	fuzzyMatchThreshold: number
 	didEditFile: boolean = false
+
+	// State for delta updates
+	private previousEnvironmentDetails: Record<string, string> = {}
+	private previousPreTaskDetails: string = ""
 
 	// LLM Messages & Chat Messages
 	apiConversationHistory: ApiMessage[] = []
@@ -612,6 +617,31 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
+	private getAgedOutConversationHistory(): ApiMessage[] {
+		// create a deep copy
+		const historyCopy = JSON.parse(JSON.stringify(this.apiConversationHistory)) as ApiMessage[]
+
+		const endIndex = Math.max(0, historyCopy.length - 10) // Older than 5 turns
+
+		for (let i = 0; i < endIndex; i++) {
+			const message = historyCopy[i]
+			if (message.role === "user" && Array.isArray(message.content)) {
+				for (let j = 0; j < message.content.length; j++) {
+					const block = message.content[j]
+					if (block.type === "text" && block.text.match(/\[.*?\] Result:/)) {
+						const nextBlock = message.content[j + 1]
+						if (nextBlock && nextBlock.type === "text" && nextBlock.text.length > 2000) {
+							const turnsAgo = Math.floor((historyCopy.length - i) / 2)
+							nextBlock.text = `(Result omitted for brevity. Tool was used ${turnsAgo} turns ago.)`
+						}
+					}
+				}
+			}
+		}
+
+		return historyCopy
+	}
+
 	// Cline Messages
 
 	private async getSavedClineMessages(): Promise<ClineMessage[]> {
@@ -862,6 +892,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	public async condenseContext(isAutomaticTrigger = false, forcedApiHandler?: ApiHandler): Promise<boolean> {
+		this.previousEnvironmentDetails = {}
+		this.previousPreTaskDetails = ""
+
 		const systemPrompt = await this.getSystemPrompt()
 
 		// Get condensing configuration
@@ -1999,29 +2032,68 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			maxReadFileLine,
 		})
 
-		const environmentDetails = await getEnvironmentDetails(
+		let environmentDetails = await getEnvironmentDetails(
 			this,
 			provider?.contextProxy.globalStorageUri,
 			includeFileDetails,
 		)
 
+		// Compute environment details delta
+		const envContent = environmentDetails
+			.replace("<environment_details>\n", "")
+			.replace("\n</environment_details>", "")
+			.trim()
+
+		let processedEnvContent = envContent
+		if (processedEnvContent.startsWith("# ")) {
+			processedEnvContent = processedEnvContent.substring(2)
+		}
+		const envSections = processedEnvContent.split("\n\n# ").filter(Boolean)
+		let changedEnv = ""
+		const currentHeaders = new Set<string>()
+
+		for (const section of envSections) {
+			const header = section.split("\n")[0]
+			currentHeaders.add(header)
+			if (this.previousEnvironmentDetails[header] !== section) {
+				changedEnv += `\n\n# ${section}`
+				this.previousEnvironmentDetails[header] = section
+			}
+		}
+
+		// Check for removed sections (tombstones)
+		for (const [header, _] of Object.entries(this.previousEnvironmentDetails)) {
+			if (!currentHeaders.has(header)) {
+				changedEnv += `\n\n# ${header}\n(none)`
+				delete this.previousEnvironmentDetails[header]
+			}
+		}
+
+		environmentDetails = changedEnv.trim()
+			? `<environment_details>\n${changedEnv.trim()}\n</environment_details>`
+			: ""
+
 		const hasTodoList = Array.isArray(this.todoList) && this.todoList.length > 0
 		const state = await provider?.getState()
-		const preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, {
-			taskGuidesFetched: this.taskGuidesFetched,
-			hasTodoList,
-			cwd: this.cwd,
-			experiments: state?.experiments,
+		let preTaskDetails = await getPreTaskDetails(provider?.contextProxy.globalStorageUri, {
 			taskId: this.taskId,
 			planningFilePath: this.planningFilePath,
 		})
 
+		if (preTaskDetails === this.previousPreTaskDetails) {
+			preTaskDetails = ""
+		} else {
+			this.previousPreTaskDetails = preTaskDetails
+		}
+
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
-		const finalUserContent = [
-			...parsedUserContent,
-			{ type: "text" as const, text: preTaskDetails },
-			{ type: "text" as const, text: environmentDetails },
-		]
+		const finalUserContent: any[] = [...parsedUserContent]
+		if (preTaskDetails) {
+			finalUserContent.push({ type: "text" as const, text: preTaskDetails })
+		}
+		if (environmentDetails) {
+			finalUserContent.push({ type: "text" as const, text: environmentDetails })
+		}
 		console.log("Final user content:", finalUserContent)
 
 		await this.addToApiConversationHistory({ role: "user", content: finalUserContent })
@@ -2273,21 +2345,42 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 
 			if (inputTokens > 0 || outputTokens > 0 || cacheWriteTokens > 0 || cacheReadTokens > 0) {
+				const cost =
+					totalCost ??
+					calculateApiCostAnthropic(
+						this.api.getModel().info,
+						inputTokens,
+						outputTokens,
+						cacheWriteTokens,
+						cacheReadTokens,
+					)
+
 				TelemetryService.instance.captureLlmCompletion(this.taskId, {
 					inputTokens,
 					outputTokens,
 					cacheWriteTokens,
 					cacheReadTokens,
-					cost:
-						totalCost ??
-						calculateApiCostAnthropic(
-							this.api.getModel().info,
+					cost,
+				})
+
+				// Issue 3: Log per-turn metrics to a local file for developer validation
+				try {
+					// Let's just put it in the task folder.
+					const taskStorage = path.join(this.globalStoragePath, "tasks", this.taskId)
+					const taskMetricsPath = path.join(taskStorage, "metrics.jsonl")
+					const data =
+						JSON.stringify({
+							ts: Date.now(),
 							inputTokens,
 							outputTokens,
 							cacheWriteTokens,
 							cacheReadTokens,
-						),
-				})
+							cost,
+						}) + "\n"
+					await fs.appendFile(taskMetricsPath, data)
+				} catch (e) {
+					console.error("Failed to append metrics to task log", e)
+				}
 			}
 
 			// Need to call here in case the stream was aborted.
@@ -2716,9 +2809,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}
 		}
 
-		const cleanConversationHistory = maybeRemoveImageBlocks(this.apiConversationHistory, this.api).map(
-			({ role, content }) => ({ role, content }),
-		)
+		const agedOutHistory = this.getAgedOutConversationHistory()
+
+		const cleanConversationHistory = maybeRemoveImageBlocks(agedOutHistory, this.api).map(({ role, content }) => ({
+			role,
+			content,
+		}))
 
 		// Check auto-approval limits
 		const approvalResult = await this.autoApprovalHandler.checkAutoApprovalLimits(

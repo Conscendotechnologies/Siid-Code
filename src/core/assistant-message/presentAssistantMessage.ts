@@ -77,12 +77,12 @@ export async function presentAssistantMessage(cline: Task) {
 	cline.presentAssistantMessageHasPendingUpdates = false
 
 	// Check if multiple tool calls per message experiment is enabled
-	const multiToolProvider = cline.providerRef.deref()
-	let isMultipleToolCallsEnabled = false
-	if (multiToolProvider) {
-		const state = await multiToolProvider.getState()
-		isMultipleToolCallsEnabled = experiments.isEnabled(state.experiments ?? {}, EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS)
-	}
+	const multiToolProvider = cline.providerRef?.deref()
+	const state = multiToolProvider ? await multiToolProvider.getState() : ({} as any)
+	const isMultipleToolCallsEnabled = experiments.isEnabled(
+		state.experiments ?? {},
+		EXPERIMENT_IDS.MULTIPLE_TOOL_CALLS,
+	)
 
 	if (cline.currentStreamingContentIndex >= cline.assistantMessageContent.length) {
 		// This may happen if the last content block was completed before
@@ -272,6 +272,8 @@ export async function presentAssistantMessage(cline: Task) {
 					}
 					case "retrieve_sf_metadata":
 						return `[${block.name} for '${block.params.metadata_type}'${block.params.metadata_name ? `: ${block.params.metadata_name}` : " (all)"}]`
+					case "invalid_tool_tag_mismatch" as any:
+						return `[invalid_tool_tag_mismatch]`
 					default:
 						return `[${block.name}]`
 				}
@@ -305,6 +307,12 @@ export async function presentAssistantMessage(cline: Task) {
 				break
 			}
 
+			// Immediately mark that a tool has been dispatched in this message.
+			// When multiple tool calls are enabled, this flag is still set but won't block subsequent tools.
+			if (!block.partial) {
+				cline.didAlreadyUseTool = true
+			}
+
 			const pushToolResult = (content: ToolResponse) => {
 				cline.userMessageContent.push({ type: "text", text: `${toolDescription()} Result:` })
 
@@ -313,11 +321,6 @@ export async function presentAssistantMessage(cline: Task) {
 				} else {
 					cline.userMessageContent.push(...content)
 				}
-
-				// Once a tool result has been collected, mark that a tool has
-				// been used. When multiple tool calls are enabled, this flag
-				// is still set but won't block subsequent tools.
-				cline.didAlreadyUseTool = true
 			}
 
 			const askApproval = async (
@@ -400,6 +403,14 @@ export async function presentAssistantMessage(cline: Task) {
 				)
 
 				return text.replace(tagRegex, "")
+			}
+
+			if ((block.name as any) === "invalid_tool_tag_mismatch") {
+				cline.consecutiveMistakeCount++
+				pushToolResult(
+					formatResponse.toolError("Invalid tool tag mismatch. Closing tag did not match opening tag."),
+				)
+				break
 			}
 
 			if (block.name !== "browser_action") {
@@ -645,6 +656,10 @@ export async function presentAssistantMessage(cline: Task) {
 						pushToolResult,
 						removeClosingTag,
 					)
+					break
+
+				default:
+					await handleError("executing tool", new Error(`Tool ${block.name} is not supported.`))
 					break
 			}
 
