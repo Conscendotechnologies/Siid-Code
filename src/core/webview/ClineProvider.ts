@@ -1590,48 +1590,31 @@ export class ClineProvider
 
 	// this function deletes a task from task hidtory, and deletes it's checkpoints and delete the task folder
 	async deleteTaskWithId(id: string) {
+		if (id === this.getCurrentCline()?.taskId) {
+			await this.finishSubTask(t("common:tasks.deleted"))
+		}
+
+		await this.deleteTaskFromState(id)
+
+		const { getTaskDirectoryPath } = await import("../../utils/storage")
+		const globalStorageDir = this.contextProxy.globalStorageUri.fsPath
+		const workspaceDir = this.cwd
+		const taskDirPath = await getTaskDirectoryPath(globalStorageDir, id)
+
 		try {
-			// get the task directory full path
-			const { taskDirPath } = await this.getTaskWithId(id)
-
-			// remove task from stack if it's the current task
-			if (id === this.getCurrentCline()?.taskId) {
-				// if we found the taskid to delete - call finish to abort this task and allow a new task to be started,
-				// if we are deleting a subtask and parent task is still waiting for subtask to finish - it allows the parent to resume (this case should neve exist)
-				await this.finishSubTask(t("common:tasks.deleted"))
-			}
-
-			// delete task from the task history state
-			await this.deleteTaskFromState(id)
-
-			// Delete associated shadow repository or branch.
-			// TODO: Store `workspaceDir` in the `HistoryItem` object.
-			const globalStorageDir = this.contextProxy.globalStorageUri.fsPath
-			const workspaceDir = this.cwd
-
-			try {
-				await ShadowCheckpointService.deleteTask({ taskId: id, globalStorageDir, workspaceDir })
-			} catch (error) {
-				console.error(
-					`[deleteTaskWithId${id}] failed to delete associated shadow repository or branch: ${error instanceof Error ? error.message : String(error)}`,
-				)
-			}
-
-			// delete the entire task directory including checkpoints and all content
-			try {
-				await fs.rm(taskDirPath, { recursive: true, force: true })
-			} catch (error) {
-				console.error(
-					`[deleteTaskWithId${id}] failed to remove task directory: ${error instanceof Error ? error.message : String(error)}`,
-				)
-			}
+			await ShadowCheckpointService.deleteTask({ taskId: id, globalStorageDir, workspaceDir })
 		} catch (error) {
-			// If task is not found, just remove it from state
-			if (error instanceof Error && error.message === "Task not found") {
-				await this.deleteTaskFromState(id)
-				return
-			}
-			throw error
+			console.error(
+				`[deleteTaskWithId${id}] failed to delete associated shadow repository or branch: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
+
+		try {
+			await fs.rm(taskDirPath, { recursive: true, force: true })
+		} catch (error) {
+			console.error(
+				`[deleteTaskWithId${id}] failed to remove task directory: ${error instanceof Error ? error.message : String(error)}`,
+			)
 		}
 	}
 
