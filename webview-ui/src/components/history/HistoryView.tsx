@@ -234,7 +234,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 					data-testid="virtuoso-container"
 					initialTopMostItemIndex={0}
 					components={{
-						List: React.forwardRef((props, ref) => (
+						List: React.forwardRef(({ context, ...props }: any, ref) => (
 							<div {...props} ref={ref} data-testid="virtuoso-item-list" />
 						)),
 					}}

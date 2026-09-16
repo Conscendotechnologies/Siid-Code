@@ -1596,10 +1596,11 @@ export class ClineProvider
 
 		await this.deleteTaskFromState(id)
 
-		const { getTaskDirectoryPath } = await import("../../utils/storage")
+		const { getStorageBasePath } = await import("../../utils/storage")
 		const globalStorageDir = this.contextProxy.globalStorageUri.fsPath
 		const workspaceDir = this.cwd
-		const taskDirPath = await getTaskDirectoryPath(globalStorageDir, id)
+		const basePath = await getStorageBasePath(globalStorageDir)
+		const taskDirPath = path.join(basePath, "tasks", id)
 
 		try {
 			await ShadowCheckpointService.deleteTask({ taskId: id, globalStorageDir, workspaceDir })
