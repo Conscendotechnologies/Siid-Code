@@ -226,21 +226,26 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 				<Virtuoso
 					className="flex-1 overflow-y-scroll"
 					data={tasks}
+					context={{
+						isSelectionMode,
+						selectedTaskIds,
+						showAllWorkspaces,
+					}}
 					data-testid="virtuoso-container"
 					initialTopMostItemIndex={0}
 					components={{
-						List: React.forwardRef((props, ref) => (
+						List: React.forwardRef(({ context, ...props }: any, ref) => (
 							<div {...props} ref={ref} data-testid="virtuoso-item-list" />
 						)),
 					}}
-					itemContent={(_index, item) => (
+					itemContent={(_index, item, context) => (
 						<TaskItem
 							key={item.id}
 							item={item}
 							variant="full"
-							showWorkspace={showAllWorkspaces}
-							isSelectionMode={isSelectionMode}
-							isSelected={selectedTaskIds.includes(item.id)}
+							showWorkspace={context.showAllWorkspaces}
+							isSelectionMode={context.isSelectionMode}
+							isSelected={context.selectedTaskIds.includes(item.id)}
 							onToggleSelection={toggleTaskSelection}
 							onDelete={setDeleteTaskId}
 							className="m-2"
