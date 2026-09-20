@@ -18,12 +18,14 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "./preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
+@import "./components/sfaio/theme/nocturne.css" layer(base);
 @import "katex/dist/katex.min.css";
 
 @plugin "tailwindcss-animate";
 
 @theme {
-	--font-display: var(--vscode-font-family);
+	--font-display: "Inter", var(--vscode-font-family);
+	--font-mono: "JetBrains Mono", var(--vscode-editor-font-family);
 
 	--text-xs: calc(var(--vscode-font-size) * 0.85);
 	--text-sm: calc(var(--vscode-font-size) * 0.9);

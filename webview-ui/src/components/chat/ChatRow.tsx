@@ -468,7 +468,7 @@ export const ChatRowContent = ({
 									fontSize: "11px",
 									color: "var(--vscode-descriptionForeground)",
 									fontFamily: "monospace",
-									border: `1px solid ${isFileHover ? "#007ACC" : "var(--vscode-sideBar-border)"}`,
+									border: `1px solid ${isFileHover ? "var(--color-accent)" : "var(--vscode-sideBar-border)"}`,
 									borderRadius: "3px",
 									padding: "2px 6px",
 									background: isFileHover
@@ -644,7 +644,7 @@ export const ChatRowContent = ({
 									fontSize: "11px",
 									color: "var(--vscode-descriptionForeground)",
 									fontFamily: "monospace",
-									border: `1px solid ${isFileHover ? "#007ACC" : "var(--vscode-sideBar-border)"}`,
+									border: `1px solid ${isFileHover ? "var(--color-accent)" : "var(--vscode-sideBar-border)"}`,
 									borderRadius: "3px",
 									padding: "2px 6px",
 									background: isFileHover

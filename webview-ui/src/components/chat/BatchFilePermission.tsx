@@ -40,7 +40,7 @@ export const BatchFilePermission = memo(({ files = [], onPermissionResponse, ts 
 								fontSize: "11px",
 								color: "var(--vscode-descriptionForeground)",
 								fontFamily: "monospace",
-								border: `1px solid ${isHovered ? "#007ACC" : "var(--vscode-sideBar-border)"}`,
+								border: `1px solid ${isHovered ? "var(--color-accent)" : "var(--vscode-sideBar-border)"}`,
 								borderRadius: "3px",
 								padding: "2px 6px",
 								background: isHovered ? "rgba(0, 122, 204, 0.1)" : "var(--vscode-sideBar-background)",

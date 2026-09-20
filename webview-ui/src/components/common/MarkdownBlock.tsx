@@ -31,7 +31,7 @@ const StyledMarkdown = styled.div`
 	body[data-vscode-theme-kind="vscode-high-contrast"] & code:not(pre > code) {
 		color: var(
 			--vscode-editorInlayHint-foreground,
-			var(--vscode-symbolIcon-stringForeground, var(--vscode-charts-orange, #e9a700))
+			var(--vscode-symbolIcon-stringForeground, var(--vscode-charts-orange, var(--state-attention-fg)))
 		);
 	}
 
