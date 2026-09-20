@@ -424,12 +424,17 @@ export async function presentAssistantMessage(cline: Task) {
 
 			// Validate tool use before execution.
 			const { mode, customModes } = (await cline.providerRef.deref()?.getState()) ?? {}
+			// SFAIO: prefer the task's own mode + overlay.
+			const effectiveMode = (await cline.getTaskMode()) || mode || defaultModeSlug
+			const effectiveCustomModes = cline.customModesOverlay
+				? [...(customModes ?? []), ...cline.customModesOverlay]
+				: customModes
 
 			try {
 				validateToolUse(
 					block.name as ToolName,
-					mode ?? defaultModeSlug,
-					customModes ?? [],
+					effectiveMode,
+					effectiveCustomModes ?? [],
 					{ apply_diff: cline.diffEnabled },
 					block.params,
 				)

@@ -32,6 +32,7 @@ import {
 	DEFAULT_CONSECUTIVE_MISTAKE_LIMIT,
 	isBlockingAsk,
 	ANTHROPIC_DEFAULT_MAX_TOKENS,
+	type ModeConfig,
 } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
 import { CloudService } from "@roo-code/cloud"
@@ -115,7 +116,10 @@ import { summarizeConversation, MIN_CONDENSE_THRESHOLD, MAX_CONDENSE_THRESHOLD }
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoListTool"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
-
+import { SfaioAutoApproval } from "../../services/sfaio/types"
+import { evaluateSfaioApproval } from "../../services/sfaio/agents/approval"
+import { HeadlessEditProvider } from "../../services/sfaio/edit/HeadlessEditProvider"
+import { EditSurface } from "../../integrations/editor/EditSurface"
 const MAX_EXPONENTIAL_BACKOFF_SECONDS = 600 // 10 minutes
 
 export type TaskOptions = {
@@ -135,6 +139,15 @@ export type TaskOptions = {
 	taskNumber?: number
 	onCreated?: (task: Task) => void
 	planningFilePath?: string
+	// SFAIO: per-task overrides so concurrent agents don't share global state.
+	mode?: string
+	customModesOverlay?: ModeConfig[]
+	headless?: boolean
+	autoApprovalOverride?: SfaioAutoApproval
+	allowedFiles?: string[]
+	/** The run's target org alias. Read by the deploy/retrieve tools (Phase 2 §2.10)
+	 *  so `--target-org` is bound per run instead of following the CLI default. */
+	sfaioTargetOrg?: string
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -203,6 +216,25 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private pauseInterval: NodeJS.Timeout | undefined
 	private isLoopRunning: boolean = false
 	planningFilePath?: string
+	allowedFiles?: string[]
+
+	private _modeOverride?: string
+	private _customModesOverlay?: ModeConfig[]
+	private _headless = false
+	private _autoApprovalOverride?: SfaioAutoApproval
+	public sfaioTargetOrg?: string
+
+	public get isHeadless(): boolean {
+		return this._headless
+	}
+
+	public get customModesOverlay(): ModeConfig[] | undefined {
+		return this._customModesOverlay
+	}
+
+	public get autoApprovalOverride(): SfaioAutoApproval | undefined {
+		return this._autoApprovalOverride
+	}
 
 	// API
 	readonly apiConfiguration: ProviderSettings
@@ -236,7 +268,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	browserSession: BrowserSession
 
 	// Editing
-	diffViewProvider: DiffViewProvider
+	diffViewProvider: EditSurface
 	diffStrategy?: DiffStrategy
 	diffEnabled: boolean = false
 	fuzzyMatchThreshold: number
@@ -312,8 +344,20 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		taskNumber = -1,
 		onCreated,
 		planningFilePath,
+		mode,
+		customModesOverlay,
+		headless = false,
+		autoApprovalOverride,
+		allowedFiles,
+		sfaioTargetOrg,
 	}: TaskOptions) {
 		super()
+
+		this._modeOverride = mode
+		this._customModesOverlay = customModesOverlay
+		this._headless = headless ?? false
+		this._autoApprovalOverride = autoApprovalOverride
+		this.sfaioTargetOrg = sfaioTargetOrg
 
 		if (startTask && !task && !images && !historyItem) {
 			throw new Error("Either historyItem or task/images must be provided")
@@ -348,13 +392,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.consecutiveMistakeLimit = consecutiveMistakeLimit ?? DEFAULT_CONSECUTIVE_MISTAKE_LIMIT
 		this.providerRef = new WeakRef(provider)
 		this.globalStoragePath = provider.context.globalStorageUri.fsPath
-		this.diffViewProvider = new DiffViewProvider(this.cwd, this)
+		// SFAIO: background agents write files without opening editor tabs.
+		this.diffViewProvider = this._headless
+			? new HeadlessEditProvider(this.cwd, this)
+			: new DiffViewProvider(this.cwd, this)
 		this.enableCheckpoints = enableCheckpoints
 
 		this.rootTask = rootTask
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
 		this.planningFilePath = planningFilePath
+		this.allowedFiles = allowedFiles
 
 		// Store the task's mode when it's created.
 		// For history items, use the stored mode; for new tasks, we'll set it
@@ -435,6 +483,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	 * @returns Promise that resolves when initialization is complete
 	 */
 	private async initializeTaskMode(provider: ClineProvider): Promise<void> {
+		// SFAIO: an explicit mode override always wins — background agents must not
+		// inherit whatever mode the user has selected in the UI.
+		if (this._modeOverride) {
+			this._taskMode = this._modeOverride
+			return
+		}
 		try {
 			const state = await provider.getState()
 			this._taskMode = state?.mode || defaultModeSlug
@@ -651,7 +705,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private async addToClineMessages(message: ClineMessage) {
 		this.clineMessages.push(message)
 		const provider = this.providerRef.deref()
-		await provider?.postStateToWebview()
+		// SFAIO: background tasks do not post to the webview
+		if (!this._autoApprovalOverride) {
+			await provider?.postStateToWebview()
+		}
 		this.emit(RooCodeEventName.Message, { action: "created", message })
 		await this.saveClineMessages()
 
@@ -680,7 +737,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.lastReasoningUpdateTs = now
 		}
 		const provider = this.providerRef.deref()
-		await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
+		// SFAIO: background tasks do not post to the webview
+		if (!this._autoApprovalOverride) {
+			await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
+		}
 		this.emit(RooCodeEventName.Message, { action: "updated", message })
 
 		const shouldCaptureMessage = message.partial !== true && CloudService.isEnabled()
@@ -724,6 +784,44 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
+	private resolveBackgroundAsk(
+		type: ClineAsk,
+		text?: string,
+	): { response: ClineAskResponse; text?: string; images?: string[] } {
+		switch (type) {
+			// Completion: accept and stop. Never route through finishSubTask.
+			case "completion_result":
+				return { response: "yesButtonClicked" }
+
+			// Retry provider failures here; the run-level budget still applies.
+			case "api_req_failed":
+				return { response: "yesButtonClicked" }
+
+			// Long-running command: keep waiting rather than killing a deploy.
+			case "command_output":
+				return { response: "yesButtonClicked" }
+
+			// Policy-gated tool approval (§0.5).
+			case "tool":
+			case "command":
+			case "browser_action_launch":
+			case "use_mcp_server":
+				return evaluateSfaioApproval(this._autoApprovalOverride!, type, text).approved
+					? { response: "yesButtonClicked" }
+					: { response: "noButtonClicked" }
+
+			// These mean the agent is stuck or over budget. Refuse, so the loop
+			// unwinds and the DevAgent wrapper turns it into an escalation.
+			case "auto_approval_max_req_reached":
+			case "mistake_limit_reached":
+			case "followup":
+			case "resume_task":
+			case "resume_completed_task":
+			default:
+				return { response: "noButtonClicked" }
+		}
+	}
+
 	// Note that `partial` has three valid states true (partial message),
 	// false (completion of partial message), undefined (individual complete
 	// message).
@@ -744,6 +842,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// still alive until this promise resolves or rejects.)
 		if (this.abort) {
 			throw new Error(`[RooCode#ask] task ${this.taskId}.${this.instanceId} aborted`)
+		}
+
+		// SFAIO: background agents have no webview to answer them. An ask here would
+		// wait forever (the pWaitFor below is untimed). Resolve deterministically
+		// instead: approve what policy allows, escalate everything else.
+		if (this._autoApprovalOverride) {
+			return this.resolveBackgroundAsk(type, text)
 		}
 
 		let askTs: number
@@ -2428,7 +2533,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			updateApiReqMsg()
 			await this.saveClineMessages()
-			await this.providerRef.deref()?.postStateToWebview()
+			if (!this._autoApprovalOverride) {
+				await this.providerRef.deref()?.postStateToWebview()
+			}
 
 			// Reset parser after each complete conversation round
 			if (this.assistantMessageParser) {
@@ -2591,6 +2698,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			apiConfiguration,
 		} = state ?? {}
 
+		// SFAIO: use this task's own mode and mode overlay, not the global selection.
+		const effectiveMode = this._modeOverride ?? mode
+		const effectiveCustomModes = this._customModesOverlay
+			? [...(customModes ?? []), ...this._customModesOverlay]
+			: customModes
+
 		return await (async () => {
 			const provider = this.providerRef.deref()
 
@@ -2605,9 +2718,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				mcpHub,
 				this.diffStrategy,
 				browserViewportSize,
-				mode,
+				effectiveMode,
 				customModePrompts,
-				customModes,
+				effectiveCustomModes,
 				customInstructions,
 				this.diffEnabled,
 				experiments,

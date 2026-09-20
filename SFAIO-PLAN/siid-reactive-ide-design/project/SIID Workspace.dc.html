@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="_ds/nocturne-64cca173-5f0f-4540-b919-674fa0c9a8fd/styles.css">
+<script src="_ds/nocturne-64cca173-5f0f-4540-b919-674fa0c9a8fd/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+html, body { margin: 0; padding: 0; background: #101220; }
+a { color: var(--color-accent-300); text-decoration: none; }
+a:hover { color: var(--color-accent); }
+textarea::selection { background: rgba(145,132,217,0.28); }
+@keyframes siidScan { 0% { transform: translateY(0); } 100% { transform: translateY(100vh); } }
+@keyframes siidSpin { to { transform: rotate(360deg); } }
+@keyframes siidPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes siidBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.15; } }
+@keyframes siidDash { to { stroke-dashoffset: -18; } }
+@keyframes siidRise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes siidSweep { 0% { opacity: 0; transform: translateX(-100%); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(100%); } }
+@keyframes siidRing { 0% { r: 16; opacity: 0.55; } 100% { r: 34; opacity: 0; } }
+</style>
+</helmet>
+
+<div data-siid-stage="1" style="position:relative;width:100%;height:100vh;overflow:hidden;background:#101220;"><div data-screen-label="SIID Workspace" style="position:absolute;top:50%;left:50%;transform:translate(-50%, -50%) scale({{ scale }});display:flex;flex-direction:column;width:1440px;height:900px;overflow:hidden;background:radial-gradient(1200px 600px at 18% -10%, #1d2038 0%, #161826 45%, #101220 100%);color:var(--color-text);font-family:var(--font-body);font-size:13px;">
+
+  <sc-if value="{{ scanlines }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;pointer-events:none;z-index:60;background-image:repeating-linear-gradient(to bottom, rgba(145,132,217,0.035) 0px, rgba(145,132,217,0.035) 1px, transparent 1px, transparent 3px);"></div>
+  </sc-if>
+  <div style="position:absolute;left:0;right:0;top:0;height:120px;pointer-events:none;z-index:61;background:linear-gradient(to bottom, rgba(145,132,217,0) 0%, rgba(145,132,217,0.07) 60%, rgba(145,132,217,0) 100%);animation:siidScan 9s linear infinite;"></div>
+
+  <div style="position:relative;z-index:10;display:flex;align-items:center;gap:14px;height:44px;flex:0 0 44px;padding:0 14px;border-bottom:1px solid var(--color-neutral-800);background:rgba(22,24,38,0.86);backdrop-filter:blur(8px);">
+    <div style="display:flex;align-items:center;gap:9px;">
+      <div style="position:relative;width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--color-accent);border-radius:6px;box-shadow:0 0 14px rgba(145,132,217,0.35) inset;">
+        <div style="width:6px;height:6px;background:var(--color-accent);border-radius:50%;animation:siidPulse 2.4s ease-in-out infinite;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;line-height:1.1;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.22em;color:var(--color-text);">SIID</span>
+        <span style="font-size:8px;letter-spacing:0.16em;color:var(--color-neutral-400);text-transform:uppercase;">Salesforce Intelligence</span>
+      </div>
+    </div>
+
+    <div style="width:1px;height:20px;background:var(--color-neutral-800);"></div>
+
+    <div style="display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-neutral-300);min-width:0;flex:0 1 auto;overflow:hidden;">
+      <span style="color:var(--color-neutral-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">force-app/main/default/classes/</span>
+      <span style="color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto;">AccountEnrichmentService.cls</span>
+      <sc-if value="{{ dirty }}" hint-placeholder-val="{{ true }}">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--color-accent);box-shadow:0 0 8px var(--color-accent);"></span>
+      </sc-if>
+    </div>
+
+    <div style="flex:1 1 auto;"></div>
+
+    <sc-if value="{{ collabOn }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <sc-for list="{{ peers }}" as="p" hint-placeholder-count="2">
+          <div title="{{ p.name }}" style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;color:#101220;background:{{ p.color }};">{{ p.initials }}</div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;padding:4px 10px;border:1px solid var(--color-neutral-700);border-radius:var(--radius-sm);background:var(--color-neutral-900);font-family:'JetBrains Mono',monospace;font-size:11px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:oklch(0.78 0.13 150);box-shadow:0 0 8px oklch(0.78 0.13 150);animation:siidPulse 2.8s ease-in-out infinite;"></span>
+      <span style="color:var(--color-neutral-200);">{{ orgName }}</span>
+      <span style="color:var(--color-neutral-500);">v{{ apiVersion }}</span>
+    </div>
+
+    <button onClick="{{ openPalette }}" style="display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--color-neutral-700);border-radius:var(--radius-sm);background:transparent;color:var(--color-neutral-400);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;" style-hover="border-color:var(--color-accent);color:var(--color-accent-200);">
+      <i class="ph ph-magnifying-glass" style="font-size:13px;"></i>
+      <span>Command</span>
+      <span style="padding:1px 5px;border:1px solid var(--color-neutral-700);border-radius:4px;font-size:10px;">⌘K</span>
+    </button>
+
+    <button class="btn btn-primary" onClick="{{ deploy }}" style="display:flex;align-items:center;gap:7px;font-size:12px;">
+      <sc-if value="{{ deploying }}" hint-placeholder-val="{{ false }}">
+        <span style="width:11px;height:11px;border:1.5px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:siidSpin 0.7s linear infinite;"></span>
+      </sc-if>
+      <sc-if value="{{ notDeploying }}" hint-placeholder-val="{{ true }}">
+        <i class="ph ph-cloud-arrow-up" style="font-size:14px;"></i>
+      </sc-if>
+      <span>{{ deployLabel }}</span>
+    </button>
+  </div>
+
+  <div style="position:relative;z-index:5;flex:1 1 auto;display:flex;min-height:0;">
+
+    <div style="flex:0 0 52px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 0;border-right:1px solid var(--color-neutral-800);background:rgba(18,20,32,0.7);">
+      <sc-for list="{{ activity }}" as="a" hint-placeholder-count="6">
+        <button onClick="{{ a.onPick }}" title="{{ a.label }}" style="width:40px;height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;border-radius:var(--radius-sm);background:{{ a.bg }};color:{{ a.fg }};cursor:pointer;position:relative;" style-hover="background:var(--color-neutral-800);">
+          <i class="{{ a.icon }}" style="font-size:17px;"></i>
+          <span style="font-size:7px;letter-spacing:0.06em;text-transform:uppercase;">{{ a.short }}</span>
+        </button>
+      </sc-for>
+      <div style="flex:1 1 auto;"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--color-neutral-600);writing-mode:vertical-rl;letter-spacing:0.2em;">FORGE</div>
+    </div>
+
+    <div style="flex:0 0 240px;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--color-neutral-800);background:rgba(20,22,34,0.55);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px 7px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-400);">
+        <span>{{ panelTitle }}</span>
+        <i class="ph ph-arrows-clockwise" style="font-size:12px;color:var(--color-neutral-500);"></i>
+      </div>
+      <div style="flex:1 1 auto;overflow-y:auto;padding:0 6px 10px;">
+        <sc-for list="{{ tree }}" as="t" hint-placeholder-count="12">
+          <div onClick="{{ t.onPick }}" style="display:flex;align-items:center;gap:7px;padding:4px 8px;padding-left:{{ t.indent }}px;border-radius:5px;cursor:pointer;font-size:12px;color:{{ t.fg }};background:{{ t.bg }};" style-hover="background:var(--color-neutral-800);">
+            <i class="{{ t.icon }}" style="font-size:13px;color:{{ t.iconFg }};flex:0 0 auto;"></i>
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.label }}</span>
+            <span style="flex:1 1 auto;"></span>
+            <sc-if value="{{ t.badge }}" hint-placeholder-val="{{ false }}">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:{{ t.badgeFg }};">{{ t.badge }}</span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border-top:1px solid var(--color-neutral-800);padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;justify-content:space-between;"><span>schema cache</span><span style="color:var(--color-neutral-300);">{{ schemaAge }}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>sf cli</span><span style="color:oklch(0.78 0.13 150);">ready</span></div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 auto;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:stretch;height:34px;flex:0 0 34px;min-width:0;overflow:hidden;border-bottom:1px solid var(--color-neutral-800);background:rgba(18,20,32,0.6);">
+        <div style="display:flex;align-items:center;gap:8px;padding:0 14px;border-right:1px solid var(--color-neutral-800);border-top:1px solid var(--color-accent);background:var(--color-neutral-900);font-size:12px;">
+          <i class="ph ph-file-code" style="font-size:13px;color:var(--color-accent-200);"></i>
+          <span>AccountEnrichmentService.cls</span>
+          <span style="width:5px;height:5px;border-radius:50%;background:var(--color-accent);"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:0 14px;border-right:1px solid var(--color-neutral-800);font-size:12px;color:var(--color-neutral-500);">
+          <i class="ph ph-file-code" style="font-size:13px;"></i>
+          <span>accountCard.js</span>
+        </div>
+        <div style="flex:1 1 auto;"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:0 14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">
+          <span>Apex</span><span>UTF-8</span><span>Ln {{ curLine }}, Col {{ curCol }}</span>
+        </div>
+      </div>
+
+      <div style="flex:1 1 auto;min-height:0;overflow:auto;position:relative;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:20px;">
+        <div style="position:relative;min-height:100%;padding:8px 0 40px;">
+          <div style="position:absolute;left:0;top:8px;width:100%;height:{{ curTopH }}px;pointer-events:none;"></div>
+          <div style="position:absolute;left:60px;right:0;top:{{ curTop }}px;height:20px;background:rgba(145,132,217,0.055);border-left:2px solid var(--color-accent);pointer-events:none;"></div>
+
+          <sc-for list="{{ lines }}" as="ln" hint-placeholder-count="26">
+            <div style="display:flex;flex-wrap:nowrap;height:20px;">
+              <span style="flex:0 0 40px;width:40px;text-align:right;color:var(--color-neutral-600);font-size:11px;user-select:none;">{{ ln.n }}</span>
+              <span style="flex:0 0 20px;width:20px;text-align:center;user-select:none;">
+                <sc-if value="{{ ln.isErr }}" hint-placeholder-val="{{ false }}">
+                  <i class="ph ph-warning-octagon" style="font-size:12px;color:oklch(0.68 0.19 22);"></i>
+                </sc-if>
+                <sc-if value="{{ ln.isWarn }}" hint-placeholder-val="{{ false }}">
+                  <i class="ph ph-warning" style="font-size:12px;color:oklch(0.80 0.14 85);"></i>
+                </sc-if>
+                <sc-if value="{{ ln.isCov }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:inline-block;width:3px;height:14px;border-radius:2px;background:oklch(0.70 0.12 150);vertical-align:middle;"></span>
+                </sc-if>
+              </span>
+              <span style="flex:1 1 auto;min-width:0;display:flex;flex-wrap:nowrap;"><sc-for list="{{ ln.tokens }}" as="tk" hint-placeholder-count="6"><span style="white-space:pre;flex:0 0 auto;color:{{ tk.color }};">{{ tk.t }}</span></sc-for></span>
+            </div>
+          </sc-for>
+
+          <sc-for list="{{ squiggles }}" as="sq" hint-placeholder-count="0">
+            <div style="position:absolute;left:{{ sq.left }}px;top:{{ sq.top }}px;width:{{ sq.width }}px;height:0;border-bottom:2px dotted {{ sq.color }};pointer-events:none;"></div>
+          </sc-for>
+
+          <sc-if value="{{ collabOn }}" hint-placeholder-val="{{ true }}">
+            <div style="position:absolute;left:{{ peerLeft }}px;top:{{ peerTop }}px;pointer-events:none;transition:top 0.5s cubic-bezier(0.2,0.8,0.2,1), left 0.5s cubic-bezier(0.2,0.8,0.2,1);">
+              <div style="width:2px;height:20px;background:{{ peerColor }};box-shadow:0 0 8px {{ peerColor }};"></div>
+              <div style="position:absolute;top:-15px;left:0;white-space:nowrap;padding:1px 5px;border-radius:4px 4px 4px 0;font-size:9px;font-family:var(--font-body);color:#101220;background:{{ peerColor }};">{{ peerName }}</div>
+            </div>
+          </sc-if>
+
+          <textarea value="{{ code }}" onChange="{{ onCode }}" onKeyUp="{{ onCaret }}" onClick="{{ onCaret }}" spellcheck="false" style="position:absolute;left:60px;top:8px;width:calc(100% - 60px);height:{{ codeH }}px;margin:0;padding:0;border:0;outline:none;resize:none;overflow:hidden;background:transparent;color:transparent;caret-color:var(--color-accent);font-family:'JetBrains Mono',monospace;font-size:13px;line-height:20px;white-space:pre;"></textarea>
+        </div>
+      </div>
+
+      <div style="flex:0 0 auto;border-top:1px solid var(--color-neutral-800);background:rgba(18,20,32,0.8);display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:2px;padding:0 8px;height:32px;flex:0 0 32px;">
+          <sc-for list="{{ bottomTabs }}" as="b" hint-placeholder-count="3">
+            <button onClick="{{ b.onPick }}" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:0;border-radius:5px;background:{{ b.bg }};color:{{ b.fg }};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;font-family:var(--font-body);">
+              <span>{{ b.label }}</span>
+              <sc-if value="{{ b.count }}" hint-placeholder-val="{{ false }}">
+                <span style="padding:0 5px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#101220;background:{{ b.countBg }};">{{ b.count }}</span>
+              </sc-if>
+            </button>
+          </sc-for>
+          <div style="flex:1 1 auto;"></div>
+          <button onClick="{{ runTests }}" class="btn btn-ghost" style="font-size:11px;display:flex;align-items:center;gap:6px;">
+            <i class="ph ph-flask" style="font-size:13px;"></i>
+            <span>{{ testLabel }}</span>
+          </button>
+        </div>
+
+        <div style="height:172px;flex:0 0 172px;overflow-y:auto;padding:2px 14px 12px;">
+          <sc-if value="{{ showProblems }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <sc-for list="{{ diagnostics }}" as="d" hint-placeholder-count="4">
+                <div onClick="{{ d.onGo }}" style="display:flex;align-items:flex-start;gap:9px;padding:6px 8px;border-radius:5px;cursor:pointer;animation:siidRise 0.22s ease-out;" style-hover="background:var(--color-neutral-800);">
+                  <i class="{{ d.icon }}" style="font-size:13px;color:{{ d.color }};margin-top:1px;flex:0 0 auto;"></i>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ d.color }};flex:0 0 62px;">{{ d.code }}</span>
+                  <span style="flex:1 1 auto;min-width:0;color:var(--color-neutral-200);font-size:12px;text-wrap:pretty;">{{ d.msg }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);flex:0 0 auto;">Ln {{ d.line }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ clean }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:9px;padding:10px 8px;color:oklch(0.78 0.13 150);font-size:12px;">
+                  <i class="ph ph-check-circle" style="font-size:15px;"></i>
+                  <span>No problems. Class is bulkified and deploy-safe.</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showConsole }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:2px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+              <sc-for list="{{ logLines }}" as="l" hint-placeholder-count="0">
+                <div style="display:flex;gap:10px;animation:siidRise 0.2s ease-out;">
+                  <span style="color:var(--color-neutral-600);flex:0 0 54px;">{{ l.t }}</span>
+                  <span style="color:{{ l.color }};white-space:pre-wrap;">{{ l.text }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ busy }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <span style="color:var(--color-neutral-600);flex:0 0 54px;">···</span>
+                  <span style="width:9px;height:9px;border:1.5px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:siidSpin 0.7s linear infinite;"></span>
+                  <span style="color:var(--color-accent-200);">{{ busyText }}</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ logEmpty }}" hint-placeholder-val="{{ true }}">
+                <div style="color:var(--color-neutral-600);padding:8px 0;">Console idle — run tests or deploy to stream output.</div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showPipeline }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px;">
+              <sc-for list="{{ stages }}" as="s" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="flex:0 0 16px;height:16px;display:grid;place-items:center;">
+                    <sc-if value="{{ s.done }}" hint-placeholder-val="{{ false }}">
+                      <i class="ph ph-check" style="font-size:12px;color:oklch(0.78 0.13 150);"></i>
+                    </sc-if>
+                    <sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}">
+                      <span style="width:10px;height:10px;border:1.5px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:siidSpin 0.7s linear infinite;"></span>
+                    </sc-if>
+                    <sc-if value="{{ s.pending }}" hint-placeholder-val="{{ true }}">
+                      <span style="width:5px;height:5px;border-radius:50%;background:var(--color-neutral-700);"></span>
+                    </sc-if>
+                  </span>
+                  <span style="flex:0 0 200px;font-size:12px;color:{{ s.fg }};">{{ s.label }}</span>
+                  <span style="flex:1 1 auto;height:3px;border-radius:2px;background:var(--color-neutral-800);position:relative;overflow:hidden;">
+                    <span style="position:absolute;inset:0 auto 0 0;width:{{ s.pct }}%;background:linear-gradient(90deg, var(--color-accent-600), var(--color-accent));transition:width 0.4s linear;"></span>
+                  </span>
+                  <span style="flex:0 0 52px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ s.note }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ showGraph }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:20px;padding-top:2px;">
+              <div style="position:relative;flex:0 0 208px;width:208px;height:150px;">
+              <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="6">
+                <div style="position:absolute;left:{{ n.pl }}%;top:{{ n.pt }}%;transform:translate(-50%,-50%);pointer-events:none;text-align:center;line-height:1.25;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:{{ n.tfill }};white-space:nowrap;">{{ n.label }}</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:6.5px;color:var(--color-neutral-500);white-space:nowrap;">{{ n.kind }}</div>
+                </div>
+              </sc-for>
+              <svg viewBox="0 0 320 232" style="position:absolute;inset:0;width:208px;height:150px;overflow:visible;">
+                <sc-for list="{{ edges }}" as="e" hint-placeholder-count="4">
+                  <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.stroke }}" stroke-width="{{ e.w }}" stroke-dasharray="3 5" style="animation:siidDash 1.6s linear infinite;"></line>
+                </sc-for>
+                <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="5">
+                  <g onClick="{{ n.onPick }}" style="cursor:pointer;">
+                    <sc-if value="{{ n.selected }}" hint-placeholder-val="{{ false }}">
+                      <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="{{ n.stroke }}" stroke-width="1" opacity="0.5" style="animation:siidRing 1.8s ease-out infinite;"></circle>
+                    </sc-if>
+                    <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.fill }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}"></circle>
+                  </g>
+                </sc-for>
+              </svg>
+              </div>
+              <div style="flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-content:flex-start;gap:6px;">
+                <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="6">
+                  <button onClick="{{ n.onPick }}" style="display:flex;align-items:center;gap:7px;padding:4px 9px;border:1px solid {{ n.chipBorder }};border-radius:999px;background:{{ n.chipBg }};cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent);">
+                    <span style="width:6px;height:6px;border-radius:50%;background:{{ n.stroke }};"></span>
+                    <span style="font-size:11px;color:var(--color-neutral-200);">{{ n.name }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--color-neutral-500);">{{ n.kind }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 396px;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--color-neutral-800);background:rgba(20,22,34,0.62);">
+
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:9px 12px 8px;border-bottom:1px solid var(--color-neutral-800);">
+        <span style="font-size:11px;letter-spacing:0.14em;color:var(--color-accent);border-bottom:1.5px solid var(--color-accent);padding-bottom:2px;">SIID CODE</span>
+        <div style="flex:1 1 auto;"></div>
+        <sc-if value="{{ isChat }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ openHistory }}" title="History" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-clock-counter-clockwise" style="font-size:15px;"></i></button>
+        </sc-if>
+        <button onClick="{{ newTask }}" title="New task" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-plus" style="font-size:15px;"></i></button>
+        <button title="Settings" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-gear" style="font-size:15px;"></i></button>
+        <button title="More" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-dots-three" style="font-size:15px;"></i></button>
+        <button title="Expand" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-corners-out" style="font-size:14px;"></i></button>
+        <button title="Close" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-x" style="font-size:14px;"></i></button>
+      </div>
+
+      <sc-if value="{{ isChat }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:0 0 auto;padding:10px 12px;border-bottom:1px solid var(--color-neutral-800);background:var(--color-neutral-900);">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
+          <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-500);flex:0 0 auto;">Task</span>
+          <span style="flex:1 1 auto;min-width:0;font-size:12px;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ taskTitle }}</span>
+          <span style="flex:0 0 auto;display:flex;align-items:center;gap:5px;white-space:nowrap;padding:2px 8px;border:1px solid var(--color-neutral-700);border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-300);">
+            <i class="ph ph-timer" style="font-size:11px;color:var(--color-accent-200);"></i>{{ elapsed }}
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);flex:0 0 auto;">{{ tokenReadout }}</span>
+          <span style="flex:1 1 auto;height:3px;border-radius:2px;background:var(--color-neutral-800);position:relative;overflow:hidden;">
+            <span style="position:absolute;inset:0 auto 0 0;width:{{ tokenPct }}%;background:linear-gradient(90deg,var(--color-accent-600),var(--color-accent));transition:width 0.3s linear;"></span>
+          </span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ ctxFg }};flex:0 0 auto;">ctx {{ ctxPct }}%</span>
+        </div>
+      </div>
+
+      <div data-chat-list="1" style="flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;align-items:stretch;gap:10px;">
+        <sc-for list="{{ chat }}" as="m" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;">
+
+            <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;justify-content:flex-end;">
+                <div style="max-width:88%;padding:8px 11px;border:1px solid var(--color-accent-700);border-radius:10px 10px 3px 10px;background:var(--color-accent-900);font-size:12.5px;line-height:1.5;color:var(--color-accent-100);text-wrap:pretty;animation:siidRise 0.2s ease-out;">{{ m.text }}</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ m.isSay }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:9px;animation:siidRise 0.2s ease-out;">
+                <span style="flex:0 0 20px;width:20px;height:20px;display:grid;place-items:center;border:1px solid var(--color-accent-700);border-radius:50%;background:var(--color-accent-900);">
+                  <i class="ph ph-sparkle" style="font-size:11px;color:var(--color-accent);"></i>
+                </span>
+                <div style="flex:1 1 auto;min-width:0;font-size:12.5px;line-height:1.6;color:var(--color-neutral-100);text-wrap:pretty;">{{ m.text }}<sc-if value="{{ m.cursor }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:6px;height:13px;margin-left:3px;background:var(--color-accent);vertical-align:-2px;animation:siidBlink 0.9s step-end infinite;"></span></sc-if></div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ m.isThink }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:9px;padding:7px 10px;border:1px dashed var(--color-neutral-700);border-radius:8px;background:rgba(145,132,217,0.05);animation:siidRise 0.2s ease-out;">
+                <span style="flex:0 0 auto;width:11px;height:11px;border:1.5px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:siidSpin 0.7s linear infinite;"></span>
+                <span style="flex:1 1 auto;font-size:11.5px;color:var(--color-accent-200);animation:siidPulse 1.6s ease-in-out infinite;">{{ m.text }}</span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ m.isTool }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px solid {{ m.border }};border-radius:9px;background:var(--color-neutral-900);overflow:hidden;animation:siidRise 0.2s ease-out;">
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;">
+                  <i class="{{ m.icon }}" style="flex:0 0 auto;font-size:14px;color:{{ m.statusFg }};"></i>
+                  <span style="flex:1 1 auto;min-width:0;font-size:12px;color:var(--color-neutral-100);">{{ m.title }}</span>
+                  <sc-if value="{{ m.running }}" hint-placeholder-val="{{ false }}">
+                    <span style="flex:0 0 auto;width:11px;height:11px;border:1.5px solid var(--color-accent);border-top-color:transparent;border-radius:50%;animation:siidSpin 0.7s linear infinite;"></span>
+                  </sc-if>
+                  <sc-if value="{{ m.done }}" hint-placeholder-val="{{ false }}">
+                    <i class="ph ph-check-circle" style="flex:0 0 auto;font-size:13px;color:oklch(0.78 0.13 150);"></i>
+                  </sc-if>
+                  <sc-if value="{{ m.pending }}" hint-placeholder-val="{{ false }}">
+                    <span style="flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:9px;color:oklch(0.80 0.14 85);">NEEDS OK</span>
+                  </sc-if>
+                </div>
+
+                <sc-if value="{{ m.hasHi }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:0 10px 8px;">
+                    <span style="display:inline-block;padding:3px 7px;border-radius:5px;background:var(--color-accent-900);border:1px solid var(--color-accent-700);font-family:'JetBrains Mono',monospace;font-size:9.5px;line-height:1.5;color:var(--color-accent-100);overflow-wrap:anywhere;">{{ m.hi }}</span>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ m.hasPath }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;margin:0 10px 9px;padding:6px 9px;border-radius:6px;background:var(--color-neutral-800);">
+                    <i class="ph ph-folder" style="font-size:12px;color:var(--color-neutral-500);"></i>
+                    <span style="flex:1 1 auto;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--color-neutral-300);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.path }}</span>
+                    <i class="ph ph-caret-down" style="font-size:11px;color:var(--color-neutral-500);"></i>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ m.hasFiles }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:3px;margin:0 10px 9px;padding:8px 9px;border-radius:6px;background:rgba(16,18,32,0.6);">
+                    <sc-for list="{{ m.files }}" as="f" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;">
+                        <span style="flex:0 0 auto;color:var(--color-neutral-600);">{{ f.verb }}</span>
+                        <span style="flex:1 1 auto;min-width:0;color:var(--color-neutral-300);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.name }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ m.hasDiff }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;margin:0 10px 9px;font-family:'JetBrains Mono',monospace;font-size:10.5px;">
+                    <span style="padding:1px 6px;border-radius:4px;background:rgba(110,200,150,0.14);color:oklch(0.78 0.13 150);">+{{ m.add }}</span>
+                    <span style="padding:1px 6px;border-radius:4px;background:rgba(230,120,120,0.14);color:oklch(0.68 0.19 22);">−{{ m.del }}</span>
+                    <span style="color:var(--color-neutral-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.scope }}</span>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ m.needsApprove }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:7px;padding:9px 10px;border-top:1px solid var(--color-neutral-800);background:rgba(16,18,32,0.5);">
+                    <button onClick="{{ m.onApprove }}" style="flex:1 1 auto;padding:6px 0;border:1px solid var(--color-accent);border-radius:6px;background:transparent;color:var(--color-accent);font-family:var(--font-body);font-size:11.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;" style-hover="background:var(--color-accent-900);">
+                      <i class="ph ph-check" style="font-size:12px;"></i>Approve
+                    </button>
+                    <button onClick="{{ m.onReject }}" style="flex:0 0 96px;padding:6px 0;border:1px solid var(--color-neutral-700);border-radius:6px;background:transparent;color:var(--color-neutral-300);font-family:var(--font-body);font-size:11.5px;cursor:pointer;" style-hover="border-color:var(--color-neutral-500);color:var(--color-text);">Reject</button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:10px 12px 4px;">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:14px;border-bottom:1px solid var(--color-neutral-800);">
+            <i class="ph ph-eye" style="font-size:14px;color:var(--color-neutral-500);"></i>
+            <div style="flex:1 1 auto;"></div>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--color-neutral-500);">v2026.0.65</span>
+          </div>
+
+          <div style="flex:1 1 auto;"></div>
+
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px;">
+            <span style="font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-500);">Recent tasks</span>
+            <span style="flex:1 1 auto;height:1px;background:linear-gradient(90deg,var(--color-neutral-800),transparent);"></span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <sc-for list="{{ recent }}" as="t" hint-placeholder-count="3">
+              <div onClick="{{ t.onOpen }}" style="display:flex;gap:10px;padding:10px 11px;border:1px solid var(--color-neutral-800);border-left:2px solid var(--color-neutral-700);border-radius:8px;background:var(--color-neutral-900);cursor:pointer;transition:border-color 0.16s ease;" style-hover="border-color:var(--color-accent-700);border-left-color:var(--color-accent);">
+                <div style="flex:1 1 auto;min-width:0;">
+                  <div style="font-size:12.5px;line-height:1.45;color:var(--color-text);text-wrap:pretty;overflow:hidden;">{{ t.title }}</div>
+                  <div style="display:flex;align-items:center;gap:7px;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">
+                    <span>{{ t.ago }}</span>
+                    <span style="width:3px;height:3px;border-radius:50%;background:var(--color-neutral-700);"></span>
+                    <span>{{ t.dur }}</span>
+                  </div>
+                </div>
+                <i class="ph ph-copy" title="Copy prompt" style="flex:0 0 auto;font-size:13px;color:var(--color-neutral-600);"></i>
+              </div>
+            </sc-for>
+          </div>
+
+          <button onClick="{{ openHistory }}" style="align-self:center;margin:13px 0 4px;padding:5px 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--color-accent-200);font-family:var(--font-body);font-size:12px;cursor:pointer;" style-hover="border-color:var(--color-accent-700);background:var(--color-accent-900);color:var(--color-accent-100);">View all tasks</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:11px 12px 9px;">
+          <span style="flex:1 1 auto;font-family:var(--font-heading);font-size:15px;font-weight:500;color:var(--color-text);">History</span>
+          <button onClick="{{ toggleSel }}" style="display:flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid {{ selBorder }};border-radius:6px;background:{{ selBg }};color:{{ selFg }};font-family:var(--font-body);font-size:11.5px;cursor:pointer;" style-hover="border-color:var(--color-accent);">
+            <i class="ph ph-list-checks" style="font-size:13px;"></i>Selection Mode
+          </button>
+          <button onClick="{{ closeHistory }}" style="padding:5px 13px;border:1px solid var(--color-accent);border-radius:6px;background:transparent;color:var(--color-accent);font-family:var(--font-body);font-size:11.5px;cursor:pointer;" style-hover="background:var(--color-accent-900);">Done</button>
+        </div>
+
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;margin:0 12px 8px;padding:6px 10px;border:1px solid var(--color-neutral-800);border-radius:7px;background:var(--color-neutral-900);">
+          <i class="ph ph-magnifying-glass" style="flex:0 0 auto;font-size:13px;color:var(--color-neutral-500);"></i>
+          <input value="{{ histQuery }}" onChange="{{ onHistQuery }}" placeholder="Fuzzy search history…" style="flex:1 1 auto;min-width:0;border:0;outline:none;background:transparent;color:var(--color-text);font-family:var(--font-body);font-size:12px;" />
+        </div>
+
+        <div style="flex:0 0 auto;display:flex;gap:8px;margin:0 12px 9px;">
+          <button onClick="{{ cycleScope }}" style="flex:1 1 0;display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--color-neutral-800);border-radius:7px;background:var(--color-neutral-900);cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent-700);">
+            <span style="flex:1 1 auto;min-width:0;text-align:left;font-size:11.5px;color:var(--color-neutral-200);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Workspace: {{ histScope }}</span>
+            <i class="ph ph-caret-down" style="flex:0 0 auto;font-size:11px;color:var(--color-neutral-500);"></i>
+          </button>
+          <button onClick="{{ cycleSort }}" style="flex:1 1 0;display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--color-neutral-800);border-radius:7px;background:var(--color-neutral-900);cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent-700);">
+            <span style="flex:1 1 auto;min-width:0;text-align:left;font-size:11.5px;color:var(--color-neutral-200);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Sort: {{ histSort }}</span>
+            <i class="ph ph-caret-down" style="flex:0 0 auto;font-size:11px;color:var(--color-neutral-500);"></i>
+          </button>
+        </div>
+
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;margin:0 12px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">
+          <span>{{ histCount }}</span>
+          <span style="flex:1 1 auto;height:1px;background:linear-gradient(90deg,var(--color-neutral-800),transparent);"></span>
+          <sc-if value="{{ selMode }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ deleteSel }}" style="padding:2px 8px;border:1px solid var(--color-neutral-700);border-radius:5px;background:transparent;color:var(--color-neutral-300);font-family:var(--font-body);font-size:10.5px;cursor:pointer;" style-hover="border-color:oklch(0.68 0.19 22);color:oklch(0.68 0.19 22);">Delete {{ selCount }}</button>
+          </sc-if>
+        </div>
+
+        <div style="flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:0 12px 12px;">
+          <sc-for list="{{ histList }}" as="t" hint-placeholder-count="5">
+            <div onClick="{{ t.onClick }}" style="display:flex;gap:10px;padding:10px 11px;border:1px solid {{ t.border }};border-left:2px solid {{ t.edge }};border-radius:8px;background:var(--color-neutral-900);cursor:pointer;transition:border-color 0.16s ease;" style-hover="border-color:var(--color-accent-700);">
+              <sc-if value="{{ t.selectable }}" hint-placeholder-val="{{ false }}">
+                <span style="flex:0 0 auto;width:14px;height:14px;margin-top:2px;display:grid;place-items:center;border:1px solid {{ t.boxBorder }};border-radius:4px;background:{{ t.boxBg }};">
+                  <sc-if value="{{ t.checked }}" hint-placeholder-val="{{ false }}">
+                    <i class="ph ph-check" style="font-size:9px;color:var(--color-accent);"></i>
+                  </sc-if>
+                </span>
+              </sc-if>
+              <div style="flex:1 1 auto;min-width:0;">
+                <div style="font-size:12.5px;line-height:1.45;color:var(--color-text);text-wrap:pretty;">{{ t.title }}</div>
+                <div style="display:flex;align-items:center;gap:7px;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">
+                  <span>{{ t.ago }}</span>
+                  <span style="width:3px;height:3px;border-radius:50%;background:var(--color-neutral-700);"></span>
+                  <span>{{ t.dur }}</span>
+                  <span style="width:3px;height:3px;border-radius:50%;background:var(--color-neutral-700);"></span>
+                  <span>{{ t.tok }}</span>
+                </div>
+              </div>
+              <div style="flex:0 0 auto;display:flex;align-items:flex-start;gap:3px;">
+                <button title="Copy prompt" style="display:grid;place-items:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-600);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent-200);"><i class="ph ph-copy" style="font-size:12.5px;"></i></button>
+                <button title="Export" style="display:grid;place-items:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-600);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent-200);"><i class="ph ph-export" style="font-size:12.5px;"></i></button>
+                <button onClick="{{ t.onDelete }}" title="Delete" style="display:grid;place-items:center;width:22px;height:22px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-600);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:oklch(0.68 0.19 22);"><i class="ph ph-trash" style="font-size:12.5px;"></i></button>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ histEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:26px 10px;text-align:center;font-size:12px;color:var(--color-neutral-500);">No tasks match that search.</div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:0 0 auto;display:flex;gap:8px;padding:0 12px 10px;">
+          <button onClick="{{ resume }}" style="flex:1 1 auto;padding:8px 0;border:1px solid var(--color-accent);border-radius:7px;background:var(--color-accent-900);color:var(--color-accent-100);font-family:var(--font-body);font-size:12px;cursor:pointer;" style-hover="background:var(--color-accent-800);">Resume Task</button>
+          <button onClick="{{ terminate }}" style="flex:0 0 128px;padding:8px 0;border:1px solid var(--color-neutral-700);border-radius:7px;background:transparent;color:var(--color-neutral-300);font-family:var(--font-body);font-size:12px;cursor:pointer;" style-hover="border-color:oklch(0.68 0.19 22);color:oklch(0.68 0.19 22);">Terminate</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showComposer }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ toggleAuto }}" style="flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:8px 12px;border-top:1px solid var(--color-neutral-800);cursor:pointer;" style-hover="background:var(--color-neutral-800);">
+        <span style="flex:0 0 auto;width:15px;height:15px;display:grid;place-items:center;border:1px solid {{ autoBorder }};border-radius:4px;background:{{ autoBg }};">
+          <sc-if value="{{ autoApprove }}" hint-placeholder-val="{{ true }}">
+            <i class="ph ph-check" style="font-size:10px;color:var(--color-accent);"></i>
+          </sc-if>
+        </span>
+        <span style="flex:0 0 auto;font-size:11.5px;color:var(--color-neutral-300);">Auto-approve</span>
+        <span style="flex:1 1 auto;min-width:0;font-size:11px;color:var(--color-neutral-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ autoScope }}</span>
+        <i class="ph ph-caret-right" style="flex:0 0 auto;font-size:12px;color:var(--color-neutral-500);"></i>
+      </div>
+
+      <div style="flex:0 0 auto;margin:10px 12px 0;border:1px solid {{ composerBorder }};border-radius:9px;background:var(--color-neutral-900);transition:border-color 0.2s ease;">
+        <textarea value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" onFocus="{{ onFocus }}" onBlur="{{ onBlur }}" placeholder="Type a message…" rows="2" style="display:block;width:100%;box-sizing:border-box;padding:9px 10px 4px;border:0;outline:none;resize:none;background:transparent;color:var(--color-text);font-family:var(--font-body);font-size:12.5px;line-height:1.5;"></textarea>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 8px 8px 10px;">
+          <span style="flex:1 1 auto;min-width:0;font-size:10px;color:var(--color-neutral-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@ context · / commands · shift-drag files</span>
+          <button title="Enhance prompt" style="flex:0 0 auto;display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent);"><i class="ph ph-magic-wand" style="font-size:14px;"></i></button>
+          <button onClick="{{ send }}" title="Send" style="flex:0 0 auto;display:grid;place-items:center;width:28px;height:26px;border:1px solid {{ sendBorder }};border-radius:6px;background:{{ sendBg }};color:{{ sendFg }};cursor:pointer;transition:all 0.18s ease;" style-hover="background:var(--color-accent-800);">
+            <i class="{{ sendIcon }}" style="font-size:14px;"></i>
+          </button>
+        </div>
+      </div>
+
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:7px;padding:9px 12px 11px;">
+        <button style="display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--color-neutral-700);border-radius:6px;background:transparent;cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent);">
+          <i class="ph ph-caret-up" style="font-size:10px;color:var(--color-neutral-500);"></i>
+          <i class="ph ph-flow-arrow" style="font-size:12px;color:var(--color-accent-200);"></i>
+          <span style="font-size:11px;color:var(--color-neutral-200);">{{ mode }}</span>
+        </button>
+        <button style="display:flex;align-items:center;gap:6px;min-width:0;padding:4px 8px;border:1px solid var(--color-neutral-700);border-radius:6px;background:transparent;cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent);">
+          <i class="ph ph-caret-up" style="font-size:10px;color:var(--color-neutral-500);"></i>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--color-neutral-300);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:118px;">{{ model }}</span>
+        </button>
+        <div style="flex:1 1 auto;"></div>
+        <div title="Context window" style="display:flex;align-items:center;gap:5px;">
+          <svg viewBox="0 0 20 20" style="width:16px;height:16px;transform:rotate(-90deg);">
+            <circle cx="10" cy="10" r="7.5" fill="none" stroke="var(--color-neutral-800)" stroke-width="2.5"></circle>
+            <circle cx="10" cy="10" r="7.5" fill="none" stroke="{{ ctxFg }}" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="{{ ctxDash }}" style="transition:stroke-dasharray 0.4s ease;"></circle>
+          </svg>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:{{ ctxFg }};">{{ ctxPct }}%</span>
+        </div>
+        <button title="Fast mode" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent);"><i class="ph ph-lightning" style="font-size:14px;"></i></button>
+        <button onClick="{{ openIndex }}" title="Codebase indexing" style="position:relative;display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:{{ idxBtnBg }};color:{{ idxBtnFg }};cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent);">
+          <i class="ph ph-database" style="font-size:14px;"></i>
+          <span style="position:absolute;top:3px;right:3px;width:4px;height:4px;border-radius:50%;background:var(--color-accent);"></span>
+        </button>
+        <button title="Attach image" style="display:grid;place-items:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-accent);"><i class="ph ph-image" style="font-size:14px;"></i></button>
+      </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <div style="position:relative;z-index:10;flex:0 0 26px;height:26px;display:flex;align-items:center;gap:16px;padding:0 14px;border-top:1px solid var(--color-neutral-800);background:rgba(22,24,38,0.9);font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-400);">
+    <span style="display:flex;align-items:center;gap:6px;"><i class="ph ph-cloud" style="font-size:12px;"></i>{{ orgName }}</span>
+    <span style="display:flex;align-items:center;gap:6px;color:{{ errFg }};"><i class="ph ph-x-circle" style="font-size:12px;"></i>{{ errCount }}</span>
+    <span style="display:flex;align-items:center;gap:6px;color:{{ warnFg }};"><i class="ph ph-warning" style="font-size:12px;"></i>{{ warnCount }}</span>
+    <span>SOQL {{ soqlReadout }}</span>
+    <span>DML {{ dmlReadout }}</span>
+    <span>Coverage {{ coverage }}%</span>
+    <div style="flex:1 1 auto;"></div>
+    <span style="display:flex;align-items:center;gap:6px;"><span style="width:5px;height:5px;border-radius:50%;background:var(--color-accent);animation:siidPulse 1.6s ease-in-out infinite;"></span>{{ liveText }}</span>
+  </div>
+
+  <sc-if value="{{ indexOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:70;background:rgba(14,16,28,0.94);display:grid;place-items:center;">
+      <div style="width:1180px;height:772px;display:flex;flex-direction:column;border:1px solid var(--color-neutral-700);border-radius:var(--radius-md);background:var(--color-bg);box-shadow:var(--shadow-lg);overflow:hidden;animation:siidRise 0.18s ease-out;">
+
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--color-neutral-800);background:var(--color-neutral-900);">
+          <i class="ph ph-database" style="font-size:17px;color:var(--color-accent);"></i>
+          <span style="font-size:15px;color:var(--color-text);">Codebase Indexing</span>
+          <span style="display:flex;align-items:center;gap:6px;padding:2px 9px;border:1px solid {{ idxStatusBorder }};border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;color:{{ idxStatusFg }};">
+            <span style="width:6px;height:6px;border-radius:50%;background:{{ idxStatusFg }};"></span>{{ idxStatus }}
+          </span>
+          <div style="flex:1 1 auto;"></div>
+          <sc-for list="{{ idxTabs }}" as="t" hint-placeholder-count="4">
+            <button onClick="{{ t.onPick }}" style="display:flex;align-items:center;gap:7px;padding:6px 11px;border:1px solid {{ t.border }};border-radius:7px;background:{{ t.bg }};color:{{ t.fg }};font-family:var(--font-body);font-size:12px;cursor:pointer;" style-hover="border-color:var(--color-accent);">
+              <i class="{{ t.icon }}" style="font-size:13px;"></i>{{ t.label }}
+            </button>
+          </sc-for>
+          <button onClick="{{ closeIndex }}" title="Close" style="display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--color-neutral-400);cursor:pointer;" style-hover="background:var(--color-neutral-800);color:var(--color-text);"><i class="ph ph-x" style="font-size:15px;"></i></button>
+        </div>
+
+        <div style="flex:1 1 auto;min-height:0;overflow:auto;">
+
+          <sc-if value="{{ idxShowRun }}" hint-placeholder-val="{{ false }}">
+            <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:40px;background-image:radial-gradient(var(--color-neutral-800) 1px, transparent 1px);background-size:16px 16px;">
+              <svg viewBox="0 0 300 264" style="width:300px;height:264px;">
+                <sc-for list="{{ hexes }}" as="h" hint-placeholder-count="7">
+                  <g>
+                    <polygon points="{{ h.pts }}" fill="{{ h.fill }}" stroke="{{ h.stroke }}" stroke-width="1.25" style="animation:siidPulse {{ h.dur }}s ease-in-out infinite;animation-delay:{{ h.delay }}s;"></polygon>
+                    <circle cx="{{ h.cx }}" cy="{{ h.cy }}" r="3" fill="{{ h.stroke }}" opacity="0.7"></circle>
+                  </g>
+                </sc-for>
+                <circle cx="150" cy="132" r="30" fill="var(--color-accent-900)" stroke="var(--color-accent)" stroke-width="1.5"></circle>
+                <g style="transform-origin:150px 132px;animation:siidSpin 1.8s linear infinite;">
+                  <path d="M150 116 a16 16 0 1 1 -11 27" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round"></path>
+                  <path d="M150 148 a16 16 0 1 1 11 -27" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round"></path>
+                </g>
+              </svg>
+              <div style="text-align:center;display:flex;flex-direction:column;gap:8px;">
+                <div style="font-size:26px;color:var(--color-text);">{{ idxPhase }}</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--color-neutral-400);">{{ idxPhaseSub }}</div>
+              </div>
+              <div style="width:520px;display:flex;flex-direction:column;gap:9px;">
+                <div style="height:6px;border-radius:3px;background:var(--color-neutral-800);position:relative;overflow:hidden;">
+                  <div style="position:absolute;inset:0 auto 0 0;width:{{ idxPct }}%;border-radius:3px;background:linear-gradient(90deg,var(--color-accent-600),var(--color-accent));box-shadow:0 0 12px var(--color-accent-700);transition:width 0.3s linear;"></div>
+                </div>
+                <div style="display:flex;justify-content:center;gap:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-neutral-400);">
+                  <span>{{ idxDone }} / {{ idxTotal }} items</span>
+                  <span style="color:var(--color-accent);">{{ idxPct }}%</span>
+                </div>
+              </div>
+              <button onClick="{{ cancelIndex }}" style="padding:6px 16px;border:1px solid var(--color-neutral-700);border-radius:7px;background:transparent;color:var(--color-neutral-300);font-family:var(--font-body);font-size:12px;cursor:pointer;" style-hover="border-color:oklch(0.68 0.19 22);color:oklch(0.68 0.19 22);">Cancel</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ idxShowSettings }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:28px;padding:22px 24px;">
+              <div style="flex:0 0 440px;display:flex;flex-direction:column;gap:18px;">
+                <div style="font-size:12.5px;line-height:1.6;color:var(--color-neutral-300);text-wrap:pretty;">Configure codebase indexing to enable semantic search across this project. Indexes are built locally — no external vector database. <a href="#">Learn more</a></div>
+
+                <div onClick="{{ toggleIndexing }}" style="display:flex;align-items:center;gap:11px;cursor:pointer;">
+                  <span style="flex:0 0 auto;width:18px;height:18px;display:grid;place-items:center;border:1px solid {{ enBorder }};border-radius:5px;background:{{ enBg }};">
+                    <sc-if value="{{ indexEnabled }}" hint-placeholder-val="{{ true }}">
+                      <i class="ph ph-check" style="font-size:12px;color:var(--color-accent);"></i>
+                    </sc-if>
+                  </span>
+                  <span style="font-size:14px;color:var(--color-text);">Enable Codebase Indexing</span>
+                  <i class="ph ph-info" style="font-size:14px;color:var(--color-neutral-500);"></i>
+                </div>
+
+                <div style="border:1px solid var(--color-neutral-800);border-radius:var(--radius-md);background:var(--color-neutral-900);padding:14px;">
+                  <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px;">
+                    <i class="ph ph-squares-four" style="font-size:15px;color:var(--color-accent-200);"></i>
+                    <span style="font-size:13px;color:var(--color-text);">Salesforce Indexing Options</span>
+                  </div>
+                  <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-400);margin-bottom:13px;text-wrap:pretty;">Local Salesforce indexing engines. Each one renders as a view here rather than a markdown file.</div>
+                  <div style="display:flex;flex-direction:column;gap:3px;">
+                    <sc-for list="{{ engines }}" as="e" hint-placeholder-count="3">
+                      <div onClick="{{ e.onToggle }}" style="display:flex;align-items:center;gap:11px;padding:8px;border-radius:7px;cursor:pointer;" style-hover="background:var(--color-neutral-800);">
+                        <span style="flex:0 0 auto;width:17px;height:17px;display:grid;place-items:center;border:1px solid {{ e.border }};border-radius:5px;background:{{ e.bg }};">
+                          <sc-if value="{{ e.on }}" hint-placeholder-val="{{ true }}">
+                            <i class="ph ph-check" style="font-size:11px;color:var(--color-accent);"></i>
+                          </sc-if>
+                        </span>
+                        <i class="{{ e.icon }}" style="flex:0 0 auto;font-size:14px;color:{{ e.iconFg }};"></i>
+                        <span style="flex:1 1 auto;font-size:12.5px;color:var(--color-neutral-100);">{{ e.label }}</span>
+                        <span style="flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ e.count }}</span>
+                        <i class="ph ph-info" style="flex:0 0 auto;font-size:13px;color:var(--color-neutral-600);"></i>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <button onClick="{{ runIndex }}" style="display:flex;align-items:center;gap:8px;padding:9px 15px;border:1px solid var(--color-accent);border-radius:7px;background:var(--color-accent-900);color:var(--color-accent-100);font-family:var(--font-body);font-size:12.5px;cursor:pointer;" style-hover="background:var(--color-accent-800);">
+                    <i class="ph ph-rocket-launch" style="font-size:14px;"></i>Index Org From Scratch
+                  </button>
+                  <button onClick="{{ refreshIndex }}" style="display:flex;align-items:center;gap:8px;padding:9px 15px;border:1px solid var(--color-neutral-700);border-radius:7px;background:transparent;color:var(--color-neutral-200);font-family:var(--font-body);font-size:12.5px;cursor:pointer;" style-hover="border-color:var(--color-accent);color:var(--color-accent-100);">
+                    <i class="ph ph-arrows-clockwise" style="font-size:14px;"></i>Refresh Index
+                  </button>
+                  <div style="flex:1 1 auto;"></div>
+                  <button style="padding:9px 18px;border:1px solid var(--color-neutral-700);border-radius:7px;background:transparent;color:var(--color-neutral-400);font-family:var(--font-body);font-size:12.5px;cursor:pointer;" style-hover="border-color:var(--color-accent);color:var(--color-accent-100);">Save</button>
+                </div>
+              </div>
+
+              <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px;">
+                <div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-400);">Last index</div>
+                <div style="display:flex;gap:12px;">
+                  <sc-for list="{{ idxStats }}" as="s" hint-placeholder-count="4">
+                    <div style="flex:1 1 0;min-width:0;border:1px solid var(--color-neutral-800);border-radius:var(--radius-md);background:var(--color-neutral-900);padding:12px;">
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:21px;color:{{ s.fg }};">{{ s.value }}</div>
+                      <div style="font-size:11px;color:var(--color-neutral-400);margin-top:3px;">{{ s.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="flex:1 1 auto;border:1px solid var(--color-neutral-800);border-radius:var(--radius-md);background:var(--color-neutral-900);padding:14px;display:flex;flex-direction:column;gap:10px;">
+                  <div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-400);">Index log</div>
+                  <div style="display:flex;flex-direction:column;gap:5px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+                    <sc-for list="{{ idxLog }}" as="l" hint-placeholder-count="5">
+                      <div style="display:flex;gap:10px;">
+                        <span style="flex:0 0 44px;color:var(--color-neutral-600);">{{ l.t }}</span>
+                        <span style="flex:1 1 auto;color:{{ l.fg }};">{{ l.text }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ idxShowTimeline }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+              <div style="display:flex;align-items:flex-end;gap:14px;">
+                <div>
+                  <div style="font-size:16px;color:var(--color-text);">Order of Execution · Loaner_Tray__c update</div>
+                  <div style="font-size:11.5px;color:var(--color-neutral-400);margin-top:3px;">Every automation the index found on this object, placed in the order the platform runs it.</div>
+                </div>
+                <div style="flex:1 1 auto;"></div>
+                <sc-for list="{{ ooeLegend }}" as="g" hint-placeholder-count="5">
+                  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-400);">
+                    <span style="width:8px;height:8px;border-radius:2px;background:{{ g.color }};"></span>{{ g.label }}
+                  </span>
+                </sc-for>
+              </div>
+
+              <div style="display:flex;flex-direction:column;">
+                <sc-for list="{{ ooe }}" as="p" hint-placeholder-count="17">
+                  <div style="display:flex;align-items:stretch;gap:0;">
+                    <div style="flex:0 0 52px;display:flex;flex-direction:column;align-items:center;">
+                      <span style="flex:0 0 auto;width:22px;height:22px;display:grid;place-items:center;border:1px solid {{ p.color }};border-radius:50%;background:var(--color-bg);font-family:'JetBrains Mono',monospace;font-size:9.5px;color:{{ p.color }};">{{ p.n }}</span>
+                      <span style="flex:1 1 auto;width:1px;background:{{ p.line }};"></span>
+                    </div>
+                    <div style="flex:1 1 auto;min-width:0;padding-bottom:12px;">
+                      <div style="display:flex;align-items:center;gap:9px;padding:3px 11px 3px 9px;border-left:2px solid {{ p.color }};border-radius:0 7px 7px 0;background:{{ p.bg }};min-height:26px;">
+                        <i class="{{ p.icon }}" style="flex:0 0 auto;font-size:13px;color:{{ p.color }};"></i>
+                        <span style="flex:0 0 auto;font-size:12.5px;color:{{ p.labelFg }};">{{ p.label }}</span>
+                        <sc-if value="{{ p.hasNote }}" hint-placeholder-val="{{ false }}">
+                          <span style="flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:1px 7px;border-radius:999px;background:rgba(230,180,90,0.14);font-size:10.5px;color:oklch(0.80 0.14 85);">
+                            <i class="ph ph-arrow-u-up-left" style="font-size:11px;"></i>{{ p.note }}
+                          </span>
+                        </sc-if>
+                        <div style="flex:1 1 auto;"></div>
+                        <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;">
+                          <sc-for list="{{ p.items }}" as="it" hint-placeholder-count="0">
+                            <span style="display:flex;align-items:center;gap:6px;padding:2px 8px;border:1px solid {{ p.chipBorder }};border-radius:5px;background:var(--color-neutral-900);font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--color-neutral-200);">
+                              <i class="{{ it.icon }}" style="font-size:11px;color:{{ p.color }};"></i>{{ it.name }}
+                            </span>
+                          </sc-for>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ idxShowGraph }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:0;min-height:624px;overflow:hidden;">
+              <div style="flex:1 1 auto;min-width:0;overflow:hidden;padding:18px 8px 18px 18px;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                  <span style="font-size:16px;color:var(--color-text);">Interlinked Graph Network</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-neutral-500);">{{ netNodeCount }} nodes · {{ netEdgeCount }} edges</span>
+                  <div style="flex:1 1 auto;"></div>
+                  <sc-for list="{{ netLegend }}" as="g" hint-placeholder-count="5">
+                    <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-400);">
+                      <span style="width:8px;height:8px;border-radius:50%;background:{{ g.color }};"></span>{{ g.label }}
+                    </span>
+                  </sc-for>
+                </div>
+                <div style="position:relative;width:100%;">
+                <sc-for list="{{ netLabels }}" as="l" hint-placeholder-count="12">
+                  <div style="position:absolute;left:{{ l.left }}%;top:{{ l.top }}%;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:{{ l.size }}px;color:{{ l.fg }};opacity:{{ l.op }};">{{ l.text }}</div>
+                </sc-for>
+                <svg viewBox="0 0 760 470" style="display:block;width:100%;height:auto;overflow:visible;">
+                  <sc-for list="{{ netEdges }}" as="e" hint-placeholder-count="12">
+                    <g>
+                      <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.stroke }}" stroke-width="{{ e.w }}" stroke-dasharray="{{ e.dash }}" opacity="{{ e.op }}" style="animation:siidDash 2s linear infinite;"></line>
+                    </g>
+                  </sc-for>
+                  <sc-for list="{{ netNodes }}" as="n" hint-placeholder-count="12">
+                    <g onClick="{{ n.onPick }}" style="cursor:pointer;">
+                      <sc-if value="{{ n.selected }}" hint-placeholder-val="{{ false }}">
+                        <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="none" stroke="{{ n.color }}" stroke-width="1" opacity="0.5" style="animation:siidRing 1.8s ease-out infinite;"></circle>
+                      </sc-if>
+                      <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.fill }}" stroke="{{ n.color }}" stroke-width="{{ n.sw }}" opacity="{{ n.op }}"></circle>
+                      <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.dot }}" fill="{{ n.color }}" opacity="{{ n.op }}"></circle>
+                    </g>
+                  </sc-for>
+                </svg>
+                </div>
+              </div>
+              <div style="flex:0 0 296px;border-left:1px solid var(--color-neutral-800);background:var(--color-neutral-900);padding:18px;display:flex;flex-direction:column;gap:12px;">
+                <div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-400);">Selected node</div>
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <i class="{{ netSel.icon }}" style="font-size:16px;color:{{ netSel.color }};"></i>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--color-text);">{{ netSel.name }}</span>
+                </div>
+                <div style="font-size:11.5px;line-height:1.55;color:var(--color-neutral-400);text-wrap:pretty;">{{ netSel.desc }}</div>
+                <div style="display:flex;flex-direction:column;gap:7px;">
+                  <sc-for list="{{ netSel.rows }}" as="r" hint-placeholder-count="4">
+                    <div style="display:flex;gap:10px;padding-bottom:6px;border-bottom:1px solid var(--color-neutral-800);font-size:11px;">
+                      <span style="flex:0 0 78px;color:var(--color-neutral-500);">{{ r.k }}</span>
+                      <span style="flex:1 1 auto;min-width:0;font-family:'JetBrains Mono',monospace;color:var(--color-neutral-200);text-wrap:pretty;">{{ r.v }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--color-neutral-400);margin-top:4px;">Links</div>
+                <div style="flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+                  <sc-for list="{{ netSel.links }}" as="l" hint-placeholder-count="4">
+                    <button onClick="{{ l.onPick }}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:6px;background:transparent;cursor:pointer;text-align:left;font-family:var(--font-body);" style-hover="background:var(--color-neutral-800);">
+                      <i class="{{ l.icon }}" style="flex:0 0 auto;font-size:12px;color:{{ l.color }};"></i>
+                      <span style="flex:1 1 auto;min-width:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-neutral-200);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ l.name }}</span>
+                      <span style="flex:0 0 auto;font-size:10px;color:var(--color-accent-200);">{{ l.rel }}</span>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ idxShowSymbols }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:18px 24px;display:flex;flex-direction:column;gap:13px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:16px;color:var(--color-text);">Apex &amp; SObject Symbol Index</span>
+                <div style="flex:1 1 auto;"></div>
+                <div style="display:flex;align-items:center;gap:8px;width:280px;padding:6px 10px;border:1px solid {{ symBorder }};border-radius:7px;background:var(--color-neutral-900);">
+                  <i class="ph ph-magnifying-glass" style="font-size:13px;color:var(--color-neutral-500);"></i>
+                  <input value="{{ symQuery }}" onChange="{{ onSymQuery }}" placeholder="Filter symbols…" style="flex:1 1 auto;min-width:0;background:transparent;border:0;outline:none;color:var(--color-text);font-family:var(--font-body);font-size:12px;"></input>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ symCount }}</span>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:7px;">
+                <sc-for list="{{ symKinds }}" as="k" hint-placeholder-count="6">
+                  <button onClick="{{ k.onPick }}" style="display:flex;align-items:center;gap:7px;padding:4px 10px;border:1px solid {{ k.border }};border-radius:999px;background:{{ k.bg }};cursor:pointer;font-family:var(--font-body);" style-hover="border-color:var(--color-accent);">
+                    <i class="{{ k.icon }}" style="font-size:12px;color:{{ k.color }};"></i>
+                    <span style="font-size:11.5px;color:{{ k.fg }};">{{ k.label }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ k.count }}</span>
+                  </button>
+                </sc-for>
+              </div>
+
+              <div style="border:1px solid var(--color-neutral-800);border-radius:var(--radius-md);background:var(--color-neutral-900);overflow:hidden;">
+                <div style="display:flex;gap:12px;padding:8px 13px;border-bottom:1px solid var(--color-neutral-800);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-neutral-500);">
+                  <span style="flex:1 1 auto;">Symbol</span>
+                  <span style="flex:0 0 118px;">Kind</span>
+                  <span style="flex:0 0 250px;">Declared in</span>
+                  <span style="flex:0 0 62px;text-align:right;">Refs</span>
+                  <span style="flex:0 0 78px;text-align:right;">Coverage</span>
+                </div>
+                <sc-for list="{{ symbols }}" as="s" hint-placeholder-count="12">
+                  <div style="display:flex;align-items:center;gap:12px;padding:7px 13px;border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;" style-hover="background:var(--color-neutral-800);">
+                    <span style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;">
+                      <i class="{{ s.icon }}" style="flex:0 0 auto;font-size:13px;color:{{ s.color }};"></i>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--color-neutral-100);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.name }}</span>
+                    </span>
+                    <span style="flex:0 0 118px;font-size:11px;color:{{ s.color }};">{{ s.kind }}</span>
+                    <span style="flex:0 0 250px;min-width:0;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--color-neutral-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.file }}</span>
+                    <span style="flex:0 0 62px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-neutral-300);">{{ s.refs }}</span>
+                    <span style="flex:0 0 78px;display:flex;align-items:center;gap:7px;justify-content:flex-end;">
+                      <span style="flex:0 0 34px;height:3px;border-radius:2px;background:var(--color-neutral-800);position:relative;overflow:hidden;">
+                        <span style="position:absolute;inset:0 auto 0 0;width:{{ s.cov }}%;background:{{ s.covFg }};"></span>
+                      </span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:{{ s.covFg }};">{{ s.covLabel }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePalette }}" style="position:absolute;inset:0;z-index:80;background:rgba(16,18,32,0.72);backdrop-filter:blur(3px);display:flex;justify-content:center;padding-top:88px;">
+      <div onClick="{{ stop }}" style="width:min(620px, 92%);max-height:60%;display:flex;flex-direction:column;border:1px solid var(--color-neutral-700);border-radius:var(--radius-md);background:var(--color-neutral-900);box-shadow:var(--shadow-lg);overflow:hidden;animation:siidRise 0.16s ease-out;">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--color-neutral-800);">
+          <i class="ph ph-terminal-window" style="font-size:15px;color:var(--color-accent);"></i>
+          <input value="{{ query }}" onChange="{{ onQuery }}" autofocus="true" placeholder="Run a SIID Forge command…" style="flex:1 1 auto;background:transparent;border:0;outline:none;color:var(--color-text);font-family:var(--font-body);font-size:14px;"></input>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ hitCount }} results</span>
+        </div>
+        <div style="flex:1 1 auto;overflow-y:auto;padding:6px;">
+          <sc-for list="{{ hits }}" as="h" hint-placeholder-count="8">
+            <div onClick="{{ h.onRun }}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer;" style-hover="background:var(--color-neutral-800);">
+              <i class="{{ h.icon }}" style="font-size:14px;color:var(--color-accent-200);"></i>
+              <span style="flex:1 1 auto;font-size:13px;color:var(--color-neutral-100);">{{ h.title }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--color-neutral-500);">{{ h.id }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1560,&quot;height&quot;:940},&quot;collabPresence&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;orgName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;conscendo-dev&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+const KW = new Set(['public','private','protected','global','static','final','with','without','sharing','class','void','return','for','while','if','else','new','this','insert','update','delete','upsert','try','catch','finally','throw','override','virtual','abstract','implements','extends','enum','interface','instanceof','null','true','false','break','continue']);
+const TY = new Set(['Id','String','Integer','Long','Decimal','Double','Boolean','Date','Datetime','Time','Blob','Object','List','Set','Map','SObject','Account','Contact','Opportunity','Lead','Case','User','Task','Database','System','Schema','Test','Limits','Exception','DmlException']);
+const SQ = new Set(['SELECT','FROM','WHERE','IN','LIMIT','ORDER','BY','AND','OR','NOT','GROUP','HAVING','ASC','DESC','WITH','SECURITY_ENFORCED','USER_MODE','LIKE','NULL','COUNT']);
+
+const C = {
+  kw: 'var(--color-accent)',
+  ty: 'oklch(0.80 0.075 215)',
+  st: 'oklch(0.79 0.085 148)',
+  sq: 'oklch(0.84 0.095 92)',
+  cm: 'var(--color-neutral-500)',
+  an: 'var(--color-accent-200)',
+  nu: 'oklch(0.80 0.075 215)',
+  id: 'var(--color-neutral-100)',
+  pu: 'var(--color-neutral-400)'
+};
+
+const CH = 7.82;
+const LH = 20;
+const RED = 'oklch(0.68 0.19 22)';
+const AMBER = 'oklch(0.80 0.14 85)';
+const GREEN = 'oklch(0.78 0.13 150)';
+
+const SEED = [
+  '/**',
+  ' * AccountEnrichmentService',
+  ' * SIID Forge · retrieved from conscendo-dev',
+  ' */',
+  'public with sharing class AccountEnrichmentService {',
+  '',
+  '    private static final Integer BATCH_SIZE = 200;',
+  '',
+  '    public static void enrich(Set<Id> accountIds) {',
+  '        List<Account> accts = [',
+  '            SELECT Id, Name, Industry, AnnualRevenue',
+  '            FROM Account',
+  '            WHERE Id IN :accountIds',
+  '        ];',
+  '',
+  '        for (Account a : accts) {',
+  '            List<Contact> cons = [SELECT Id FROM Contact WHERE AccountId = :a.Id];',
+  '            a.Description = \'Contacts: \' + cons.size();',
+  '        }',
+  '',
+  '        update accts;',
+  '    }',
+  '',
+  '    public static void reassign(Id ownerId) {',
+  '        Account a = [SELECT Id, OwnerId FROM Account WHERE OwnerId = :ownerId LIMIT 1];',
+  '        a.OwnerId = \'0055g00000AbCdEfGH\';',
+  '        update a;',
+  '    }',
+  '}'
+].join('\n');
+
+const K_OBJ = 'oklch(0.80 0.075 215)';
+const K_APEX = 'var(--color-accent)';
+const K_TRIG = 'oklch(0.80 0.14 85)';
+const K_LWC = 'oklch(0.78 0.13 150)';
+const K_FLOW = 'oklch(0.80 0.09 190)';
+
+const OOE = [
+  { n: 1, kind: 'system', label: 'Load original record from the database' },
+  { n: 2, kind: 'system', label: 'Load new field values · system validation' },
+  { n: 3, kind: 'flow', label: 'Before-save record-triggered flows', items: ['Loaner_Tray_Set_Defaults'] },
+  { n: 4, kind: 'apex', label: 'Before triggers', items: ['LoanerTrayTrigger.beforeUpdate', 'AccountTrigger.beforeUpdate'] },
+  { n: 5, kind: 'config', label: 'Custom validation rules · duplicate rules', items: ['Tray_Must_Have_Kit', 'Booking_Window_Valid'] },
+  { n: 6, kind: 'db', label: 'Record saved to the database — not committed' },
+  { n: 7, kind: 'apex', label: 'After triggers', items: ['LoanerTrayTrigger.afterUpdate', 'AccountEnrichmentService.enrich'] },
+  { n: 8, kind: 'config', label: 'Assignment rules' },
+  { n: 9, kind: 'config', label: 'Auto-response rules' },
+  { n: 10, kind: 'config', label: 'Workflow rules · field updates', items: ['Set_Tray_Status'], note: 'before/after update triggers re-fire once' },
+  { n: 11, kind: 'config', label: 'Escalation rules' },
+  { n: 12, kind: 'flow', label: 'After-save record-triggered flows', items: ['Loaner_Tray_Notify'] },
+  { n: 13, kind: 'config', label: 'Entitlement rules' },
+  { n: 14, kind: 'system', label: 'Roll-up summary · cross-object formulas', items: ['Kit__c.Trays_Out__c'], note: 'parent runs its own save order' },
+  { n: 15, kind: 'system', label: 'Criteria-based sharing recalculation' },
+  { n: 16, kind: 'commit', label: 'COMMIT — all DML written, locks released' },
+  { n: 17, kind: 'async', label: 'Post-commit · email, async Apex, async flow paths', items: ['KitAvailabilityQueueable', 'refreshInventory@future'] }
+];
+
+const OOE_KIND = {
+  system: { color: 'var(--color-neutral-400)', icon: 'ph ph-cpu' },
+  config: { color: 'oklch(0.80 0.14 85)', icon: 'ph ph-sliders' },
+  apex: { color: 'var(--color-accent)', icon: 'ph ph-file-code' },
+  flow: { color: 'oklch(0.80 0.09 190)', icon: 'ph ph-flow-arrow' },
+  db: { color: 'oklch(0.80 0.075 215)', icon: 'ph ph-database' },
+  commit: { color: 'oklch(0.78 0.13 150)', icon: 'ph ph-lock-key-open' },
+  async: { color: 'oklch(0.78 0.13 150)', icon: 'ph ph-clock-countdown' }
+};
+
+const NET_NODES = [
+  { id: 'Loaner_Tray__c', kind: 'sobject', x: 380, y: 230, r: 30 },
+  { id: 'Kit__c', kind: 'sobject', x: 585, y: 140, r: 24 },
+  { id: 'Booking__c', kind: 'sobject', x: 585, y: 320, r: 24 },
+  { id: 'Account', kind: 'sobject', x: 175, y: 140, r: 24 },
+  { id: 'Contact', kind: 'sobject', x: 110, y: 300, r: 22 },
+  { id: 'LoanerTrayService', kind: 'apex', x: 380, y: 80, r: 25 },
+  { id: 'AccountEnrichmentService', kind: 'apex', x: 210, y: 400, r: 25 },
+  { id: 'KitAvailabilityController', kind: 'apex', x: 700, y: 225, r: 25 },
+  { id: 'LoanerTrayTrigger', kind: 'trigger', x: 250, y: 250, r: 21 },
+  { id: 'AccountTrigger', kind: 'trigger', x: 120, y: 55, r: 21 },
+  { id: 'returnInspectionForm', kind: 'lwc', x: 430, y: 420, r: 21 },
+  { id: 'kitAvailabilityCalendar', kind: 'lwc', x: 690, y: 400, r: 21 },
+  { id: 'Loaner_Tray_Notify', kind: 'flow', x: 530, y: 230, r: 19 }
+];
+
+const NET_EDGES = [
+  { a: 'LoanerTrayService', b: 'Loaner_Tray__c', rel: 'writes' },
+  { a: 'LoanerTrayTrigger', b: 'LoanerTrayService', rel: 'calls' },
+  { a: 'LoanerTrayTrigger', b: 'Loaner_Tray__c', rel: 'on' },
+  { a: 'Loaner_Tray__c', b: 'Kit__c', rel: 'lookup' },
+  { a: 'Loaner_Tray__c', b: 'Booking__c', rel: 'lookup' },
+  { a: 'Account', b: 'Contact', rel: 'lookup' },
+  { a: 'AccountEnrichmentService', b: 'Account', rel: 'queries' },
+  { a: 'AccountEnrichmentService', b: 'Contact', rel: 'queries' },
+  { a: 'AccountTrigger', b: 'AccountEnrichmentService', rel: 'calls' },
+  { a: 'AccountTrigger', b: 'Account', rel: 'on' },
+  { a: 'KitAvailabilityController', b: 'Kit__c', rel: 'queries' },
+  { a: 'KitAvailabilityController', b: 'Booking__c', rel: 'queries' },
+  { a: 'returnInspectionForm', b: 'LoanerTrayService', rel: 'wire' },
+  { a: 'kitAvailabilityCalendar', b: 'KitAvailabilityController', rel: 'wire' },
+  { a: 'Loaner_Tray_Notify', b: 'Loaner_Tray__c', rel: 'updates' },
+  { a: 'Booking__c', b: 'Account', rel: 'lookup' }
+];
+
+const NET_KIND = {
+  sobject: { color: K_OBJ, icon: 'ph ph-database', label: 'SObject' },
+  apex: { color: K_APEX, icon: 'ph ph-file-code', label: 'Apex class' },
+  trigger: { color: K_TRIG, icon: 'ph ph-lightning', label: 'Trigger' },
+  lwc: { color: K_LWC, icon: 'ph ph-cube', label: 'LWC' },
+  flow: { color: K_FLOW, icon: 'ph ph-flow-arrow', label: 'Flow' }
+};
+
+const SYMBOLS = [
+  { name: 'LoanerTrayService', kind: 'class', file: 'classes/LoanerTrayService.cls', refs: 34, cov: 88 },
+  { name: 'LoanerTrayService.checkOut', kind: 'method', file: 'classes/LoanerTrayService.cls:41', refs: 12, cov: 94 },
+  { name: 'LoanerTrayService.checkIn', kind: 'method', file: 'classes/LoanerTrayService.cls:78', refs: 9, cov: 91 },
+  { name: 'LoanerTrayConstants.STATUS_OUT', kind: 'field', file: 'classes/LoanerTrayConstants.cls:12', refs: 21, cov: 100 },
+  { name: 'KitAvailabilityController', kind: 'class', file: 'classes/KitAvailabilityController.cls', refs: 18, cov: 76 },
+  { name: 'KitAvailabilityController.getSlots', kind: 'method', file: 'classes/KitAvailabilityController.cls:26', refs: 7, cov: 72 },
+  { name: 'AccountEnrichmentService', kind: 'class', file: 'classes/AccountEnrichmentService.cls', refs: 6, cov: 0 },
+  { name: 'AccountEnrichmentService.enrich', kind: 'method', file: 'classes/AccountEnrichmentService.cls:9', refs: 4, cov: 0 },
+  { name: 'Loaner_Tray__c', kind: 'sobject', file: 'objects/Loaner_Tray__c', refs: 52, cov: 100 },
+  { name: 'Loaner_Tray__c.Status__c', kind: 'field', file: 'objects/Loaner_Tray__c/fields', refs: 28, cov: 100 },
+  { name: 'Kit__c.Trays_Out__c', kind: 'field', file: 'objects/Kit__c/fields', refs: 11, cov: 100 },
+  { name: 'LoanerTrayTrigger', kind: 'trigger', file: 'triggers/LoanerTrayTrigger.trigger', refs: 3, cov: 84 },
+  { name: 'AccountTrigger', kind: 'trigger', file: 'triggers/AccountTrigger.trigger', refs: 2, cov: 61 },
+  { name: 'returnInspectionForm', kind: 'lwc', file: 'lwc/returnInspectionForm', refs: 5, cov: 100 },
+  { name: 'kitAvailabilityCalendar', kind: 'lwc', file: 'lwc/kitAvailabilityCalendar', refs: 4, cov: 100 },
+  { name: 'Loaner_Tray_Notify', kind: 'flow', file: 'flows/Loaner_Tray_Notify.flow', refs: 2, cov: 100 }
+];
+
+const SYM_KIND = {
+  class: { color: K_APEX, icon: 'ph ph-file-code' },
+  method: { color: 'var(--color-accent-200)', icon: 'ph ph-function' },
+  field: { color: 'var(--color-neutral-300)', icon: 'ph ph-tag' },
+  sobject: { color: K_OBJ, icon: 'ph ph-database' },
+  trigger: { color: K_TRIG, icon: 'ph ph-lightning' },
+  lwc: { color: K_LWC, icon: 'ph ph-cube' },
+  flow: { color: K_FLOW, icon: 'ph ph-flow-arrow' }
+};
+
+const IDX_PHASES = [
+  { label: 'Discovering Metadata', sub: 'Discovering workspace Salesforce files…' },
+  { label: 'Parsing Apex', sub: 'Building syntax trees for 214 classes and triggers…' },
+  { label: 'Resolving References', sub: 'Linking symbols across objects, flows and LWC…' },
+  { label: 'Mapping Execution Order', sub: 'Placing every automation on the save order…' },
+  { label: 'Writing Index', sub: 'Persisting to .siid/index — stays on this machine…' }
+];
+
+const SEED_CHAT = [
+  { k: 'user', text: 'Audit the loaner kit inventory flow, then bulkify anything that queries inside a loop.' },
+  {
+    k: 'tool', icon: 'ph ph-magnifying-glass', title: 'Search this directory', status: 'done',
+    hi: 'Loaner|Tray|Inventory|Inspection|Booking|Kit',
+    path: 'force-app/main/default/classes',
+    files: [
+      { verb: 'Read', name: 'LoanerTrayService.cls' },
+      { verb: 'Read', name: 'LoanerTrayConstants.cls' },
+      { verb: 'Read', name: 'KitAvailabilityController.cls' },
+      { verb: 'Read', name: 'returnInspectionForm.css' }
+    ]
+  },
+  { k: 'say', text: 'Six classes make up the loaner flow. LoanerTrayService is the hub — it owns tray state and is the only writer to Loaner_Tray__c. The same N+1 pattern shows up in the open file: enrich() queries Contact once per Account.' },
+  {
+    k: 'tool', icon: 'ph ph-git-diff', title: 'Apply diff · AccountEnrichmentService.cls', status: 'pending',
+    add: 12, del: 4, scope: 'enrich(Set<Id> accountIds)'
+  }
+];
+
+const COMMANDS = [
+  { id: 'siid-forge.deployToOrg', title: 'Deploy to Org…', icon: 'ph ph-cloud-arrow-up', act: 'deploy' },
+  { id: 'siid-forge.runApexTests', title: 'Run Apex Tests', icon: 'ph ph-flask', act: 'test' },
+  { id: 'siid-forge.retrieveFromOrg', title: 'Retrieve from Org…', icon: 'ph ph-cloud-arrow-down', act: 'retrieve' },
+  { id: 'siid-forge.generateApexTestAi', title: 'Generate Apex Test with AI', icon: 'ph ph-sparkle', act: 'ai' },
+  { id: 'siid-forge.analyzeLog', title: 'Analyze Apex Log', icon: 'ph ph-chart-line', act: 'analyze' },
+  { id: 'siid-forge.fieldImpact', title: 'Field / Object Impact…', icon: 'ph ph-tree-structure', act: 'none' },
+  { id: 'siid-forge.runSoql', title: 'Run SOQL Query', icon: 'ph ph-database', act: 'none' },
+  { id: 'siid-forge.evaluateFormula', title: 'Evaluate Formula', icon: 'ph ph-function', act: 'none' },
+  { id: 'siid-forge.refreshSchema', title: 'Refresh Schema Cache (All)', icon: 'ph ph-arrows-clockwise', act: 'schema' },
+  { id: 'siid-forge.describeObject', title: 'Describe SObject…', icon: 'ph ph-magnifying-glass', act: 'none' },
+  { id: 'siid-forge.orgCompare', title: 'Compare Orgs…', icon: 'ph ph-git-diff', act: 'none' },
+  { id: 'siid-forge.toggleCoverage', title: 'Toggle Code Coverage Highlighting', icon: 'ph ph-shield-check', act: 'coverage' },
+  { id: 'siid-forge.executeAnonApex', title: 'Execute Anonymous Apex', icon: 'ph ph-play', act: 'none' },
+  { id: 'siid-forge.selectOrg', title: 'Select Default Org', icon: 'ph ph-cloud', act: 'none' },
+  { id: 'siid-forge.createLwc', title: 'Create LWC Component', icon: 'ph ph-cube', act: 'none' }
+];
+
+function tokenize(text) {
+  const raws = text.split('\n');
+  let inBlock = false, depth = 0;
+  return raws.map(function (line) {
+    const out = [];
+    let i = 0;
+    while (i < line.length) {
+      const rest = line.slice(i);
+      if (inBlock) {
+        const e = rest.indexOf('*/');
+        if (e === -1) { out.push({ t: rest, c: 'cm' }); i = line.length; }
+        else { out.push({ t: rest.slice(0, e + 2), c: 'cm' }); i += e + 2; inBlock = false; }
+        continue;
+      }
+      if (rest.slice(0, 2) === '/*') { inBlock = true; out.push({ t: '/*', c: 'cm' }); i += 2; continue; }
+      if (rest.slice(0, 2) === '//') { out.push({ t: rest, c: 'cm' }); i = line.length; continue; }
+      let m = rest.match(/^'[^']*'?/);
+      if (m) { out.push({ t: m[0], c: 'st' }); i += m[0].length; continue; }
+      m = rest.match(/^@\w+/);
+      if (m) { out.push({ t: m[0], c: 'an' }); i += m[0].length; continue; }
+      m = rest.match(/^\s+/);
+      if (m) { out.push({ t: m[0], c: 'pu' }); i += m[0].length; continue; }
+      m = rest.match(/^[A-Za-z_]\w*/);
+      if (m) {
+        const w = m[0];
+        let c = 'id';
+        if (depth > 0 && w === w.toUpperCase() && SQ.has(w)) c = 'sq';
+        else if (KW.has(w)) c = 'kw';
+        else if (TY.has(w)) c = 'ty';
+        out.push({ t: w, c: c }); i += w.length; continue;
+      }
+      m = rest.match(/^\d+/);
+      if (m) { out.push({ t: m[0], c: 'nu' }); i += m[0].length; continue; }
+      const ch = rest[0];
+      if (ch === '[') depth++;
+      let cc = 'pu';
+      if (ch === '[' || ch === ']') cc = 'sq';
+      if (ch === ']') depth = Math.max(0, depth - 1);
+      out.push({ t: ch, c: cc }); i++;
+    }
+    if (!out.length) out.push({ t: ' ', c: 'pu' });
+    return out;
+  });
+}
+
+function analyze(text) {
+  const raws = text.split('\n');
+  const diags = [];
+  let depth = 0;
+  const loopStack = [];
+  raws.forEach(function (raw, idx) {
+    const s = raw.trim();
+    const opens = (raw.match(/\{/g) || []).length;
+    const closes = (raw.match(/\}/g) || []).length;
+    const isLoop = /^(for|while|do)\s*[({]/.test(s);
+    const inLoop = loopStack.length > 0;
+    if (inLoop && /\[\s*SELECT/i.test(raw)) {
+      diags.push({ line: idx + 1, sev: 'error', code: 'SIID1001', msg: 'SOQL query inside a loop. At 200 records this fires 200 queries against a limit of 100 — query once outside the loop and build a Map<Id, …>.' });
+    }
+    if (inLoop && /^(insert|update|delete|upsert)\s+/i.test(s)) {
+      diags.push({ line: idx + 1, sev: 'error', code: 'SIID1002', msg: 'DML statement inside a loop. Collect records into a List and issue a single DML after the loop.' });
+    }
+    if (/'0[0-9A-Za-z]{14}([0-9A-Za-z]{3})?'/.test(raw)) {
+      diags.push({ line: idx + 1, sev: 'warning', code: 'SIID2004', msg: 'Hardcoded Salesforce Id. This record does not exist in every org — resolve it from a Custom Setting or query by DeveloperName.' });
+    }
+    if (/Database\.query\(/.test(raw) && /\+/.test(raw)) {
+      diags.push({ line: idx + 1, sev: 'warning', code: 'SIID2011', msg: 'Dynamic SOQL assembled by concatenation — injection risk. Wrap the binding in String.escapeSingleQuotes().' });
+    }
+    if (/System\.debug\(/.test(raw)) {
+      diags.push({ line: idx + 1, sev: 'info', code: 'SIID3010', msg: 'Debug statement will ship to the org. Consider gating it behind a logging framework.' });
+    }
+    depth += opens;
+    if (isLoop) loopStack.push(depth);
+    if (closes) {
+      depth -= closes;
+      while (loopStack.length && depth < loopStack[loopStack.length - 1]) loopStack.pop();
+    }
+  });
+
+  const queries = [];
+  const qre = /\[\s*SELECT[\s\S]*?\]/g;
+  let qm;
+  while ((qm = qre.exec(text)) !== null) {
+    const line = text.slice(0, qm.index).split('\n').length;
+    const body = qm[0];
+    const fromM = body.match(/FROM\s+(\w+)/i);
+    const selM = body.match(/SELECT([\s\S]*?)FROM/i);
+    const fields = selM ? selM[1].split(',').map(function (f) { return f.trim(); }).filter(Boolean) : [];
+    const secure = /WITH\s+(SECURITY_ENFORCED|USER_MODE)/i.test(body);
+    queries.push({ line: line, object: fromM ? fromM[1] : 'SObject', fields: fields, secure: secure });
+    if (!secure) {
+      diags.push({ line: line, sev: 'info', code: 'SIID3002', msg: 'Query runs in system mode. Add WITH USER_MODE to enforce the running user’s field and object permissions.' });
+    }
+  }
+
+  const dml = [];
+  const dre = /^\s*(insert|update|delete|upsert)\s+(\w+)/gim;
+  let dm;
+  while ((dm = dre.exec(text)) !== null) {
+    dml.push({ line: text.slice(0, dm.index).split('\n').length, op: dm[1].toLowerCase(), target: dm[2] });
+  }
+
+  const methods = [];
+  const mre = /(public|private|global|protected)\s+(?:static\s+)?(?:[\w<>,\[\]\s]+?)\s+(\w+)\s*\(([^)]*)\)/g;
+  let mm;
+  while ((mm = mre.exec(text)) !== null) {
+    if (mm[2] === 'if' || mm[2] === 'for' || mm[2] === 'while') continue;
+    methods.push({ name: mm[2], vis: mm[1], args: mm[3].trim(), line: text.slice(0, mm.index).split('\n').length });
+  }
+
+  const clsM = text.match(/class\s+(\w+)/);
+  const loopQueries = diags.filter(function (d) { return d.code === 'SIID1001'; }).length;
+  const loopDml = diags.filter(function (d) { return d.code === 'SIID1002'; }).length;
+
+  return {
+    diags: diags.sort(function (a, b) { return a.line - b.line; }),
+    queries: queries,
+    dml: dml,
+    methods: methods,
+    className: clsM ? clsM[1] : 'Untitled',
+    projSoql: queries.length - loopQueries + loopQueries * 200,
+    projDml: dml.length - loopDml + loopDml * 200,
+    loopQueries: loopQueries,
+    loopDml: loopDml
+  };
+}
+
+class Component extends DCLogic {
+  state = {
+    code: SEED,
+    caret: 0,
+    dirty: true,
+    sel: null,
+    bottom: 'problems',
+    log: [],
+    busyText: '',
+    stages: [],
+    paletteOpen: false,
+    query: '',
+    peer: { line: 17, col: 12 },
+    coverageOn: true,
+    schemaAge: '2m ago',
+    activity: 'agent',
+    scale: 1,
+    chat: SEED_CHAT,
+    draft: '',
+    streaming: false,
+    paused: true,
+    focused: false,
+    autoApprove: true,
+    elapsed: 751,
+    tokens: 129800,
+    mode: 'Orchestrator',
+    model: 'anthropic/claude-sonnet-4.5',
+    indexOpen: false,
+    idxTab: 'settings',
+    indexing: false,
+    indexEnabled: true,
+    engines: { ooe: true, graph: true, symbols: true },
+    idxPct: 100,
+    idxPhaseIdx: 4,
+    idxStatusText: 'Indexed',
+    idxLog: [
+      { t: '11:42', text: 'Discovered 214 classes · 38 triggers · 61 LWC · 27 flows', fg: 'var(--color-neutral-300)' },
+      { t: '11:42', text: 'Parsed 1,284 symbols, 0 unresolved', fg: 'var(--color-neutral-300)' },
+      { t: '11:43', text: 'Order of Execution timelines built for 19 objects', fg: 'oklch(0.78 0.13 150)' },
+      { t: '11:43', text: 'Dependency graph: 13 nodes · 16 edges in the loaner cluster', fg: 'oklch(0.78 0.13 150)' },
+      { t: '11:43', text: 'Index written to .siid/index — no external vector store', fg: 'var(--color-neutral-300)' }
+    ],
+    netSel: 'Loaner_Tray__c',
+    symQuery: '',
+    symKind: 'all',
+    symFocused: false,
+    railView: 'chat',
+    histQuery: '',
+    histScope: 'Current',
+    histSort: 'Newest',
+    selMode: false,
+    selected: [],
+    tasks: [
+      { id: 't1', title: 'Hi', ago: '4 days ago', dur: '12m 31s', tok: '18.2k' },
+      { id: 't2', title: 'Build one Lightning web component called kitAvailabilityCalendar, plus the one…', ago: '6 days ago', dur: '29m 58s', tok: '204.6k' },
+      { id: 't3', title: '📍 Phase 1/2 — Create Apex Controller KitAvailabilityController + Test Class…', ago: '6 days ago', dur: '23m 17s', tok: '166.1k' },
+      { id: 't4', title: 'Add validation rules to Booking__c. Three rules, nothing else…', ago: '6 days ago', dur: '7m 6s', tok: '41.8k' },
+      { id: 't5', title: '📍 Phase 1/1 — Add Three Validation Rules to Booking__c', ago: '6 days ago', dur: '4m 46s', tok: '38.4k' },
+      { id: 't6', title: 'Trace why LoanerTrayTrigger fires twice on bulk upsert', ago: '1 week ago', dur: '16m 02s', tok: '97.3k' },
+      { id: 't7', title: 'Refactor KitAvailabilityService to bulk-safe SOQL', ago: '1 week ago', dur: '33m 09s', tok: '248.0k' }
+    ],
+    tick: 0
+  };
+
+  componentDidMount() {
+    if (window.__siidTimers) window.__siidTimers.forEach(clearInterval);
+    window.__siidTimers = [];
+    this._fit = () => {
+      const host = document.querySelector('[data-siid-stage]') || document.documentElement;
+      const w = host.clientWidth || window.innerWidth || 1440;
+      const h = host.clientHeight || window.innerHeight || 900;
+      const next = Math.min(1, w / 1448, h / 908);
+      if (Math.abs(next - this.state.scale) > 0.002) this.setState({ scale: next });
+    };
+    this._fit();
+    window.addEventListener('resize', this._fit);
+    if (window.ResizeObserver) {
+      this._ro = new ResizeObserver(this._fit);
+      const host = document.querySelector('[data-siid-stage]');
+      if (host) this._ro.observe(host);
+      this._ro.observe(document.documentElement);
+    }
+    [60, 200, 600].forEach(ms => setTimeout(this._fit, ms));
+    this._key = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState({ paletteOpen: true, query: '' }); }
+      if (e.key === 'Escape') this.setState({ paletteOpen: false });
+    };
+    window.addEventListener('keydown', this._key);
+    this._peerTimer = setInterval(() => {
+      const n = this.state.code.split('\n').length;
+      const line = 5 + Math.floor(Math.random() * Math.max(1, n - 6));
+      this.setState({ peer: { line: line, col: 4 + Math.floor(Math.random() * 26) } });
+    }, 3200);
+    this._clock = setInterval(() => this.setState(s => ({ elapsed: s.elapsed + 1 })), 1000);
+    window.__siidTimers.push(this._peerTimer, this._clock);
+  }
+
+  runIndex(scratch) {
+    clearInterval(this._ix);
+    this.setState({ indexing: true, idxTab: 'run', idxPct: 0, idxPhaseIdx: 0, idxStatusText: 'Indexing', idxLog: [] });
+    const stamp = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+    const t0 = Date.now(), dur = scratch ? 5400 : 2700;
+    let logged = -1;
+    this._ix = setInterval(() => {
+      const pct = Math.min(100, (Date.now() - t0) / dur * 100);
+      const phase = Math.min(IDX_PHASES.length - 1, Math.floor(pct / (100 / IDX_PHASES.length)));
+      if (phase > logged) {
+        logged = phase;
+        this.setState(s => ({ idxLog: s.idxLog.concat([{ t: stamp(), text: IDX_PHASES[phase].sub, fg: 'var(--color-neutral-300)' }]) }));
+      }
+      if (pct >= 100) {
+        clearInterval(this._ix);
+        this.setState(s => ({
+          idxPct: 100, indexing: false, idxStatusText: 'Indexed', idxTab: 'timeline',
+          idxLog: s.idxLog.concat([{ t: stamp(), text: 'Index complete · 1,284 symbols · 3 views ready', fg: 'oklch(0.78 0.13 150)' }])
+        }));
+        return;
+      }
+      this.setState({ idxPct: Math.round(pct), idxPhaseIdx: phase });
+    }, 90);
+    clearTimeout(this._ixEnd);
+    this._ixEnd = setTimeout(() => {
+      if (!this.state.indexing) return;
+      clearInterval(this._ix);
+      this.setState(s => ({
+        idxPct: 100, indexing: false, idxStatusText: 'Indexed', idxTab: 'timeline',
+        idxLog: s.idxLog.concat([{ t: stamp(), text: 'Index complete · 1,284 symbols · 3 views ready', fg: 'oklch(0.78 0.13 150)' }])
+      }));
+    }, dur + 260);
+  }
+
+  componentDidUpdate() {
+    const el = document.querySelector('[data-chat-list]');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  send() {
+    const text = this.state.draft.trim();
+    if (!text || this.state.streaming) return;
+    this.setState(s => ({ chat: s.chat.concat([{ k: 'user', text: text }]), draft: '' }));
+    this.agentRun(text);
+  }
+
+  replyFor(prompt, a) {
+    const p = prompt.toLowerCase();
+    const loop = a.diags.filter(function (d) { return d.code === 'SIID1001' || d.code === 'SIID1002'; });
+    if (/test|coverage/.test(p)) {
+      return {
+        thinking: 'Reading AccountEnrichmentServiceTest.cls',
+        tool: { k: 'tool', icon: 'ph ph-flask', title: 'Run Apex tests · 4 methods', status: 'running', path: 'AccountEnrichmentServiceTest.cls' },
+        text: loop.length
+          ? 'The run fails at enrich_bulk_200 with System.LimitException: Too many SOQL queries: 101. The governor ceiling is hit before the assertions run, so coverage stays unreported until the loop query is lifted out.'
+          : 'All four methods pass and coverage lands at 92%, clear of the 75% deploy gate. enrich() runs one query and one DML regardless of input size.'
+      };
+    }
+    if (/fix|bulk|refactor|loop|soql/.test(p)) {
+      return {
+        thinking: 'Planning · 2 steps',
+        tool: { k: 'tool', icon: 'ph ph-magnifying-glass', title: 'Search for query patterns', status: 'running', hi: '\\[SELECT[^\\]]+\\]', path: 'force-app/main/default/classes', files: [{ verb: 'Read', name: 'AccountEnrichmentService.cls' }, { verb: 'Read', name: 'LoanerTrayService.cls' }] },
+        text: loop.length
+          ? 'Line ' + loop[0].line + ' is the problem: the Contact query sits inside the Account loop, so 200 records means 200 queries against a ceiling of 100. The fix is one aggregate query outside the loop keyed into a Map<Id, List<Contact>>, then a single update after it.'
+          : 'Nothing queries or writes inside a loop in this buffer. enrich() is already bulk-safe at ' + a.projSoql + ' queries and ' + a.projDml + ' DML statements.',
+        follow: loop.length ? { k: 'tool', icon: 'ph ph-git-diff', title: 'Apply diff · ' + a.className + '.cls', status: 'pending', add: 12, del: 4, scope: 'enrich(Set<Id> accountIds)' } : null
+      };
+    }
+    if (/deploy/.test(p)) {
+      return {
+        thinking: 'Validating against ' + (this.props.orgName || 'conscendo-dev'),
+        tool: { k: 'tool', icon: 'ph ph-cloud-arrow-up', title: 'Validate deploy · 1 class', status: 'running', path: 'force-app/main/default/classes' },
+        text: a.diags.some(function (d) { return d.sev === 'error'; })
+          ? 'Validation stops before it reaches the org. There are blocking diagnostics in the buffer, and a deploy would fail the same way at runtime — clear those first.'
+          : 'Validation is clean. One class, no blocking diagnostics, and the governor projection sits inside every limit at 200 records.'
+      };
+    }
+    return {
+      thinking: 'Reading ' + a.className + '.cls',
+      tool: { k: 'tool', icon: 'ph ph-file-magnifying-glass', title: 'Read open file', status: 'running', path: 'force-app/main/default/classes/' + a.className + '.cls' },
+      text: a.className + ' declares ' + a.methods.length + ' method' + (a.methods.length === 1 ? '' : 's') + ' and touches ' + (a.queries.length ? a.queries.map(function (q) { return q.object; }).filter(function (v, i, arr) { return arr.indexOf(v) === i; }).join(' and ') : 'no objects') + '. ' + (a.diags.length ? 'There are ' + a.diags.length + ' open diagnostics — ask me to fix them and I will draft the diff.' : 'The buffer is clean.')
+    };
+  }
+
+  agentRun(prompt) {
+    const a = analyze(this.state.code);
+    const r = this.replyFor(prompt, a);
+    this.clearChatTimers();
+    this.setState(s => ({ chat: s.chat.concat([{ k: 'think', text: 'Thinking' }]), streaming: true, paused: false, railView: 'chat' }));
+    this._ct = [
+      setTimeout(() => {
+        this.setState(s => { const c = s.chat.slice(); c[c.length - 1] = { k: 'think', text: r.thinking }; return { chat: c, tokens: s.tokens + 900 }; });
+      }, 620),
+      setTimeout(() => {
+        this.setState(s => { const c = s.chat.slice(); c.pop(); c.push(r.tool); return { chat: c }; });
+      }, 1500),
+      setTimeout(() => {
+        this.setState(s => {
+          const c = s.chat.slice(); const i = c.length - 1;
+          c[i] = Object.assign({}, c[i], { status: 'done' });
+          return { chat: c, tokens: s.tokens + 2400 };
+        });
+        this.streamSay(r.text, r.follow);
+      }, 2700)
+    ];
+  }
+
+  streamSay(text, follow) {
+    const words = text.split(' ');
+    let i = 0;
+    this.setState(s => ({ chat: s.chat.concat([{ k: 'say', text: '', live: true }]) }));
+    clearInterval(this._st);
+    this._st = setInterval(() => {
+      i += 2;
+      const part = words.slice(0, i).join(' ');
+      const live = i < words.length;
+      this.setState(s => {
+        const c = s.chat.slice();
+        c[c.length - 1] = { k: 'say', text: part, live: live };
+        return { chat: c, tokens: s.tokens + 140 };
+      });
+      if (!live) {
+        clearInterval(this._st);
+        if (follow) this.setState(s => ({ chat: s.chat.concat([follow]), streaming: false, paused: true }));
+        else this.setState({ streaming: false });
+      }
+    }, 65);
+  }
+
+  approve(idx) {
+    this.setState(s => {
+      const c = s.chat.slice();
+      c[idx] = Object.assign({}, c[idx], { status: 'running' });
+      return { chat: c, paused: false, streaming: true };
+    });
+    this.clearChatTimers();
+    this._ct = [setTimeout(() => {
+      this.setState(s => {
+        const c = s.chat.slice();
+        c[idx] = Object.assign({}, c[idx], { status: 'done', files: [{ verb: 'Wrote', name: 'AccountEnrichmentService.cls' }] });
+        return { chat: c };
+      });
+      const fixed = this.state.code
+        .replace('        for (Account a : accts) {\n            List<Contact> cons = [SELECT Id FROM Contact WHERE AccountId = :a.Id];\n            a.Description = \'Contacts: \' + cons.size();\n        }',
+          '        Map<Id, Integer> counts = new Map<Id, Integer>();\n        for (Contact c : [SELECT Id, AccountId FROM Contact WHERE AccountId IN :accountIds]) {\n            Integer n = counts.containsKey(c.AccountId) ? counts.get(c.AccountId) : 0;\n            counts.put(c.AccountId, n + 1);\n        }\n\n        for (Account a : accts) {\n            Integer n = counts.containsKey(a.Id) ? counts.get(a.Id) : 0;\n            a.Description = \'Contacts: \' + n;\n        }');
+      this.setState({ code: fixed, dirty: true });
+      this.streamSay('Applied. The Contact query now runs once for the whole set and feeds a Map, so enrich() holds at two queries and one DML no matter how many Accounts come in. The governor readout in the status bar dropped with it.', null);
+    }, 1100)];
+  }
+
+  reject(idx) {
+    this.setState(s => {
+      const c = s.chat.slice();
+      c.splice(idx, 1);
+      return { chat: c.concat([{ k: 'say', text: 'Left the file as it is. The N+1 diagnostic stays open in the Problems panel.' }]), paused: false };
+    });
+  }
+
+  clearChatTimers() {
+    (this._ct || []).forEach(clearTimeout);
+    this._ct = [];
+    clearInterval(this._st);
+  }
+
+  componentWillUnmount() {
+    this.clearChatTimers();
+    clearInterval(this._clock);
+    clearInterval(this._ix);
+    window.removeEventListener('keydown', this._key);
+    window.removeEventListener('resize', this._fit);
+    if (this._ro) this._ro.disconnect();
+    clearInterval(this._peerTimer);
+    clearTimeout(this._t);
+  }
+
+  now() {
+    const d = new Date();
+    return String(d.getMinutes()).padStart(2, '0') + ':' + String(d.getSeconds()).padStart(2, '0');
+  }
+
+  push(text, kind) {
+    const color = kind === 'ok' ? GREEN : kind === 'err' ? RED : kind === 'cmd' ? 'var(--color-accent-200)' : 'var(--color-neutral-300)';
+    this.setState(s => ({ log: s.log.concat([{ t: this.now(), text: text, color: color }]).slice(-90) }));
+  }
+
+  runPipeline(labels, finish) {
+    clearTimeout(this._t);
+    const stages = labels.map(l => ({ label: l, pct: 0, state: 'pending', note: '' }));
+    this.setState({ stages: stages, bottom: 'pipeline', busyText: labels[0] });
+    let i = 0;
+    const step = () => {
+      const st = this.state.stages.slice();
+      if (i > 0) { st[i - 1] = Object.assign({}, st[i - 1], { pct: 100, state: 'done', note: (0.3 + Math.random() * 1.4).toFixed(1) + 's' }); }
+      if (i >= st.length) {
+        this.setState({ stages: st, busyText: '' });
+        finish();
+        return;
+      }
+      st[i] = Object.assign({}, st[i], { state: 'active', pct: 70 });
+      this.setState({ stages: st, busyText: st[i].label });
+      this.push(st[i].label + '…', 'cmd');
+      i++;
+      this._t = setTimeout(step, 700 + Math.random() * 500);
+    };
+    step();
+  }
+
+  parse(code) {
+    if (!this._cache || this._cache.code !== code) {
+      this._cache = { code: code, raws: code.split('\n'), toks: tokenize(code), a: analyze(code) };
+    }
+    return this._cache;
+  }
+
+  openTask(t) {
+    this.clearChatTimers();
+    this.setState({
+      railView: 'chat', selMode: false, selected: [], taskName: t.title,
+      chat: [{ k: 'user', text: t.title }, { k: 'say', text: 'Restored from history. ' + t.dur + ' of work, ' + t.tok + ' tokens. Ask a follow-up and I pick it up from here.' }],
+      streaming: false, paused: false, draft: ''
+    });
+  }
+
+  togglePick(id) {
+    this.setState(s => ({ selected: s.selected.indexOf(id) > -1 ? s.selected.filter(x => x !== id) : s.selected.concat([id]) }));
+  }
+
+  renderVals() {
+    const code = this.state.code;
+    const parsed = this.parse(code);
+    const raws = parsed.raws;
+    const toks = parsed.toks;
+    const a = parsed.a;
+    const collabOn = this.props.collabPresence !== false;
+    const orgName = this.props.orgName || 'conscendo-dev';
+
+    const bySev = { error: 0, warning: 0, info: 0 };
+    const lineSev = {};
+    a.diags.forEach(function (d) {
+      bySev[d.sev]++;
+      const cur = lineSev[d.line];
+      if (!cur || (cur === 'info' && d.sev !== 'info') || (cur === 'warning' && d.sev === 'error')) lineSev[d.line] = d.sev;
+    });
+
+    const covLines = {};
+    if (this.state.coverageOn) {
+      a.methods.forEach(function (m) { for (let k = 0; k < 3; k++) covLines[m.line + k] = true; });
+    }
+
+    const caret = Math.min(this.state.caret, code.length);
+    const before = code.slice(0, caret);
+    const curLine = before.split('\n').length;
+    const curCol = caret - before.lastIndexOf('\n');
+
+    const lines = raws.map((raw, i) => ({
+      n: i + 1,
+      tokens: toks[i].map(function (t) { return { t: t.t, color: C[t.c] }; }),
+      isErr: lineSev[i + 1] === 'error',
+      isWarn: lineSev[i + 1] === 'warning',
+      isCov: !lineSev[i + 1] && !!covLines[i + 1]
+    }));
+
+    const squiggles = a.diags.filter(function (d) { return d.sev !== 'info'; }).map(function (d) {
+      const raw = raws[d.line - 1] || '';
+      const indent = raw.length - raw.replace(/^\s+/, '').length;
+      return {
+        left: 60 + indent * CH,
+        top: 8 + d.line * LH - 3,
+        width: Math.max(24, raw.trim().length * CH),
+        color: d.sev === 'error' ? RED : AMBER
+      };
+    });
+
+    const diagnostics = a.diags.map(d => ({
+      code: d.code,
+      msg: d.msg,
+      line: d.line,
+      color: d.sev === 'error' ? RED : d.sev === 'warning' ? AMBER : 'var(--color-accent-200)',
+      icon: d.sev === 'error' ? 'ph ph-warning-octagon' : d.sev === 'warning' ? 'ph ph-warning' : 'ph ph-info',
+      onGo: () => {
+        const off = raws.slice(0, d.line - 1).join('\n').length + 1;
+        this.setState({ caret: off });
+      }
+    }));
+
+    const objects = [];
+    a.queries.forEach(function (q) {
+      let o = objects.find(function (x) { return x.name === q.object; });
+      if (!o) { o = { name: q.object, fields: [], queries: 0, secure: true }; objects.push(o); }
+      o.queries++;
+      if (!q.secure) o.secure = false;
+      q.fields.forEach(function (f) { if (o.fields.indexOf(f) === -1) o.fields.push(f); });
+    });
+
+    const sel = this.state.sel || { kind: 'class', name: a.className };
+    const pick = (kind, name) => () => this.setState({ sel: { kind: kind, name: name } });
+
+    const ring = [];
+    objects.forEach(function (o) { ring.push({ kind: 'sobject', label: o.name, name: o.name }); });
+    a.methods.forEach(function (m) { ring.push({ kind: 'method', label: m.name, name: m.name }); });
+    ring.push({ kind: 'org', label: orgName, name: orgName });
+
+    const cx = 160, cy = 112;
+    const nodes = [{
+      x: cx, y: cy, r: 26, label: a.className.slice(0, 9), kind: 'class', name: a.className,
+      fill: 'var(--color-accent-900)', stroke: 'var(--color-accent)', sw: 1.5,
+      tfill: 'var(--color-text)', fs: 8, ty: cy + 1, sy: cy + 11,
+      selected: sel.kind === 'class', onPick: pick('class', a.className)
+    }];
+    const rx = 122, ry = 88;
+    ring.forEach(function (nd, i) {
+      const ang = -Math.PI / 2 + (i / Math.max(1, ring.length)) * Math.PI * 2;
+      const x = cx + Math.cos(ang) * rx;
+      const y = cy + Math.sin(ang) * ry;
+      const isSel = sel.kind === nd.kind && sel.name === nd.name;
+      const hue = nd.kind === 'sobject' ? 'oklch(0.80 0.075 215)' : nd.kind === 'org' ? GREEN : 'var(--color-accent-200)';
+      nodes.push({
+        x: Math.round(x), y: Math.round(y), r: 19,
+        label: nd.label.slice(0, 10), kind: nd.kind, name: nd.name,
+        fill: 'var(--color-neutral-800)', stroke: hue, sw: isSel ? 1.8 : 0.9,
+        tfill: hue, fs: 7.5, ty: Math.round(y) + 1, sy: Math.round(y) + 10,
+        selected: isSel, onPick: pick(nd.kind, nd.name)
+      });
+    });
+    const edges = nodes.slice(1).map(function (n) {
+      return { x1: cx, y1: cy, x2: n.x, y2: n.y, stroke: n.stroke, w: n.selected ? 1.4 : 0.6 };
+    });
+
+    let inspKind = sel.kind, inspName = sel.name, inspDesc = '', inspRows = [];
+    if (sel.kind === 'sobject') {
+      const o = objects.find(function (x) { return x.name === sel.name; }) || { fields: [], queries: 0, secure: true };
+      inspDesc = 'Standard object read by this class. Field list is derived from the live SELECT clauses.';
+      inspRows = [
+        { k: 'fields read', v: o.fields.join(', ') || '—', fg: 'var(--color-neutral-200)' },
+        { k: 'queries', v: String(o.queries), fg: 'var(--color-neutral-200)' },
+        { k: 'sharing', v: o.secure ? 'user mode' : 'system mode', fg: o.secure ? GREEN : AMBER },
+        { k: 'in loop', v: a.loopQueries ? 'yes — ' + a.loopQueries + ' site' : 'no', fg: a.loopQueries ? RED : GREEN }
+      ];
+    } else if (sel.kind === 'method') {
+      const m = a.methods.find(function (x) { return x.name === sel.name; }) || { args: '', vis: '', line: 0 };
+      inspDesc = 'Entry point declared in the open file. Reflects the source as you type.';
+      inspRows = [
+        { k: 'signature', v: sel.name + '(' + m.args + ')', fg: 'var(--color-neutral-200)' },
+        { k: 'visibility', v: m.vis, fg: 'var(--color-neutral-200)' },
+        { k: 'declared', v: 'Ln ' + m.line, fg: 'var(--color-neutral-200)' },
+        { k: 'covered', v: this.state.coverageOn ? 'yes' : 'coverage off', fg: this.state.coverageOn ? GREEN : 'var(--color-neutral-400)' }
+      ];
+    } else if (sel.kind === 'org') {
+      inspDesc = 'Default target org. Deploys and retrievals in this window resolve against it.';
+      inspRows = [
+        { k: 'alias', v: orgName, fg: 'var(--color-neutral-200)' },
+        { k: 'api', v: '64.0', fg: 'var(--color-neutral-200)' },
+        { k: 'type', v: 'sandbox', fg: 'var(--color-neutral-200)' },
+        { k: 'schema', v: 'cached ' + this.state.schemaAge, fg: 'var(--color-neutral-200)' }
+      ];
+    } else {
+      inspDesc = 'Apex class in the open editor. Everything below is parsed from the buffer on each keystroke.';
+      inspRows = [
+        { k: 'methods', v: a.methods.map(function (m) { return m.name; }).join(', ') || '—', fg: 'var(--color-neutral-200)' },
+        { k: 'objects', v: objects.map(function (o) { return o.name; }).join(', ') || '—', fg: 'var(--color-neutral-200)' },
+        { k: 'problems', v: bySev.error + ' error · ' + bySev.warning + ' warning', fg: bySev.error ? RED : bySev.warning ? AMBER : GREEN },
+        { k: 'deployable', v: bySev.error ? 'blocked' : 'yes', fg: bySev.error ? RED : GREEN }
+      ];
+    }
+
+    const meter = function (label, val, cap) {
+      const pct = Math.min(100, Math.round((val / cap) * 100));
+      const fg = pct >= 100 ? RED : pct >= 60 ? AMBER : GREEN;
+      return { label: label, readout: val + ' / ' + cap, pct: pct, fg: fg };
+    };
+    const heap = 240 + a.queries.length * 120 + a.loopQueries * 1800;
+    const coverage = a.methods.length ? Math.max(0, Math.min(97, 92 - bySev.error * 18 - bySev.warning * 6)) : 0;
+    const meters = [
+      meter('SOQL queries', a.projSoql, 100),
+      meter('DML statements', a.projDml, 150),
+      meter('Heap (KB)', Math.round(heap / 10), 600),
+      { label: 'Test coverage', readout: coverage + '% / 75%', pct: Math.min(100, Math.round(coverage / 0.75)), fg: coverage >= 75 ? GREEN : AMBER }
+    ];
+
+    const q = this.state.query.toLowerCase();
+    const hits = COMMANDS.filter(function (c) { return !q || c.title.toLowerCase().indexOf(q) > -1 || c.id.toLowerCase().indexOf(q) > -1; }).map(c => ({
+      id: c.id.replace('siid-forge.', ''), title: c.title, icon: c.icon,
+      onRun: () => { this.setState({ paletteOpen: false }); this.exec(c); }
+    }));
+
+    const tab = (id, label, count, countBg) => ({
+      label: label, count: count || null, countBg: countBg || GREEN,
+      bg: this.state.bottom === id ? 'var(--color-neutral-800)' : 'transparent',
+      fg: this.state.bottom === id ? 'var(--color-text)' : 'var(--color-neutral-500)',
+      onPick: () => this.setState({ bottom: id })
+    });
+
+    const treeItems = [
+      { icon: 'ph ph-folder-open', label: 'force-app', indent: 8, kind: 'dir' },
+      { icon: 'ph ph-folder-open', label: 'classes', indent: 20, kind: 'dir' },
+      { icon: 'ph ph-file-code', label: a.className + '.cls', indent: 32, kind: 'file', active: true, badge: bySev.error ? String(bySev.error) : null, badgeFg: RED },
+      { icon: 'ph ph-file-code', label: a.className + 'Test.cls', indent: 32, kind: 'file', badge: coverage + '%', badgeFg: coverage >= 75 ? GREEN : AMBER },
+      { icon: 'ph ph-file-code', label: 'AccountSelector.cls', indent: 32, kind: 'file' },
+      { icon: 'ph ph-folder', label: 'lwc', indent: 20, kind: 'dir' },
+      { icon: 'ph ph-cube', label: 'accountCard', indent: 32, kind: 'file' },
+      { icon: 'ph ph-folder', label: 'objects', indent: 20, kind: 'dir' },
+      { icon: 'ph ph-database', label: 'Account', indent: 32, kind: 'obj' },
+      { icon: 'ph ph-database', label: 'Contact', indent: 32, kind: 'obj' },
+      { icon: 'ph ph-folder', label: 'triggers', indent: 20, kind: 'dir' },
+      { icon: 'ph ph-lightning', label: 'AccountTrigger.trigger', indent: 32, kind: 'file' }
+    ];
+    const tree = treeItems.map(t => ({
+      icon: t.icon, label: t.label, indent: t.indent, badge: t.badge || null, badgeFg: t.badgeFg || 'var(--color-neutral-500)',
+      fg: t.active ? 'var(--color-text)' : 'var(--color-neutral-300)',
+      bg: t.active ? 'var(--color-neutral-800)' : 'transparent',
+      iconFg: t.kind === 'obj' ? 'oklch(0.80 0.075 215)' : t.kind === 'dir' ? 'var(--color-neutral-500)' : 'var(--color-accent-200)',
+      onPick: t.kind === 'obj' ? pick('sobject', t.label) : () => {}
+    }));
+
+    const acts = [
+      { id: 'explorer', icon: 'ph ph-files', label: 'Explorer', short: 'FILE' },
+      { id: 'forge', icon: 'ph ph-hammer', label: 'SIID Forge', short: 'FORGE' },
+      { id: 'schema', icon: 'ph ph-database', label: 'Schema', short: 'SCHEMA' },
+      { id: 'agent', icon: 'ph ph-sparkle', label: 'AI Agent', short: 'AGENT' },
+      { id: 'tests', icon: 'ph ph-flask', label: 'Tests', short: 'TEST' },
+      { id: 'source', icon: 'ph ph-git-branch', label: 'Source Control', short: 'GIT' }
+    ];
+    const activity = acts.map(x => ({
+      icon: x.icon, label: x.label, short: x.short,
+      bg: this.state.activity === x.id ? 'var(--color-accent-900)' : 'transparent',
+      fg: this.state.activity === x.id ? 'var(--color-accent)' : 'var(--color-neutral-500)',
+      onPick: () => this.setState({ activity: x.id })
+    }));
+    const actLabel = (acts.find(x => x.id === this.state.activity) || acts[1]).label;
+
+    const peerLine = Math.min(this.state.peer.line, raws.length);
+    const busy = !!this.state.busyText;
+    const ctxPct = Math.min(100, Math.round(this.state.tokens / 10000));
+    const sendHot = this.state.streaming || this.state.draft.trim().length > 0;
+
+    const st = this.state;
+    const idxTab = st.indexing ? 'run' : st.idxTab;
+    const idxDone = Math.round(1284 * st.idxPct / 100);
+    const phase = IDX_PHASES[Math.min(st.idxPhaseIdx, IDX_PHASES.length - 1)];
+    const hexPts = (cx, cy, r) => {
+      let p = [];
+      for (let i = 0; i < 6; i++) {
+        const ang = Math.PI / 180 * (60 * i - 30);
+        p.push((cx + r * Math.cos(ang)).toFixed(1) + ',' + (cy + r * Math.sin(ang)).toFixed(1));
+      }
+      return p.join(' ');
+    };
+    const hexes = [];
+    for (let i = 0; i < 6; i++) {
+      const ang = Math.PI / 180 * (60 * i - 30);
+      const cx = 150 + Math.cos(ang) * 82, cy = 132 + Math.sin(ang) * 82;
+      const lit = st.indexing && (Math.floor(st.idxPct / 6) % 6) === i;
+      hexes.push({
+        pts: hexPts(cx, cy, 44), cx: cx.toFixed(1), cy: cy.toFixed(1),
+        fill: lit ? 'var(--color-accent-900)' : 'var(--color-neutral-900)',
+        stroke: lit ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+        dur: (2.4 + i * 0.2).toFixed(1), delay: (i * 0.18).toFixed(2)
+      });
+    }
+
+    const engineDefs = [
+      { id: 'ooe', label: 'Order of Execution Timelines', icon: 'ph ph-list-numbers', iconFg: K_FLOW, count: '19 objects' },
+      { id: 'graph', label: 'Metadata Dependency Graph', icon: 'ph ph-tree-structure', iconFg: K_OBJ, count: '16 edges' },
+      { id: 'symbols', label: 'Apex & SObject Symbol Index', icon: 'ph ph-list-magnifying-glass', iconFg: K_APEX, count: '1,284 symbols' }
+    ];
+    const engines = engineDefs.map(e => {
+      const on = !!st.engines[e.id];
+      return {
+        label: e.label, icon: e.icon, iconFg: e.iconFg, count: e.count, on: on,
+        border: on ? 'var(--color-accent)' : 'var(--color-neutral-600)',
+        bg: on ? 'var(--color-accent-900)' : 'transparent',
+        onToggle: () => this.setState(s => ({ engines: Object.assign({}, s.engines, { [e.id]: !s.engines[e.id] }) }))
+      };
+    });
+
+    const idxTabDefs = [
+      { id: 'settings', label: 'Settings', icon: 'ph ph-sliders' },
+      { id: 'timeline', label: 'Execution Order', icon: 'ph ph-list-numbers' },
+      { id: 'graph', label: 'Graph Network', icon: 'ph ph-tree-structure' },
+      { id: 'symbols', label: 'Symbols', icon: 'ph ph-list-magnifying-glass' }
+    ];
+    const idxTabs = idxTabDefs.map(t => ({
+      label: t.label, icon: t.icon,
+      border: idxTab === t.id ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      bg: idxTab === t.id ? 'var(--color-accent-900)' : 'transparent',
+      fg: idxTab === t.id ? 'var(--color-accent-100)' : 'var(--color-neutral-400)',
+      onPick: () => this.setState({ idxTab: t.id })
+    }));
+
+    const ooe = OOE.map(function (p) {
+      const k = OOE_KIND[p.kind];
+      const items = (p.items || []).map(function (nm) {
+        return { name: nm, icon: p.kind === 'flow' ? 'ph ph-flow-arrow' : p.kind === 'apex' ? 'ph ph-file-code' : p.kind === 'async' ? 'ph ph-clock-countdown' : 'ph ph-sliders' };
+      });
+      const strong = p.kind === 'db' || p.kind === 'commit';
+      return {
+        n: p.n, label: p.label, icon: k.icon, color: k.color, items: items,
+        bg: strong ? 'var(--color-neutral-800)' : (items.length ? 'rgba(145,132,217,0.045)' : 'transparent'),
+        labelFg: strong || items.length ? 'var(--color-text)' : 'var(--color-neutral-400)',
+        line: p.n === 17 ? 'transparent' : 'var(--color-neutral-800)',
+        chipBorder: 'var(--color-neutral-700)',
+        hasNote: !!p.note, note: p.note || ''
+      };
+    });
+
+    const netPos = {};
+    NET_NODES.forEach(function (n) { netPos[n.id] = n; });
+    const selId = st.netSel;
+    const linked = {};
+    NET_EDGES.forEach(function (e) {
+      if (e.a === selId) linked[e.b] = e.rel;
+      if (e.b === selId) linked[e.a] = e.rel;
+    });
+    const netEdges = NET_EDGES.map(function (e) {
+      const A = netPos[e.a], B = netPos[e.b];
+      const hot = e.a === selId || e.b === selId;
+      return {
+        x1: A.x, y1: A.y, x2: B.x, y2: B.y,
+        mx: (A.x + B.x) / 2, my: (A.y + B.y) / 2 - 4,
+        stroke: hot ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+        w: hot ? 1.6 : 0.8, dash: hot ? '4 4' : '2 6', op: hot ? 1 : 0.55,
+        showLabel: hot, label: e.rel
+      };
+    });
+    const netNodes = NET_NODES.map(n => {
+      const k = NET_KIND[n.kind];
+      const isSel = n.id === selId;
+      const near = isSel || linked[n.id];
+      const short = n.id.length > 15 ? n.id.slice(0, 14) + '…' : n.id;
+      return {
+        x: n.x, y: n.y, r: n.r, dot: isSel ? 5 : 3.5, ly: n.y + n.r + 12, label: short,
+        color: k.color, fill: isSel ? 'var(--color-accent-900)' : 'var(--color-neutral-900)',
+        sw: isSel ? 2 : 1, op: near ? 1 : 0.4,
+        labelFg: near ? 'var(--color-neutral-200)' : 'var(--color-neutral-500)',
+        selected: isSel,
+        onPick: () => this.setState({ netSel: n.id })
+      };
+    });
+    const selNode = netPos[selId];
+    const selKind = NET_KIND[selNode.kind];
+    const selSym = SYMBOLS.find(function (s) { return s.name === selId; });
+    const netSel = {
+      name: selId, icon: selKind.icon, color: selKind.color,
+      desc: selNode.kind === 'sobject'
+        ? 'Custom object in the loaner cluster. Every class, trigger and flow that reads or writes it is linked below.'
+        : selNode.kind === 'apex' ? 'Apex class. Links show the objects it touches and the callers that reach it.'
+        : selNode.kind === 'trigger' ? 'Trigger. It delegates to a service class rather than holding logic itself.'
+        : selNode.kind === 'lwc' ? 'Lightning web component. Wired to an Apex controller for its data.'
+        : 'Record-triggered flow running after save.',
+      rows: [
+        { k: 'kind', v: selKind.label },
+        { k: 'links', v: String(Object.keys(linked).length) },
+        { k: 'references', v: selSym ? String(selSym.refs) : '—' },
+        { k: 'coverage', v: selSym ? selSym.cov + '%' : 'n/a' }
+      ],
+      links: Object.keys(linked).map(id => ({
+        name: id, rel: linked[id], icon: NET_KIND[netPos[id].kind].icon, color: NET_KIND[netPos[id].kind].color,
+        onPick: () => this.setState({ netSel: id })
+      }))
+    };
+
+    const symQ = st.symQuery.toLowerCase();
+    const symFiltered = SYMBOLS.filter(function (s) {
+      const okKind = st.symKind === 'all' || s.kind === st.symKind;
+      return okKind && (!symQ || s.name.toLowerCase().indexOf(symQ) > -1 || s.file.toLowerCase().indexOf(symQ) > -1);
+    });
+    const symbols = symFiltered.map(function (s) {
+      const k = SYM_KIND[s.kind];
+      return {
+        name: s.name, kind: s.kind, file: s.file, refs: s.refs,
+        icon: k.icon, color: k.color,
+        cov: s.cov, covLabel: s.cov + '%',
+        covFg: s.cov >= 75 ? GREEN : s.cov > 0 ? AMBER : RED
+      };
+    });
+    const kindCounts = {};
+    SYMBOLS.forEach(function (s) { kindCounts[s.kind] = (kindCounts[s.kind] || 0) + 1; });
+    const symKinds = [{ id: 'all', label: 'All', icon: 'ph ph-list', color: 'var(--color-neutral-300)', count: SYMBOLS.length }]
+      .concat(Object.keys(kindCounts).map(function (k) {
+        return { id: k, label: k, icon: SYM_KIND[k].icon, color: SYM_KIND[k].color, count: kindCounts[k] };
+      })).map(k => ({
+        label: k.label, icon: k.icon, color: k.color, count: k.count,
+        border: st.symKind === k.id ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+        bg: st.symKind === k.id ? 'var(--color-accent-900)' : 'transparent',
+        fg: st.symKind === k.id ? 'var(--color-accent-100)' : 'var(--color-neutral-300)',
+        onPick: () => this.setState({ symKind: k.id })
+      }));
+
+    const chat = this.state.chat.map((m, i) => {
+      const st = m.status || '';
+      return {
+        isUser: m.k === 'user', isSay: m.k === 'say', isThink: m.k === 'think', isTool: m.k === 'tool',
+        text: m.text || '', cursor: !!m.live,
+        icon: m.icon || 'ph ph-wrench', title: m.title || '',
+        hi: m.hi || '', hasHi: !!m.hi,
+        path: m.path || '', hasPath: !!m.path,
+        files: m.files || [], hasFiles: !!(m.files && m.files.length),
+        add: m.add, del: m.del, scope: m.scope || '', hasDiff: m.add !== undefined,
+        running: st === 'running', done: st === 'done', pending: st === 'pending',
+        needsApprove: st === 'pending',
+        border: st === 'pending' ? AMBER : st === 'running' ? 'var(--color-accent-700)' : 'var(--color-neutral-800)',
+        statusFg: st === 'done' ? GREEN : st === 'pending' ? AMBER : 'var(--color-accent-200)',
+        onApprove: () => this.approve(i),
+        onReject: () => this.reject(i)
+      };
+    });
+
+    const secs = (d) => { const m = /(\d+)m\s*(\d+)/.exec(d); return m ? +m[1] * 60 + +m[2] : 0; };
+    const histQ = st.histQuery.trim().toLowerCase();
+    let hist = st.tasks.filter(t => !histQ || t.title.toLowerCase().indexOf(histQ) > -1);
+    if (st.histSort === 'Oldest') hist = hist.slice().reverse();
+    else if (st.histSort === 'Longest') hist = hist.slice().sort((a, b) => secs(b.dur) - secs(a.dur));
+
+    return {
+      scale: this.state.scale,
+      code: code,
+      lines: lines,
+      squiggles: squiggles,
+      codeH: raws.length * LH,
+      curTop: 8 + (curLine - 1) * LH,
+      curTopH: raws.length * LH,
+      curLine: curLine,
+      curCol: curCol,
+      dirty: this.state.dirty,
+      scanlines: this.props.scanlines !== false && !st.indexOpen,
+      orgName: orgName,
+      apiVersion: '64.0',
+      schemaAge: this.state.schemaAge,
+      panelTitle: actLabel,
+      tree: tree,
+      activity: activity,
+
+      diagnostics: diagnostics,
+      clean: a.diags.length === 0,
+      errCount: bySev.error,
+      warnCount: bySev.warning,
+      errFg: bySev.error ? RED : 'var(--color-neutral-400)',
+      warnFg: bySev.warning ? AMBER : 'var(--color-neutral-400)',
+      soqlReadout: a.projSoql + '/100',
+      dmlReadout: a.projDml + '/150',
+      coverage: coverage,
+      liveText: busy ? this.state.busyText : 'reactive analysis live',
+
+      indexOpen: st.indexOpen,
+      openIndex: () => this.setState({ indexOpen: true }),
+      closeIndex: () => this.setState({ indexOpen: false }),
+      idxBtnBg: st.indexOpen ? 'var(--color-accent-900)' : 'transparent',
+      idxBtnFg: st.indexOpen ? 'var(--color-accent)' : 'var(--color-neutral-400)',
+      idxStatus: st.indexing ? 'Indexing' : st.idxStatusText,
+      idxStatusFg: st.indexing ? 'var(--color-accent)' : st.idxStatusText === 'Indexed' ? GREEN : 'var(--color-neutral-400)',
+      idxStatusBorder: st.indexing ? 'var(--color-accent-700)' : 'var(--color-neutral-700)',
+      idxTabs: idxTabs,
+      idxShowRun: idxTab === 'run',
+      idxShowSettings: idxTab === 'settings',
+      idxShowTimeline: idxTab === 'timeline',
+      idxShowGraph: idxTab === 'graph',
+      idxShowSymbols: idxTab === 'symbols',
+      idxPct: st.idxPct,
+      idxDone: idxDone.toLocaleString(),
+      idxTotal: '1,284',
+      idxPhase: phase.label,
+      idxPhaseSub: phase.sub,
+      idxLog: st.idxLog,
+      indexEnabled: st.indexEnabled,
+      enBorder: st.indexEnabled ? 'var(--color-accent)' : 'var(--color-neutral-600)',
+      enBg: st.indexEnabled ? 'var(--color-accent-900)' : 'transparent',
+      toggleIndexing: () => this.setState(s => ({ indexEnabled: !s.indexEnabled })),
+      engines: engines,
+      runIndex: () => this.runIndex(true),
+      refreshIndex: () => this.runIndex(false),
+      cancelIndex: () => { clearInterval(this._ix); this.setState({ indexing: false, idxTab: 'settings', idxStatusText: 'Standby' }); },
+      idxStats: [
+        { value: '1,284', label: 'symbols indexed', fg: 'var(--color-text)' },
+        { value: '19', label: 'execution timelines', fg: K_FLOW },
+        { value: '16', label: 'graph edges', fg: K_OBJ },
+        { value: '0', label: 'unresolved refs', fg: GREEN }
+      ],
+      ooe: ooe,
+      ooeLegend: [
+        { label: 'Apex', color: K_APEX }, { label: 'Flow', color: K_FLOW },
+        { label: 'Declarative', color: 'oklch(0.80 0.14 85)' }, { label: 'Platform', color: 'var(--color-neutral-400)' },
+        { label: 'Async', color: GREEN }
+      ],
+      netNodes: netNodes,
+      netEdges: netEdges,
+      netLabels: netNodes.map(function (n) {
+        return { text: n.label, left: (n.x / 760 * 100).toFixed(2), top: ((n.y + n.r + 11) / 470 * 100).toFixed(2), size: 9, fg: n.labelFg, op: n.op };
+      }).concat(netEdges.filter(function (e) { return e.showLabel; }).map(function (e) {
+        return { text: e.label, left: (e.mx / 760 * 100).toFixed(2), top: (e.my / 470 * 100).toFixed(2), size: 8.5, fg: 'var(--color-accent-200)', op: 1 };
+      })),
+      netNodeCount: NET_NODES.length,
+      netEdgeCount: NET_EDGES.length,
+      netSel: netSel,
+      netLegend: [
+        { label: 'SObject', color: K_OBJ }, { label: 'Apex', color: K_APEX },
+        { label: 'Trigger', color: K_TRIG }, { label: 'LWC', color: K_LWC }, { label: 'Flow', color: K_FLOW }
+      ],
+      symbols: symbols,
+      symKinds: symKinds,
+      symQuery: st.symQuery,
+      symCount: symFiltered.length + '/' + SYMBOLS.length,
+      symBorder: st.symFocused ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      onSymQuery: (e) => this.setState({ symQuery: e.target.value }),
+      hexes: hexes,
+
+      isChat: st.railView === 'chat',
+      isNew: st.railView === 'new',
+      isHistory: st.railView === 'history',
+      showComposer: st.railView !== 'history',
+      recent: st.tasks.slice(0, 3).map(t => Object.assign({}, t, { onOpen: () => this.openTask(t) })),
+      histList: hist.map(t => {
+        const on = st.selected.indexOf(t.id) > -1;
+        return Object.assign({}, t, {
+          selectable: st.selMode,
+          checked: on,
+          border: on ? 'var(--color-accent-700)' : 'var(--color-neutral-800)',
+          edge: on ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+          boxBorder: on ? 'var(--color-accent)' : 'var(--color-neutral-600)',
+          boxBg: on ? 'var(--color-accent-900)' : 'transparent',
+          onClick: () => { if (st.selMode) this.togglePick(t.id); else this.openTask(t); },
+          onDelete: (e) => { e.stopPropagation(); this.setState(s => ({ tasks: s.tasks.filter(x => x.id !== t.id) })); }
+        });
+      }),
+      histCount: hist.length + (hist.length === 1 ? ' task' : ' tasks'),
+      histEmpty: hist.length === 0,
+      selMode: st.selMode,
+      selCount: st.selected.length,
+      selBorder: st.selMode ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      selBg: st.selMode ? 'var(--color-accent-900)' : 'transparent',
+      selFg: st.selMode ? 'var(--color-accent-100)' : 'var(--color-neutral-300)',
+      histQuery: st.histQuery,
+      histScope: st.histScope,
+      histSort: st.histSort,
+
+      taskTitle: st.taskName || 'Loaner kit inventory audit',
+      elapsed: Math.floor(this.state.elapsed / 60) + 'm ' + String(this.state.elapsed % 60).padStart(2, '0') + 's',
+      tokenReadout: (this.state.tokens / 1000).toFixed(1) + 'k / 1.0m',
+      tokenPct: Math.min(100, this.state.tokens / 10000),
+      ctxPct: ctxPct,
+      ctxFg: ctxPct > 80 ? RED : ctxPct > 55 ? AMBER : 'oklch(0.78 0.13 150)',
+      ctxDash: (ctxPct / 100 * 47.12).toFixed(1) + ' 47.12',
+      chat: chat,
+      draft: this.state.draft,
+      paused: this.state.paused && !this.state.streaming,
+      autoApprove: this.state.autoApprove,
+      autoScope: 'Read, Write, Execute, MCP, Mode, Subtasks',
+      autoBorder: this.state.autoApprove ? 'var(--color-accent)' : 'var(--color-neutral-600)',
+      autoBg: this.state.autoApprove ? 'var(--color-accent-900)' : 'transparent',
+      mode: this.state.mode,
+      model: this.state.model,
+      composerBorder: this.state.focused ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      sendIcon: this.state.streaming ? 'ph ph-stop' : 'ph ph-paper-plane-right',
+      sendBorder: sendHot ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      sendBg: sendHot ? 'var(--color-accent-900)' : 'transparent',
+      sendFg: sendHot ? 'var(--color-accent)' : 'var(--color-neutral-500)',
+      onDraft: (e) => this.setState({ draft: e.target.value }),
+      onFocus: () => this.setState({ focused: true }),
+      onBlur: () => this.setState({ focused: false }),
+      onDraftKey: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } },
+      toggleAuto: () => this.setState(s => ({ autoApprove: !s.autoApprove })),
+      newTask: () => { this.clearChatTimers(); this.setState({ chat: [], streaming: false, paused: false, elapsed: 0, tokens: 0, draft: '', railView: 'new', selMode: false, selected: [] }); },
+      openHistory: () => this.setState({ railView: 'history' }),
+      closeHistory: () => this.setState(s => ({ railView: s.chat.length ? 'chat' : 'new', selMode: false, selected: [] })),
+      toggleSel: () => this.setState(s => ({ selMode: !s.selMode, selected: [] })),
+      onHistQuery: (e) => this.setState({ histQuery: e.target.value }),
+      cycleScope: () => this.setState(s => ({ histScope: s.histScope === 'Current' ? 'All workspaces' : 'Current' })),
+      cycleSort: () => this.setState(s => ({ histSort: s.histSort === 'Newest' ? 'Oldest' : s.histSort === 'Oldest' ? 'Longest' : 'Newest' })),
+      deleteSel: () => this.setState(s => ({ tasks: s.tasks.filter(t => s.selected.indexOf(t.id) < 0), selected: [] })),
+      resume: () => { const i = this.state.chat.map(function (m) { return m.status; }).lastIndexOf('pending'); if (i > -1) this.approve(i); },
+      terminate: () => { this.clearChatTimers(); this.setState(s => ({ chat: s.chat.concat([{ k: 'say', text: 'Task terminated. Nothing was written to the workspace.' }]), streaming: false, paused: false })); },
+      send: () => {
+        if (!this.state.streaming) { this.send(); return; }
+        this.clearChatTimers();
+        this.setState(s => {
+          const c = s.chat.slice(); const j = c.length - 1;
+          if (c[j] && c[j].k === 'think') c.pop();
+          else if (c[j] && c[j].live) c[j] = { k: 'say', text: c[j].text + ' …', live: false };
+          return { chat: c, streaming: false };
+        });
+      },
+
+      nodes: nodes.map(function (n) {
+        return Object.assign({}, n, {
+          pl: (n.x / 320 * 100).toFixed(2), pt: (n.y / 232 * 100).toFixed(2),
+          chipBorder: n.selected ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+          chipBg: n.selected ? 'var(--color-accent-900)' : 'transparent'
+        });
+      }),
+      edges: edges,
+      nodeCount: nodes.length,
+      inspKind: inspKind,
+      inspName: inspName,
+      inspDesc: inspDesc,
+      inspRows: inspRows,
+
+      bottomTabs: [
+        tab('problems', 'Problems', a.diags.length ? String(a.diags.length) : null, bySev.error ? RED : AMBER),
+        tab('console', 'Console', null),
+        tab('pipeline', 'Deploy', null),
+        tab('graph', 'Graph', String(nodes.length))
+      ],
+      showProblems: this.state.bottom === 'problems',
+      showConsole: this.state.bottom === 'console',
+      showPipeline: this.state.bottom === 'pipeline',
+      showGraph: this.state.bottom === 'graph',
+      logLines: this.state.log,
+      logEmpty: this.state.log.length === 0 && !busy,
+      busy: busy,
+      busyText: this.state.busyText,
+      stages: this.state.stages.map(function (s) {
+        return {
+          label: s.label, pct: s.pct, note: s.note,
+          done: s.state === 'done', active: s.state === 'active', pending: s.state === 'pending',
+          fg: s.state === 'pending' ? 'var(--color-neutral-500)' : 'var(--color-neutral-100)'
+        };
+      }),
+
+      deploying: busy,
+      notDeploying: !busy,
+      deployLabel: busy ? 'Working' : 'Deploy',
+      testLabel: busy ? 'Running' : 'Run tests',
+
+      collabOn: collabOn,
+      peers: [
+        { name: 'Pavan Sai K.', initials: 'PK', color: 'oklch(0.80 0.075 215)' },
+        { name: 'Shivani T.', initials: 'ST', color: GREEN }
+      ],
+      peerName: 'Pavan Sai K.',
+      peerColor: 'oklch(0.80 0.075 215)',
+      peerTop: 8 + (peerLine - 1) * LH,
+      peerLeft: 60 + this.state.peer.col * CH,
+
+      paletteOpen: this.state.paletteOpen,
+      query: this.state.query,
+      hits: hits,
+      hitCount: hits.length,
+      openPalette: () => this.setState({ paletteOpen: true, query: '' }),
+      closePalette: () => this.setState({ paletteOpen: false }),
+      stop: (e) => e.stopPropagation(),
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      onCode: (e) => this.setState({ code: e.target.value, caret: e.target.selectionStart, dirty: true }),
+      onCaret: (e) => this.setState({ caret: e.target.selectionStart }),
+      deploy: () => this.exec(COMMANDS[0]),
+      runTests: () => this.exec(COMMANDS[1])
+    };
+  }
+
+  exec(c) {
+    if (this.state.busyText) return;
+    const a = analyze(this.state.code);
+    const errors = a.diags.filter(function (d) { return d.sev === 'error'; });
+    this.setState({ bottom: 'pipeline' });
+
+    if (c.act === 'deploy') {
+      this.runPipeline(['Authorizing ' + (this.props.orgName || 'conscendo-dev'), 'Compiling 1 Apex class', 'Running local tests', 'Deploying metadata'], () => {
+        if (errors.length) {
+          this.push('DEPLOY FAILED — ' + errors.length + ' blocking error(s)', 'err');
+          errors.forEach(e => this.push('  Ln ' + e.line + '  ' + e.code + '  ' + e.msg.split('.')[0], 'err'));
+          this.setState({ bottom: 'console' });
+        } else {
+          this.push('Deploy succeeded · 1 class · 0 errors', 'ok');
+          this.setState({ dirty: false, bottom: 'console' });
+        }
+      });
+      return;
+    }
+    if (c.act === 'test') {
+      this.runPipeline(['Enqueuing AccountEnrichmentServiceTest', 'Executing 4 test methods', 'Collecting coverage'], () => {
+        if (errors.length) {
+          this.push('Test run: 2 passed, 2 failed', 'err');
+          this.push('  System.LimitException: Too many SOQL queries: 101', 'err');
+        } else {
+          this.push('Test run: 4 passed, 0 failed · coverage 92%', 'ok');
+        }
+        this.setState({ bottom: 'console' });
+      });
+      return;
+    }
+    if (c.act === 'retrieve') {
+      this.runPipeline(['Describing org metadata', 'Retrieving ApexClass', 'Writing to force-app'], () => {
+        this.push('Retrieved 3 components from org', 'ok');
+        this.setState({ bottom: 'console' });
+      });
+      return;
+    }
+    if (c.act === 'ai') {
+      this.runPipeline(['Building Apex test context', 'anthropic/claude-sonnet-4.5', 'Validating generated test'], () => {
+        this.push('Generated AccountEnrichmentServiceTest.cls · 4 methods', 'ok');
+        this.setState({ bottom: 'console' });
+      });
+      return;
+    }
+    if (c.act === 'analyze') {
+      this.runPipeline(['Parsing debug log', 'Detecting N+1 patterns', 'Building flame profile'], () => {
+        this.push('Log analyzer: ' + (a.loopQueries ? 'N+1 SOQL pattern detected in enrich()' : 'no loop patterns found'), a.loopQueries ? 'err' : 'ok');
+        this.setState({ bottom: 'console' });
+      });
+      return;
+    }
+    if (c.act === 'schema') {
+      this.runPipeline(['Describing 412 objects', 'Caching field metadata'], () => {
+        this.setState({ schemaAge: 'just now', bottom: 'console' });
+        this.push('Schema cache refreshed · 412 objects', 'ok');
+      });
+      return;
+    }
+    if (c.act === 'coverage') {
+      this.setState(s => ({ coverageOn: !s.coverageOn }));
+      this.push('Coverage highlighting ' + (this.state.coverageOn ? 'off' : 'on'), 'info');
+      this.setState({ bottom: 'console' });
+      return;
+    }
+    this.push(c.id + ' — not wired in this prototype', 'info');
+    this.setState({ bottom: 'console' });
+  }
+}
+</script>
+</body>
+</html>
