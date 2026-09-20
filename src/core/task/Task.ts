@@ -135,6 +135,7 @@ export type TaskOptions = {
 	taskNumber?: number
 	onCreated?: (task: Task) => void
 	planningFilePath?: string
+	isBackground?: boolean
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -203,6 +204,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private pauseInterval: NodeJS.Timeout | undefined
 	private isLoopRunning: boolean = false
 	planningFilePath?: string
+	isBackground: boolean = false
 
 	// API
 	readonly apiConfiguration: ProviderSettings
@@ -312,6 +314,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		taskNumber = -1,
 		onCreated,
 		planningFilePath,
+		isBackground = false,
 	}: TaskOptions) {
 		super()
 
@@ -355,6 +358,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
 		this.planningFilePath = planningFilePath
+		this.isBackground = isBackground
 
 		// Store the task's mode when it's created.
 		// For history items, use the stored mode; for new tasks, we'll set it
@@ -820,6 +824,16 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			askTs = Date.now()
 			this.lastMessageTs = askTs
 			await this.addToClineMessages({ ts: askTs, type: "ask", ask: type, text, isProtected })
+		}
+
+		if (!partial && this.isBackground) {
+			const isAllowed = this.isToolAllowedForBackground(type, text)
+			if (isAllowed) {
+				this.askResponse = "yesButtonClicked"
+			} else {
+				this.askResponse = "messageResponse"
+				this.askResponseText = "ESCALATE: Action not allowed for background agent. Please request user intervention."
+			}
 		}
 
 		// Detect if the task will enter an idle state.

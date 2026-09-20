@@ -109,6 +109,7 @@ export class ClineProvider
 	private webviewDisposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private clineStack: Task[] = []
+	private backgroundTasks: Task[] = []
 	private codeIndexStatusSubscription?: vscode.Disposable
 	public sfProgressDisposable?: vscode.Disposable
 	private currentWorkspaceManager?: CodeIndexManager
@@ -749,6 +750,64 @@ export class ClineProvider
 			`[subtasks] ${task.parentTask ? "child" : "parent"} task ${task.taskId}.${task.instanceId} instantiated`,
 		)
 
+		return task
+	}
+
+	public async initBackgroundTask(
+		text?: string,
+		images?: string[],
+		parentTask?: Task,
+		options: Partial<
+			Pick<
+				TaskOptions,
+				"enableDiff" | "enableCheckpoints" | "fuzzyMatchThreshold" | "consecutiveMistakeLimit" | "experiments"
+			>
+		> = {},
+	) {
+		const {
+			apiConfiguration,
+			organizationAllowList,
+			diffEnabled: enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			experiments: baseExperiments,
+		} = await this.getState()
+
+		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
+			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
+		}
+
+		let experiments = baseExperiments
+		if (options.experiments) {
+			experiments = { ...baseExperiments, ...options.experiments }
+		}
+
+		const { experiments: optionsExperiments, ...restOptions } = options
+
+		const task = new Task({
+			provider: this,
+			apiConfiguration,
+			enableDiff,
+			enableCheckpoints,
+			fuzzyMatchThreshold,
+			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
+			task: text,
+			images,
+			experiments,
+			rootTask: parentTask?.rootTask || parentTask,
+			parentTask,
+			taskNumber: this.clineStack.length + this.backgroundTasks.length + 1,
+			isBackground: true,
+			...restOptions,
+		})
+
+		this.backgroundTasks.push(task)
+
+		task.on(RooCodeEventName.TaskCompleted, async () => {
+			this.backgroundTasks = this.backgroundTasks.filter(t => t.taskId !== task.taskId)
+		})
+
+		this.log(`[subtasks] background child task ${task.taskId}.${task.instanceId} instantiated`)
 		return task
 	}
 
