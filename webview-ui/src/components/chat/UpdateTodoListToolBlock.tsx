@@ -361,7 +361,7 @@ const UpdateTodoListToolBlock: React.FC<UpdateTodoListToolBlockProps> = ({
 													style={{
 														border: "none",
 														background: "transparent",
-														color: "#f14c4c",
+														color: "var(--state-danger-fg)",
 														cursor: "pointer",
 														fontSize: 14,
 														marginLeft: 2,
@@ -502,8 +502,8 @@ const UpdateTodoListToolBlock: React.FC<UpdateTodoListToolBlockProps> = ({
 								<button
 									onClick={confirmDelete}
 									style={{
-										border: "1px solid #f14c4c",
-										background: "#f14c4c",
+										border: "1px solid var(--state-danger-border)",
+										background: "var(--state-danger-bg)",
 										color: "#fff",
 										borderRadius: 4,
 										padding: "2px 10px",

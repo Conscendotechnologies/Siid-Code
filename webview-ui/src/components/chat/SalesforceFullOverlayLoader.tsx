@@ -181,12 +181,12 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 			role="dialog"
 			aria-modal="true"
 			aria-label={t("settings:codeIndex.salesforce.indexingProgress")}
-			className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#EEF4FB] via-[#F4F8FC] to-[#E8F0FA] text-[#2C3E60] dark:from-[#0F172A] dark:via-[#1E293B] dark:to-[#0F172A] dark:text-[#E2E8F0] font-sans p-6 select-none overflow-y-auto animate-fadeIn">
+			className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--color-bg)] text-[var(--color-text)] font-sans p-6 select-none overflow-y-auto animate-fadeIn">
 			{/* Soft Subtle Hexagon Pattern Background */}
 			<div
 				className="absolute inset-0 opacity-[0.25] dark:opacity-[0.10] pointer-events-none"
 				style={{
-					backgroundImage: `radial-gradient(#3B62D1 0.75px, transparent 0.75px), radial-gradient(#3B62D1 0.75px, #EEF4FB 0.75px)`,
+					backgroundImage: `radial-gradient(var(--color-accent) 0.75px, transparent 0.75px), radial-gradient(var(--color-accent) 0.75px, transparent 0.75px)`,
 					backgroundSize: `30px 30px`,
 					backgroundPosition: `0 0, 15px 15px`,
 				}}
@@ -205,43 +205,43 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 						{/* Top Left (x: 75, y: 60) */}
 						<polygon
 							points="75,15 120,40 120,90 75,115 30,90 30,40"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 						{/* Top Right (x: 225, y: 60) */}
 						<polygon
 							points="225,15 270,40 270,90 225,115 180,90 180,40"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 						{/* Left (x: 25, y: 135) */}
 						<polygon
 							points="25,90 70,115 70,165 25,190 -20,165 -20,115"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 						{/* Right (x: 275, y: 135) */}
 						<polygon
 							points="275,90 320,115 320,165 275,190 230,165 230,115"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 						{/* Bottom Left (x: 75, y: 210) */}
 						<polygon
 							points="75,165 120,190 120,240 75,265 30,240 30,190"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 						{/* Bottom Right (x: 225, y: 210) */}
 						<polygon
 							points="225,165 270,190 270,240 225,265 180,240 180,190"
-							fill="#FFFFFF"
-							stroke="#E2ECFA"
+							fill="var(--color-bg)"
+							stroke="var(--color-divider)"
 							strokeWidth="2.5"
 						/>
 
@@ -249,42 +249,84 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 						<polygon
 							points="150,75 200,103 200,167 150,195 100,167 100,103"
 							fill="url(#royalBlueGrad)"
-							stroke="#4F79F6"
+							stroke="var(--color-accent)"
 							strokeWidth="3"
 						/>
 
 						{/* Concentric Node Dots at Vertices of Central Hexagon */}
 						<g>
 							{/* Top Center Node */}
-							<circle cx="150" cy="75" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="150" cy="75" r="2" fill="#3B62D1" />
+							<circle
+								cx="150"
+								cy="75"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="150" cy="75" r="2" fill="var(--color-accent)" />
 
 							{/* Bottom Center Node */}
-							<circle cx="150" cy="195" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="150" cy="195" r="2" fill="#3B62D1" />
+							<circle
+								cx="150"
+								cy="195"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="150" cy="195" r="2" fill="var(--color-accent)" />
 
 							{/* Top Right Node */}
-							<circle cx="200" cy="103" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="200" cy="103" r="2" fill="#3B62D1" />
+							<circle
+								cx="200"
+								cy="103"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="200" cy="103" r="2" fill="var(--color-accent)" />
 
 							{/* Bottom Right Node */}
-							<circle cx="200" cy="167" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="200" cy="167" r="2" fill="#3B62D1" />
+							<circle
+								cx="200"
+								cy="167"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="200" cy="167" r="2" fill="var(--color-accent)" />
 
 							{/* Top Left Node */}
-							<circle cx="100" cy="103" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="100" cy="103" r="2" fill="#3B62D1" />
+							<circle
+								cx="100"
+								cy="103"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="100" cy="103" r="2" fill="var(--color-accent)" />
 
 							{/* Bottom Left Node */}
-							<circle cx="100" cy="167" r="6" fill="#FFFFFF" stroke="#3B62D1" strokeWidth="3" />
-							<circle cx="100" cy="167" r="2" fill="#3B62D1" />
+							<circle
+								cx="100"
+								cy="167"
+								r="6"
+								fill="var(--color-bg)"
+								stroke="var(--color-accent)"
+								strokeWidth="3"
+							/>
+							<circle cx="100" cy="167" r="2" fill="var(--color-accent)" />
 						</g>
 
 						{/* Linear Gradient Definitions */}
 						<defs>
 							<linearGradient id="royalBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-								<stop offset="0%" stopColor="#436BF0" />
-								<stop offset="100%" stopColor="#3155C4" />
+								<stop offset="0%" stopColor="var(--color-accent)" />
+								<stop offset="100%" stopColor="var(--color-accent-600)" />
 							</linearGradient>
 						</defs>
 					</svg>
@@ -295,7 +337,7 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 					</div>
 
 					{/* Surrounding Hexagon Icons */}
-					<div className="absolute top-10 left-[70px] text-[#6B7DA4] pointer-events-none">
+					<div className="absolute top-10 left-[70px] text-[color-mix(in_srgb,var(--color-text)_40%,transparent)] pointer-events-none">
 						<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path
 								strokeLinecap="round"
@@ -305,7 +347,7 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 						</svg>
 					</div>
 
-					<div className="absolute top-10 right-[70px] text-[#6B7DA4] pointer-events-none">
+					<div className="absolute top-10 right-[70px] text-[color-mix(in_srgb,var(--color-text)_40%,transparent)] pointer-events-none">
 						<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path
 								strokeLinecap="round"
@@ -315,7 +357,7 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 						</svg>
 					</div>
 
-					<div className="absolute bottom-10 left-[70px] text-[#6B7DA4] pointer-events-none">
+					<div className="absolute bottom-10 left-[70px] text-[color-mix(in_srgb,var(--color-text)_40%,transparent)] pointer-events-none">
 						<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path
 								strokeLinecap="round"
@@ -325,7 +367,7 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 						</svg>
 					</div>
 
-					<div className="absolute bottom-10 right-[70px] text-[#6B7DA4] pointer-events-none">
+					<div className="absolute bottom-10 right-[70px] text-[color-mix(in_srgb,var(--color-text)_40%,transparent)] pointer-events-none">
 						<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path
 								strokeLinecap="round"
@@ -337,7 +379,7 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 				</div>
 
 				{/* Title Matching Reference Design ("Verifying emails" / "Cleaning prospect data") */}
-				<h2 className="text-2xl font-normal text-[#2D3F65] dark:text-[#E2E8F0] mb-2 tracking-tight">
+				<h2 className="text-2xl font-normal text-[var(--color-text)] mb-2 tracking-tight">
 					{isComplete
 						? t("settings:codeIndex.salesforce.complete")
 						: isError
@@ -355,25 +397,25 @@ export const SalesforceFullOverlayLoader: React.FC<SalesforceFullOverlayLoaderPr
 
 				{/* Live Badge for Current Item */}
 				{progress.currentFile && !isComplete && (
-					<div className="text-xs font-mono text-[#5C729F] dark:text-[#94A3B8] mb-6 max-w-sm truncate">
+					<div className="text-xs font-mono text-[color-mix(in_srgb,var(--color-text)_60%,transparent)] mb-6 max-w-sm truncate">
 						{progress.currentFile}
 					</div>
 				)}
 
 				{/* Reference Image Smooth Light Blue Progress Bar Pill */}
-				<div className="w-64 bg-[#DCE5F2] dark:bg-[#334155] rounded-full h-2 mb-6 overflow-hidden relative">
+				<div className="w-64 bg-[var(--color-divider)] rounded-full h-2 mb-6 overflow-hidden relative">
 					<div
-						className="bg-[#3B62D1] h-full rounded-full transition-all duration-300 relative"
+						className="bg-[var(--color-accent)] h-full rounded-full transition-all duration-300 relative"
 						style={{ width: `${progressPercentage}%` }}
 					/>
 				</div>
 
 				{/* Stats Row */}
-				<div className="flex items-center justify-center gap-6 text-xs text-[#5C729F] dark:text-[#94A3B8] mb-6 font-mono">
+				<div className="flex items-center justify-center gap-6 text-xs text-[color-mix(in_srgb,var(--color-text)_60%,transparent)] mb-6 font-mono">
 					<span>
 						{progress.itemsProcessed} / {progress.totalItems} items
 					</span>
-					<span className="font-semibold text-[#3B62D1]">{progressPercentage}%</span>
+					<span className="font-semibold text-[var(--color-accent)]">{progressPercentage}%</span>
 				</div>
 
 				{/* Close / Background Button */}

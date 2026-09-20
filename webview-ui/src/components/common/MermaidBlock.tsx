@@ -13,33 +13,33 @@ import { MermaidButton } from "@/components/common/MermaidButton"
 // The primary strategy will now rely on Vite's bundling configuration.
 
 const MERMAID_THEME = {
-	background: "#1e1e1e", // VS Code dark theme background
-	textColor: "#ffffff", // Main text color
-	mainBkg: "#2d2d2d", // Background for nodes
-	nodeBorder: "#888888", // Border color for nodes
-	lineColor: "#cccccc", // Lines connecting nodes
-	primaryColor: "#3c3c3c", // Primary color for highlights
-	primaryTextColor: "#ffffff", // Text in primary colored elements
-	primaryBorderColor: "#888888",
-	secondaryColor: "#2d2d2d", // Secondary color for alternate elements
-	tertiaryColor: "#454545", // Third color for special elements
+	background: "var(--color-bg)", // VS Code dark theme background
+	textColor: "var(--color-text)", // Main text color
+	mainBkg: "var(--color-surface)", // Background for nodes
+	nodeBorder: "var(--color-divider)", // Border color for nodes
+	lineColor: "var(--color-neutral-400)", // Lines connecting nodes
+	primaryColor: "var(--color-neutral-800)", // Primary color for highlights
+	primaryTextColor: "var(--color-text)", // Text in primary colored elements
+	primaryBorderColor: "var(--color-divider)",
+	secondaryColor: "var(--color-surface)", // Secondary color for alternate elements
+	tertiaryColor: "var(--color-neutral-700)", // Third color for special elements
 
 	// Class diagram specific
-	classText: "#ffffff",
+	classText: "var(--color-text)",
 
 	// State diagram specific
-	labelColor: "#ffffff",
+	labelColor: "var(--color-text)",
 
 	// Sequence diagram specific
-	actorLineColor: "#cccccc",
-	actorBkg: "#2d2d2d",
-	actorBorder: "#888888",
-	actorTextColor: "#ffffff",
+	actorLineColor: "var(--color-neutral-400)",
+	actorBkg: "var(--color-surface)",
+	actorBorder: "var(--color-divider)",
+	actorTextColor: "var(--color-text)",
 
 	// Flow diagram specific
-	fillType0: "#2d2d2d",
-	fillType1: "#3c3c3c",
-	fillType2: "#454545",
+	fillType0: "var(--color-surface)",
+	fillType1: "var(--color-neutral-800)",
+	fillType2: "var(--color-neutral-700)",
 }
 
 mermaid.initialize({
@@ -53,33 +53,33 @@ mermaid.initialize({
 		fontFamily: "var(--vscode-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif)",
 
 		// Additional styling
-		noteTextColor: "#ffffff",
-		noteBkgColor: "#454545",
-		noteBorderColor: "#888888",
+		noteTextColor: "var(--color-text)",
+		noteBkgColor: "var(--color-neutral-700)",
+		noteBorderColor: "var(--color-divider)",
 
 		// Improve contrast for special elements
-		critBorderColor: "#ff9580",
-		critBkgColor: "#803d36",
+		critBorderColor: "var(--state-danger-fg)",
+		critBkgColor: "var(--state-danger-border)",
 
 		// Task diagram specific
-		taskTextColor: "#ffffff",
-		taskTextOutsideColor: "#ffffff",
-		taskTextLightColor: "#ffffff",
+		taskTextColor: "var(--color-text)",
+		taskTextOutsideColor: "var(--color-text)",
+		taskTextLightColor: "var(--color-text)",
 
 		// Numbers/sections
-		sectionBkgColor: "#2d2d2d",
-		sectionBkgColor2: "#3c3c3c",
+		sectionBkgColor: "var(--color-surface)",
+		sectionBkgColor2: "var(--color-neutral-800)",
 
 		// Alt sections in sequence diagrams
-		altBackground: "#2d2d2d",
+		altBackground: "var(--color-surface)",
 
 		// Links
-		linkColor: "#6cb6ff",
+		linkColor: "var(--color-accent)",
 
 		// Borders and lines
-		compositeBackground: "#2d2d2d",
-		compositeBorder: "#888888",
-		titleColor: "#ffffff",
+		compositeBackground: "var(--color-surface)",
+		compositeBorder: "var(--color-divider)",
+		titleColor: "var(--color-text)",
 	},
 })
 
