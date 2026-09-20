@@ -21,13 +21,8 @@ suite("SFAIO Phase 0 Integration", () => {
 
 		// 2. Start two background tasks
 		// The `api` exposes provider methods in e2e tests
-		type SfaioProvider = {
-			createBackgroundTask?: (options: Record<string, unknown>) => Promise<{ id: string }>
-			getAllBackgroundTasks?: () => { id: string }[]
-			getCurrentCline?: () => unknown
-			removeBackgroundTask?: (task: { id: string }) => void
-		}
-		const provider = (api as { provider?: SfaioProvider }).provider
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const provider = (api as any).provider
 		if (!provider || !provider.createBackgroundTask) {
 			assert.fail("Provider missing SFAIO createBackgroundTask API")
 		}
