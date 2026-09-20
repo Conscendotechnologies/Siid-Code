@@ -17,6 +17,14 @@ import { parseXml } from "../../utils/xml"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "./applyDiffTool"
 import { trackFileChange } from "../../services/file-changes/trackFileChange"
+import { buildOwnershipRegex } from "../../services/sfaio/agents/agentModes"
+
+class FileRestrictionError extends Error {
+	constructor(message: string) {
+		super(message)
+		this.name = "FileRestrictionError"
+	}
+}
 
 interface DiffOperation {
 	path: string
@@ -235,6 +243,15 @@ Original error: ${errorMessage}`
 
 			// Verify file access is allowed
 			const accessAllowed = cline.rooIgnoreController?.validateAccess(relPath)
+
+			if (cline.allowedFiles && cline.allowedFiles.length > 0) {
+				const regexStr = buildOwnershipRegex(cline.allowedFiles)
+				const regex = new RegExp(regexStr)
+				if (!regex.test(relPath.replace(/\\/g, "/"))) {
+					throw new FileRestrictionError(`Agent is restricted from writing to ${relPath}`)
+				}
+			}
+
 			if (!accessAllowed) {
 				await cline.say("rooignore_error", relPath)
 				updateOperationResult(relPath, {

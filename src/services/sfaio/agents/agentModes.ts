@@ -26,10 +26,10 @@ export function buildAgentMode(
  */
 export function buildOwnershipRegex(allowedFiles: string[]): string {
 	if (!allowedFiles || allowedFiles.length === 0) {
-		return "^$" // Matches nothing
+		return "(?!.*)" // Matches nothing safely
 	}
 
-	// Escape regex special characters in paths and join them
-	const escapedPaths = allowedFiles.map((path) => path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+	// Normalize path separators to forward slashes, then escape regex special characters
+	const escapedPaths = allowedFiles.map((path) => path.replace(/\\/g, "/").replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
 	return `^(${escapedPaths.join("|")})$`
 }

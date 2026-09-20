@@ -1,6 +1,7 @@
 import * as path from "path"
 import * as fs from "fs/promises"
 import * as diff from "diff"
+import * as lockfile from "proper-lockfile"
 
 export type DeploymentStatus = "local" | "dry-run" | "deploying" | "deployed" | "failed"
 
@@ -75,7 +76,37 @@ export class FileChangesDatabase {
 	}
 
 	/**
-	 * Save the database to disk
+	 * Run an atomic transaction on the database
+	 */
+	private async transaction<T>(operation: () => Promise<T>): Promise<T> {
+		let release: () => Promise<void>
+		try {
+			release = await lockfile.lock(this.dbPath, {
+				retries: { retries: 5, minTimeout: 50, maxTimeout: 1000 },
+			})
+		} catch (error) {
+			throw new Error(`Failed to acquire lock for FileChangesDatabase: ${error}`)
+		}
+
+		try {
+			// Reload the store to ensure we have latest data
+			const data = await fs.readFile(this.dbPath, "utf-8")
+			this.store = JSON.parse(data)
+
+			const result = await operation()
+
+			// Save immediately before releasing lock
+			if (this.store) {
+				await fs.writeFile(this.dbPath, JSON.stringify(this.store, null, 2), "utf-8")
+			}
+			return result
+		} finally {
+			await release()
+		}
+	}
+
+	/**
+	 * Save the database to disk (used internally during initialization)
 	 */
 	private async save(): Promise<void> {
 		if (!this.store) return
@@ -114,49 +145,50 @@ export class FileChangesDatabase {
 	 * Add or update a file change record
 	 */
 	async addFileChange(input: FileChangeInput): Promise<FileChangeRecord> {
-		if (!this.store) {
-			throw new Error("Database not initialized")
-		}
+		return this.transaction(async () => {
+			if (!this.store) {
+				throw new Error("Database not initialized")
+			}
 
-		const timestamp = input.timestamp ?? Date.now()
-		let additions = input.additions ?? 0
-		let deletions = input.deletions ?? 0
-		let diffText = input.diff
+			const timestamp = input.timestamp ?? Date.now()
+			let additions = input.additions ?? 0
+			let deletions = input.deletions ?? 0
+			let diffText = input.diff
 
-		// If oldContent and newContent are provided, calculate diff automatically
-		if (input.oldContent !== undefined && input.newContent !== undefined) {
-			const diffResult = this.calculateDiff(input.oldContent, input.newContent)
-			additions = diffResult.additions
-			deletions = diffResult.deletions
-			diffText = diffResult.diffText
-		}
+			// If oldContent and newContent are provided, calculate diff automatically
+			if (input.oldContent !== undefined && input.newContent !== undefined) {
+				const diffResult = this.calculateDiff(input.oldContent, input.newContent)
+				additions = diffResult.additions
+				deletions = diffResult.deletions
+				diffText = diffResult.diffText
+			}
 
-		// Check if record already exists
-		const existingIndex = this.store.records.findIndex(
-			(r) => r.taskId === input.taskId && r.filePath === input.filePath,
-		)
+			// Check if record already exists
+			const existingIndex = this.store.records.findIndex(
+				(r) => r.taskId === input.taskId && r.filePath === input.filePath,
+			)
 
-		const record: FileChangeRecord = {
-			id: existingIndex >= 0 ? this.store.records[existingIndex].id : this.store.nextId++,
-			taskId: input.taskId,
-			filePath: input.filePath,
-			status: input.status,
-			additions,
-			deletions,
-			deploymentStatus: input.deploymentStatus ?? "local",
-			timestamp,
-			diff: diffText,
-			error: input.error,
-		}
+			const record: FileChangeRecord = {
+				id: existingIndex >= 0 ? this.store.records[existingIndex].id : this.store.nextId++,
+				taskId: input.taskId,
+				filePath: input.filePath,
+				status: input.status,
+				additions,
+				deletions,
+				deploymentStatus: input.deploymentStatus ?? "local",
+				timestamp,
+				diff: diffText,
+				error: input.error,
+			}
 
-		if (existingIndex >= 0) {
-			this.store.records[existingIndex] = record
-		} else {
-			this.store.records.push(record)
-		}
+			if (existingIndex >= 0) {
+				this.store.records[existingIndex] = record
+			} else {
+				this.store.records.push(record)
+			}
 
-		await this.save()
-		return record
+			return record
+		})
 	}
 
 	/**
@@ -190,17 +222,18 @@ export class FileChangesDatabase {
 		deploymentStatus: DeploymentStatus,
 		error?: string,
 	): Promise<void> {
-		if (!this.store) {
-			throw new Error("Database not initialized")
-		}
+		return this.transaction(async () => {
+			if (!this.store) {
+				throw new Error("Database not initialized")
+			}
 
-		const record = this.store.records.find((r) => r.taskId === taskId && r.filePath === filePath)
-		if (record) {
-			record.deploymentStatus = deploymentStatus
-			record.error = error
-			record.timestamp = Date.now()
-			await this.save()
-		}
+			const record = this.store.records.find((r) => r.taskId === taskId && r.filePath === filePath)
+			if (record) {
+				record.deploymentStatus = deploymentStatus
+				record.error = error
+				record.timestamp = Date.now()
+			}
+		})
 	}
 
 	/**
@@ -211,21 +244,21 @@ export class FileChangesDatabase {
 		filePaths: string[],
 		deploymentStatus: DeploymentStatus,
 	): Promise<void> {
-		if (!this.store) {
-			throw new Error("Database not initialized")
-		}
-
-		const pathSet = new Set(filePaths)
-		const now = Date.now()
-
-		for (const record of this.store.records) {
-			if (record.taskId === taskId && pathSet.has(record.filePath)) {
-				record.deploymentStatus = deploymentStatus
-				record.timestamp = now
+		return this.transaction(async () => {
+			if (!this.store) {
+				throw new Error("Database not initialized")
 			}
-		}
 
-		await this.save()
+			const pathSet = new Set(filePaths)
+			const now = Date.now()
+
+			for (const record of this.store.records) {
+				if (record.taskId === taskId && pathSet.has(record.filePath)) {
+					record.deploymentStatus = deploymentStatus
+					record.timestamp = now
+				}
+			}
+		})
 	}
 
 	/**
@@ -264,24 +297,26 @@ export class FileChangesDatabase {
 	 * Delete a file change record
 	 */
 	async deleteFileChange(taskId: string, filePath: string): Promise<void> {
-		if (!this.store) {
-			throw new Error("Database not initialized")
-		}
+		return this.transaction(async () => {
+			if (!this.store) {
+				throw new Error("Database not initialized")
+			}
 
-		this.store.records = this.store.records.filter((r) => !(r.taskId === taskId && r.filePath === filePath))
-		await this.save()
+			this.store.records = this.store.records.filter((r) => !(r.taskId === taskId && r.filePath === filePath))
+		})
 	}
 
 	/**
 	 * Delete all file changes for a task
 	 */
 	async deleteAllFileChangesForTask(taskId: string): Promise<void> {
-		if (!this.store) {
-			throw new Error("Database not initialized")
-		}
+		return this.transaction(async () => {
+			if (!this.store) {
+				throw new Error("Database not initialized")
+			}
 
-		this.store.records = this.store.records.filter((r) => r.taskId !== taskId)
-		await this.save()
+			this.store.records = this.store.records.filter((r) => r.taskId !== taskId)
+		})
 	}
 
 	/**

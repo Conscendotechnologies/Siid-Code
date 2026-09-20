@@ -17,6 +17,14 @@ import { unescapeHtmlEntities } from "../../utils/text-normalization"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 import { EXPERIMENT_IDS, experiments } from "../../shared/experiments"
 import { trackFileChange } from "../../services/file-changes/trackFileChange"
+import { buildOwnershipRegex } from "../../services/sfaio/agents/agentModes"
+
+class FileRestrictionError extends Error {
+	constructor(message: string) {
+		super(message)
+		this.name = "FileRestrictionError"
+	}
+}
 
 function shouldPreserveXmlEntities(relPath: string): boolean {
 	return relPath.toLowerCase().endsWith(".xml")
@@ -58,9 +66,23 @@ export async function writeToFileTool(
 
 	const accessAllowed = cline.rooIgnoreController?.validateAccess(relPath)
 
+	if (cline.allowedFiles && cline.allowedFiles.length > 0) {
+		const regexStr = buildOwnershipRegex(cline.allowedFiles)
+		const regex = new RegExp(regexStr)
+		if (!regex.test(relPath.replace(/\\/g, "/"))) {
+			throw new FileRestrictionError(`Agent is restricted from writing to ${relPath}`)
+		}
+	}
+
 	if (!accessAllowed) {
+		cline.consecutiveMistakeCount++
+		cline.recordToolError("write_to_file", "File is ignored")
 		await cline.say("rooignore_error", relPath)
-		pushToolResult(formatResponse.toolError(formatResponse.rooIgnoreError(relPath)))
+		pushToolResult(
+			formatResponse.toolError(
+				`File ${relPath} is ignored by .rooignore. Please choose a different file or update .rooignore.`,
+			),
+		)
 		return
 	}
 

@@ -139,12 +139,12 @@ export type TaskOptions = {
 	taskNumber?: number
 	onCreated?: (task: Task) => void
 	planningFilePath?: string
-	isBackground?: boolean
 	// SFAIO: per-task overrides so concurrent agents don't share global state.
 	mode?: string
 	customModesOverlay?: ModeConfig[]
 	headless?: boolean
 	autoApprovalOverride?: SfaioAutoApproval
+	allowedFiles?: string[]
 	/** The run's target org alias. Read by the deploy/retrieve tools (Phase 2 §2.10)
 	 *  so `--target-org` is bound per run instead of following the CLI default. */
 	sfaioTargetOrg?: string
@@ -216,7 +216,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private pauseInterval: NodeJS.Timeout | undefined
 	private isLoopRunning: boolean = false
 	planningFilePath?: string
-	isBackground: boolean = false
+	allowedFiles?: string[]
 
 	private _modeOverride?: string
 	private _customModesOverlay?: ModeConfig[]
@@ -344,11 +344,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		taskNumber = -1,
 		onCreated,
 		planningFilePath,
-		isBackground = false,
 		mode,
 		customModesOverlay,
-		headless,
+		headless = false,
 		autoApprovalOverride,
+		allowedFiles,
 		sfaioTargetOrg,
 	}: TaskOptions) {
 		super()
@@ -402,7 +402,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.parentTask = parentTask
 		this.taskNumber = taskNumber
 		this.planningFilePath = planningFilePath
-		this.isBackground = isBackground
+		this.allowedFiles = allowedFiles
 
 		// Store the task's mode when it's created.
 		// For history items, use the stored mode; for new tasks, we'll set it
@@ -706,7 +706,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.clineMessages.push(message)
 		const provider = this.providerRef.deref()
 		// SFAIO: background tasks do not post to the webview
-		if (!this.isBackground) {
+		if (!this._autoApprovalOverride) {
 			await provider?.postStateToWebview()
 		}
 		this.emit(RooCodeEventName.Message, { action: "created", message })
@@ -738,7 +738,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 		const provider = this.providerRef.deref()
 		// SFAIO: background tasks do not post to the webview
-		if (!this.isBackground) {
+		if (!this._autoApprovalOverride) {
 			await provider?.postMessageToWebview({ type: "messageUpdated", clineMessage: message })
 		}
 		this.emit(RooCodeEventName.Message, { action: "updated", message })
@@ -2533,7 +2533,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			updateApiReqMsg()
 			await this.saveClineMessages()
-			await this.providerRef.deref()?.postStateToWebview()
+			if (!this._autoApprovalOverride) {
+				await this.providerRef.deref()?.postStateToWebview()
+			}
 
 			// Reset parser after each complete conversation round
 			if (this.assistantMessageParser) {
