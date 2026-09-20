@@ -9,6 +9,7 @@ import delay from "delay"
 import axios from "axios"
 import pWaitFor from "p-wait-for"
 import * as vscode from "vscode"
+import { SfaioAutoApproval } from "../../services/sfaio/types"
 
 import {
 	type TaskProviderLike,
@@ -34,6 +35,7 @@ import {
 	ORGANIZATION_ALLOW_ALL,
 	DEFAULT_TERMINAL_OUTPUT_CHARACTER_LIMIT,
 	DEFAULT_WRITE_DELAY_MS,
+	type ModeConfig,
 } from "@siid-code/types"
 import { TelemetryService } from "@siid-code/telemetry"
 import { CloudService, getRooCodeApiUrl } from "@roo-code/cloud"
@@ -109,7 +111,9 @@ export class ClineProvider
 	private webviewDisposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
 	private clineStack: Task[] = []
-	private backgroundTasks: Task[] = []
+	// SFAIO: background agents run outside the interactive stack. They are never
+	// "current", never emit TaskFocused, and never appear in the chat view.
+	private backgroundTasks: Map<string, Task> = new Map()
 	private codeIndexStatusSubscription?: vscode.Disposable
 	public sfProgressDisposable?: vscode.Disposable
 	private currentWorkspaceManager?: CodeIndexManager
@@ -343,6 +347,11 @@ export class ClineProvider
 	// This is used when the user cancels a task that is not a subtask
 	async clearTask() {
 		await this.removeClineFromStack()
+
+		// SFAIO: clearTask should also teardown background tasks
+		for (const taskId of this.backgroundTasks.keys()) {
+			await this.removeBackgroundTask(taskId)
+		}
 	}
 
 	/*
@@ -365,6 +374,11 @@ export class ClineProvider
 		// Clear all tasks from the stack.
 		while (this.clineStack.length > 0) {
 			await this.removeClineFromStack()
+		}
+
+		// SFAIO: clear background tasks on dispose
+		for (const taskId of this.backgroundTasks.keys()) {
+			await this.removeBackgroundTask(taskId)
 		}
 
 		this.log("Cleared all tasks")
@@ -753,61 +767,47 @@ export class ClineProvider
 		return task
 	}
 
-	public async initBackgroundTask(
-		text?: string,
-		images?: string[],
-		parentTask?: Task,
-		options: Partial<
-			Pick<
-				TaskOptions,
-				"enableDiff" | "enableCheckpoints" | "fuzzyMatchThreshold" | "consecutiveMistakeLimit" | "experiments"
-			>
-		> = {},
-	) {
-		const {
-			apiConfiguration,
-			organizationAllowList,
-			diffEnabled: enableDiff,
-			enableCheckpoints,
-			fuzzyMatchThreshold,
-			experiments: baseExperiments,
-		} = await this.getState()
+	// SFAIO: create an agent task that runs off-screen.
+	public async createBackgroundTask(opts: {
+		task: string
+		apiConfiguration: ProviderSettings
+		mode: string
+		customModesOverlay?: ModeConfig[]
+		headless?: boolean
+		autoApprovalOverride?: SfaioAutoApproval
+		enableCheckpoints?: boolean
+	}): Promise<Task> {
+		const { organizationAllowList, fuzzyMatchThreshold, experiments } = await this.getState()
 
-		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
+		if (!ProfileValidator.isProfileAllowed(opts.apiConfiguration, organizationAllowList)) {
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
 
-		let experiments = baseExperiments
-		if (options.experiments) {
-			experiments = { ...baseExperiments, ...options.experiments }
-		}
-
-		const { experiments: optionsExperiments, ...restOptions } = options
-
 		const task = new Task({
 			provider: this,
-			apiConfiguration,
-			enableDiff,
-			enableCheckpoints,
+			apiConfiguration: opts.apiConfiguration,
+			enableDiff: true,
+			// SFAIO: D1 — no git. Engine checkpoints use simple-git and would either
+			// fail silently without the binary or stage the whole worktree (F10).
+			// SFAIO snapshots are the copy store in Phase 4 §4.5.
+			enableCheckpoints: opts.enableCheckpoints ?? false,
 			fuzzyMatchThreshold,
-			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
-			task: text,
-			images,
+			consecutiveMistakeLimit: opts.apiConfiguration.consecutiveMistakeLimit,
+			task: opts.task,
 			experiments,
-			rootTask: parentTask?.rootTask || parentTask,
-			parentTask,
-			taskNumber: this.clineStack.length + this.backgroundTasks.length + 1,
-			isBackground: true,
-			...restOptions,
+			// SFAIO: deliberately NOT passing parentTask — see §0.5a. The engine's
+			// parentTask branch calls provider.finishSubTask(), which pops the
+			// INTERACTIVE stack and would close the user's chat task. SFAIO tracks
+			// parentage in its own state store instead.
+			// SFAIO additions — see 0.2, 0.4, 0.5
+			mode: opts.mode,
+			customModesOverlay: opts.customModesOverlay,
+			headless: opts.headless ?? true,
+			autoApprovalOverride: opts.autoApprovalOverride,
+			onCreated: (instance) => this.emit(RooCodeEventName.TaskCreated, instance),
 		})
 
-		this.backgroundTasks.push(task)
-
-		task.on(RooCodeEventName.TaskCompleted, async () => {
-			this.backgroundTasks = this.backgroundTasks.filter(t => t.taskId !== task.taskId)
-		})
-
-		this.log(`[subtasks] background child task ${task.taskId}.${task.instanceId} instantiated`)
+		await this.addBackgroundTask(task)
 		return task
 	}
 
@@ -1645,6 +1645,38 @@ export class ClineProvider
 		}
 		await task.condenseContext()
 		await this.postMessageToWebview({ type: "condenseTaskContextResponse", text: taskId })
+	}
+
+	// SFAIO: register a background agent task. Deliberately does NOT push to
+	// clineStack, does NOT emit TaskFocused, and does NOT call getState()'s mode
+	// assertion — the task carries its own mode (see 0.2).
+	public async addBackgroundTask(task: Task): Promise<void> {
+		this.backgroundTasks.set(task.taskId, task)
+		await this.performPreparationTasks(task)
+	}
+
+	public async removeBackgroundTask(taskId: string): Promise<void> {
+		const task = this.backgroundTasks.get(taskId)
+		if (!task) return
+		this.backgroundTasks.delete(taskId)
+		try {
+			await task.abortTask(true)
+		} catch (e) {
+			this.log(`[SFAIO] failed to abort background task ${taskId}: ${e}`)
+		}
+	}
+
+	public getBackgroundTask(taskId: string): Task | undefined {
+		return this.backgroundTasks.get(taskId)
+	}
+
+	public getAllBackgroundTasks(): Task[] {
+		return Array.from(this.backgroundTasks.values())
+	}
+
+	public getLatestBackgroundTaskId(): string | undefined {
+		const keys = Array.from(this.backgroundTasks.keys())
+		return keys[keys.length - 1]
 	}
 
 	// this function deletes a task from task hidtory, and deletes it's checkpoints and delete the task folder

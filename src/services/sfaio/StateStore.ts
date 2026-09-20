@@ -4,6 +4,15 @@ import * as lockfile from "proper-lockfile"
 import { SfaioState } from "../../shared/sfaio/types"
 import { EventEmitter } from "events"
 
+export interface MutationContext {
+	actor: string
+	reason: string
+	entityType: "Run" | "Task" | "Agent" | "DeployQueueItem" | "System"
+	entityId: string
+	fromState?: string
+	toState?: string
+}
+
 export class StateStore extends EventEmitter {
 	private dbPath: string
 	private memoryState: SfaioState
@@ -17,6 +26,21 @@ export class StateStore extends EventEmitter {
 	public static async create(storageDir: string): Promise<StateStore> {
 		await fs.mkdir(storageDir, { recursive: true })
 		const dbPath = path.join(storageDir, "sfaio.db.json")
+		const metaPath = path.join(storageDir, "meta.json")
+		const CURRENT_SCHEMA_VERSION = 1
+
+		try {
+			const metaData = await fs.readFile(metaPath, "utf-8")
+			const meta = JSON.parse(metaData)
+			if (meta.schemaVersion !== CURRENT_SCHEMA_VERSION) {
+				// SFAIO: in the future, migrations go here
+				// For now, if schema is mismatched, we could reset or throw
+			}
+		} catch (error: any) {
+			if (error.code === "ENOENT") {
+				await fs.writeFile(metaPath, JSON.stringify({ schemaVersion: CURRENT_SCHEMA_VERSION }, null, 2))
+			}
+		}
 
 		let initialState: SfaioState = {
 			runs: {},
@@ -54,7 +78,8 @@ export class StateStore extends EventEmitter {
 	 * If the callback throws, the transaction is aborted.
 	 */
 	public async transaction(
-		updater: (state: SfaioState) => void | Promise<void>
+		context: MutationContext,
+		updater: (state: SfaioState) => void | Promise<void>,
 	): Promise<void> {
 		let release: () => Promise<void>
 		try {
@@ -78,9 +103,22 @@ export class StateStore extends EventEmitter {
 			// Mutate state
 			await updater(currentState)
 
+			// Append event log
+			const eventId = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+			currentState.eventLogs[eventId] = {
+				id: eventId,
+				timestamp: Date.now(),
+				actor: context.actor,
+				entityType: context.entityType as any,
+				entityId: context.entityId,
+				fromState: context.fromState,
+				toState: context.toState,
+				reason: context.reason,
+			}
+
 			// Write back
 			await fs.writeFile(this.dbPath, JSON.stringify(currentState, null, 2))
-			
+
 			// Update memory cache
 			this.memoryState = currentState
 

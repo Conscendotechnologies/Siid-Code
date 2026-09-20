@@ -20,7 +20,9 @@ export const DIFF_VIEW_URI_SCHEME = "siid-diff"
 export const DIFF_VIEW_LABEL_CHANGES = "Original ↔ Siid's Changes"
 
 // TODO: https://github.com/cline/cline/pull/3354
-export class DiffViewProvider {
+import { EditSurface } from "./EditSurface"
+
+export class DiffViewProvider implements EditSurface {
 	// Properties to store the results of saveChanges
 	newProblemsMessage?: string
 	userEdits?: string

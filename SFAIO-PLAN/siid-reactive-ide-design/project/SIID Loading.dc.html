@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-64cca173-5f0f-4540-b919-674fa0c9a8fd/styles.css">
+<script src="_ds/nocturne-64cca173-5f0f-4540-b919-674fa0c9a8fd/_ds_bundle.js"></script>
+<style>
+  html, body { margin: 0; background: #000000; }
+  @keyframes slAqua { 0%, 100% { opacity: 0.30; transform: translate(-6%, -4%) scale(1); } 50% { opacity: 0.55; transform: translate(-2%, 2%) scale(1.09); } }
+  @keyframes slViolet { 0%, 100% { opacity: 0.26; transform: translate(5%, 4%) scale(1.06); } 50% { opacity: 0.46; transform: translate(1%, -3%) scale(0.98); } }
+  @keyframes slTextIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(14px,4vh,44px) 24px;box-sizing:border-box;overflow:hidden;background:#000000;font-family:var(--font-body);">
+
+  <div style="position:relative;width:min(720px,94vw,72vh);aspect-ratio:1;display:grid;place-items:center;">
+    <div style="position:absolute;width:74%;height:74%;border-radius:50%;filter:blur(72px);background:radial-gradient(circle,rgba(70,205,225,0.34),rgba(70,205,225,0) 70%);animation:slAqua 9s ease-in-out infinite;pointer-events:none;"></div>
+    <div style="position:absolute;width:82%;height:82%;border-radius:50%;filter:blur(84px);background:radial-gradient(circle,rgba(170,70,200,0.30),rgba(170,70,200,0) 72%);animation:slViolet 11s ease-in-out infinite;pointer-events:none;"></div>
+
+    <x-import component-from-global-scope="siid-loader" from="./siid-loader.js" phase="{{ phase }}" style="position:absolute;inset:0;width:100%;height:100%;" hint-size="100%,100%"></x-import>
+
+    <img src="siid-logo.png" alt="SIID" style="position:relative;width:15%;height:15%;object-fit:contain;filter:drop-shadow(0 3px 16px rgba(0,0,0,0.85));" />
+  </div>
+
+  <div style="margin-top:clamp(2px,1.5vh,18px);height:24px;display:flex;align-items:center;">
+    <span key="{{ phaseKey }}" style="font-size:clamp(15px,1.9vw,19px);font-weight:400;letter-spacing:0.01em;color:var(--color-neutral-300);animation:slTextIn 0.5s ease-out;">{{ phaseLabel }}</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:960,&quot;height&quot;:680},&quot;showStates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Content&quot;},&quot;label&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+const STATES = [
+  'Initializing',
+  'Discovering your org',
+  'Analyzing metadata',
+  'Planning solution',
+  'Generating implementation',
+  'Validating changes',
+  'Complete'
+];
+
+class Component extends DCLogic {
+  state = { i: 0 };
+
+  componentDidMount() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    this.schedule();
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+
+  schedule() {
+    const last = this.state.i === STATES.length - 1;
+    this._t = setTimeout(() => {
+      this.setState(s => ({ i: (s.i + 1) % STATES.length }), () => this.schedule());
+    }, last ? 2000 : 3200);
+  }
+
+  renderVals() {
+    const i = this.state.i;
+    const showStates = this.props.showStates !== false;
+    const label = this.props.label
+      || (showStates ? STATES[i] + (i === STATES.length - 1 ? '' : '…') : 'Loading…');
+    return { phase: i, phaseKey: 'st' + i, phaseLabel: label };
+  }
+}
+</script>
+</body>
+</html>

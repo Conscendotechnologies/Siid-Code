@@ -103,6 +103,13 @@ export async function attemptCompletionTool(
 				`[attemptCompletionTool] Task ${cline.taskId} (taskNumber: ${cline.taskNumber}): parentTask=${cline.parentTask ? cline.parentTask.taskId : "undefined"}`,
 			)
 
+			// SFAIO: background agents complete without a webview round-trip and must
+			// never touch the interactive stack (finishSubTask pops it).
+			if (cline.autoApprovalOverride) {
+				pushToolResult("")
+				return
+			}
+
 			if (cline.parentTask) {
 				const didApprove = await askFinishSubTaskApproval()
 

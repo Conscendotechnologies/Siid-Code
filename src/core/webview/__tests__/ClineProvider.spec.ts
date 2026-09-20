@@ -3725,38 +3725,4 @@ describe("ClineProvider - Comprehensive Edit/Delete Edge Cases", () => {
 			})
 		})
 	})
-
-	describe("SFAIO Phase 0 Validation", () => {
-		it("should spawn 2 simple concurrent jobs and track them without LIFO restriction", async () => {
-			const provider = new ClineProvider(mockContext, mockOutputChannel, "sidebar", mockContextProxy)
-			
-			// Initialize the stack with a parent (Architect) task
-			const architectTask = await provider.initClineWithTask("Architect", [])
-			expect((provider as any).clineStack.length).toBe(1)
-			expect(provider.getCurrentCline()?.taskId).toBe(architectTask.taskId)
-
-			// Spawn 2 concurrent child tasks
-			const backgroundTask1 = await provider.initBackgroundTask("Task 1", [], architectTask)
-			const backgroundTask2 = await provider.initBackgroundTask("Task 2", [], architectTask)
-
-			// The background tasks should be tracked
-			expect((provider as any).backgroundTasks.length).toBe(2)
-			expect((provider as any).backgroundTasks[0].taskId).toBe(backgroundTask1.taskId)
-			expect((provider as any).backgroundTasks[1].taskId).toBe(backgroundTask2.taskId)
-
-			// The active task should STILL be the Architect (proving LIFO restriction is gone)
-			expect(provider.getCurrentCline()?.taskId).toBe(architectTask.taskId)
-			expect((provider as any).clineStack.length).toBe(1)
-
-			// Simulate completion of background tasks
-			backgroundTask1.emit(RooCodeEventName.TaskCompleted)
-			await new Promise(resolve => setTimeout(resolve, 0)) // yield for event loop
-			expect((provider as any).backgroundTasks.length).toBe(1)
-			expect((provider as any).backgroundTasks[0].taskId).toBe(backgroundTask2.taskId)
-
-			backgroundTask2.emit(RooCodeEventName.TaskCompleted)
-			await new Promise(resolve => setTimeout(resolve, 0))
-			expect((provider as any).backgroundTasks.length).toBe(0)
-		})
-	})
 })
