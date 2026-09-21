@@ -40,12 +40,6 @@ export class DeployWorker {
 
 				// Deploy for each org sequentially (in this simple MVP)
 				for (const orgAlias of orgAliases) {
-					// Is this org already deploying?
-					const isDeploying = Object.values(state.deployQueue).some(
-						(i) => i.orgAlias === orgAlias && i.state === "DEPLOYING",
-					)
-					if (isDeploying) continue
-
 					const item = await this.queue.claimNext(orgAlias)
 					if (!item) continue
 
@@ -58,7 +52,7 @@ export class DeployWorker {
 
 					if (task) {
 						// For MVP: deploy the source directory since tracking exact files requires more logic.
-						cliCommand = `sf project deploy start --target-org ${orgAlias} --ignore-conflicts`
+						cliCommand = `sf project deploy start --target-org "${orgAlias}" --ignore-conflicts`
 						if (task.spec.metadataTypes && task.spec.metadataTypes.length > 0) {
 							cliCommand += ` --metadata ${task.spec.metadataTypes.join(",")}`
 						} else {

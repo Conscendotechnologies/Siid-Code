@@ -185,12 +185,6 @@
 				"command": "siid-code.testOpenRouterApiKey",
 				"title": "Test OpenRouter Api Key",
 				"category": "%configuration.title%"
-			},
-			{
-				"command": "siid-code.openSfaioRunBoard",
-				"title": "SFAIO Engine",
-				"icon": "$(play)",
-				"category": "%configuration.title%"
 			}
 		],
 		"menus": {

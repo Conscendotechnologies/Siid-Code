@@ -67,6 +67,11 @@ export class DeployQueue {
 						return a.enqueuedAt - b.enqueuedAt
 					})
 
+				const isDeploying = Object.values(state.deployQueue).some(
+					(i) => i.orgAlias === orgAlias && i.state === "DEPLOYING",
+				)
+				if (isDeploying) return
+
 				if (items.length > 0) {
 					const item = items[0]
 					item.state = "DEPLOYING"

@@ -3,6 +3,8 @@ import { ClineProvider } from "../../../core/webview/ClineProvider"
 import { DeployQueue } from "../deploy/DeployQueue"
 import { Run, DecisionItem, SfaioTask, TaskSpec } from "../../../shared/sfaio/types"
 import { v4 as uuidv4 } from "uuid"
+import { ArchitectAgent } from "../agents/ArchitectAgent"
+import { DevAgent } from "../agents/DevAgent"
 
 const AUTO_APPROVABLE: DecisionItem["kind"][] = ["DESIGN_APPROVAL", "DELEGATION_APPROVAL"]
 
@@ -77,13 +79,25 @@ export class SfaioOrchestrator {
 		if (!run) return
 
 		if (run.state === "ANALYZING") {
-			// Check if we need to emit an alignment question
-			// This would normally happen via Architect agent emitting a decision.
-			// Stub logic:
+			// Wire up ArchitectAgent
+			const architect = new ArchitectAgent(this.provider, this.store)
+			await architect.analyzeRequirement(run)
 		} else if (run.state === "EXECUTING") {
 			// Scan tasks
 			const tasks = Object.values(state.tasks).filter((t) => t.runId === runId)
 			// Kick off tasks if dependencies are met
+			for (const task of tasks) {
+				if (task.state === "PENDING") {
+					await this.store.updateTask(
+						task.taskId,
+						{ state: "ASSIGNED" },
+						{ actor: "SfaioOrchestrator", reason: "kickoff task" },
+					)
+
+					const devAgent = new DevAgent(this.provider, this.store, this.deployQueue)
+					await devAgent.executeTask(run, task)
+				}
+			}
 		}
 	}
 
