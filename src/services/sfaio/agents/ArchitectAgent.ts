@@ -125,10 +125,30 @@ export class ArchitectAgent {
 							},
 						)
 					}
+					const decisionId = uuidv4()
+					await this.store.transaction(
+						{
+							actor: "ArchitectAgent",
+							reason: "creating design approval decision",
+							entityType: "Decision",
+							entityId: decisionId,
+						},
+						(state) => {
+							state.decisions[decisionId] = {
+								decisionId,
+								runId: run.runId,
+								kind: "DESIGN_APPROVAL",
+								prompt: "Please review and approve the generated task graph.",
+								payload: result,
+								createdAt: Date.now(),
+							}
+						},
+					)
+
 					await this.store.updateRun(
 						run.runId,
-						{ state: "EXECUTING" },
-						{ actor: "ArchitectAgent", reason: "analysis complete, skipping design approval" },
+						{ state: "AWAITING_DESIGN_APPROVAL" },
+						{ actor: "ArchitectAgent", reason: "analysis complete, awaiting design approval" },
 					)
 				} catch (e: any) {
 					console.error("Failed to parse Architect output", e)
@@ -137,6 +157,26 @@ export class ArchitectAgent {
 						await this.executeArchitectTask(run, retryInstructions, true)
 					} else {
 						// Failed twice, surface to human via ALIGNMENT
+						const decisionId = uuidv4()
+						await this.store.transaction(
+							{
+								actor: "ArchitectAgent",
+								reason: "creating alignment decision for parse failure",
+								entityType: "Decision",
+								entityId: decisionId,
+							},
+							(state) => {
+								state.decisions[decisionId] = {
+									decisionId,
+									runId: run.runId,
+									kind: "ALIGNMENT",
+									prompt: "The Architect agent failed to generate a valid task graph after multiple attempts. Please review the error.",
+									payload: { error: e.message },
+									createdAt: Date.now(),
+								}
+							},
+						)
+
 						await this.store.updateRun(
 							run.runId,
 							{ state: "AWAITING_ALIGNMENT" },
