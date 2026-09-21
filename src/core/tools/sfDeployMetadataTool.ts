@@ -286,10 +286,11 @@ function buildSfDeployCommand(
 	tests: string | undefined,
 	ignoreWarnings: boolean,
 	isDryRun: boolean,
+	targetOrg: string | undefined,
 	cwd: string,
 ): string {
 	console.log(
-		`[deploySfMetadata] buildSfDeployCommand: type=${metadataType}, name=${metadataName}, sourceDir=${sourceDir}, isDryRun=${isDryRun}`,
+		`[deploySfMetadata] buildSfDeployCommand: type=${metadataType}, name=${metadataName}, sourceDir=${sourceDir}, targetOrg=${targetOrg}, isDryRun=${isDryRun}`,
 	)
 	const config = METADATA_TYPE_CONFIG[metadataType]
 
@@ -305,6 +306,9 @@ function buildSfDeployCommand(
 
 	// Build base command
 	let command = "sf project deploy start"
+	if (targetOrg) {
+		command += ` --target-org ${targetOrg}`
+	}
 
 	// Add metadata specification
 	if (sourceDir) {
@@ -637,8 +641,26 @@ export async function deploySfMetadataTool(
 	const testLevel: string | undefined = block.params.test_level
 	const tests: string | undefined = block.params.tests
 	const ignoreWarnings: boolean = block.params.ignore_warnings === "true"
+	let targetOrg: string | undefined = block.params.target_org
+	let dryRunOnly: boolean = block.params.dry_run_only === "true"
+
+	if (cline.sfaioTargetOrg) {
+		// SFAIO automated run enforcement
+		if (block.params.dry_run_only !== "true") {
+			cline.consecutiveMistakeCount++
+			cline.recordToolError("sf_deploy_metadata")
+			pushToolResult(
+				formatResponse.toolError(
+					"Automated SFAIO agents are only allowed to perform dry-runs. You must set dry_run_only to true.",
+				),
+			)
+			return
+		}
+		targetOrg = cline.sfaioTargetOrg
+	}
+
 	console.log(
-		`[deploySfMetadata] Parsed params: type=${metadataType}, name=${metadataName}, sourceDir=${sourceDir}, testLevel=${testLevel}, cwd=${cline.cwd}`,
+		`[deploySfMetadata] Parsed params: type=${metadataType}, name=${metadataName}, sourceDir=${sourceDir}, testLevel=${testLevel}, targetOrg=${targetOrg}, cwd=${cline.cwd}`,
 	)
 
 	try {
@@ -648,6 +670,7 @@ export async function deploySfMetadataTool(
 			metadataType: metadataType || "",
 			metadataName: metadataName || "",
 			testLevel: testLevel || "NoTestRun",
+			targetOrg: targetOrg || "",
 		}
 
 		if (block.partial) {
@@ -660,6 +683,7 @@ export async function deploySfMetadataTool(
 						metadataType: removeClosingTag("metadata_type", metadataType),
 						metadataName: removeClosingTag("metadata_name", metadataName),
 						testLevel: removeClosingTag("test_level", testLevel),
+						targetOrg: removeClosingTag("target_org", targetOrg),
 					} satisfies ClineSayTool),
 					block.partial,
 				)
@@ -698,19 +722,25 @@ export async function deploySfMetadataTool(
 				tests,
 				ignoreWarnings,
 				true, // isDryRun
+				targetOrg,
 				cline.cwd,
 			)
 
-			deployCommand = buildSfDeployCommand(
-				metadataType,
-				metadataName,
-				sourceDir,
-				testLevel,
-				tests,
-				ignoreWarnings,
-				false, // not dry run
-				cline.cwd,
-			)
+			if (dryRunOnly) {
+				deployCommand = ""
+			} else {
+				deployCommand = buildSfDeployCommand(
+					metadataType,
+					metadataName,
+					sourceDir,
+					testLevel,
+					tests,
+					ignoreWarnings,
+					false, // not dry run
+					targetOrg,
+					cline.cwd,
+				)
+			}
 		} catch (error) {
 			pushToolResult(formatResponse.toolError(error.message))
 			return
@@ -723,7 +753,8 @@ export async function deploySfMetadataTool(
 			metadataName,
 			testLevel: testLevel || "NoTestRun",
 			sourceDir: sourceDir || "default",
-			content: `Metadata Type: ${metadataType}\nMetadata Name: ${metadataName}\nTest Level: ${testLevel || "NoTestRun"}${sourceDir ? `\nSource Directory: ${sourceDir}` : ""}${tests ? `\nTests: ${tests}` : ""}`,
+			targetOrg: targetOrg || "",
+			content: `Metadata Type: ${metadataType}\nMetadata Name: ${metadataName}\nTest Level: ${testLevel || "NoTestRun"}${sourceDir ? `\nSource Directory: ${sourceDir}` : ""}${targetOrg ? `\nTarget Org: ${targetOrg}` : ""}${tests ? `\nTests: ${tests}` : ""}${dryRunOnly ? "\n\n⚠️ DRY RUN ONLY (No actual deployment)" : ""}`,
 		} satisfies ClineSayTool)
 
 		// Check if auto-approval is enabled for this tool
@@ -766,6 +797,12 @@ export async function deploySfMetadataTool(
 				}
 			} catch {
 				// Non-critical — continue with deployment even if status update fails
+			}
+
+			if (dryRunOnly) {
+				await cline.say("text", "✅ Dry run validation passed! (Stopping here since dry_run_only=true)")
+				pushToolResult(formatResponse.toolResult(dryRunResult.message))
+				return
 			}
 
 			// Update UI: Dry run passed

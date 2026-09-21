@@ -22,6 +22,18 @@ export interface UpdateTodoListPayload {
 	todos: any[]
 }
 
+export interface SfaioActionPayload {
+	requirement?: string
+	targetOrgAlias?: string
+	autoMode?: boolean
+	projectPath?: string
+	isGreenfieldOrg?: boolean
+	decisionId?: string
+	response?: any
+	runId?: string
+	taskId?: string
+}
+
 export interface WebviewMessage {
 	type:
 		| "updateTodoList"
@@ -231,6 +243,7 @@ export interface WebviewMessage {
 		| "clearFileChanges"
 		| "getFileChangesStatistics"
 		| "migrateFileChanges"
+		| "sfaioAction"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"
@@ -302,6 +315,7 @@ export interface WebviewMessage {
 	loginData?: {
 		userInfo?: any
 	}
+	sfaioAction?: string
 }
 
 export const checkoutDiffPayloadSchema = z.object({
@@ -347,3 +361,4 @@ export type WebViewMessagePayload =
 	| IndexClearedPayload
 	| InstallMarketplaceItemWithParametersPayload
 	| UpdateTodoListPayload
+	| SfaioActionPayload

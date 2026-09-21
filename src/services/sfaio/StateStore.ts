@@ -3,11 +3,13 @@ import * as path from "path"
 import * as lockfile from "proper-lockfile"
 import { SfaioState } from "../../shared/sfaio/types"
 import { EventEmitter } from "events"
+import { assertTaskTransition, assertRunTransition } from "./orchestrator/stateMachine"
+import { SfaioTask, Run } from "../../shared/sfaio/types"
 
 export interface MutationContext {
 	actor: string
 	reason: string
-	entityType: "Run" | "Task" | "Agent" | "DeployQueueItem" | "System"
+	entityType: "Run" | "Task" | "Agent" | "DeployQueueItem" | "System" | "Decision"
 	entityId: string
 	fromState?: string
 	toState?: string
@@ -45,6 +47,7 @@ export class StateStore extends EventEmitter {
 		let initialState: SfaioState = {
 			runs: {},
 			tasks: {},
+			decisions: {},
 			agents: {},
 			deployQueue: {},
 			escalations: {},
@@ -127,5 +130,63 @@ export class StateStore extends EventEmitter {
 		} finally {
 			await release()
 		}
+	}
+
+	public async updateTask(
+		taskId: string,
+		patch: Partial<SfaioTask>,
+		context: Omit<MutationContext, "entityType" | "entityId" | "fromState" | "toState">,
+	): Promise<void> {
+		const fromState = this.memoryState.tasks[taskId]?.state
+		const toState = patch.state || fromState
+
+		await this.transaction(
+			{
+				...context,
+				entityType: "Task",
+				entityId: taskId,
+				fromState,
+				toState,
+			},
+			(state) => {
+				const task = state.tasks[taskId]
+				if (!task) throw new Error(`Task ${taskId} not found`)
+
+				if (patch.state && patch.state !== task.state) {
+					assertTaskTransition(task.state, patch.state)
+				}
+
+				Object.assign(task, patch)
+			},
+		)
+	}
+
+	public async updateRun(
+		runId: string,
+		patch: Partial<Run>,
+		context: Omit<MutationContext, "entityType" | "entityId" | "fromState" | "toState">,
+	): Promise<void> {
+		const fromState = this.memoryState.runs[runId]?.state
+		const toState = patch.state || fromState
+
+		await this.transaction(
+			{
+				...context,
+				entityType: "Run",
+				entityId: runId,
+				fromState,
+				toState,
+			},
+			(state) => {
+				const run = state.runs[runId]
+				if (!run) throw new Error(`Run ${runId} not found`)
+
+				if (patch.state && patch.state !== run.state) {
+					assertRunTransition(run.state, patch.state)
+				}
+
+				Object.assign(run, patch)
+			},
+		)
 	}
 }

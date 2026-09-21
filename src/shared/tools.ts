@@ -77,6 +77,8 @@ export const toolParamNames = [
 	"source_dir",
 	"section",
 	"task_type",
+	"target_org",
+	"dry_run_only",
 	"metadata_path",
 	"label",
 	"api_name",

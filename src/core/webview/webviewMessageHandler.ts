@@ -2173,5 +2173,39 @@ export const webviewMessageHandler = async (
 			}
 			break
 		}
+
+		case "sfaioAction": {
+			const action = message.sfaioAction
+			const payload = message.payload as any
+			if (!action) break
+
+			try {
+				switch (action) {
+					case "startRun":
+						await provider.sfaioOrchestrator.startRun(payload)
+						break
+					case "resolveDecision":
+						await provider.sfaioOrchestrator.resolveDecision(payload.decisionId, payload.response)
+						break
+					case "pauseRun":
+						await provider.sfaioOrchestrator.pauseRun(payload.runId)
+						break
+					case "resumeRun":
+						await provider.sfaioOrchestrator.resumeRun(payload.runId)
+						break
+					case "cancelRun":
+						await provider.sfaioOrchestrator.cancelRun(payload.runId)
+						break
+					case "updateTaskSpec":
+						await provider.sfaioOrchestrator.updateTaskSpec(payload.runId, payload.taskId, payload.spec)
+						break
+				}
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`SFAIO Action Error: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+			break
+		}
 	}
 }

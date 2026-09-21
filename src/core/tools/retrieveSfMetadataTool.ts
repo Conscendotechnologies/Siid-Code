@@ -153,7 +153,12 @@ const METADATA_TYPE_CONFIG: Record<string, MetadataTypeConfig> = {
 /**
  * Build the SF CLI command based on metadata type and name
  */
-function buildSfCommand(metadataType: string, metadataName: string | undefined, cwd: string): string {
+function buildSfCommand(
+	metadataType: string,
+	metadataName: string | undefined,
+	targetOrg: string | undefined,
+	cwd: string,
+): string {
 	const config = METADATA_TYPE_CONFIG[metadataType]
 
 	if (!config) {
@@ -174,11 +179,15 @@ function buildSfCommand(metadataType: string, metadataName: string | undefined, 
 				`Metadata type ${metadataType} does not support listing all components. Please provide a metadata_name.`,
 			)
 		}
-		return `sf project retrieve start --metadata "${config.cliType}:*" --json`
+		let cmd = `sf project retrieve start --metadata "${config.cliType}:*" --json`
+		if (targetOrg) cmd += ` --target-org ${targetOrg}`
+		return cmd
 	}
 
 	// Retrieve specific metadata component
-	return `sf project retrieve start --metadata "${config.cliType}:${metadataName}" --json`
+	let cmd = `sf project retrieve start --metadata "${config.cliType}:${metadataName}" --json`
+	if (targetOrg) cmd += ` --target-org ${targetOrg}`
+	return cmd
 }
 
 /**
@@ -270,6 +279,7 @@ export async function retrieveSfMetadataTool(
 ) {
 	const metadataType: string | undefined = block.params.metadata_type
 	const metadataName: string | undefined = block.params.metadata_name
+	const targetOrg: string | undefined = block.params.target_org
 
 	try {
 		if (block.partial) {
@@ -282,6 +292,7 @@ export async function retrieveSfMetadataTool(
 						tool: "retrieveSfMetadata",
 						metadataType: partialMessage,
 						metadataName: removeClosingTag("metadata_name", metadataName),
+						targetOrg: removeClosingTag("target_org", targetOrg),
 					}),
 					block.partial,
 				)
@@ -303,7 +314,7 @@ export async function retrieveSfMetadataTool(
 		// Build the SF CLI command
 		let command: string
 		try {
-			command = buildSfCommand(metadataType, metadataName, cline.cwd)
+			command = buildSfCommand(metadataType, metadataName, targetOrg, cline.cwd)
 		} catch (error) {
 			pushToolResult(formatResponse.toolError(error.message))
 			return
@@ -319,6 +330,7 @@ export async function retrieveSfMetadataTool(
 			tool: "retrieveSfMetadata",
 			metadataType,
 			metadataName: metadataName || "(all)",
+			targetOrg,
 			command,
 		})
 

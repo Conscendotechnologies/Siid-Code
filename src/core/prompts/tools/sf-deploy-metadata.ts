@@ -16,6 +16,8 @@ Parameters:
 - test_level: (optional) NoTestRun | RunLocalTests | RunAllTestsInOrg | RunSpecifiedTests
 - tests: (optional) Comma-separated test class names (required with RunSpecifiedTests)
 - ignore_warnings: (optional) true | false
+- target_org: (optional) Target org alias. Must be specified during SFAIO runs.
+- dry_run_only: (optional) true | false. When true, performs validation only. SFAIO tasks must set this to true.
 
 Usage:
 <sf_deploy_metadata>

@@ -1,6 +1,6 @@
 import React from "react"
 import { IconProps } from "@phosphor-icons/react"
-import { CheckCircle, WarningCircle, Warning, Clock, Check, XCircle, PlayCircle, Spinner } from "@phosphor-icons/react"
+import { CheckCircle, WarningCircle, Warning, Clock, Check, XCircle, Spinner } from "@phosphor-icons/react"
 
 export type TaskState = "success" | "attention" | "danger" | "idle" | "active" | "waiting" | "spent"
 

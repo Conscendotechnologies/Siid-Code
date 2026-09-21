@@ -255,8 +255,13 @@
           "when": "view == siid-code.SidebarProvider"
         },
         {
-          "command": "siid-code.popoutButtonClicked",
+          "command": "siid-code.openSfaioRunBoard",
           "group": "overflow@4",
+          "when": "view == siid-code.SidebarProvider"
+        },
+        {
+          "command": "siid-code.popoutButtonClicked",
+          "group": "overflow@5",
           "when": "view == siid-code.SidebarProvider"
         }
       ],
@@ -292,8 +297,13 @@
           "when": "activeWebviewPanelId == siid-code.TabPanelProvider"
         },
         {
-          "command": "siid-code.popoutButtonClicked",
+          "command": "siid-code.openSfaioRunBoard",
           "group": "overflow@4",
+          "when": "activeWebviewPanelId == siid-code.TabPanelProvider"
+        },
+        {
+          "command": "siid-code.popoutButtonClicked",
+          "group": "overflow@5",
           "when": "activeWebviewPanelId == siid-code.TabPanelProvider"
         }
       ]

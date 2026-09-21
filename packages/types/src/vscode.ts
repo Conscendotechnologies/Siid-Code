@@ -60,6 +60,7 @@ export const commandIds = [
 
 	"addCustomProvider",
 	"switchModel",
+	"openSfaioRunBoard",
 ] as const
 
 export type CommandId = (typeof commandIds)[number]
