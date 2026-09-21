@@ -12,6 +12,8 @@ const ARCHITECT_ROLE = `You are a Salesforce Architect.`
 function architectInstructions(run: Run): string {
 	return `Analyze the requirement for run ${run.runId} and emit structured JSON for tasks. The JSON must have a single top-level "tasks" array. Each task object in the array must strictly adhere to the following schema:
 - objective: string
+- wave: number (0 for objects/fields, 1..N for dependent logic)
+- assignedTier: string ("architect", "senior", "mid", or "junior")
 - filesOwned: array of strings
 - filesReadOnly: array of strings (optional)
 - contracts: object with optional methodSignatures, fieldApiNames, and notes
@@ -19,7 +21,6 @@ function architectInstructions(run: Run): string {
 - constraints: array of strings
 - instructions: string
 - metadataTypes: array of strings
-- assignedTier: number or string (optional)
 
 Output nothing but the JSON.`
 }
@@ -28,6 +29,8 @@ const taskGraphSchema = z.object({
 	tasks: z.array(
 		z.object({
 			objective: z.string(),
+			wave: z.number(),
+			assignedTier: z.enum(["architect", "senior", "mid", "junior"]),
 			filesOwned: z.array(z.string()),
 			filesReadOnly: z.array(z.string()).optional(),
 			contracts: z
@@ -41,7 +44,6 @@ const taskGraphSchema = z.object({
 			constraints: z.array(z.string()),
 			instructions: z.string(),
 			metadataTypes: z.array(z.string()),
-			assignedTier: z.union([z.number(), z.string()]).optional(),
 		}),
 	),
 })
@@ -53,13 +55,13 @@ export class ArchitectAgent {
 	) {}
 
 	async analyzeRequirement(run: Run): Promise<void> {
+		const instructions = ARCHITECT_ROLE + "\n\n" + architectInstructions(run)
+		await this.executeArchitectTask(run, instructions, false)
+	}
+
+	private async executeArchitectTask(run: Run, instructions: string, isRetry: boolean): Promise<void> {
 		const baseArchitectMode = getModeConfig("orchestrator")
-		const agentMode = buildAgentMode(
-			baseArchitectMode,
-			run.runId,
-			ARCHITECT_ROLE + "\n\n" + architectInstructions(run),
-			[],
-		)
+		const agentMode = buildAgentMode(baseArchitectMode, run.runId, instructions, [])
 
 		const engineTask = await this.provider.createBackgroundTask({
 			task: `Begin architect phase for requirement: ${run.requirement}`,
@@ -69,7 +71,7 @@ export class ArchitectAgent {
 			autoApprovalOverride: DEFAULT_AGENT_AUTO_APPROVAL,
 		})
 
-		engineTask.on(
+		engineTask.once(
 			RooCodeEventName.TaskCompleted,
 			async (taskId: string, tokenUsage: TokenUsage, toolUsage: ToolUsage) => {
 				try {
@@ -79,10 +81,9 @@ export class ArchitectAgent {
 						.find((m) => m.type === "say" && m.say === "text")
 					if (!lastMessage) throw new Error("No response from ArchitectAgent")
 
-					let jsonString = (lastMessage.text || "")
-						.replace(/^```json/i, "")
-						.replace(/```$/, "")
-						.trim()
+					const text = lastMessage.text || ""
+					const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+					let jsonString = match ? match[1].trim() : text.trim()
 
 					const parsed = JSON.parse(jsonString)
 					const result = taskGraphSchema.parse(parsed)
@@ -95,8 +96,8 @@ export class ArchitectAgent {
 							state: "PENDING",
 							spec: {
 								taskId: newTaskId,
-								wave: 0,
-								assignedTier: "mid",
+								wave: t.wave,
+								assignedTier: t.assignedTier,
 								objective: t.objective,
 								filesOwned: t.filesOwned,
 								filesReadOnly: t.filesReadOnly || [],
@@ -126,11 +127,22 @@ export class ArchitectAgent {
 					}
 					await this.store.updateRun(
 						run.runId,
-						{ state: "AWAITING_DESIGN_APPROVAL" },
-						{ actor: "ArchitectAgent", reason: "analysis complete" },
+						{ state: "EXECUTING" },
+						{ actor: "ArchitectAgent", reason: "analysis complete, skipping design approval" },
 					)
-				} catch (e) {
+				} catch (e: any) {
 					console.error("Failed to parse Architect output", e)
+					if (!isRetry) {
+						const retryInstructions = `${instructions}\n\nIMPORTANT: Your previous output failed validation with the following error:\n${e.message}\n\nPlease fix the JSON and try again.`
+						await this.executeArchitectTask(run, retryInstructions, true)
+					} else {
+						// Failed twice, surface to human via ALIGNMENT
+						await this.store.updateRun(
+							run.runId,
+							{ state: "AWAITING_ALIGNMENT" },
+							{ actor: "ArchitectAgent", reason: "Parse failed twice: " + e.message },
+						)
+					}
 				}
 			},
 		)
