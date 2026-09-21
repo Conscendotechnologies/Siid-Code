@@ -13,6 +13,7 @@ Parameters:
   - CustomField: ObjectName.FieldName (e.g., Account.Industry)
   - RecordType / ValidationRule / AssignmentRule: ObjectName.ComponentName
   - Layout: ObjectName-LayoutName (e.g., Account-Account Layout)
+- target_org: (optional) Target org alias. Must be specified during SFAIO runs.
 
 Usage:
 <retrieve_sf_metadata>

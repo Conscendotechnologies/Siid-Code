@@ -128,6 +128,7 @@ export interface ExtensionMessage {
 		| "fileCreated"
 		| "fileChanges"
 		| "fileChangesStatistics"
+		| "sfaioStateUpdate"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
@@ -143,6 +144,8 @@ export interface ExtensionMessage {
 		| "didBecomeVisible"
 		| "focusInput"
 		| "switchTab"
+		| "sfaioButtonClicked"
+		| "openSfaioView"
 	invoke?: "newChat" | "sendMessage" | "primaryButtonClick" | "secondaryButtonClick" | "setChatBoxMessage"
 	state?: ExtensionState
 	images?: string[]
@@ -224,6 +227,7 @@ export interface ExtensionMessage {
 		byStatus: Record<string, number>
 		byDeploymentStatus: Record<string, number>
 	}
+	sfaioState?: any
 }
 
 export type ExtensionState = Pick<
@@ -341,7 +345,7 @@ export type ExtensionState = Pick<
 	telemetryKey?: string
 	machineId?: string
 
-	renderContext: "sidebar" | "editor"
+	renderContext: "sidebar" | "editor" | "sfaio"
 	settingsImportedAt?: number
 	historyPreviewCollapsed?: boolean
 
@@ -359,6 +363,7 @@ export type ExtensionState = Pick<
 	profileThresholds: Record<string, number>
 	hasOpenedModeSelector: boolean
 	developerMode?: boolean
+	sfaioState?: any
 }
 
 export interface ClineSayTool {
@@ -390,6 +395,8 @@ export interface ClineSayTool {
 	sourceDir?: string
 	regex?: string
 	filePattern?: string
+	targetOrg?: string
+	dryRunOnly?: boolean
 	mode?: string
 	reason?: string
 	isOutsideWorkspace?: boolean

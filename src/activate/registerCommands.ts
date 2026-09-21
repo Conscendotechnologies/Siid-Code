@@ -483,6 +483,7 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		await visibleProvider.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
 		await visibleProvider.postMessageToWebview({ type: "action", action: "focusInput" })
 	},
+	openSfaioRunBoard: () => openSfaioRunBoard({ context, outputChannel }),
 })
 
 export const openClineInNewTab = async ({ context, outputChannel }: Omit<RegisterCommandOptions, "provider">) => {
@@ -555,6 +556,69 @@ export const openClineInNewTab = async ({ context, outputChannel }: Omit<Registe
 	)
 
 	// Lock the editor group so clicking on files doesn't open them over the panel.
+	await delay(100)
+	await vscode.commands.executeCommand("workbench.action.lockEditorGroup")
+
+	return tabProvider
+}
+
+export const openSfaioRunBoard = async ({ context, outputChannel }: Omit<RegisterCommandOptions, "provider">) => {
+	const contextProxy = await ContextProxy.getInstance(context)
+	const codeIndexManager = CodeIndexManager.getInstance(context)
+
+	let mdmService: MdmService | undefined
+	try {
+		mdmService = MdmService.getInstance()
+	} catch (error) {
+		mdmService = undefined
+	}
+
+	const tabProvider = new ClineProvider(context, outputChannel, "sfaio", contextProxy, mdmService)
+	const lastCol = Math.max(...vscode.window.visibleTextEditors.map((editor) => editor.viewColumn || 0))
+	const hasVisibleEditors = vscode.window.visibleTextEditors.length > 0
+
+	if (!hasVisibleEditors) {
+		await vscode.commands.executeCommand("workbench.action.newGroupRight")
+	}
+
+	const targetCol = hasVisibleEditors ? Math.max(lastCol + 1, 1) : vscode.ViewColumn.Two
+
+	const sfaioPanelId = `${ClineProvider.tabPanelId}.sfaio`
+
+	const newPanel = vscode.window.createWebviewPanel(sfaioPanelId, "SFAIO Run Board", targetCol, {
+		enableScripts: true,
+		retainContextWhenHidden: true,
+		localResourceRoots: [context.extensionUri],
+	})
+
+	setPanel(newPanel, "tab")
+
+	newPanel.iconPath = {
+		light: vscode.Uri.joinPath(context.extensionUri, "assets", "icons", "panel_light.png"),
+		dark: vscode.Uri.joinPath(context.extensionUri, "assets", "icons", "panel_dark.png"),
+	}
+
+	await tabProvider.resolveWebviewView(newPanel)
+
+	newPanel.onDidChangeViewState(
+		(e) => {
+			const panel = e.webviewPanel
+			if (panel.visible) {
+				panel.webview.postMessage({ type: "action", action: "didBecomeVisible" })
+			}
+		},
+		null,
+		context.subscriptions,
+	)
+
+	newPanel.onDidDispose(
+		() => {
+			setPanel(undefined, "tab")
+		},
+		null,
+		context.subscriptions,
+	)
+
 	await delay(100)
 	await vscode.commands.executeCommand("workbench.action.lockEditorGroup")
 

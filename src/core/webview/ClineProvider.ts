@@ -92,6 +92,11 @@ import { getUri } from "./getUri"
 import { logger } from "../../utils/logging"
 import { isAuthenticated } from "../../utils/firebaseHelper"
 
+import { StateStore } from "../../services/sfaio/StateStore"
+import { DeployQueue } from "../../services/sfaio/deploy/DeployQueue"
+import { DeployWorker } from "../../services/sfaio/deploy/DeployWorker"
+import { SfaioOrchestrator } from "../../services/sfaio/orchestrator/SfaioOrchestrator"
+
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
  * https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/customSidebarViewProvider.ts
@@ -133,10 +138,15 @@ export class ClineProvider
 	public readonly customModesManager: CustomModesManager
 	public readonly api: import("../../extension/api").API
 
+	public sfaioStore!: StateStore
+	public sfaioDeployQueue!: DeployQueue
+	public sfaioDeployWorker!: DeployWorker
+	public sfaioOrchestrator!: SfaioOrchestrator
+
 	constructor(
 		readonly context: vscode.ExtensionContext,
 		private readonly outputChannel: vscode.OutputChannel,
-		private readonly renderContext: "sidebar" | "editor" = "sidebar",
+		private readonly renderContext: "sidebar" | "editor" | "sfaio" = "sidebar",
 		public readonly contextProxy: ContextProxy,
 		mdmService?: MdmService,
 		apiInstance?: import("../../extension/api").API,
@@ -182,6 +192,25 @@ export class ClineProvider
 		this.initializeCloudProfileSync().catch((error) => {})
 
 		this.api = apiInstance!
+
+		// Initialize SFAIO infrastructure
+		// Initialize SFAIO infrastructure
+		StateStore.create(path.join(this.context.globalStorageUri.fsPath, "sfaio"))
+			.then((store) => {
+				this.sfaioStore = store
+				this.sfaioStore.on("stateChanged", (state) => {
+					this.postMessageToWebview({
+						type: "sfaioStateUpdate",
+						sfaioState: state,
+					})
+				})
+				this.sfaioDeployQueue = new DeployQueue(this.sfaioStore)
+				this.sfaioDeployWorker = new DeployWorker(this.sfaioDeployQueue, this.sfaioStore)
+				this.sfaioOrchestrator = new SfaioOrchestrator(this.sfaioStore, this, this.sfaioDeployQueue)
+			})
+			.catch((error) => {
+				console.error("Failed to initialize SFAIO StateStore:", error)
+			})
 	}
 
 	/**
@@ -770,29 +799,33 @@ export class ClineProvider
 	// SFAIO: create an agent task that runs off-screen.
 	public async createBackgroundTask(opts: {
 		task: string
-		apiConfiguration: ProviderSettings
+		apiConfiguration?: ProviderSettings
 		mode: string
 		customModesOverlay?: ModeConfig[]
 		headless?: boolean
 		autoApprovalOverride?: SfaioAutoApproval
 		enableCheckpoints?: boolean
+		sfaioTargetOrg?: string
 	}): Promise<Task> {
-		const { organizationAllowList, fuzzyMatchThreshold, experiments } = await this.getState()
+		const state = await this.getState()
+		const apiConfiguration = opts.apiConfiguration ?? state.apiConfiguration!
+		const { organizationAllowList, fuzzyMatchThreshold, experiments } = state
 
-		if (!ProfileValidator.isProfileAllowed(opts.apiConfiguration, organizationAllowList)) {
+		if (!ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList)) {
 			throw new OrganizationAllowListViolationError(t("common:errors.violated_organization_allowlist"))
 		}
 
 		const task = new Task({
 			provider: this,
-			apiConfiguration: opts.apiConfiguration,
+			apiConfiguration: apiConfiguration,
 			enableDiff: true,
+			sfaioTargetOrg: opts.sfaioTargetOrg,
 			// SFAIO: D1 — no git. Engine checkpoints use simple-git and would either
 			// fail silently without the binary or stage the whole worktree (F10).
 			// SFAIO snapshots are the copy store in Phase 4 §4.5.
 			enableCheckpoints: opts.enableCheckpoints ?? false,
 			fuzzyMatchThreshold,
-			consecutiveMistakeLimit: opts.apiConfiguration.consecutiveMistakeLimit,
+			consecutiveMistakeLimit: apiConfiguration.consecutiveMistakeLimit,
 			task: opts.task,
 			experiments,
 			// SFAIO: deliberately NOT passing parentTask — see §0.5a. The engine's

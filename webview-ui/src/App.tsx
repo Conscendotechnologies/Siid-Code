@@ -15,6 +15,7 @@ import SettingsView, { SettingsViewRef } from "./components/settings/SettingsVie
 import LoginView from "./components/welcome/LoginView"
 import McpView from "./components/mcp/McpView"
 import ModesView from "./components/modes/ModesView"
+import SfaioView from "./components/sfaio/SfaioView"
 import { HumanRelayDialog } from "./components/human-relay/HumanRelayDialog"
 import { DeleteMessageDialog, EditMessageDialog } from "./components/chat/MessageModificationConfirmationDialog"
 import ErrorBoundary from "./components/ErrorBoundary"
@@ -22,7 +23,7 @@ import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonI
 import { TooltipProvider } from "./components/ui/tooltip"
 import { STANDARD_TOOLTIP_DELAY } from "./components/ui/standard-tooltip"
 
-type Tab = "settings" | "history" | "mcp" | "modes" | "chat"
+type Tab = "settings" | "history" | "mcp" | "modes" | "chat" | "sfaio"
 
 interface HumanRelayDialogState {
 	isOpen: boolean
@@ -53,6 +54,7 @@ const tabsByMessageAction: Partial<Record<NonNullable<ExtensionMessage["action"]
 	promptsButtonClicked: "modes",
 	mcpButtonClicked: "mcp",
 	historyButtonClicked: "history",
+	sfaioButtonClicked: "sfaio",
 }
 
 const App = () => {
@@ -248,6 +250,10 @@ const App = () => {
 	// Do not conditionally load ChatView, it's expensive and there's state we
 	// don't want to lose (user input, disableInput, askResponse promise, etc.)
 
+	if (renderContext === "sfaio") {
+		return <SfaioView onDone={() => {}} />
+	}
+
 	return showLogin ? (
 		<LoginView />
 	) : (
@@ -255,6 +261,7 @@ const App = () => {
 			{tab === "modes" && <ModesView onDone={() => switchTab("chat")} />}
 			{tab === "mcp" && <McpView onDone={() => switchTab("chat")} />}
 			{tab === "history" && <HistoryView onDone={() => switchTab("chat")} />}
+			{/* SfaioView is now isolated to the dedicated sfaio panel */}
 			{tab === "settings" && (
 				<SettingsView ref={settingsRef} onDone={() => setTab("chat")} targetSection={currentSection} />
 			)}
