@@ -17,6 +17,7 @@ import { CodeIndexManager } from "../services/code-index/manager"
 import { importSettingsWithFeedback } from "../core/config/importExport"
 import { MdmService } from "../services/mdm/MdmService"
 import { t } from "../i18n"
+import { openAgentsView, closeAgentsView } from "../core/webview/agentsPanel"
 
 /**
  * Helper to get the visible ClineProvider instance or log if not found.
@@ -119,6 +120,8 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		return openClineInNewTab({ context, outputChannel })
 	},
 	openInNewTab: () => openClineInNewTab({ context, outputChannel }),
+	openAgentsView: () => openAgentsView(context, outputChannel),
+	closeAgentsView: () => closeAgentsView(),
 	settingsButtonClicked: () => {
 		const visibleProvider = getVisibleProviderOrLog(outputChannel)
 

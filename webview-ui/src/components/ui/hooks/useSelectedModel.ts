@@ -283,7 +283,10 @@ function getSelectedModel({
 		default: {
 			provider satisfies "anthropic" | "gemini-cli" | "human-relay" | "fake-ai"
 			const id = apiConfiguration.apiModelId ?? anthropicDefaultModelId
-			const info = anthropicModels[id as keyof typeof anthropicModels]
+			// Live list first (covers ids released after the bundled table), then the table.
+			const info =
+				(provider === "anthropic" ? routerModels.anthropic?.[id] : undefined) ??
+				anthropicModels[id as keyof typeof anthropicModels]
 			return { id, info }
 		}
 	}

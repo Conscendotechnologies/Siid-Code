@@ -135,6 +135,8 @@ export interface ExtensionMessage {
 		| "fileChangesStatistics"
 		| "loginDenied"
 		| "hackDateUpdated"
+		| "agentsDirListing"
+		| "agentsChanges"
 	text?: string
 	title?: string
 	payload?: any // Add a generic payload for now, can refine later
@@ -353,7 +355,7 @@ export type ExtensionState = Pick<
 	telemetryKey?: string
 	machineId?: string
 
-	renderContext: "sidebar" | "editor"
+	renderContext: "sidebar" | "editor" | "agents"
 	settingsImportedAt?: number
 	historyPreviewCollapsed?: boolean
 

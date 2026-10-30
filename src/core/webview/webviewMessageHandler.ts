@@ -1,4 +1,5 @@
 import { safeWriteJson } from "../../utils/safeWriteJson"
+import { handleAgentsMessage } from "./agentsMessageHandler"
 import * as path from "path"
 import * as os from "os"
 import * as fs from "fs/promises"
@@ -20,7 +21,7 @@ import { type ApiMessage } from "../task-persistence/apiMessages"
 import { ClineProvider } from "./ClineProvider"
 import { changeLanguage, t } from "../../i18n"
 import { Package } from "../../shared/package"
-import { RouterName, toRouterName, ModelRecord } from "../../shared/api"
+import { RouterName, toRouterName, ModelRecord, RouterModels } from "../../shared/api"
 import { supportPrompt } from "../../shared/support-prompt"
 import { MessageEnhancer } from "./messageEnhancer"
 
@@ -713,6 +714,13 @@ export const webviewMessageHandler = async (
 				})
 			}
 
+			// Anthropic's list is fetched live with the user's own key (falls back to the bundled
+			// list inside getModels, so this never rejects). Values from the settings form win over
+			// saved state so the picker can refresh before the user saves.
+			const anthropicApiKey = message?.values?.anthropicApiKey ?? apiConfiguration.apiKey
+			const anthropicBaseUrl = message?.values?.anthropicBaseUrl ?? apiConfiguration.anthropicBaseUrl
+			const anthropicUseAuthToken =
+				message?.values?.anthropicUseAuthToken ?? apiConfiguration.anthropicUseAuthToken
 			const results = await Promise.allSettled(
 				modelFetchPromises.map(async ({ key, options }) => {
 					const models = await safeGetModels(options)
@@ -760,9 +768,24 @@ export const webviewMessageHandler = async (
 				}
 			})
 
+			let anthropicModelList: ModelRecord | undefined
+			try {
+				anthropicModelList = await getModels({
+					provider: "anthropic",
+					apiKey: anthropicApiKey,
+					baseUrl: anthropicBaseUrl || undefined,
+					useAuthToken: !!anthropicUseAuthToken,
+				})
+			} catch {
+				// getModels falls back to the bundled list itself; nothing to report here.
+			}
+			if (anthropicModelList) {
+				;(fetchedRouterModels as RouterModels).anthropic = anthropicModelList
+			}
+
 			provider.postMessageToWebview({
 				type: "routerModels",
-				routerModels: fetchedRouterModels as Record<RouterName, ModelRecord>,
+				routerModels: fetchedRouterModels as RouterModels,
 			})
 
 			break
@@ -1984,6 +2007,13 @@ export const webviewMessageHandler = async (
 
 			break
 		}
+
+		case "agentsListDir":
+		case "agentsOpenFile":
+		case "agentsGetChanges":
+		case "agentsOpenDiff":
+			await handleAgentsMessage(provider, message)
+			break
 
 		case "updateFileDeploymentStatus": {
 			const values = message.values as

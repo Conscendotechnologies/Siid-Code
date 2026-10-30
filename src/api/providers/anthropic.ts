@@ -18,6 +18,11 @@ import { getModelParams } from "../transform/model-params"
 import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
 import { calculateApiCostAnthropic } from "../../shared/cost"
+import { getModels, getModelsFromCache } from "./fetchers/modelCache"
+import { anthropicCacheKey, mergeAnthropicModels } from "./fetchers/anthropic"
+
+// Waiting for the live list must never hold up a request for long.
+const MODEL_LIST_WAIT_MS = 3_000
 
 export class AnthropicHandler extends BaseProvider implements SingleCompletionHandler {
 	private options: ApiHandlerOptions
@@ -43,17 +48,13 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 	): ApiStream {
 		let stream: AnthropicStream<Anthropic.Messages.RawMessageStreamEvent>
 		const cacheControl: CacheControlEphemeral = { type: "ephemeral" }
-		let { id: modelId, betas = [], maxTokens, temperature, reasoning: thinking } = this.getModel()
+		// Dynamic ids (from the live list) are not in the bundled table, so load
+		// the list first and let the resolved model info decide about caching.
+		await this.ensureModelListLoaded()
+		let { id: modelId, betas = [], maxTokens, temperature, reasoning: thinking, info } = this.getModel()
 
-		switch (modelId) {
-			case "claude-sonnet-4-20250514":
-			case "claude-opus-4-1-20250805":
-			case "claude-opus-4-20250514":
-			case "claude-3-7-sonnet-20250219":
-			case "claude-3-5-sonnet-20241022":
-			case "claude-3-5-haiku-20241022":
-			case "claude-3-opus-20240229":
-			case "claude-3-haiku-20240307": {
+		switch (info.supportsPromptCache ? "cache" : "none") {
+			case "cache": {
 				/**
 				 * The latest message will be the new user message, one before
 				 * will be the assistant message from a previous request, and
@@ -103,21 +104,12 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 						// https://github.com/anthropics/anthropic-sdk-typescript?tab=readme-ov-file#default-headers
 						// https://github.com/anthropics/anthropic-sdk-typescript/commit/c920b77fc67bd839bfeb6716ceab9d7c9bbe7393
 
-						// Then check for models that support prompt caching
-						switch (modelId) {
-							case "claude-sonnet-4-20250514":
-							case "claude-opus-4-1-20250805":
-							case "claude-opus-4-20250514":
-							case "claude-3-7-sonnet-20250219":
-							case "claude-3-5-sonnet-20241022":
-							case "claude-3-5-haiku-20241022":
-							case "claude-3-opus-20240229":
-							case "claude-3-haiku-20240307":
-								betas.push("prompt-caching-2024-07-31")
-								return { headers: { "anthropic-beta": betas.join(",") } }
-							default:
-								return undefined
+						// The beta header is only sent for ids the bundled table already
+						// shipped with; newer ids use GA prompt caching.
+						if (Object.prototype.hasOwnProperty.call(anthropicModels, modelId)) {
+							betas.push("prompt-caching-2024-07-31")
 						}
+						return betas.length > 0 ? { headers: { "anthropic-beta": betas.join(",") } } : undefined
 					})(),
 				)
 				break
@@ -233,10 +225,55 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 		}
 	}
 
-	getModel() {
+	/** Cached live list for the current credentials, if one has been loaded. */
+	private getCachedModelList() {
+		return getModelsFromCache(
+			anthropicCacheKey({
+				apiKey: this.options.apiKey,
+				baseUrl: this.options.anthropicBaseUrl,
+				useAuthToken: !!this.options.anthropicUseAuthToken,
+			}),
+		)
+	}
+
+	/**
+	 * Load the live model list when the selected id is not one the bundled
+	 * table knows. Never throws: on any failure getModel() falls back to
+	 * conservative defaults for the id.
+	 */
+	private async ensureModelListLoaded(): Promise<void> {
 		const modelId = this.options.apiModelId
-		let id = modelId && modelId in anthropicModels ? (modelId as AnthropicModelId) : anthropicDefaultModelId
-		const info: ModelInfo = anthropicModels[id]
+		if (!modelId || modelId in anthropicModels || !this.options.apiKey || this.getCachedModelList()) {
+			return
+		}
+
+		try {
+			await Promise.race([
+				getModels({
+					provider: "anthropic",
+					apiKey: this.options.apiKey,
+					baseUrl: this.options.anthropicBaseUrl || undefined,
+					useAuthToken: !!this.options.anthropicUseAuthToken,
+				}),
+				new Promise((resolve) => setTimeout(resolve, MODEL_LIST_WAIT_MS)),
+			])
+		} catch {
+			// Fall through to defaults.
+		}
+	}
+
+	getModel() {
+		const requested = this.options.apiModelId
+		const live = this.getCachedModelList()
+
+		let id: string = requested || anthropicDefaultModelId
+		let info: ModelInfo | undefined = live?.[id] ?? (anthropicModels as Record<string, ModelInfo>)[id]
+
+		if (!info) {
+			// Not listed anywhere (retired, or the list is unavailable): keep the
+			// selected id working with conservative defaults and unknown prices.
+			info = mergeAnthropicModels([{ id }])[id]
+		}
 
 		const params = getModelParams({
 			format: "anthropic",
@@ -244,6 +281,11 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 			model: info,
 			settings: this.options,
 		})
+
+		// Newer models reject sampling parameters outright.
+		if (info.supportedParameters && !info.supportedParameters.includes("temperature")) {
+			params.temperature = undefined
+		}
 
 		// The `:thinking` suffix indicates that the model is a "Hybrid"
 		// reasoning model and that reasoning is required to be enabled.

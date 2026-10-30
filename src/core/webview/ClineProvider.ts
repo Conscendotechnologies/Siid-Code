@@ -131,7 +131,7 @@ export class ClineProvider
 	constructor(
 		readonly context: vscode.ExtensionContext,
 		private readonly outputChannel: vscode.OutputChannel,
-		private readonly renderContext: "sidebar" | "editor" = "sidebar",
+		private readonly renderContext: "sidebar" | "editor" | "agents" = "sidebar",
 		public readonly contextProxy: ContextProxy,
 		mdmService?: MdmService,
 		apiInstance?: import("../../extension/api").API,

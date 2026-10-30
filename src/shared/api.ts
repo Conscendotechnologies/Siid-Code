@@ -29,7 +29,7 @@ export function toRouterName(value?: string): RouterName {
 
 export type ModelRecord = Record<string, ModelInfo>
 
-export type RouterModels = Record<RouterName, ModelRecord>
+export type RouterModels = Record<RouterName, ModelRecord> & { anthropic?: ModelRecord }
 
 // Reasoning
 
@@ -117,3 +117,4 @@ export type GetModelsOptions =
 	| { provider: "litellm"; apiKey: string; baseUrl: string }
 	| { provider: "ollama"; baseUrl?: string }
 	| { provider: "lmstudio"; baseUrl?: string }
+	| { provider: "anthropic"; apiKey?: string; baseUrl?: string; useAuthToken?: boolean }
