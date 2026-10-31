@@ -426,8 +426,10 @@ jobs:
                   PACKAGE_VERSION=$(node -p "require('./src/package.json').version")
                   echo "✅ Final package.json version: $PACKAGE_VERSION"
 
+            # main-stable-agent only accepts changes through a PR, so its bump stays local:
+            # the next version comes from tags, and the build below reads the updated file.
             - name: Commit version bump
-              if: steps.check_version.outputs.version_exists == 'false'
+              if: steps.check_version.outputs.version_exists == 'false' && github.ref != 'refs/heads/main-stable-agent'
               run: |
                   NEW_VERSION="${{ steps.check_version.outputs.new_version }}"
 
