@@ -2603,6 +2603,7 @@ describe("ClineProvider - Router Models", () => {
 			.mockResolvedValueOnce(mockModels) // glama success
 			.mockRejectedValueOnce(new Error("Unbound API error")) // unbound fail
 			.mockRejectedValueOnce(new Error("LiteLLM connection failed")) // litellm fail
+			.mockResolvedValueOnce(mockModels) // anthropic success
 
 		await messageHandler({ type: "requestRouterModels" })
 
@@ -2610,7 +2611,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
-				anthropic: {},
+				anthropic: mockModels,
 				openrouter: mockModels,
 				requesty: {},
 				glama: mockModels,
