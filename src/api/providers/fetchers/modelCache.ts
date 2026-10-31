@@ -17,10 +17,11 @@ import { getLiteLLMModels } from "./litellm"
 import { GetModelsOptions } from "../../../shared/api"
 import { getOllamaModels } from "./ollama"
 import { getLMStudioModels } from "./lmstudio"
+import { anthropicCacheKey, describeAnthropicError, getAnthropicModels, getAnthropicStaticModels } from "./anthropic"
 
 const memoryCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 5 * 60 })
 
-async function writeModels(router: RouterName, data: ModelRecord) {
+async function writeModels(router: RouterName | "anthropic", data: ModelRecord) {
 	const filename = `${router}_models.json`
 	const cacheDir = await getCacheDirectoryPath(ContextProxy.instance.globalStorageUri.fsPath)
 	await safeWriteJson(path.join(cacheDir, filename), data)
@@ -47,6 +48,11 @@ async function readModels(router: RouterName): Promise<ModelRecord | undefined> 
  */
 export const getModels = async (options: GetModelsOptions): Promise<ModelRecord> => {
 	const { provider } = options
+
+	if (provider === "anthropic") {
+		return getAnthropicModelsWithFallback(options)
+	}
+
 	let models = getModelsFromCache(provider)
 	if (models) {
 		return models
@@ -107,10 +113,48 @@ export const getModels = async (options: GetModelsOptions): Promise<ModelRecord>
 }
 
 /**
+ * Anthropic: live list merged with the bundled table. Any failure (no key,
+ * network error, non-200) returns the bundled table without throwing and
+ * without caching it, so the next request retries. The memory cache key is a
+ * hash of key + base URL + auth mode; the raw key never appears in it.
+ */
+async function getAnthropicModelsWithFallback(
+	options: Extract<GetModelsOptions, { provider: "anthropic" }>,
+): Promise<ModelRecord> {
+	const cacheKey = anthropicCacheKey(options)
+	const cached = memoryCache.get<ModelRecord>(cacheKey)
+	if (cached) {
+		return cached
+	}
+
+	if (!options.apiKey) {
+		return getAnthropicStaticModels()
+	}
+
+	try {
+		const models = await getAnthropicModels(options)
+		memoryCache.set(cacheKey, models)
+		await writeModels("anthropic", models).catch((err) =>
+			console.error("[getModels] Error writing anthropic models to file cache:", describeAnthropicError(err)),
+		)
+		return models
+	} catch (error) {
+		console.warn(
+			`[getModels] Anthropic model list unavailable, using bundled list: ${describeAnthropicError(error)}`,
+		)
+		return getAnthropicStaticModels()
+	}
+}
+
+/**
  * Flush models memory cache for a specific router
  * @param router - The router to flush models for.
  */
-export const flushModels = async (router: RouterName) => {
+export const flushModels = async (router: RouterName | "anthropic") => {
+	if (router === "anthropic") {
+		memoryCache.del(memoryCache.keys().filter((key) => key.startsWith("anthropic:")))
+		return
+	}
 	memoryCache.del(router)
 }
 

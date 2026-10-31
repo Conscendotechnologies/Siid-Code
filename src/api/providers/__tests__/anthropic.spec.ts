@@ -266,3 +266,21 @@ describe("AnthropicHandler", () => {
 		})
 	})
 })
+
+describe("AnthropicHandler dynamic model ids", () => {
+	it("accepts an id outside the bundled table with conservative defaults", () => {
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-future-9" })
+		const model = handler.getModel()
+		expect(model.id).toBe("claude-future-9")
+		expect(model.info.inputPrice).toBeUndefined()
+		expect(model.info.supportsPromptCache).toBe(true)
+		expect(model.reasoning).toBeUndefined()
+	})
+
+	it("still resolves bundled ids and the default", () => {
+		expect(
+			new AnthropicHandler({ apiKey: "k", apiModelId: "claude-3-haiku-20240307" }).getModel().info.inputPrice,
+		).toBe(0.25)
+		expect(new AnthropicHandler({ apiKey: "k" }).getModel().id).toBe("claude-sonnet-4-20250514")
+	})
+})

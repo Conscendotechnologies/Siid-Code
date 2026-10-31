@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { convertHeadersToObject } from "./utils/headers"
 import { useDebounce } from "react-use"
+import { useQueryClient } from "@tanstack/react-query"
 import { VSCodeLink } from "@vscode/webview-ui-toolkit/react"
 import { ExternalLinkIcon } from "@radix-ui/react-icons"
 
@@ -213,6 +214,16 @@ const ApiOptions = ({
 				vscode.postMessage({ type: "requestVsCodeLmModels" })
 			} else if (selectedProvider === "litellm") {
 				vscode.postMessage({ type: "requestRouterModels" })
+			} else if (selectedProvider === "anthropic") {
+				// Refresh the live list with the values on screen, before they are saved.
+				vscode.postMessage({
+					type: "requestRouterModels",
+					values: {
+						anthropicApiKey: apiConfiguration?.apiKey,
+						anthropicBaseUrl: apiConfiguration?.anthropicBaseUrl,
+						anthropicUseAuthToken: apiConfiguration?.anthropicUseAuthToken,
+					},
+				})
 			}
 		},
 		250,
@@ -225,9 +236,26 @@ const ApiOptions = ({
 			apiConfiguration?.lmStudioBaseUrl,
 			apiConfiguration?.litellmBaseUrl,
 			apiConfiguration?.litellmApiKey,
+			apiConfiguration?.apiKey,
+			apiConfiguration?.anthropicBaseUrl,
+			apiConfiguration?.anthropicUseAuthToken,
 			customHeaders,
 		],
 	)
+
+	// A refresh requested with unsaved form values answers outside react-query,
+	// so feed the reply into the shared cache the model hooks read from.
+	const queryClient = useQueryClient()
+	useEffect(() => {
+		const onMessage = (event: MessageEvent) => {
+			const message = event.data
+			if (message?.type === "routerModels" && message.routerModels) {
+				queryClient.setQueryData(["routerModels"], message.routerModels)
+			}
+		}
+		window.addEventListener("message", onMessage)
+		return () => window.removeEventListener("message", onMessage)
+	}, [queryClient])
 
 	useEffect(() => {
 		const apiValidationResult = validateApiConfigurationExcludingModelErrors(
@@ -239,7 +267,12 @@ const ApiOptions = ({
 	}, [apiConfiguration, routerModels, organizationAllowList, setErrorMessage])
 
 	const selectedProviderModels = useMemo(() => {
-		const models = MODELS_BY_PROVIDER[selectedProvider]
+		const models =
+			selectedProvider === "anthropic" &&
+			routerModels?.anthropic &&
+			Object.keys(routerModels.anthropic).length > 0
+				? routerModels.anthropic
+				: MODELS_BY_PROVIDER[selectedProvider]
 		if (!models) return []
 
 		const filteredModels = filterModels(models, selectedProvider, organizationAllowList)
@@ -251,8 +284,18 @@ const ApiOptions = ({
 				}))
 			: []
 
+		// A saved id that is no longer listed must stay visible and selectable.
+		if (
+			selectedProvider === "anthropic" &&
+			selectedModelId &&
+			modelOptions.length > 0 &&
+			!modelOptions.some((option) => option.value === selectedModelId)
+		) {
+			modelOptions.push({ value: selectedModelId, label: selectedModelId })
+		}
+
 		return modelOptions
-	}, [selectedProvider, organizationAllowList])
+	}, [selectedProvider, selectedModelId, organizationAllowList, routerModels?.anthropic])
 
 	const onProviderChange = useCallback(
 		(value: ProviderName) => {

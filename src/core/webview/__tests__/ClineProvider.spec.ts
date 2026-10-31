@@ -148,6 +148,7 @@ vi.mock("vscode", () => ({
 		showWarningMessage: vi.fn(),
 		showErrorMessage: vi.fn(),
 		onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
+		onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
 		// Called at module scope by DecorationController, which this suite pulls in
 		// transitively via checkpoints -> DiffViewProvider.
 		createTextEditorDecorationType: vi.fn(() => ({ dispose: vi.fn() })),
@@ -2563,6 +2564,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				anthropic: mockModels,
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,
@@ -2601,6 +2603,7 @@ describe("ClineProvider - Router Models", () => {
 			.mockResolvedValueOnce(mockModels) // glama success
 			.mockRejectedValueOnce(new Error("Unbound API error")) // unbound fail
 			.mockRejectedValueOnce(new Error("LiteLLM connection failed")) // litellm fail
+			.mockResolvedValueOnce(mockModels) // anthropic success
 
 		await messageHandler({ type: "requestRouterModels" })
 
@@ -2608,6 +2611,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				anthropic: mockModels,
 				openrouter: mockModels,
 				requesty: {},
 				glama: mockModels,
@@ -2718,6 +2722,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				anthropic: mockModels,
 				openrouter: mockModels,
 				requesty: mockModels,
 				glama: mockModels,

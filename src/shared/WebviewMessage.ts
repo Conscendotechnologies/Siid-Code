@@ -235,6 +235,10 @@ export interface WebviewMessage {
 		| "clearFileChanges"
 		| "getFileChangesStatistics"
 		| "migrateFileChanges"
+		| "agentsListDir"
+		| "agentsOpenFile"
+		| "agentsGetChanges"
+		| "agentsOpenDiff"
 	text?: string
 	editedMessageContent?: string
 	tab?: "settings" | "history" | "mcp" | "modes" | "chat" | "marketplace" | "account"

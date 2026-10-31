@@ -18,6 +18,8 @@ import McpView from "./components/mcp/McpView"
 import ModesView from "./components/modes/ModesView"
 import { HumanRelayDialog } from "./components/human-relay/HumanRelayDialog"
 import { DeleteMessageDialog, EditMessageDialog } from "./components/chat/MessageModificationConfirmationDialog"
+import AgentsView from "./components/agents/AgentsView"
+import { agentsThemeVars } from "./components/agents/agentsTheme"
 import ErrorBoundary from "./components/ErrorBoundary"
 import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonInteractiveClick"
 import { TooltipProvider } from "./components/ui/tooltip"
@@ -256,6 +258,14 @@ const App = () => {
 	// Do not conditionally load ChatView, it's expensive and there's state we
 	// don't want to lose (user input, disableInput, askResponse promise, etc.)
 
+	if ((showLoginDenied || showLogin) && renderContext === "agents") {
+		return (
+			<div className="agents-gate" style={agentsThemeVars}>
+				{showLoginDenied ? <CannotLoginView hackDate={loginDeniedData?.hackDate} /> : <LoginView />}
+			</div>
+		)
+	}
+
 	return showLoginDenied ? (
 		<CannotLoginView hackDate={loginDeniedData?.hackDate} />
 	) : showLogin ? (
@@ -268,13 +278,29 @@ const App = () => {
 			{tab === "settings" && (
 				<SettingsView ref={settingsRef} onDone={() => setTab("chat")} targetSection={currentSection} />
 			)}
-			<ChatView
-				ref={chatViewRef}
-				isHidden={tab !== "chat"}
-				showAnnouncement={showAnnouncement}
-				hideAnnouncement={() => setShowAnnouncement(false)}
-				onSwitchTab={switchTab}
-			/>
+			{renderContext === "agents" ? (
+				<AgentsView
+					hidden={tab !== "chat"}
+					onSwitchTab={switchTab}
+					renderChat={(isEmpty) => (
+						<ChatView
+							ref={chatViewRef}
+							isHidden={tab !== "chat" || isEmpty}
+							showAnnouncement={showAnnouncement}
+							hideAnnouncement={() => setShowAnnouncement(false)}
+							onSwitchTab={switchTab}
+						/>
+					)}
+				/>
+			) : (
+				<ChatView
+					ref={chatViewRef}
+					isHidden={tab !== "chat"}
+					showAnnouncement={showAnnouncement}
+					hideAnnouncement={() => setShowAnnouncement(false)}
+					onSwitchTab={switchTab}
+				/>
+			)}
 			<MemoizedHumanRelayDialog
 				isOpen={humanRelayDialogState.isOpen}
 				requestId={humanRelayDialogState.requestId}

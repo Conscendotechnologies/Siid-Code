@@ -37,6 +37,8 @@ export const commandIds = [
 	"settingsButtonClicked",
 
 	"openInNewTab",
+	"openAgentsView",
+	"closeAgentsView",
 
 	"showHumanRelayDialog",
 	"registerHumanRelayCallback",
