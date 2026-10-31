@@ -2610,6 +2610,7 @@ describe("ClineProvider - Router Models", () => {
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			type: "routerModels",
 			routerModels: {
+				anthropic: {},
 				openrouter: mockModels,
 				requesty: {},
 				glama: mockModels,
