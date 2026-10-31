@@ -72,6 +72,16 @@ export const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
 const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
 
+// Parse a tool message's JSON text. Some tool asks carry a bare string (e.g. siid_forge partial
+// asks send the feature name, like "query"), so callers must handle `undefined` conservatively.
+const safeParseToolText = (text: string | undefined): any | undefined => {
+	try {
+		return JSON.parse(text || "{}")
+	} catch {
+		return undefined
+	}
+}
+
 // Component to render grouped fetchInstructions/getTaskGuides messages
 interface InstructionsGroupRowProps {
 	messages: ClineMessage[]
@@ -432,7 +442,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 							setSendingDisabled(isPartial)
 							setClineAsk("tool")
 							setEnableButtons(!isPartial)
-							const tool = JSON.parse(lastMessage.text || "{}") as ClineSayTool
+							const tool = (safeParseToolText(lastMessage.text) ?? {}) as ClineSayTool
 							switch (tool.tool) {
 								case "editedExistingFile":
 								case "appliedDiff":
@@ -1250,7 +1260,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				return true
 			}
 
-			const tool = JSON.parse(message.text)
+			const tool = safeParseToolText(message.text)
+
+			// Unparseable tool text is never read-only: fall through to asking the user.
+			if (!tool) {
+				return false
+			}
 
 			return [
 				"readFile",
@@ -1272,7 +1287,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				return true
 			}
 
-			const tool = JSON.parse(message.text)
+			const tool = safeParseToolText(message.text)
+
+			// Unparseable tool text is never a known write action: fall through to asking the user.
+			if (!tool) {
+				return false
+			}
 
 			return [
 				"editedExistingFile",
@@ -1293,9 +1313,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					return true
 				}
 
-				const mcpServerUse = JSON.parse(message.text) as { type: string; serverName: string; toolName: string }
+				const mcpServerUse = safeParseToolText(message.text) as
+					| { type: string; serverName: string; toolName: string }
+					| undefined
 
-				if (mcpServerUse.type === "use_mcp_tool") {
+				if (mcpServerUse?.type === "use_mcp_tool") {
 					const server = mcpServers?.find((s: McpServer) => s.name === mcpServerUse.serverName)
 					const tool = server?.tools?.find((t: McpTool) => t.name === mcpServerUse.toolName)
 					return tool?.alwaysAllow || false
@@ -1382,14 +1404,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			// For read/write operations, check if it's outside workspace and if
 			// we have permission for that.
 			if (message.ask === "tool") {
-				let tool: any = {}
+				const tool = safeParseToolText(message.text)
 
-				try {
-					tool = JSON.parse(message.text || "{}")
-				} catch (error) {
-					console.error("Failed to parse tool:", error)
-				}
-
+				// Unparseable tool text must never be auto-approved: ask the user instead.
 				if (!tool) {
 					return false
 				}

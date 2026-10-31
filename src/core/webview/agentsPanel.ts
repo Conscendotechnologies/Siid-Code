@@ -3,6 +3,7 @@ import * as vscode from "vscode"
 import { ContextProxy } from "../config/ContextProxy"
 import { MdmService } from "../../services/mdm/MdmService"
 import { ClineProvider } from "./ClineProvider"
+import { setAgentsPanelOpen } from "../../integrations/editor/editorColumn"
 
 let agentsPanel: vscode.WebviewPanel | undefined
 let agentsProvider: ClineProvider | undefined
@@ -34,6 +35,7 @@ export async function openAgentsView(context: vscode.ExtensionContext, outputCha
 	)
 	agentsPanel = panel
 	agentsProvider = provider
+	setAgentsPanelOpen(true)
 
 	panel.iconPath = {
 		light: vscode.Uri.joinPath(context.extensionUri, "assets", "icons", "panel_light.png"),
@@ -57,6 +59,7 @@ export async function openAgentsView(context: vscode.ExtensionContext, outputCha
 			const closedByCommand = closing
 			agentsPanel = undefined
 			agentsProvider = undefined
+			setAgentsPanelOpen(false)
 			if (closedByCommand) {
 				return
 			}

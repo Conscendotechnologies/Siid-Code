@@ -2,6 +2,7 @@ import { DiffViewProvider, DIFF_VIEW_URI_SCHEME, DIFF_VIEW_LABEL_CHANGES } from 
 import * as vscode from "vscode"
 import * as path from "path"
 import delay from "delay"
+import { setAgentsPanelOpen } from "../editorColumn"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 
 // Mock delay
@@ -252,6 +253,49 @@ describe("DiffViewProvider", () => {
 				`test.md: ${DIFF_VIEW_LABEL_CHANGES} (Editable)`,
 				{ preserveFocus: true },
 			)
+		})
+
+		it.each([
+			{ open: true, column: vscode.ViewColumn.Two },
+			{ open: false, column: vscode.ViewColumn.Active },
+		])("opens the diff in the right column (agents panel open: $open)", async ({ open, column }) => {
+			setAgentsPanelOpen(open)
+			try {
+				vi.mocked(vscode.window.showTextDocument).mockResolvedValue({} as any)
+				vi.mocked(vscode.commands.executeCommand).mockResolvedValue(undefined)
+				vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+					setTimeout(() => callback({ uri: { fsPath: `${mockCwd}/test.md` } } as any), 0)
+					return { dispose: vi.fn() }
+				})
+				vi.mocked(vscode.window).visibleTextEditors = [
+					{
+						document: {
+							uri: { fsPath: `${mockCwd}/test.md` },
+							getText: vi.fn().mockReturnValue(""),
+							lineCount: 0,
+						},
+						selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+						edit: vi.fn().mockResolvedValue(true),
+						revealRange: vi.fn(),
+					} as any,
+				]
+				;(diffViewProvider as any).editType = "modify"
+
+				await diffViewProvider.open("test.md")
+
+				expect(vscode.window.showTextDocument).toHaveBeenCalledWith(
+					expect.objectContaining({ fsPath: `${mockCwd}/test.md` }),
+					{ preview: false, viewColumn: column, preserveFocus: true },
+				)
+				const diffCall = vi
+					.mocked(vscode.commands.executeCommand)
+					.mock.calls.find((c) => c[0] === "vscode.diff")!
+				expect(diffCall[4]).toEqual(
+					open ? { preserveFocus: true, viewColumn: vscode.ViewColumn.Two } : { preserveFocus: true },
+				)
+			} finally {
+				setAgentsPanelOpen(false)
+			}
 		})
 
 		it("should handle showTextDocument failure", async () => {

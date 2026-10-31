@@ -492,3 +492,32 @@ describe("ChatView - New Auto Approval Logic Tests", () => {
 		})
 	})
 })
+
+describe("ChatView - non-JSON tool ask text", () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
+
+	it("renders without crashing and does NOT auto-approve a tool ask whose text is the bare string 'query'", async () => {
+		const { container } = renderChatView()
+		const task = { type: "say", say: "task", ts: Date.now() - 2000, text: "Initial task" }
+		const opts = {
+			autoApprovalEnabled: true,
+			alwaysAllowReadOnly: true,
+			alwaysAllowWrite: true,
+			writeDelayMs: 0,
+		}
+
+		mockPostMessage({ ...opts, clineMessages: [task] })
+		mockPostMessage({
+			...opts,
+			clineMessages: [task, { type: "ask", ask: "tool", ts: Date.now(), text: "query", partial: false }],
+		})
+
+		await new Promise((resolve) => setTimeout(resolve, 200))
+		expect(container.textContent ?? "").not.toContain("is not valid JSON")
+		expect(vscode.postMessage).not.toHaveBeenCalledWith(
+			expect.objectContaining({ type: "askResponse", askResponse: "yesButtonClicked" }),
+		)
+	})
+})

@@ -15,6 +15,7 @@ import { Task } from "../../core/task/Task"
 import { DEFAULT_WRITE_DELAY_MS } from "@siid-code/types"
 
 import { DecorationController } from "./DecorationController"
+import { withEditorColumn } from "./editorColumn"
 
 export const DIFF_VIEW_URI_SCHEME = "siid-diff"
 export const DIFF_VIEW_LABEL_CHANGES = "Original ↔ Siid's Changes"
@@ -215,7 +216,10 @@ export class DiffViewProvider {
 			await updatedDocument.save()
 		}
 
-		await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false, preserveFocus: true })
+		await vscode.window.showTextDocument(
+			vscode.Uri.file(absolutePath),
+			withEditorColumn({ preview: false, preserveFocus: true }),
+		)
 		await this.closeAllDiffViews()
 
 		// Getting diagnostics before and after the file edit is a better approach than
@@ -454,10 +458,13 @@ export class DiffViewProvider {
 			await updatedDocument.save()
 
 			if (this.documentWasOpen) {
-				await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
-					preview: false,
-					preserveFocus: true,
-				})
+				await vscode.window.showTextDocument(
+					vscode.Uri.file(absolutePath),
+					withEditorColumn({
+						preview: false,
+						preserveFocus: true,
+					}),
+				)
 			}
 
 			await this.closeAllDiffViews()
@@ -523,7 +530,10 @@ export class DiffViewProvider {
 			)
 
 		if (diffTab && diffTab.input instanceof vscode.TabInputTextDiff) {
-			const editor = await vscode.window.showTextDocument(diffTab.input.modified, { preserveFocus: true })
+			const editor = await vscode.window.showTextDocument(
+				diffTab.input.modified,
+				withEditorColumn({ preserveFocus: true }),
+			)
 			return editor
 		}
 
@@ -589,7 +599,10 @@ export class DiffViewProvider {
 			// Pre-open the file as a text document to ensure it doesn't open in preview mode
 			// This fixes issues with files that have custom editor associations (like markdown preview)
 			vscode.window
-				.showTextDocument(uri, { preview: false, viewColumn: vscode.ViewColumn.Active, preserveFocus: true })
+				.showTextDocument(
+					uri,
+					withEditorColumn({ preview: false, viewColumn: vscode.ViewColumn.Active, preserveFocus: true }),
+				)
 				.then(() => {
 					// Execute the diff command after ensuring the file is open as text
 					return vscode.commands.executeCommand(
@@ -599,7 +612,7 @@ export class DiffViewProvider {
 						}),
 						uri,
 						`${fileName}: ${fileExists ? `${DIFF_VIEW_LABEL_CHANGES}` : "New File"} (Editable)`,
-						{ preserveFocus: true },
+						withEditorColumn({ preserveFocus: true }),
 					)
 				})
 				.then(
@@ -711,10 +724,13 @@ export class DiffViewProvider {
 		// When openFile is false (PREVENT_FOCUS_DISRUPTION enabled), we only open in memory
 		if (openFile) {
 			// Show the document in the editor
-			await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
-				preview: false,
-				preserveFocus: true,
-			})
+			await vscode.window.showTextDocument(
+				vscode.Uri.file(absolutePath),
+				withEditorColumn({
+					preview: false,
+					preserveFocus: true,
+				}),
+			)
 		} else {
 			// Just open the document in memory to trigger diagnostics without showing it
 			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(absolutePath))

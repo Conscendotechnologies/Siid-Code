@@ -3,6 +3,7 @@ import * as os from "os"
 import * as vscode from "vscode"
 import { arePathsEqual, getWorkspacePath } from "../../utils/path"
 import { t } from "../../i18n"
+import { withEditorColumn } from "../editor/editorColumn"
 
 interface OpenFileOptions {
 	create?: boolean
@@ -161,10 +162,7 @@ export async function openFile(filePath: string, options: OpenFileOptions = {}) 
 			options.line !== undefined
 				? new vscode.Selection(Math.max(options.line - 1, 0), 0, Math.max(options.line - 1, 0), 0)
 				: undefined
-		await vscode.window.showTextDocument(document, {
-			preview: false,
-			selection,
-		})
+		await vscode.window.showTextDocument(document, withEditorColumn({ preview: false, selection }))
 	} catch (error) {
 		if (error instanceof Error) {
 			vscode.window.showErrorMessage(t("common:errors.could_not_open_file", { errorMessage: error.message }))
