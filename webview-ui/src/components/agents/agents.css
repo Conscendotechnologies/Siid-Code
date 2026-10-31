@@ -583,3 +583,15 @@
 		display: none;
 	}
 }
+
+.agents-partner {
+	flex: none;
+	display: flex;
+	justify-content: flex-end;
+	padding: 12px 16px;
+}
+.agents-partner img {
+	display: block;
+	width: 84px;
+	height: auto;
+}

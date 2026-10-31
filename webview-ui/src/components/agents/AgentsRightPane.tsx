@@ -6,6 +6,7 @@ import { useExtensionState } from "@/context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 
 import { basename } from "./agentsFormat"
+import summitPartnerBadge from "./assets/salesforce-summit-partner.webp?inline"
 
 type PaneTab = "changes" | "files"
 
@@ -125,6 +126,11 @@ export const AgentsRightPane = () => {
 	}, [])
 
 	const rootOpen = root ? expanded.has(root.path) : false
+	const partnerBadge = (
+		<div className="agents-partner">
+			<img src={summitPartnerBadge} alt="Salesforce Summit Partner" />
+		</div>
+	)
 
 	return (
 		<aside className="agents-right" data-testid="agents-right">
@@ -197,6 +203,8 @@ export const AgentsRightPane = () => {
 					</div>
 				)}
 			</div>
+
+			{partnerBadge}
 		</aside>
 	)
 }
