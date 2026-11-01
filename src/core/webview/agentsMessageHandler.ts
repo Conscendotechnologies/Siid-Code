@@ -4,6 +4,7 @@ import { execFile } from "child_process"
 
 import type { ClineProvider } from "./ClineProvider"
 import type { WebviewMessage } from "../../shared/WebviewMessage"
+import { isAgentsPanelOpen, prepareEditorColumn, withEditorColumn } from "../../integrations/editor/editorColumn"
 
 export type AgentsChangeStatus = "M" | "A" | "D" | "R" | "U" | "?"
 
@@ -52,8 +53,19 @@ export function parsePorcelainStatus(output: string, root: string): AgentsChange
 	return changes
 }
 
-function getRoot(): string | undefined {
-	return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+function getRoot(provider: ClineProvider): string | undefined {
+	// Same root the workspace chip shows; falls back to the first folder when cwd is unavailable.
+	return provider.cwd || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+}
+
+/** Result of `git status`: either the raw output, or a marker that the root is not a git repository. */
+export type GitStatusResult = { output: string } | { notRepo: true }
+
+/** Opens a file in the editor group beside the Agents panel (Beside only when the panel is closed). */
+async function showBeside(uri: vscode.Uri, preserveFocus?: boolean) {
+	await prepareEditorColumn()
+	const options = withEditorColumn({ viewColumn: vscode.ViewColumn.Beside, preview: true, preserveFocus })
+	return vscode.window.showTextDocument(uri, options)
 }
 
 /** True when `target` is the workspace root or inside it. */
@@ -87,19 +99,27 @@ async function listDir(provider: ClineProvider, root: string, dir: string) {
 	})
 }
 
-function gitStatus(root: string): Promise<string> {
+export function gitStatus(root: string): Promise<GitStatusResult> {
 	return new Promise((resolve, reject) => {
 		execFile(
 			"git",
-			["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+			["status", "--porcelain=v1", "-z", "--untracked-files=normal"],
 			{ cwd: root, windowsHide: true, maxBuffer: 16 * 1024 * 1024 },
-			(err, stdout) => (err ? reject(err) : resolve(stdout)),
+			(err, stdout, stderr) => {
+				if (!err) {
+					return resolve({ output: stdout })
+				}
+				if (/not a git repository/i.test(String(stderr ?? "")) || /not a git repository/i.test(err.message)) {
+					return resolve({ notRepo: true })
+				}
+				reject(err)
+			},
 		)
 	})
 }
 
 export async function handleAgentsMessage(provider: ClineProvider, message: WebviewMessage): Promise<void> {
-	const root = getRoot()
+	const root = getRoot(provider)
 
 	switch (message.type) {
 		case "agentsListDir":
@@ -114,10 +134,7 @@ export async function handleAgentsMessage(provider: ClineProvider, message: Webv
 				break
 			}
 			try {
-				await vscode.window.showTextDocument(vscode.Uri.file(message.text), {
-					viewColumn: vscode.ViewColumn.Beside,
-					preview: true,
-				})
+				await showBeside(vscode.Uri.file(message.text))
 			} catch (error) {
 				vscode.window.showWarningMessage(error instanceof Error ? error.message : String(error))
 			}
@@ -129,10 +146,17 @@ export async function handleAgentsMessage(provider: ClineProvider, message: Webv
 				break
 			}
 			try {
-				const out = await gitStatus(root)
+				const result = await gitStatus(root)
+				if ("notRepo" in result) {
+					await provider.postMessageToWebview({
+						type: "agentsChanges",
+						payload: { changes: [], notRepo: true },
+					})
+					break
+				}
 				await provider.postMessageToWebview({
 					type: "agentsChanges",
-					payload: { changes: parsePorcelainStatus(out, root) },
+					payload: { changes: parsePorcelainStatus(result.output, root) },
 				})
 			} catch (error) {
 				await provider.postMessageToWebview({
@@ -148,9 +172,14 @@ export async function handleAgentsMessage(provider: ClineProvider, message: Webv
 			}
 			const uri = vscode.Uri.file(message.text)
 			try {
+				// git.openChange takes no group: it opens in the active one. Make group Two active first
+				// (showing the file there with focus) so the diff never covers the Agents panel.
+				if (isAgentsPanelOpen()) {
+					await showBeside(uri, false)
+				}
 				await vscode.commands.executeCommand("git.openChange", uri)
 			} catch {
-				await vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.Beside, preview: true })
+				await showBeside(uri)
 			}
 			break
 		}

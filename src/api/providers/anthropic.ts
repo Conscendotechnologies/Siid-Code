@@ -18,7 +18,7 @@ import { getModelParams } from "../transform/model-params"
 import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
 import { calculateApiCostAnthropic } from "../../shared/cost"
-import { getModels, getModelsFromCache } from "./fetchers/modelCache"
+import { getLastGoodAnthropicModels, getModels, getModelsFromCache } from "./fetchers/modelCache"
 import { anthropicCacheKey, mergeAnthropicModels } from "./fetchers/anthropic"
 
 // Waiting for the live list must never hold up a request for long.
@@ -227,13 +227,15 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 
 	/** Cached live list for the current credentials, if one has been loaded. */
 	private getCachedModelList() {
-		return getModelsFromCache(
-			anthropicCacheKey({
-				apiKey: this.options.apiKey,
-				baseUrl: this.options.anthropicBaseUrl,
-				useAuthToken: !!this.options.anthropicUseAuthToken,
-			}),
-		)
+		return getModelsFromCache(this.getModelListKey())
+	}
+
+	private getModelListKey() {
+		return anthropicCacheKey({
+			apiKey: this.options.apiKey,
+			baseUrl: this.options.anthropicBaseUrl,
+			useAuthToken: !!this.options.anthropicUseAuthToken,
+		})
 	}
 
 	/**
@@ -264,7 +266,9 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 
 	getModel() {
 		const requested = this.options.apiModelId
-		const live = this.getCachedModelList()
+		// Fall back to the last good list once the 5 minute cache entry has expired, so context
+		// windows of non-bundled ids do not revert to defaults between refreshes.
+		const live = this.getCachedModelList() ?? getLastGoodAnthropicModels(this.getModelListKey())
 
 		let id: string = requested || anthropicDefaultModelId
 		let info: ModelInfo | undefined = live?.[id] ?? (anthropicModels as Record<string, ModelInfo>)[id]

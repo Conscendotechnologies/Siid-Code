@@ -21,6 +21,7 @@ import { IpcServer } from "@siid-code/ipc"
 
 import { Package } from "../shared/package"
 import { ClineProvider } from "../core/webview/ClineProvider"
+import { revealAgentsPanel } from "../integrations/editor/editorColumn"
 import { openClineInNewTab } from "../activate/registerCommands"
 import { t } from "../i18n"
 import {
@@ -149,9 +150,17 @@ export class API extends EventEmitter<RooCodeEvents> implements RooCodeAPI {
 			provider = await openClineInNewTab({ context: this.context, outputChannel: this.outputChannel })
 			this.registerListeners(provider)
 		} else {
-			await vscode.commands.executeCommand(`${Package.name}.SidebarProvider.focus`)
+			const agentsProvider = ClineProvider.getAgentsInstance()
 
-			provider = this.sidebarProvider
+			if (agentsProvider) {
+				// Agents panel open: run there instead of focusing the sidebar.
+				revealAgentsPanel(true)
+				provider = agentsProvider
+			} else {
+				await vscode.commands.executeCommand(`${Package.name}.SidebarProvider.focus`)
+
+				provider = this.sidebarProvider
+			}
 		}
 
 		if (configuration) {

@@ -14,6 +14,7 @@ import { ClineApiReqInfo } from "../../shared/ExtensionMessage"
 import { getApiMetrics } from "../../shared/getApiMetrics"
 
 import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/DiffViewProvider"
+import { withEditorColumn } from "../../integrations/editor/editorColumn"
 
 import { CheckpointServiceOptions, RepoPerTaskCheckpointService } from "../../services/checkpoints"
 import { getDeploymentStatuses } from "../../services/file-changes/deploymentStatus"
@@ -479,7 +480,7 @@ export async function openTaskFileDiff(
 			}),
 			after,
 			`${fileName}: ${scoped ? "Changes in this edit" : "Changes since task started"}`,
-			{ preview: true },
+			withEditorColumn({ preview: true }),
 		)
 
 		return true

@@ -10,6 +10,22 @@ import type { ModelRecord } from "../../../shared/api"
 
 const mockGetModels = getModels as Mock<typeof getModels>
 
+// Distinct record so assertions prove the Anthropic list is not just any provider's result.
+const anthropicModels: ModelRecord = {
+	"claude-test": { maxTokens: 1000, contextWindow: 123456, supportsPromptCache: true, description: "Anthropic live" },
+}
+
+/** Mock keyed on options.provider; getModels call order must not matter. */
+function mockByProvider(records: Partial<Record<string, ModelRecord | Error>>, fallback: ModelRecord = {}) {
+	mockGetModels.mockImplementation(async (options) => {
+		const value = records[options.provider] ?? fallback
+		if (value instanceof Error) {
+			throw value
+		}
+		return value
+	})
+}
+
 // Mock ClineProvider
 const mockClineProvider = {
 	getState: vi.fn(),
@@ -171,7 +187,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 			},
 		}
 
-		mockGetModels.mockResolvedValue(mockModels)
+		mockByProvider({ anthropic: anthropicModels }, mockModels)
 
 		await webviewMessageHandler(mockClineProvider, {
 			type: "requestRouterModels",
@@ -188,6 +204,13 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 			baseUrl: "http://localhost:4000",
 		})
 
+		expect(mockGetModels).toHaveBeenCalledWith({
+			provider: "anthropic",
+			apiKey: undefined,
+			baseUrl: undefined,
+			useAuthToken: false,
+		})
+
 		// Verify response was sent
 		expect(mockClineProvider.postMessageToWebview).toHaveBeenCalledWith({
 			type: "routerModels",
@@ -197,7 +220,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 				glama: mockModels,
 				unbound: mockModels,
 				litellm: mockModels,
-				anthropic: mockModels,
+				anthropic: anthropicModels,
 				ollama: {},
 				lmstudio: {},
 			},
@@ -262,7 +285,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 			},
 		}
 
-		mockGetModels.mockResolvedValue(mockModels)
+		mockByProvider({ anthropic: anthropicModels }, mockModels)
 
 		await webviewMessageHandler(mockClineProvider, {
 			type: "requestRouterModels",
@@ -285,11 +308,73 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 				glama: mockModels,
 				unbound: mockModels,
 				litellm: {},
-				anthropic: mockModels,
+				anthropic: anthropicModels,
 				ollama: {},
 				lmstudio: {},
 			},
 		})
+	})
+
+	it("passes saved Anthropic settings and lets message.values take precedence", async () => {
+		mockClineProvider.getState = vi.fn().mockResolvedValue({
+			apiConfiguration: {
+				apiKey: "saved-key",
+				anthropicBaseUrl: "https://saved.example",
+				anthropicUseAuthToken: false,
+			},
+		})
+		mockByProvider({ anthropic: anthropicModels })
+
+		await webviewMessageHandler(mockClineProvider, { type: "requestRouterModels" })
+		expect(mockGetModels).toHaveBeenCalledWith({
+			provider: "anthropic",
+			apiKey: "saved-key",
+			baseUrl: "https://saved.example",
+			useAuthToken: false,
+		})
+
+		mockGetModels.mockClear()
+		await webviewMessageHandler(mockClineProvider, {
+			type: "requestRouterModels",
+			values: {
+				anthropicApiKey: "form-key",
+				anthropicBaseUrl: "https://form.example",
+				anthropicUseAuthToken: true,
+			},
+		})
+		expect(mockGetModels).toHaveBeenCalledWith({
+			provider: "anthropic",
+			apiKey: "form-key",
+			baseUrl: "https://form.example",
+			useAuthToken: true,
+		})
+	})
+
+	it("does not wait on a slow Anthropic list: falls back to the bundled list after the cap", async () => {
+		vi.useFakeTimers()
+		try {
+			mockGetModels.mockImplementation(async (options) =>
+				options.provider === "anthropic" ? new Promise<ModelRecord>(() => {}) : {},
+			)
+			const done = webviewMessageHandler(mockClineProvider, { type: "requestRouterModels" })
+			await vi.advanceTimersByTimeAsync(5_001)
+			await done
+
+			const call = (mockClineProvider.postMessageToWebview as unknown as Mock).mock.calls.find(
+				([m]: any[]) => m.type === "routerModels",
+			)
+			expect(Object.keys(call![0].routerModels.anthropic).length).toBeGreaterThan(0)
+			expect(call![0].routerModels.anthropic["claude-test"]).toBeUndefined()
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it("starts Anthropic alongside the other providers", async () => {
+		mockByProvider({ anthropic: anthropicModels })
+		await webviewMessageHandler(mockClineProvider, { type: "requestRouterModels" })
+		const order = mockGetModels.mock.calls.map(([o]) => o.provider)
+		expect(order.indexOf("anthropic")).toBeLessThan(order.indexOf("unbound"))
 	})
 
 	it("handles individual provider failures gracefully", async () => {
@@ -303,12 +388,14 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 		}
 
 		// Mock some providers to succeed and others to fail
-		mockGetModels
-			.mockResolvedValueOnce(mockModels) // openrouter
-			.mockRejectedValueOnce(new Error("Requesty API error")) // requesty
-			.mockResolvedValueOnce(mockModels) // glama
-			.mockRejectedValueOnce(new Error("Unbound API error")) // unbound
-			.mockRejectedValueOnce(new Error("LiteLLM connection failed")) // litellm
+		mockByProvider({
+			openrouter: mockModels,
+			requesty: new Error("Requesty API error"),
+			glama: mockModels,
+			unbound: new Error("Unbound API error"),
+			litellm: new Error("LiteLLM connection failed"),
+			anthropic: anthropicModels,
+		})
 
 		await webviewMessageHandler(mockClineProvider, {
 			type: "requestRouterModels",
@@ -323,7 +410,7 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 				glama: mockModels,
 				unbound: {},
 				litellm: {},
-				anthropic: mockModels,
+				anthropic: anthropicModels,
 				ollama: {},
 				lmstudio: {},
 			},
@@ -354,12 +441,14 @@ describe("webviewMessageHandler - requestRouterModels", () => {
 
 	it("handles Error objects and string errors correctly", async () => {
 		// Mock providers to fail with different error types
-		mockGetModels
-			.mockRejectedValueOnce(new Error("Structured error message")) // openrouter
-			.mockRejectedValueOnce(new Error("Requesty API error")) // requesty
-			.mockRejectedValueOnce(new Error("Glama API error")) // glama
-			.mockRejectedValueOnce(new Error("Unbound API error")) // unbound
-			.mockRejectedValueOnce(new Error("LiteLLM connection failed")) // litellm
+		mockByProvider({
+			openrouter: new Error("Structured error message"),
+			requesty: new Error("Requesty API error"),
+			glama: new Error("Glama API error"),
+			unbound: new Error("Unbound API error"),
+			litellm: new Error("LiteLLM connection failed"),
+			anthropic: anthropicModels,
+		})
 
 		await webviewMessageHandler(mockClineProvider, {
 			type: "requestRouterModels",

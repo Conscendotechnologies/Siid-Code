@@ -185,6 +185,12 @@ describe("ClineProvider - Sticky Mode", () => {
 	let mockWebviewView: vscode.WebviewView
 	let mockPostMessage: any
 
+	afterEach(() => {
+		// Providers register in a static set and these tests reuse task ids; leave no live tasks behind
+		// so the "task already open in another view" guard only sees the current provider.
+		;(provider as any).clineStack = []
+	})
+
 	beforeEach(() => {
 		vi.clearAllMocks()
 

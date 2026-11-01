@@ -21,6 +21,15 @@ import { anthropicCacheKey, describeAnthropicError, getAnthropicModels, getAnthr
 
 const memoryCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 5 * 60 })
 
+// Last successful Anthropic list per credential hash. Never expires, so synchronous readers
+// (AnthropicHandler.getModel, called by Task for context-window math) keep real model info
+// after the 5 minute memory TTL lapses, until a refresh replaces it.
+const lastGoodAnthropic = new Map<string, ModelRecord>()
+
+export function getLastGoodAnthropicModels(cacheKey: string): ModelRecord | undefined {
+	return lastGoodAnthropic.get(cacheKey)
+}
+
 async function writeModels(router: RouterName | "anthropic", data: ModelRecord) {
 	const filename = `${router}_models.json`
 	const cacheDir = await getCacheDirectoryPath(ContextProxy.instance.globalStorageUri.fsPath)
@@ -134,6 +143,7 @@ async function getAnthropicModelsWithFallback(
 	try {
 		const models = await getAnthropicModels(options)
 		memoryCache.set(cacheKey, models)
+		lastGoodAnthropic.set(cacheKey, models)
 		await writeModels("anthropic", models).catch((err) =>
 			console.error("[getModels] Error writing anthropic models to file cache:", describeAnthropicError(err)),
 		)
@@ -142,7 +152,7 @@ async function getAnthropicModelsWithFallback(
 		console.warn(
 			`[getModels] Anthropic model list unavailable, using bundled list: ${describeAnthropicError(error)}`,
 		)
-		return getAnthropicStaticModels()
+		return lastGoodAnthropic.get(cacheKey) ?? getAnthropicStaticModels()
 	}
 }
 

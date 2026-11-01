@@ -50,6 +50,7 @@ import { Mode, defaultModeSlug } from "../../shared/modes"
 import { getModelsForMode, getModelList } from "../../shared/mode-models"
 import { refreshModelList } from "../../services/model-list"
 import { getModels, flushModels } from "../../api/providers/fetchers/modelCache"
+import { getAnthropicStaticModels } from "../../api/providers/fetchers/anthropic"
 import { GetModelsOptions } from "../../shared/api"
 import { generateSystemPrompt } from "./generateSystemPrompt"
 import { getCommand } from "../../utils/commands"
@@ -721,6 +722,25 @@ export const webviewMessageHandler = async (
 			const anthropicBaseUrl = message?.values?.anthropicBaseUrl ?? apiConfiguration.anthropicBaseUrl
 			const anthropicUseAuthToken =
 				message?.values?.anthropicUseAuthToken ?? apiConfiguration.anthropicUseAuthToken
+			// Started alongside the other providers and capped, so a slow api.anthropic.com can neither
+			// delay the reply nor push it past the webview's 10s router-model timeout. On timeout the
+			// bundled list is used; the underlying fetch keeps running and fills the cache for next time.
+			const ANTHROPIC_LIST_CAP_MS = 5_000
+			let anthropicTimer: NodeJS.Timeout | undefined
+			const anthropicPromise: Promise<ModelRecord> = Promise.race([
+				getModels({
+					provider: "anthropic",
+					apiKey: anthropicApiKey,
+					baseUrl: anthropicBaseUrl || undefined,
+					useAuthToken: !!anthropicUseAuthToken,
+				}),
+				new Promise<ModelRecord>((resolve) => {
+					anthropicTimer = setTimeout(() => resolve(getAnthropicStaticModels()), ANTHROPIC_LIST_CAP_MS)
+				}),
+			])
+				.catch(() => getAnthropicStaticModels())
+				.finally(() => clearTimeout(anthropicTimer))
+
 			const results = await Promise.allSettled(
 				modelFetchPromises.map(async ({ key, options }) => {
 					const models = await safeGetModels(options)
@@ -767,21 +787,7 @@ export const webviewMessageHandler = async (
 					})
 				}
 			})
-
-			let anthropicModelList: ModelRecord | undefined
-			try {
-				anthropicModelList = await getModels({
-					provider: "anthropic",
-					apiKey: anthropicApiKey,
-					baseUrl: anthropicBaseUrl || undefined,
-					useAuthToken: !!anthropicUseAuthToken,
-				})
-			} catch {
-				// getModels falls back to the bundled list itself; nothing to report here.
-			}
-			if (anthropicModelList) {
-				;(fetchedRouterModels as RouterModels).anthropic = anthropicModelList
-			}
+			;(fetchedRouterModels as RouterModels).anthropic = await anthropicPromise
 
 			provider.postMessageToWebview({
 				type: "routerModels",

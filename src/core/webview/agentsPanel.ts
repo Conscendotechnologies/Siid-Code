@@ -2,7 +2,9 @@ import * as vscode from "vscode"
 
 import { ContextProxy } from "../config/ContextProxy"
 import { MdmService } from "../../services/mdm/MdmService"
+import { Package } from "../../shared/package"
 import { ClineProvider } from "./ClineProvider"
+import { setAgentsPanelOpen, setAgentsPanelRef } from "../../integrations/editor/editorColumn"
 
 let agentsPanel: vscode.WebviewPanel | undefined
 let agentsProvider: ClineProvider | undefined
@@ -10,10 +12,27 @@ let closing = false
 
 export const AGENTS_PANEL_TITLE = "SIID"
 
+/** Own viewType (not ClineProvider.tabPanelId) so the serializer below only ever sees Agents panels. */
+export const AGENTS_PANEL_VIEW_TYPE = `${Package.name}.AgentsPanel`
+
+/**
+ * After a window reload VS Code restores the panel's tab, but the webview has no provider behind it and
+ * stays blank. Dispose it instead; the user reopens Agents through the normal command.
+ */
+export function registerAgentsPanelSerializer(context: vscode.ExtensionContext) {
+	context.subscriptions.push(
+		vscode.window.registerWebviewPanelSerializer(AGENTS_PANEL_VIEW_TYPE, {
+			async deserializeWebviewPanel(panel: vscode.WebviewPanel) {
+				panel.dispose()
+			},
+		}),
+	)
+}
+
 /** Opens (or reveals) the singleton Agents webview panel in the first editor column. */
 export async function openAgentsView(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
 	if (agentsPanel) {
-		agentsPanel.reveal(vscode.ViewColumn.One)
+		agentsPanel.reveal(agentsPanel.viewColumn ?? vscode.ViewColumn.One)
 		return agentsProvider
 	}
 
@@ -26,14 +45,15 @@ export async function openAgentsView(context: vscode.ExtensionContext, outputCha
 	}
 
 	const provider = new ClineProvider(context, outputChannel, "agents", contextProxy, mdmService)
-	const panel = vscode.window.createWebviewPanel(
-		ClineProvider.tabPanelId,
-		AGENTS_PANEL_TITLE,
-		vscode.ViewColumn.One,
-		{ enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [context.extensionUri] },
-	)
+	const panel = vscode.window.createWebviewPanel(AGENTS_PANEL_VIEW_TYPE, AGENTS_PANEL_TITLE, vscode.ViewColumn.One, {
+		enableScripts: true,
+		retainContextWhenHidden: true,
+		localResourceRoots: [context.extensionUri],
+	})
 	agentsPanel = panel
 	agentsProvider = provider
+	setAgentsPanelOpen(true)
+	setAgentsPanelRef(panel)
 
 	panel.iconPath = {
 		light: vscode.Uri.joinPath(context.extensionUri, "assets", "icons", "panel_light.png"),
@@ -57,6 +77,7 @@ export async function openAgentsView(context: vscode.ExtensionContext, outputCha
 			const closedByCommand = closing
 			agentsPanel = undefined
 			agentsProvider = undefined
+			setAgentsPanelOpen(false)
 			if (closedByCommand) {
 				return
 			}

@@ -1,27 +1,41 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowUp, ChevronLeft, ChevronRight, Folder, Lock, Monitor, Plus } from "lucide-react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ArrowUp, ChevronLeft, ChevronRight, Folder, Monitor, Plus } from "lucide-react"
 
 import { getAllModes } from "@roo/modes"
+import { getModelsForMode } from "@roo/mode-models"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { useSelectedModel } from "@/components/ui/hooks/useSelectedModel"
+import { useRooPortal } from "@/components/ui/hooks/useRooPortal"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui"
+import { ModelSelector } from "@/components/chat/ModelSelector"
+import { MAX_IMAGES_PER_MESSAGE } from "@/components/chat/ChatView"
 import { vscode } from "@/utils/vscode"
 
 import { AgentsFlag } from "./AgentsFlag"
-import { basename, buildModelDetail, providerLabel } from "./agentsFormat"
-
-interface AgentsComposerProps {
-	onOpenSettings: () => void
-}
+import { AGENTS_PORTAL_ID, basename, buildModelDetail } from "./agentsFormat"
 
 /** Marker used so only this composer consumes the image picker response. */
 const AGENTS_IMAGE_TS = -1
 
-export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
+export const AgentsComposer = () => {
 	const { t } = useAppTranslation()
-	const { apiConfiguration, mode, customModes, autoApprovalEnabled, cwd } = useExtensionState()
-	const { id: modelId, info } = useSelectedModel(apiConfiguration)
+	const {
+		apiConfiguration,
+		mode,
+		customModes,
+		autoApprovalEnabled,
+		cwd,
+		useFreeModels,
+		developerMode,
+		modeModelListVersion,
+	} = useExtensionState()
+	const selectedModel = useSelectedModel(apiConfiguration)
+	const { info, isLoading } = selectedModel
+	// Same value the sidebar's ModelSelector receives (ChatTextArea).
+	const modelId = selectedModel.id || ""
+	const portalContainer = useRooPortal(AGENTS_PORTAL_ID)
 
 	const [text, setText] = useState("")
 	const [images, setImages] = useState<string[]>([])
@@ -33,18 +47,43 @@ export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
 	const currentMode = modes.find((m) => m.slug === mode)
 	const modeName = currentMode?.name ?? mode
 
-	const detail = buildModelDetail({
-		reasoningEffort: apiConfiguration?.reasoningEffort,
-		reasoningEnabled: apiConfiguration?.enableReasoningEffort,
-		contextWindow: info?.contextWindow,
-		maxLabel: t("agents:max"),
-	})
+	// The detail describes the model the picker names. When the stored model is not offered the
+	// picker says "Select a model", so no detail is shown then, nor while model info is loading.
+	const modelListed = useMemo(
+		() =>
+			getModelsForMode(mode).some(
+				(m) => m.modelId === modelId && (developerMode || useFreeModels !== true || m.tier === "Free"),
+			),
+		// modeModelListVersion signals that the shared list was replaced.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[mode, modelId, useFreeModels, developerMode, modeModelListVersion],
+	)
+	const detail =
+		!isLoading && info && modelListed
+			? buildModelDetail({
+					reasoningEffort: info.supportsReasoningEffort ? apiConfiguration?.reasoningEffort : undefined,
+					reasoningEnabled: apiConfiguration?.enableReasoningEffort,
+					contextWindow: info.contextWindow,
+					contextLabel: t("agents:context"),
+				})
+			: undefined
+
+	const handleModelChange = useCallback((id: string) => {
+		vscode.postMessage({ type: "updateModel", text: id })
+	}, [])
+
+	// Held images cannot be sent to a model that does not take them.
+	useEffect(() => {
+		if (info && !info.supportsImages) {
+			setImages((prev) => (prev.length > 0 ? [] : prev))
+		}
+	}, [info])
 
 	useEffect(() => {
 		const onMessage = (e: MessageEvent) => {
 			const msg = e.data
 			if (msg?.type === "selectedImages" && msg.context === "edit" && msg.messageTs === AGENTS_IMAGE_TS) {
-				setImages((prev) => [...prev, ...(msg.images ?? [])].slice(0, 20))
+				setImages((prev) => [...prev, ...(msg.images ?? [])].slice(0, MAX_IMAGES_PER_MESSAGE))
 			}
 		}
 		window.addEventListener("message", onMessage)
@@ -70,7 +109,7 @@ export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
 		setImages([])
 	}, [canSend, text, images])
 
-	const provider = providerLabel(apiConfiguration?.apiProvider)
+	const shouldDisableImages = !info?.supportsImages || images.length >= MAX_IMAGES_PER_MESSAGE
 	const workspace = basename(cwd)
 
 	return (
@@ -86,15 +125,6 @@ export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
 							<span className="agents-chip agents-chip-active" data-testid="agents-workspace-chip">
 								<Folder size={13} />
 								<span>{workspace}</span>
-							</span>
-						)}
-						{provider && (
-							<span
-								className="agents-chip"
-								data-testid="agents-provider-chip"
-								title={t("agents:provider")}>
-								<Lock size={13} />
-								<span>{provider}</span>
 							</span>
 						)}
 					</>
@@ -134,33 +164,27 @@ export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
 					}}
 				/>
 
-				<div className="agents-bar" style={{ position: "relative" }}>
+				<div className="agents-bar">
 					<button
 						className="agents-icon-btn agents-attach"
 						aria-label={t("agents:attach")}
 						data-testid="agents-attach"
+						disabled={shouldDisableImages}
 						onClick={() =>
 							vscode.postMessage({ type: "selectImages", context: "edit", messageTs: AGENTS_IMAGE_TS })
 						}>
 						<Plus size={15} />
 					</button>
-					<button
-						className="agents-pill agents-pill-mode"
-						title={t("agents:changeMode")}
-						data-testid="agents-mode"
-						onClick={() => setModeMenuOpen((v) => !v)}>
-						<span>{modeName}</span>
-					</button>
-					<button
-						className="agents-pill agents-muted"
-						title={t("agents:togglePermissions")}
-						data-testid="agents-permissions"
-						aria-pressed={!!autoApprovalEnabled}
-						onClick={() => vscode.postMessage({ type: "autoApprovalEnabled", bool: !autoApprovalEnabled })}>
-						<span>{autoApprovalEnabled ? t("agents:autoApprove") : t("agents:manualPermissions")}</span>
-					</button>
-					{modeMenuOpen && (
-						<div className="agents-menu" style={{ top: 30, left: 36 }} role="menu">
+					<Popover open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
+						<PopoverTrigger asChild>
+							<button
+								className="agents-pill agents-pill-mode"
+								title={t("agents:changeMode")}
+								data-testid="agents-mode">
+								<span>{modeName}</span>
+							</button>
+						</PopoverTrigger>
+						<PopoverContent align="start" container={portalContainer} className="agents-pop" role="menu">
 							{modes.map((m) => (
 								<button
 									key={m.slug}
@@ -174,19 +198,34 @@ export const AgentsComposer = ({ onOpenSettings }: AgentsComposerProps) => {
 									{m.name}
 								</button>
 							))}
-						</div>
-					)}
+						</PopoverContent>
+					</Popover>
+					<button
+						className="agents-pill agents-muted"
+						title={t("agents:togglePermissions")}
+						data-testid="agents-permissions"
+						aria-pressed={!!autoApprovalEnabled}
+						onClick={() => vscode.postMessage({ type: "autoApprovalEnabled", bool: !autoApprovalEnabled })}>
+						<span>{autoApprovalEnabled ? t("agents:autoApprove") : t("agents:manualPermissions")}</span>
+					</button>
 				</div>
 
 				<div className="agents-bar">
-					<button
-						className="agents-pill"
-						title={t("agents:model")}
-						data-testid="agents-model"
-						onClick={onOpenSettings}>
-						<AgentsFlag />
-						<span>{modelId}</span>
-					</button>
+					{modelId && (
+						<span className="agents-model" data-testid="agents-model">
+							<AgentsFlag />
+							<ModelSelector
+								value={modelId}
+								mode={mode}
+								onChange={handleModelChange}
+								title={t("chat:selectModel", { defaultValue: "Select model" })}
+								useFreeModels={useFreeModels}
+								developerMode={developerMode}
+								triggerClassName="agents-model-trigger"
+								portalId={AGENTS_PORTAL_ID}
+							/>
+						</span>
+					)}
 					{detail && (
 						<span className="agents-detail" data-testid="agents-model-detail">
 							{detail}

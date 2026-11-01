@@ -4,6 +4,7 @@ import * as path from "path"
 import * as vscode from "vscode"
 
 import { ApiMessage } from "../../core/task-persistence/apiMessages"
+import { prepareEditorColumn, withEditorColumn } from "../editor/editorColumn"
 
 interface DebugExportMetadata {
 	taskId: string
@@ -387,7 +388,8 @@ export async function exportTaskDebugJson(
 
 	if (saveUri) {
 		await vscode.workspace.fs.writeFile(saveUri, Buffer.from(JSON.stringify(exportData, null, 2)))
-		vscode.window.showTextDocument(saveUri, { preview: true })
+		await prepareEditorColumn()
+		vscode.window.showTextDocument(saveUri, withEditorColumn({ preview: true }))
 	}
 }
 

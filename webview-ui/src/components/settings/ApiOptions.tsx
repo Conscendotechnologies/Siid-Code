@@ -215,6 +215,14 @@ const ApiOptions = ({
 			} else if (selectedProvider === "litellm") {
 				vscode.postMessage({ type: "requestRouterModels" })
 			} else if (selectedProvider === "anthropic") {
+				// Only ask once the key looks complete, so typing does not fire a fetch per keystroke.
+				const key = apiConfiguration?.apiKey?.trim() ?? ""
+				const keyLooksComplete = apiConfiguration?.anthropicBaseUrl
+					? key.length > 0
+					: key.startsWith("sk-ant-") && key.length > 20
+				if (!keyLooksComplete) {
+					return
+				}
 				// Refresh the live list with the values on screen, before they are saved.
 				vscode.postMessage({
 					type: "requestRouterModels",
@@ -226,7 +234,8 @@ const ApiOptions = ({
 				})
 			}
 		},
-		250,
+		// The Anthropic key is typed or pasted in pieces, so it waits longer.
+		selectedProvider === "anthropic" ? 600 : 250,
 		[
 			selectedProvider,
 			apiConfiguration?.requestyApiKey,
@@ -250,7 +259,14 @@ const ApiOptions = ({
 		const onMessage = (event: MessageEvent) => {
 			const message = event.data
 			if (message?.type === "routerModels" && message.routerModels) {
-				queryClient.setQueryData(["routerModels"], message.routerModels)
+				// A reply without an Anthropic list (another provider's refresh, a failed fetch)
+				// must not wipe the list already shown.
+				queryClient.setQueryData(["routerModels"], (prev: any) => ({
+					...message.routerModels,
+					...(message.routerModels.anthropic === undefined && prev?.anthropic
+						? { anthropic: prev.anthropic }
+						: {}),
+				}))
 			}
 		}
 		window.addEventListener("message", onMessage)

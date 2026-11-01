@@ -1,5 +1,6 @@
 import * as vscode from "vscode"
 import path from "path"
+import { isAgentsPanelOpen, prepareEditorColumn, withEditorColumn } from "../integrations/editor/editorColumn"
 
 /**
  * Opens the Agent Deployment Guide in markdown preview mode
@@ -30,5 +31,13 @@ export async function openAgentDeploymentGuide(context: vscode.ExtensionContext)
 	}
 
 	// Open in markdown preview mode
+	if (isAgentsPanelOpen()) {
+		// "ToSide" is relative to the focused group and would create a third group next to the Agents panel:
+		// focus group Two, then preview in place there.
+		await prepareEditorColumn()
+		await vscode.window.showTextDocument(fileUri, withEditorColumn({ preview: true }))
+		await vscode.commands.executeCommand("markdown.showPreview", fileUri)
+		return
+	}
 	await vscode.commands.executeCommand("markdown.showPreviewToSide", fileUri)
 }

@@ -1,6 +1,6 @@
 // npx vitest src/components/settings/__tests__/ApiOptions.spec.tsx
 
-import { render, screen, fireEvent } from "@/utils/test-utils"
+import { render, screen, fireEvent, act } from "@/utils/test-utils"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 import { type ModelInfo, type ProviderSettings, openAiModelInfoSaneDefaults } from "@siid-code/types"
@@ -8,6 +8,7 @@ import { type ModelInfo, type ProviderSettings, openAiModelInfoSaneDefaults } fr
 import { ExtensionStateContextProvider } from "@src/context/ExtensionStateContext"
 
 import ApiOptions, { ApiOptionsProps } from "../ApiOptions"
+import { vscode } from "@src/utils/vscode"
 
 // Mock VSCode components
 vi.mock("@vscode/webview-ui-toolkit/react", () => ({
@@ -562,5 +563,50 @@ describe("ApiOptions", () => {
 
 			expect(screen.queryByTestId("litellm-provider")).not.toBeInTheDocument()
 		})
+	})
+})
+
+describe("ApiOptions Anthropic model refresh", () => {
+	const requests = (spy: ReturnType<typeof vi.spyOn>) =>
+		spy.mock.calls.filter(([m]: any) => m?.type === "requestRouterModels" && m.values)
+
+	beforeEach(() => {
+		vi.useFakeTimers()
+	})
+	afterEach(() => {
+		vi.useRealTimers()
+		vi.restoreAllMocks()
+	})
+
+	it("does not request for a partial key and waits 600ms for a complete one", () => {
+		const spy = vi.spyOn(vscode, "postMessage")
+		renderApiOptions({ apiConfiguration: { apiProvider: "anthropic", apiKey: "sk-ant-ab" } })
+		act(() => {
+			vi.advanceTimersByTime(1000)
+		})
+		expect(requests(spy)).toHaveLength(0)
+		spy.mockClear()
+		renderApiOptions({
+			apiConfiguration: { apiProvider: "anthropic", apiKey: "sk-ant-" + "x".repeat(20) },
+		})
+		act(() => {
+			vi.advanceTimersByTime(300)
+		})
+		expect(requests(spy)).toHaveLength(0)
+		act(() => {
+			vi.advanceTimersByTime(400)
+		})
+		expect(requests(spy).length).toBeGreaterThan(0)
+	})
+
+	it("accepts any non-empty key with a custom base URL", () => {
+		const spy = vi.spyOn(vscode, "postMessage")
+		renderApiOptions({
+			apiConfiguration: { apiProvider: "anthropic", apiKey: "abc", anthropicBaseUrl: "https://proxy.example" },
+		})
+		act(() => {
+			vi.advanceTimersByTime(700)
+		})
+		expect(requests(spy).length).toBeGreaterThan(0)
 	})
 })

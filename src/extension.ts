@@ -30,6 +30,7 @@ import { Package } from "./shared/package"
 import { formatLanguage } from "./shared/language"
 import { ContextProxy } from "./core/config/ContextProxy"
 import { initializeModelList } from "./services/model-list"
+import { registerAgentsPanelSerializer } from "./core/webview/agentsPanel"
 import { ClineProvider } from "./core/webview/ClineProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { TerminalRegistry } from "./integrations/terminal/TerminalRegistry"
@@ -187,6 +188,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			webviewOptions: { retainContextWhenHidden: true },
 		}),
 	)
+	registerAgentsPanelSerializer(context)
 	outputChannel.appendLine(`⏱️ Webview provider registered in ${Date.now() - webviewRegistrationStart}ms`)
 
 	// Check hackDate validity on extension activation

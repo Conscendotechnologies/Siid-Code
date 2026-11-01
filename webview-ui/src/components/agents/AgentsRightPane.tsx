@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { ChevronDown, ChevronRight, FileDiff, FileText } from "lucide-react"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 
-import { basename } from "./agentsFormat"
+import { basename, isTaskRunning } from "./agentsFormat"
 import summitPartnerBadge from "./assets/salesforce-summit-partner.webp?inline"
 
 type PaneTab = "changes" | "files"
@@ -71,7 +71,10 @@ const TreeNode = ({
 	)
 }
 
-export const AgentsRightPane = () => {
+/** Quiet period before a message burst turns into one refresh. */
+const REFRESH_DEBOUNCE_MS = 1000
+
+export const AgentsRightPane = ({ drawerOpen = false }: { drawerOpen?: boolean }) => {
 	const { t } = useAppTranslation()
 	const { cwd, clineMessages } = useExtensionState()
 	const [tab, setTab] = useState<PaneTab>("files")
@@ -80,50 +83,119 @@ export const AgentsRightPane = () => {
 	const [expanded, setExpanded] = useState<Set<string>>(new Set())
 	const [changes, setChanges] = useState<Change[]>([])
 	const [changesError, setChangesError] = useState<string | undefined>()
+	const [notRepo, setNotRepo] = useState(false)
 	const [changesLoaded, setChangesLoaded] = useState(false)
+
+	// Requests in flight, so a burst of messages never stacks duplicate calls.
+	const pendingDirs = useRef(new Set<string>())
+	const changesPending = useRef(false)
+	const expandedRef = useRef(expanded)
+	expandedRef.current = expanded
+	const rootRef = useRef(root)
+	rootRef.current = root
 
 	useEffect(() => {
 		const onMessage = (e: MessageEvent) => {
 			const msg = e.data
 			if (msg?.type === "agentsDirListing" && msg.payload) {
 				const { path, root: r, entries } = msg.payload
+				pendingDirs.current.delete(path)
+				pendingDirs.current.delete(r ? "" : path)
 				if (r) {
 					setRoot(r)
-					setExpanded((prev) => new Set(prev).add(r.path))
+					// Only the first listing opens the root; refreshes keep the user's expansion.
+					if (!rootRef.current) {
+						setExpanded((prev) => new Set(prev).add(r.path))
+					}
 				}
 				setListings((prev) => ({ ...prev, [path]: entries ?? [] }))
 			} else if (msg?.type === "agentsChanges" && msg.payload) {
+				changesPending.current = false
 				setChanges(msg.payload.changes ?? [])
 				setChangesError(msg.payload.error)
+				setNotRepo(!!msg.payload.notRepo)
 				setChangesLoaded(true)
 			}
 		}
 		window.addEventListener("message", onMessage)
+		pendingDirs.current.add("")
 		vscode.postMessage({ type: "agentsListDir", text: "" })
 		return () => window.removeEventListener("message", onMessage)
 	}, [])
 
-	const refreshChanges = useCallback(() => vscode.postMessage({ type: "agentsGetChanges" }), [])
+	const requestDir = useCallback((p: string) => {
+		if (pendingDirs.current.has(p)) {
+			return
+		}
+		pendingDirs.current.add(p)
+		vscode.postMessage({ type: "agentsListDir", text: p })
+	}, [])
 
-	const messageCount = clineMessages?.length ?? 0
+	const refreshFiles = useCallback(() => {
+		const r = rootRef.current
+		if (!r) {
+			return
+		}
+		requestDir(r.path)
+		expandedRef.current.forEach((p) => p !== r.path && requestDir(p))
+	}, [requestDir])
+
+	const refreshChanges = useCallback(() => {
+		if (changesPending.current) {
+			return
+		}
+		changesPending.current = true
+		vscode.postMessage({ type: "agentsGetChanges" })
+	}, [])
+
+	const running = isTaskRunning(clineMessages)
+	const messages = clineMessages
+	const wasRunning = useRef(running)
+
+	// Debounced refresh while the agent works: files it creates and changes it makes show up.
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			if (tab === "files") {
+				refreshFiles()
+			} else {
+				refreshChanges()
+			}
+		}, REFRESH_DEBOUNCE_MS)
+		return () => clearTimeout(timer)
+	}, [messages, tab, refreshFiles, refreshChanges])
+
+	// Immediate refresh when the tab or drawer becomes visible, and when a task finishes.
 	useEffect(() => {
 		if (tab === "changes") {
+			changesPending.current = false
 			refreshChanges()
+		} else {
+			refreshFiles()
 		}
-	}, [tab, messageCount, refreshChanges])
+	}, [tab, drawerOpen, refreshChanges, refreshFiles])
+	useEffect(() => {
+		if (wasRunning.current && !running) {
+			refreshChanges()
+			refreshFiles()
+		}
+		wasRunning.current = running
+	}, [running, refreshChanges, refreshFiles])
 
-	const toggle = useCallback((p: string) => {
-		setExpanded((prev) => {
-			const next = new Set(prev)
-			if (next.has(p)) {
-				next.delete(p)
-			} else {
-				next.add(p)
-				vscode.postMessage({ type: "agentsListDir", text: p })
-			}
-			return next
-		})
-	}, [])
+	const toggle = useCallback(
+		(p: string) => {
+			setExpanded((prev) => {
+				const next = new Set(prev)
+				if (next.has(p)) {
+					next.delete(p)
+				} else {
+					next.add(p)
+					requestDir(p)
+				}
+				return next
+			})
+		},
+		[requestDir],
+	)
 
 	const rootOpen = root ? expanded.has(root.path) : false
 	const partnerBadge = (
@@ -133,7 +205,7 @@ export const AgentsRightPane = () => {
 	)
 
 	return (
-		<aside className="agents-right" data-testid="agents-right">
+		<aside className={`agents-right${drawerOpen ? " agents-right-open" : ""}`} data-testid="agents-right">
 			<div className="agents-tabbar" role="tablist">
 				<button
 					className="agents-tab"
@@ -183,8 +255,9 @@ export const AgentsRightPane = () => {
 
 				{tab === "changes" && (
 					<div data-testid="agents-changes">
-						{changesError && <div className="agents-note">{t("agents:changesError")}</div>}
-						{!changesError && changesLoaded && changes.length === 0 && (
+						{notRepo && <div className="agents-note">{t("agents:notRepo")}</div>}
+						{!notRepo && changesError && <div className="agents-note">{t("agents:changesError")}</div>}
+						{!notRepo && !changesError && changesLoaded && changes.length === 0 && (
 							<div className="agents-note">{t("agents:noChanges")}</div>
 						)}
 						{changes.map((c) => (

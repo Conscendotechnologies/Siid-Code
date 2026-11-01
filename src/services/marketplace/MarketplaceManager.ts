@@ -15,6 +15,7 @@ import type { CustomModesManager } from "../../core/config/CustomModesManager"
 
 import { RemoteConfigLoader } from "./RemoteConfigLoader"
 import { SimpleInstaller } from "./SimpleInstaller"
+import { prepareEditorColumn, withEditorColumn } from "../../integrations/editor/editorColumn"
 
 export interface MarketplaceItemsResponse {
 	organizationMcps: MarketplaceItem[]
@@ -180,7 +181,8 @@ export class MarketplaceManager {
 				options.selection = new vscode.Range(result.line - 1, 0, result.line - 1, 0)
 			}
 
-			await vscode.window.showTextDocument(document, options)
+			await prepareEditorColumn()
+			await vscode.window.showTextDocument(document, withEditorColumn(options))
 
 			return result.filePath
 		} catch (error) {

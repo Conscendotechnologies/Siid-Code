@@ -139,6 +139,7 @@ export interface ExtensionMessage {
 		| "agentsChanges"
 	text?: string
 	title?: string
+	// agentsChanges payload: { changes, error?, notRepo?: true } (notRepo: the workspace root is not a git repository)
 	payload?: any // Add a generic payload for now, can refine later
 	files?: any[] // File change tracking data for fileCreated messages
 	action?:

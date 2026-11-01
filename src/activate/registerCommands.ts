@@ -8,6 +8,7 @@ import { TelemetryService } from "@siid-code/telemetry"
 import { Package } from "../shared/package"
 import { getCommand } from "../utils/commands"
 import { ClineProvider } from "../core/webview/ClineProvider"
+import { revealAgentsPanel } from "../integrations/editor/editorColumn"
 import { ContextProxy } from "../core/config/ContextProxy"
 import { focusPanel } from "../utils/focusPanel"
 
@@ -23,7 +24,8 @@ import { openAgentsView, closeAgentsView } from "../core/webview/agentsPanel"
  * Helper to get the visible ClineProvider instance or log if not found.
  */
 export function getVisibleProviderOrLog(outputChannel: vscode.OutputChannel): ClineProvider | undefined {
-	const visibleProvider = ClineProvider.getVisibleInstance()
+	// The Agents panel is not "visible" while a tab covers it, but it is still the target while open.
+	const visibleProvider = ClineProvider.getVisibleInstance() ?? ClineProvider.getAgentsInstance()
 	if (!visibleProvider) {
 		outputChannel.appendLine("Cannot find any visible Roo Code instances.")
 		return undefined
@@ -84,6 +86,10 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		}
 
 		TelemetryService.instance.captureTitleButtonClicked("plus")
+
+		if (visibleProvider === ClineProvider.getAgentsInstance()) {
+			revealAgentsPanel(false)
+		}
 
 		await visibleProvider.removeClineFromStack()
 		await visibleProvider.postStateToWebview()

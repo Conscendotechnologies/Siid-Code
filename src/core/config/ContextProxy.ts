@@ -36,6 +36,7 @@ const globalSettingsExportSchema = globalSettingsSchema.omit({
 
 export class ContextProxy {
 	private readonly originalContext: vscode.ExtensionContext
+	private readonly changeListeners = new Set<(key: string) => void>()
 
 	private stateCache: GlobalState
 	private secretCache: SecretState
@@ -125,13 +126,34 @@ export class ContextProxy {
 		return value !== undefined ? value : defaultValue
 	}
 
+	/**
+	 * Subscribes to writes of shared state (global state and secrets). Used so several
+	 * ClineProvider instances (sidebar and Agents panel) can refresh each other's webviews.
+	 */
+	public onDidChange(listener: (key: string) => void): { dispose: () => void } {
+		this.changeListeners.add(listener)
+		return { dispose: () => void this.changeListeners.delete(listener) }
+	}
+
+	private notifyChange(key: string) {
+		for (const listener of Array.from(this.changeListeners)) {
+			try {
+				listener(key)
+			} catch {
+				// a listener must never break a state write
+			}
+		}
+	}
+
 	updateGlobalState<K extends GlobalStateKey>(key: K, value: GlobalState[K]) {
 		if (isPassThroughStateKey(key)) {
 			return this.originalContext.globalState.update(key, value)
 		}
 
 		this.stateCache[key] = value
-		return this.originalContext.globalState.update(key, value)
+		const result = this.originalContext.globalState.update(key, value)
+		this.notifyChange(key)
+		return result
 	}
 
 	private getAllGlobalState(): GlobalState {
@@ -152,9 +174,12 @@ export class ContextProxy {
 		this.secretCache[key] = value
 
 		// Write directly to context.
-		return value === undefined
-			? this.originalContext.secrets.delete(key)
-			: this.originalContext.secrets.store(key, value)
+		const result =
+			value === undefined
+				? this.originalContext.secrets.delete(key)
+				: this.originalContext.secrets.store(key, value)
+		this.notifyChange(key)
+		return result
 	}
 
 	/**
