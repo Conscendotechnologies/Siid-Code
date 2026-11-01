@@ -232,25 +232,33 @@
 	color: var(--agents-muted);
 	font-size: 12px;
 }
-.agents-menu {
-	position: absolute;
-	z-index: 30;
+/* Popover content (Radix portal into #agents-portal, so it is not clipped by the columns). */
+.agents-root .agents-pop {
+	width: auto;
 	min-width: 170px;
 	background: #fff;
+	color: var(--agents-text);
 	border: 1px solid #e6e6e6;
 	border-radius: 8px;
 	box-shadow: 0 6px 20px rgba(20, 24, 36, 0.12);
 	padding: 4px;
+	font-family: inherit;
 }
-.agents-menu button {
+.agents-pop button {
 	display: block;
 	width: 100%;
 	padding: 6px 10px;
+	border: 0;
 	border-radius: 5px;
+	background: none;
+	color: inherit;
+	font: inherit;
 	font-size: 12.5px;
+	text-align: left;
+	cursor: pointer;
 }
-.agents-menu button:hover,
-.agents-menu button[aria-checked="true"] {
+.agents-pop button:hover,
+.agents-pop button[aria-checked="true"] {
 	background: var(--agents-hover);
 }
 
@@ -561,10 +569,70 @@
 	font-size: 12px;
 }
 
-/* Narrow windows: drop the side columns before the centre column gets squeezed. */
+/* Model picker in the composer: the shared ModelSelector trigger, restyled as a pill. */
+.agents-model {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+.agents-root .agents-model-trigger {
+	width: auto;
+	max-width: 190px;
+	padding: 2px 4px;
+	border: 0;
+	border-radius: 5px;
+	background: none;
+	color: var(--agents-text);
+	font-size: 12px;
+	opacity: 1;
+}
+.agents-root .agents-model-trigger:hover {
+	background: var(--agents-hover);
+}
+.agents-drawer-toggle {
+	display: none;
+}
+
+/*
+ * Responsive layout (window = webview width):
+ *   > 1000px  rail 238 | centre | right pane 350
+ *   900-1000  right pane narrows to 260
+ *   < 900     right pane becomes a drawer over the right edge, opened by the toggle at the
+ *             centre column's top right (closed by outside click, Escape or the toggle)
+ *   < 760     rail narrows to 180, shortcut hint and flag artwork are dropped
+ *   < 520     rail is hidden
+ */
 @media (max-width: 1000px) {
 	.agents-right {
+		width: 260px;
+	}
+}
+@media (max-width: 899px) {
+	.agents-right {
 		display: none;
+		position: absolute;
+		/* starts below the toggle row so the toggle (in .agents-center, its own stacking context) stays clickable to close it */
+		top: 40px;
+		right: 0;
+		bottom: 0;
+		z-index: 20;
+		width: min(300px, 90%);
+		box-shadow: -6px 0 20px rgba(20, 24, 36, 0.12);
+	}
+	.agents-right.agents-right-open {
+		display: flex;
+	}
+	.agents-root .agents-drawer-toggle {
+		display: inline-flex;
+		position: absolute;
+		top: 8px;
+		right: 8px;
+		z-index: 15;
+	}
+	/* leave room for the ChatView header chevron while a task is running */
+	.agents-root .agents-center:has(.agents-chat) .agents-drawer-toggle {
+		right: 44px;
 	}
 }
 @media (max-width: 760px) {
@@ -594,4 +662,27 @@
 	display: block;
 	width: 84px;
 	height: auto;
+}
+
+/*
+ * ChatView (running task) borrows hard-coded white-alpha borders and hovers from ChatTextArea and
+ * ModelSelector, which vanish on the white Agents background. Scoped here so the sidebar is untouched.
+ */
+.agents-root textarea {
+	border-color: var(--agents-border);
+}
+.agents-root textarea:focus {
+	border-color: #5a2483;
+}
+.agents-root [class*="rgba(255,255,255"]:not(.agents-model-trigger):not(textarea) {
+	border-color: var(--agents-border);
+}
+.agents-root [class*="rgba(255,255,255"]:not(.agents-model-trigger):not(textarea):hover:not(:disabled) {
+	background: var(--agents-hover);
+	border-color: #cfc3d9;
+}
+
+/* Model dropdown: never taller than the space Radix reports, so it is not clipped by short windows. */
+.agents-root [data-radix-popper-content-wrapper] [class~="max-h-[400px]"] {
+	max-height: max(120px, min(400px, calc(var(--radix-popper-available-height, 520px) - 100px)));
 }

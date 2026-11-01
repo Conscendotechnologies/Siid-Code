@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect } from "react"
+import React, { useCallback, useEffect, useState } from "react"
+import { PanelRight } from "lucide-react"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
@@ -9,6 +10,7 @@ import { AgentsComposer } from "./AgentsComposer"
 import { AgentsRightPane } from "./AgentsRightPane"
 import { AgentsFlag } from "./AgentsFlag"
 import { agentsThemeVars } from "./agentsTheme"
+import { AGENTS_PORTAL_ID, isTaskRunning } from "./agentsFormat"
 import "./agents.css"
 
 type AgentsTab = "settings" | "history" | "mcp" | "modes" | "chat"
@@ -25,6 +27,8 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 	const { t } = useAppTranslation()
 	const { clineMessages } = useExtensionState()
 	const hasTask = (clineMessages?.length ?? 0) > 0
+	const running = isTaskRunning(clineMessages)
+	const [drawerOpen, setDrawerOpen] = useState(false)
 
 	const newSession = useCallback(() => {
 		vscode.postMessage({ type: "clearTask" })
@@ -32,6 +36,10 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			// Ignored while another view is on top or a task is working, so it never clears a live task.
+			if (hidden || running) {
+				return
+			}
 			if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "n") {
 				e.preventDefault()
 				newSession()
@@ -39,7 +47,38 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 		}
 		window.addEventListener("keydown", onKey)
 		return () => window.removeEventListener("keydown", onKey)
-	}, [newSession])
+	}, [newSession, hidden, running])
+
+	// Narrow windows show the right pane as a drawer: close on outside click or Escape.
+	useEffect(() => {
+		if (!drawerOpen) {
+			return
+		}
+		const onDown = (e: MouseEvent) => {
+			if (!(e.target as Element | null)?.closest?.(".agents-right, .agents-drawer-toggle")) {
+				setDrawerOpen(false)
+			}
+		}
+		const onEsc = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				setDrawerOpen(false)
+			}
+		}
+		// Picking a file or change opens it beside the panel, so get out of the composer's way.
+		const onPick = (e: MouseEvent) => {
+			if ((e.target as Element | null)?.closest?.('.agents-change, [data-testid="agents-file"]')) {
+				setDrawerOpen(false)
+			}
+		}
+		document.addEventListener("mousedown", onDown)
+		document.addEventListener("keydown", onEsc)
+		document.addEventListener("click", onPick)
+		return () => {
+			document.removeEventListener("mousedown", onDown)
+			document.removeEventListener("keydown", onEsc)
+			document.removeEventListener("click", onPick)
+		}
+	}, [drawerOpen])
 
 	return (
 		<div
@@ -53,13 +92,21 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 			/>
 
 			<main className="agents-center">
+				<button
+					className="agents-icon-btn agents-drawer-toggle"
+					aria-label={t("agents:changesAndFiles")}
+					aria-expanded={drawerOpen}
+					data-testid="agents-drawer-toggle"
+					onClick={() => setDrawerOpen((v) => !v)}>
+					<PanelRight size={15} />
+				</button>
 				{!hasTask && <div className="agents-arc" aria-hidden="true" />}
 				{!hasTask && <AgentsFlag className="agents-flagshape" />}
 				{!hasTask && (
 					<div className="agents-hero" data-testid="agents-hero">
 						<div className="agents-eyebrow">{t("agents:tagline")}</div>
 						<h1>{t("agents:heroTitle")}</h1>
-						<AgentsComposer onOpenSettings={() => onSwitchTab("settings")} />
+						<AgentsComposer />
 					</div>
 				)}
 				<div className="agents-chat" style={{ display: hasTask ? "block" : "none" }}>
@@ -67,7 +114,9 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 				</div>
 			</main>
 
-			<AgentsRightPane />
+			<AgentsRightPane drawerOpen={drawerOpen} />
+
+			<div id={AGENTS_PORTAL_ID} />
 		</div>
 	)
 }

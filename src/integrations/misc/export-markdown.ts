@@ -2,6 +2,7 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import os from "os"
 import * as path from "path"
 import * as vscode from "vscode"
+import { prepareEditorColumn, withEditorColumn } from "../editor/editorColumn"
 
 export async function downloadTask(dateTs: number, conversationHistory: Anthropic.MessageParam[]) {
 	// File name
@@ -37,7 +38,8 @@ export async function downloadTask(dateTs: number, conversationHistory: Anthropi
 	if (saveUri) {
 		// Write content to the selected location
 		await vscode.workspace.fs.writeFile(saveUri, Buffer.from(markdownContent))
-		vscode.window.showTextDocument(saveUri, { preview: true })
+		await prepareEditorColumn()
+		vscode.window.showTextDocument(saveUri, withEditorColumn({ preview: true }))
 	}
 }
 

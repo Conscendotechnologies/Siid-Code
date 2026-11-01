@@ -19,7 +19,9 @@ export async function focusPanel(
 		await vscode.commands.executeCommand(`workbench.view.extension.${Package.name}-ActivityBar`)
 	} else if (panel === tabPanel && !panel.active) {
 		// For tab panels, use reveal to focus
-		panel.reveal(vscode.ViewColumn.Active, false)
+		// Reveal in the panel's own column: ViewColumn.Active would move it into the focused group
+		// (the Agents panel is registered here as the tab panel).
+		panel.reveal(panel.viewColumn ?? vscode.ViewColumn.Active, false)
 	} else if (panel === sidebarPanel) {
 		// For sidebar panels, focus the sidebar
 		await vscode.commands.executeCommand(`${ClineProvider.sideBarId}.focus`)

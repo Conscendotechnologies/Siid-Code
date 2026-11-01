@@ -73,6 +73,7 @@ import { getWorkspacePath } from "../../utils/path"
 import { getHackDate, isLoginAllowed } from "../../utils/hackDateStorage"
 
 import { setPanel } from "../../activate/registerCommands"
+import { isAgentsPanelOpen, revealAgentsPanel } from "../../integrations/editor/editorColumn"
 
 import { t } from "../../i18n"
 
@@ -106,6 +107,9 @@ export class ClineProvider
 	public static readonly sideBarId = `${Package.name}.SidebarProvider`
 	public static readonly tabPanelId = `${Package.name}.TabPanelProvider`
 	private static activeInstances: Set<ClineProvider> = new Set()
+	private static readonly STATE_SYNC_DEBOUNCE_MS = 250
+	private stateSyncTimer?: NodeJS.Timeout
+	private isDisposed = false
 	private disposables: vscode.Disposable[] = []
 	private webviewDisposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
@@ -144,6 +148,13 @@ export class ClineProvider
 		ClineProvider.activeInstances.add(this)
 
 		this.mdmService = mdmService
+
+		// Shared global state (mode, auto-approve, API config, task history) is written through one
+		// ContextProxy, so when it changes every other live instance refreshes its own webview.
+		const stateSubscription = this.contextProxy.onDidChange?.(() => this.scheduleStateSync())
+		if (stateSubscription) {
+			this.disposables.push(stateSubscription)
+		}
 
 		this.updateGlobalState("codebaseIndexModels", EMBEDDING_MODEL_PROFILES)
 
@@ -358,8 +369,34 @@ export class ClineProvider
 		}
 	}
 
+	/**
+	 * Coalesces shared-state changes into one state post per window. Only the state is re-posted; the
+	 * current task and its messages are never mirrored between instances. A no-op with a single live view.
+	 */
+	private scheduleStateSync() {
+		if (this.isDisposed || this.stateSyncTimer || !this.view) {
+			return
+		}
+		const others = Array.from(ClineProvider.activeInstances).filter((i) => i !== this && !i.isDisposed && i.view)
+		if (others.length === 0) {
+			return
+		}
+		this.stateSyncTimer = setTimeout(() => {
+			this.stateSyncTimer = undefined
+			if (this.isDisposed || !this.view) {
+				return
+			}
+			this.postStateToWebview().catch((error) => this.log(`State sync failed: ${error}`))
+		}, ClineProvider.STATE_SYNC_DEBOUNCE_MS)
+	}
+
 	async dispose() {
 		this.log("Disposing ClineProvider...")
+		this.isDisposed = true
+		if (this.stateSyncTimer) {
+			clearTimeout(this.stateSyncTimer)
+			this.stateSyncTimer = undefined
+		}
 
 		// Clear all tasks from the stack.
 		while (this.clineStack.length > 0) {
@@ -403,12 +440,29 @@ export class ClineProvider
 		McpServerManager.unregisterProvider(this)
 	}
 
+	/** The Agents panel's provider while that panel is open, otherwise undefined. */
+	public static getAgentsInstance(): ClineProvider | undefined {
+		if (!isAgentsPanelOpen()) {
+			return undefined
+		}
+		return Array.from(this.activeInstances).find((instance) => instance.renderContext === "agents")
+	}
+
 	public static getVisibleInstance(): ClineProvider | undefined {
 		return findLast(Array.from(this.activeInstances), (instance) => instance.view?.visible === true)
 	}
 
 	public static async getInstance(): Promise<ClineProvider | undefined> {
 		let visibleProvider = ClineProvider.getVisibleInstance()
+
+		// The Agents panel reports visible=false while a tab is on top of it. While it is open it is the
+		// target: reveal it without stealing focus rather than focusing the sidebar.
+		if (!visibleProvider) {
+			const agents = ClineProvider.getAgentsInstance()
+			if (agents && revealAgentsPanel(true)) {
+				return agents
+			}
+		}
 
 		// If no visible provider, try to show the sidebar view
 		if (!visibleProvider) {
@@ -762,7 +816,23 @@ export class ClineProvider
 		return task
 	}
 
+	/** True when another live provider (sidebar vs Agents panel) already runs this task in its stack. */
+	private isTaskOpenInOtherInstance(taskId: string): boolean {
+		return Array.from(ClineProvider.activeInstances).some(
+			(instance) =>
+				instance !== this && !instance.isDisposed && instance.clineStack.some((t) => t.taskId === taskId),
+		)
+	}
+
 	public async initClineWithHistoryItem(historyItem: HistoryItem & { rootTask?: Task; parentTask?: Task }) {
+		// Two live Tasks on one history item would both write its message files; refuse the second.
+		if (this.isTaskOpenInOtherInstance(historyItem.id)) {
+			vscode.window.showWarningMessage(
+				"This task is already open in another SIID view (sidebar or Agents). Close it there before opening it here.",
+			)
+			return
+		}
+
 		await this.removeClineFromStack()
 
 		// Restore parent/root task references from IDs if not already provided

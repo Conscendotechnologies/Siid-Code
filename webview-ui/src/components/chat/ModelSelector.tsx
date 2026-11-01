@@ -18,6 +18,7 @@ interface ModelSelectorProps {
 	triggerClassName?: string
 	useFreeModels?: boolean // Filter to show only free models
 	developerMode?: boolean // Developer mode shows all models
+	portalId?: string // Element id the popover renders into
 }
 
 export const ModelSelector = ({
@@ -29,9 +30,10 @@ export const ModelSelector = ({
 	triggerClassName = "",
 	useFreeModels = false,
 	developerMode = false,
+	portalId = "roo-portal",
 }: ModelSelectorProps) => {
 	const [open, setOpen] = React.useState(false)
-	const portalContainer = useRooPortal("roo-portal")
+	const portalContainer = useRooPortal(portalId)
 	const { t } = useAppTranslation()
 	const { modeModelListVersion } = useExtensionState()
 

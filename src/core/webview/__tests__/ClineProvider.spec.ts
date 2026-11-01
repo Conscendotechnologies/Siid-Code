@@ -2597,13 +2597,18 @@ describe("ClineProvider - Router Models", () => {
 		const { getModels } = await import("../../../api/providers/fetchers/modelCache")
 
 		// Mock some providers to succeed and others to fail
-		vi.mocked(getModels)
-			.mockResolvedValueOnce(mockModels) // openrouter success
-			.mockRejectedValueOnce(new Error("Requesty API error")) // requesty fail
-			.mockResolvedValueOnce(mockModels) // glama success
-			.mockRejectedValueOnce(new Error("Unbound API error")) // unbound fail
-			.mockRejectedValueOnce(new Error("LiteLLM connection failed")) // litellm fail
-			.mockResolvedValueOnce(mockModels) // anthropic success
+		const failures: Record<string, string> = {
+			requesty: "Requesty API error",
+			unbound: "Unbound API error",
+			litellm: "LiteLLM connection failed",
+		}
+		// Keyed on provider: the order getModels is called in must not matter.
+		vi.mocked(getModels).mockImplementation(async (options) => {
+			if (failures[options.provider]) {
+				throw new Error(failures[options.provider])
+			}
+			return mockModels
+		})
 
 		await messageHandler({ type: "requestRouterModels" })
 
@@ -3692,5 +3697,92 @@ describe("ClineProvider - Comprehensive Edit/Delete Edge Cases", () => {
 				expect(mockCline.handleWebviewAskResponse).toHaveBeenCalled()
 			})
 		})
+	})
+})
+
+describe("ClineProvider with the Agents panel (routing, state sync, duplicate tasks)", () => {
+	let sidebar: ClineProvider
+	let agents: ClineProvider
+	let proxy: ContextProxy
+
+	const makeContext = () =>
+		({
+			globalState: {
+				get: vi.fn(),
+				update: vi.fn().mockResolvedValue(undefined),
+				keys: vi.fn().mockReturnValue([]),
+			},
+			secrets: { get: vi.fn(), store: vi.fn(), delete: vi.fn() },
+			extensionUri: {} as vscode.Uri,
+			globalStorageUri: { fsPath: "/test/path" },
+			extension: { packageJSON: { version: "1.0.0" } },
+		}) as unknown as vscode.ExtensionContext
+
+	beforeEach(async () => {
+		vi.clearAllMocks()
+		if (!TelemetryService.hasInstance()) {
+			TelemetryService.createInstance([])
+		}
+		const ctx = makeContext()
+		proxy = new ContextProxy(ctx)
+		const out = { appendLine: vi.fn() } as unknown as vscode.OutputChannel
+		sidebar = new ClineProvider(ctx, out, "sidebar", proxy)
+		agents = new ClineProvider(ctx, out, "agents", proxy)
+		;(sidebar as any).view = { visible: false }
+		;(agents as any).view = { visible: false }
+	})
+
+	afterEach(async () => {
+		vi.useRealTimers()
+		const { setAgentsPanelOpen } = await import("../../../integrations/editor/editorColumn")
+		setAgentsPanelOpen(false)
+		await sidebar.dispose().catch(() => {})
+		await agents.dispose().catch(() => {})
+	})
+
+	test("getInstance returns the Agents provider without focusing the sidebar while the panel is open", async () => {
+		const { setAgentsPanelOpen, setAgentsPanelRef } = await import("../../../integrations/editor/editorColumn")
+		const panel = { viewColumn: 1, reveal: vi.fn() }
+		setAgentsPanelOpen(true)
+		setAgentsPanelRef(panel as any)
+
+		vi.spyOn(ClineProvider, "getVisibleInstance").mockReturnValue(undefined)
+		expect(await ClineProvider.getInstance()).toBe(agents)
+		expect(panel.reveal).toHaveBeenCalledWith(1, true)
+		expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith(
+			expect.stringContaining("SidebarProvider.focus"),
+		)
+	})
+
+	test("getAgentsInstance is undefined when the panel is closed", () => {
+		expect(ClineProvider.getAgentsInstance()).toBeUndefined()
+	})
+
+	test("shared state changes make the other instance re-post once (coalesced); disposed instances are skipped", async () => {
+		vi.useFakeTimers()
+		const spyAgents = vi.spyOn(agents, "postStateToWebview").mockResolvedValue(undefined)
+		const spySidebar = vi.spyOn(sidebar, "postStateToWebview").mockResolvedValue(undefined)
+
+		await proxy.setValue("mode", "ask" as any)
+		await proxy.setValue("autoApprovalEnabled", true)
+		await vi.advanceTimersByTimeAsync(300)
+
+		expect(spyAgents).toHaveBeenCalledTimes(1)
+		expect(spySidebar).toHaveBeenCalledTimes(1)
+		;(agents as any).isDisposed = true
+		spyAgents.mockClear()
+		await proxy.setValue("mode", "code" as any)
+		await vi.advanceTimersByTimeAsync(300)
+		expect(spyAgents).not.toHaveBeenCalled()
+	})
+
+	test("opening a history item that is live in the other instance is refused", async () => {
+		;(agents as any).clineStack = [{ taskId: "t1" }]
+		const removeSpy = vi.spyOn(sidebar, "removeClineFromStack")
+
+		await sidebar.initClineWithHistoryItem({ id: "t1" } as any)
+
+		expect(vscode.window.showWarningMessage).toHaveBeenCalled()
+		expect(removeSpy).not.toHaveBeenCalled()
 	})
 })

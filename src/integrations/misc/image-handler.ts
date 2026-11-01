@@ -3,6 +3,7 @@ import * as os from "os"
 import * as vscode from "vscode"
 import { getWorkspacePath } from "../../utils/path"
 import { t } from "../../i18n"
+import { prepareEditorColumn, withEditorColumn } from "../editor/editorColumn"
 
 export async function openImage(dataUri: string, options?: { values?: { action?: string } }) {
 	const matches = dataUri.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/)
@@ -46,7 +47,8 @@ export async function openImage(dataUri: string, options?: { values?: { action?:
 			}
 			return
 		}
-		await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(tempFilePath))
+		await prepareEditorColumn()
+		await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(tempFilePath), withEditorColumn({}))
 	} catch (error) {
 		vscode.window.showErrorMessage(t("common:errors.error_opening_image", { error }))
 	}

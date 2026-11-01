@@ -3,11 +3,13 @@ import { Ellipsis, ListFilter, Plus, Search } from "lucide-react"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { StandardTooltip } from "@/components/ui/standard-tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui"
+import { useRooPortal } from "@/components/ui/hooks/useRooPortal"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { vscode } from "@/utils/vscode"
 
 import { AgentsFlag } from "./AgentsFlag"
-import { filterSessions } from "./agentsFormat"
+import { AGENTS_PORTAL_ID, filterSessions } from "./agentsFormat"
 import conscendoLogo from "./assets/conscendo-logo.png?inline"
 
 interface AgentsRailProps {
@@ -23,6 +25,7 @@ export const AgentsRail = ({ onNewSession, onOpenCustomizations, onOpenHistory }
 	const [searchOpen, setSearchOpen] = useState(false)
 	const [workspaceOnly, setWorkspaceOnly] = useState(false)
 	const [menuOpen, setMenuOpen] = useState(false)
+	const portalContainer = useRooPortal(AGENTS_PORTAL_ID)
 
 	const sessions = useMemo(
 		() => filterSessions(taskHistory ?? [], { query, workspaceOnly, cwd }),
@@ -61,7 +64,7 @@ export const AgentsRail = ({ onNewSession, onOpenCustomizations, onOpenHistory }
 				<span className="agents-grow">{t("agents:customizations")}</span>
 			</button>
 
-			<div className="agents-sessions-header" style={{ position: "relative" }}>
+			<div className="agents-sessions-header">
 				<span className="agents-grow">{t("agents:sessions")}</span>
 				<StandardTooltip content={t("agents:filterSessions")}>
 					<button
@@ -88,15 +91,16 @@ export const AgentsRail = ({ onNewSession, onOpenCustomizations, onOpenHistory }
 						<Search size={14} />
 					</button>
 				</StandardTooltip>
-				<button
-					className="agents-icon-btn"
-					aria-label={t("agents:moreActions")}
-					data-testid="agents-more"
-					onClick={() => setMenuOpen((v) => !v)}>
-					<Ellipsis size={14} />
-				</button>
-				{menuOpen && (
-					<div className="agents-menu" style={{ top: 30, right: 8 }}>
+				<Popover open={menuOpen} onOpenChange={setMenuOpen}>
+					<PopoverTrigger asChild>
+						<button
+							className="agents-icon-btn"
+							aria-label={t("agents:moreActions")}
+							data-testid="agents-more">
+							<Ellipsis size={14} />
+						</button>
+					</PopoverTrigger>
+					<PopoverContent align="end" container={portalContainer} className="agents-pop">
 						<button
 							data-testid="agents-open-history"
 							onClick={() => {
@@ -105,8 +109,8 @@ export const AgentsRail = ({ onNewSession, onOpenCustomizations, onOpenHistory }
 							}}>
 							{t("agents:openHistory")}
 						</button>
-					</div>
-				)}
+					</PopoverContent>
+				</Popover>
 			</div>
 
 			{searchOpen && (
@@ -131,7 +135,7 @@ export const AgentsRail = ({ onNewSession, onOpenCustomizations, onOpenHistory }
 						className="agents-session"
 						data-testid="agents-session"
 						title={item.task}
-						aria-current={currentTaskItem?.id === item.id}
+						aria-current={currentTaskItem?.id === item.id ? true : undefined}
 						onClick={() => vscode.postMessage({ type: "showTaskWithId", text: item.id })}>
 						<span>{item.task}</span>
 					</button>
