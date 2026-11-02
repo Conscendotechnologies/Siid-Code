@@ -238,6 +238,7 @@ export type SummarizeResponse = {
 	cost: number // The cost of the summarization operation
 	newContextTokens?: number // The number of tokens in the context for the next API request
 	error?: string // Populated iff the operation fails: error message shown to the user on failure (see Task.ts)
+	reductionOnly?: boolean // True when the history was only trimmed and no summary was written
 }
 
 function isContinuationMessage(message: ApiMessage): boolean {
@@ -311,6 +312,7 @@ export async function summarizeConversation(
 				cost: 0,
 				summary: describeReduction(reduced),
 				newContextTokens: await handler.countTokens(blocks),
+				reductionOnly: true,
 			}
 		}
 

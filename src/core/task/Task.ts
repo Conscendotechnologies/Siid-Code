@@ -736,7 +736,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 	}
 
-	private async updateApiRequestProgressStatus(text: string, icon?: string) {
+	private async updateApiRequestProgressStatus(text: string, icon?: string, blocking?: boolean) {
 		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
 		if (lastApiReqIndex < 0) {
 			return
@@ -746,6 +746,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		apiReqMessage.progressStatus = {
 			text,
 			icon,
+			...(blocking ? { blocking } : {}),
 		}
 		await this.updateClineMessage(apiReqMessage)
 	}
@@ -1047,6 +1048,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	public async condenseContext(isAutomaticTrigger = false, forcedApiHandler?: ApiHandler): Promise<boolean> {
+		if (!isAutomaticTrigger) {
+			stages.resetAutoSummaryFailures(this)
+		}
+
 		const systemPrompt = await this.getSystemPrompt()
 
 		// Get condensing configuration
@@ -1083,6 +1088,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			cost,
 			newContextTokens = 0,
 			error,
+			reductionOnly,
 		} = await summarizeConversation(
 			this.apiConversationHistory,
 			this.api, // Main API handler (fallback)
@@ -1094,9 +1100,17 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			condensingApiHandler, // Specific handler for condensing
 		)
 		if (error) {
+			// An aborted request says nothing about the summary, and say() throws on an aborted task.
+			if (this.abort) {
+				return false
+			}
+			const pausedNow = isAutomaticTrigger && stages.recordAutoSummaryFailure(this, prevContextTokens)
 			this.say(
 				"condense_context_error",
-				error,
+				pausedNow
+					? `${error}\n\nAuto-condense is paused for this task after ${stages.AUTO_SUMMARY_MAX_FAILURES} failed summaries. ` +
+							"Use the condense button to try again."
+					: error,
 				undefined /* images */,
 				false /* partial */,
 				undefined /* checkpoint */,
@@ -1146,6 +1160,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		}
 
 		await this.overwriteApiConversationHistory(messages)
+		if (!reductionOnly) {
+			stages.resetAutoSummaryFailures(this)
+		}
 		const contextCondense: ContextCondense = { summary, cost, newContextTokens, prevContextTokens }
 		await this.say(
 			"condense_context",
@@ -1741,6 +1758,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	private async resumeTaskFromHistoryInner() {
 		const modifiedClineMessages = await this.getSavedClineMessages()
+
+		// A blocking status was saved mid-wait (cancel or crash); nothing waits now.
+		for (const message of modifiedClineMessages) {
+			if (message.progressStatus?.blocking) {
+				message.progressStatus = undefined
+			}
+		}
 
 		// Remove any resume messages that may have been added before
 		const lastRelevantMessageIndex = findLastIndex(
@@ -3015,7 +3039,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				}
 
 				const stillOver = (tokensNow / availableTokens) * 100 >= clampedThreshold
-				if (plan.shouldSummarize && (stillOver || !!overflow)) {
+				if (plan.shouldSummarize && stillOver && !overflow && !stages.isAutoSummaryAllowed(this, tokensNow)) {
+					// A recent automatic summary failed, so no model call now. No overflow
+					// this time, so a later one is not a repeat of the last.
+					this.overflowCondenseFreedLittle = false
+					provider?.log(`[Task] Automatic summary held back after a failed one (${tokensNow} tokens)`)
+				} else if (plan.shouldSummarize && (stillOver || !!overflow)) {
 					await this.updateApiRequestProgressStatus("Condensing context...", "sync")
 					await this.condenseContext(true) // true = automatic trigger
 					if (overflow) {
@@ -3358,7 +3387,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			.finally(() => {
 				settled = true
 			})
-		await this.updateApiRequestProgressStatus("Snapshotting workspace for checkpoints...", "sync")
+		// Blocking: the stream may already have ended, and this tool has no row yet,
+		// so without it the footer shows the last answered ask's disabled buttons.
+		await this.updateApiRequestProgressStatus("Snapshotting workspace for checkpoints...", "sync", true)
 
 		const deadline = Date.now() + Task.CHECKPOINT_BASELINE_TIMEOUT_MS
 		while (!settled && !this.abort && isCheckpointBaselinePending(this)) {

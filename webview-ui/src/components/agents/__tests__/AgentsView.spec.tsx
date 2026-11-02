@@ -294,4 +294,11 @@ describe("agentsFormat", () => {
 		expect(isTaskRunning([{ ts: 1, type: "say", say: "api_req_started", text: "{}" } as any])).toBe(true)
 		expect(isTaskRunning([{ ts: 1, type: "say", say: "api_req_started", text: '{"cost":1}' } as any])).toBe(false)
 	})
+
+	it("counts a finished request with a blocking status as running, until the status is restored", () => {
+		const row = (progressStatus: object) =>
+			({ ts: 1, type: "say", say: "api_req_started", text: '{"cost":1}', progressStatus }) as any
+		expect(isTaskRunning([row({ text: "Snapshotting workspace...", blocking: true })])).toBe(true)
+		expect(isTaskRunning([row({ text: "Receiving response..." })])).toBe(false)
+	})
 })

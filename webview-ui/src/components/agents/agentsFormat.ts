@@ -64,7 +64,8 @@ export function filterSessions(
 
 /**
  * True while the agent is working: the last message is still streaming, or the latest
- * api_req_started has not reported a cost yet (same signal ChatView uses for its stop button).
+ * api_req_started has not reported a cost yet or has a blocking status (same signals
+ * ChatView uses for its stop button).
  */
 export function isTaskRunning(messages?: ClineMessage[]): boolean {
 	if (!messages || messages.length === 0) {
@@ -75,6 +76,9 @@ export function isTaskRunning(messages?: ClineMessage[]): boolean {
 	}
 	for (let i = messages.length - 1; i >= 0; i--) {
 		if (messages[i].say === "api_req_started") {
+			if (messages[i].progressStatus?.blocking) {
+				return true
+			}
 			try {
 				return JSON.parse(messages[i].text ?? "{}").cost === undefined
 			} catch {

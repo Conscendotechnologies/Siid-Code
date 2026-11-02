@@ -2,7 +2,7 @@
 
 import { AnthropicHandler, FAILED_FETCH_BACKOFF_MS } from "../anthropic"
 import { ApiHandlerOptions } from "../../../shared/api"
-import { isDefaultedModelInfo } from "../fetchers/anthropic"
+import { isDefaultedModelInfo, mergeAnthropicModels } from "../fetchers/anthropic"
 
 const mockCreate = vitest.fn()
 
@@ -398,5 +398,123 @@ describe("AnthropicHandler dynamic model ids", () => {
 			new AnthropicHandler({ apiKey: "k", apiModelId: "claude-3-haiku-20240307" }).getModel().info.inputPrice,
 		).toBe(0.25)
 		expect(new AnthropicHandler({ apiKey: "k" }).getModel().id).toBe("claude-sonnet-4-20250514")
+	})
+
+	describe("temperature on the wire", () => {
+		// What actually leaves the process: undefined fields are not serialized.
+		const lastBody = () => JSON.parse(JSON.stringify(mockCreate.mock.calls.at(-1)![0]))
+
+		const sendMessage = async (handler: AnthropicHandler) => {
+			for await (const _ of handler.createMessage("system", [{ role: "user", content: "hi" }])) {
+				// drain
+			}
+			return lastBody()
+		}
+
+		const sendPrompt = async (handler: AnthropicHandler) => {
+			await handler.completePrompt("hi")
+			return lastBody()
+		}
+
+		const useList = (apiModels: Parameters<typeof mergeAnthropicModels>[0]) => {
+			modelCache.getModelsFromCache.mockReturnValue(mergeAnthropicModels(apiModels))
+		}
+
+		it("omits it for a defaulted id when the list is unavailable", async () => {
+			modelCache.getModels.mockRejectedValue(new Error("ENOTFOUND"))
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+
+			expect(isDefaultedModelInfo(handler.getModel().info)).toBe(true)
+			expect(await sendMessage(handler)).not.toHaveProperty("temperature")
+			expect(await sendPrompt(handler)).not.toHaveProperty("temperature")
+		})
+
+		it("omits a user-set temperature for a defaulted id too", async () => {
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5", modelTemperature: 0.7 })
+
+			expect(await sendMessage(handler)).not.toHaveProperty("temperature")
+		})
+
+		it("omits it for a list entry with no capabilities and no table base", async () => {
+			useList([{ id: "proxy-model", max_input_tokens: 500_000, max_tokens: 16_000 }])
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "proxy-model" })
+
+			expect(isDefaultedModelInfo(handler.getModel().info)).toBe(false)
+			expect(await sendMessage(handler)).not.toHaveProperty("temperature")
+			expect(await sendPrompt(handler)).not.toHaveProperty("temperature")
+		})
+
+		it("omits it for a list entry whose capabilities mean sampling is rejected", async () => {
+			useList([
+				{
+					id: "claude-opus-5-5",
+					max_input_tokens: 1_000_000,
+					capabilities: { thinking: { supported: true, types: { enabled: { supported: false } } } },
+				},
+			])
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+
+			expect(await sendMessage(handler)).not.toHaveProperty("temperature")
+			expect(await sendPrompt(handler)).not.toHaveProperty("temperature")
+		})
+
+		it("keeps it for a list entry whose capabilities state manual thinking budgets", async () => {
+			useList([
+				{
+					id: "claude-sonnet-4-6",
+					max_input_tokens: 1_000_000,
+					capabilities: { thinking: { supported: true, types: { enabled: { supported: true } } } },
+				},
+			])
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-sonnet-4-6" })
+
+			expect((await sendMessage(handler)).temperature).toBe(0)
+			expect((await sendPrompt(handler)).temperature).toBe(0)
+		})
+
+		it("keeps it for a bundled id, listed or not", async () => {
+			const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-3-haiku-20240307" })
+			expect((await sendMessage(handler)).temperature).toBe(0)
+			expect((await sendPrompt(handler)).temperature).toBe(0)
+
+			useList([{ id: "claude-3-haiku-20240307" }])
+			expect((await sendMessage(handler)).temperature).toBe(0)
+			expect((await sendPrompt(handler)).temperature).toBe(0)
+		})
+
+		it("keeps a user-set temperature for a bundled id", async () => {
+			const handler = new AnthropicHandler({
+				apiKey: "k",
+				apiModelId: "claude-3-haiku-20240307",
+				modelTemperature: 0.7,
+			})
+
+			expect((await sendMessage(handler)).temperature).toBe(0.7)
+		})
+
+		it("completePrompt loads the list on a cold cache and uses what it states", async () => {
+			let cached: any
+			modelCache.getModels.mockImplementation(async () => {
+				cached = mergeAnthropicModels([
+					{
+						id: "claude-sonnet-4-6",
+						capabilities: { thinking: { supported: true, types: { enabled: { supported: true } } } },
+					},
+				])
+				return cached
+			})
+			modelCache.getModelsFromCache.mockImplementation(() => cached)
+
+			const body = await sendPrompt(new AnthropicHandler({ apiKey: "k", apiModelId: "claude-sonnet-4-6" }))
+
+			expect(modelCache.getModels).toHaveBeenCalledTimes(1)
+			expect(body.temperature).toBe(0)
+		})
+
+		it("completePrompt does not fetch the list for a bundled id", async () => {
+			await sendPrompt(new AnthropicHandler({ apiKey: "k", apiModelId: "claude-3-haiku-20240307" }))
+
+			expect(modelCache.getModels).not.toHaveBeenCalled()
+		})
 	})
 })
