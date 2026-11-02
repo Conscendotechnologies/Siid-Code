@@ -18,11 +18,24 @@ import { getModelParams } from "../transform/model-params"
 import { BaseProvider } from "./base-provider"
 import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
 import { calculateApiCostAnthropic } from "../../shared/cost"
-import { getLastGoodAnthropicModels, getModels, getModelsFromCache } from "./fetchers/modelCache"
-import { anthropicCacheKey, mergeAnthropicModels } from "./fetchers/anthropic"
+import {
+	ensureAnthropicLastGoodSeeded,
+	getLastGoodAnthropicModels,
+	getModels,
+	getModelsFromCache,
+} from "./fetchers/modelCache"
+import { anthropicCacheKey, defaultedModelInfo } from "./fetchers/anthropic"
 
 // Waiting for the live list must never hold up a request for long.
 const MODEL_LIST_WAIT_MS = 3_000
+// fetchModel() runs before the context-window arithmetic; a wrong window costs a
+// needless rewrite of the whole history, so it may wait a little longer.
+const FETCH_MODEL_WAIT_MS = 5_000
+// After a refresh fails or times out (unknown id, no last-good, offline), do not
+// start another one for this long: without it every request waits the full
+// FETCH_MODEL_WAIT_MS again for the same answer.
+export const FAILED_FETCH_BACKOFF_MS = 60_000
+const failedFetchAt = new Map<string, number>()
 
 export class AnthropicHandler extends BaseProvider implements SingleCompletionHandler {
 	private options: ApiHandlerOptions
@@ -244,24 +257,67 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 	 * conservative defaults for the id.
 	 */
 	private async ensureModelListLoaded(): Promise<void> {
+		await this.loadModelList(MODEL_LIST_WAIT_MS)
+	}
+
+	/**
+	 * Start (or join) a refresh of the live list and wait at most `waitMs` for
+	 * it. Skipped for bundled ids and when the memory cache is warm. Never throws.
+	 */
+	private async loadModelList(waitMs: number): Promise<void> {
 		const modelId = this.options.apiModelId
 		if (!modelId || modelId in anthropicModels || !this.options.apiKey || this.getCachedModelList()) {
 			return
 		}
 
+		const listKey = this.getModelListKey()
+		const failedAt = failedFetchAt.get(listKey)
+		if (failedAt !== undefined && Date.now() - failedAt < FAILED_FETCH_BACKOFF_MS) {
+			return
+		}
+
 		try {
-			await Promise.race([
-				getModels({
-					provider: "anthropic",
-					apiKey: this.options.apiKey,
-					baseUrl: this.options.anthropicBaseUrl || undefined,
-					useAuthToken: !!this.options.anthropicUseAuthToken,
-				}),
-				new Promise((resolve) => setTimeout(resolve, MODEL_LIST_WAIT_MS)),
+			const fetch = getModels({
+				provider: "anthropic",
+				apiKey: this.options.apiKey,
+				baseUrl: this.options.anthropicBaseUrl || undefined,
+				useAuthToken: !!this.options.anthropicUseAuthToken,
+			})
+			await ensureAnthropicLastGoodSeeded()
+			// A last-good list (memory or disk) already carries real limits; let the
+			// refresh finish in the background instead of holding up the request.
+			if (getLastGoodAnthropicModels(listKey)?.[modelId]) {
+				fetch.catch(() => {})
+				return
+			}
+			const outcome = await Promise.race([
+				fetch.then(() => "fetched" as const),
+				new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), waitMs)),
 			])
+			if (outcome === "timeout") {
+				failedFetchAt.set(listKey, Date.now())
+				// A late arrival still warms the cache for the next request.
+				fetch.then(() => failedFetchAt.delete(listKey)).catch(() => {})
+			}
 		} catch {
 			// Fall through to defaults.
+			failedFetchAt.set(listKey, Date.now())
 		}
+	}
+
+	/** Test hook: forget failed refreshes so the next request fetches again. */
+	static resetFailedFetchBackoff() {
+		failedFetchAt.clear()
+	}
+
+	/**
+	 * Resolve the model with live information: Task calls this before the
+	 * context-window arithmetic so a lapsed memory cache cannot make a 1M model
+	 * look like a 200k one. Falls back exactly like getModel() and never throws.
+	 */
+	public async fetchModel() {
+		await this.loadModelList(FETCH_MODEL_WAIT_MS)
+		return this.getModel()
 	}
 
 	getModel() {
@@ -276,7 +332,8 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 		if (!info) {
 			// Not listed anywhere (retired, or the list is unavailable): keep the
 			// selected id working with conservative defaults and unknown prices.
-			info = mergeAnthropicModels([{ id }])[id]
+			// The info is tagged so callers do not trust the default window.
+			info = defaultedModelInfo(id)
 		}
 
 		const params = getModelParams({

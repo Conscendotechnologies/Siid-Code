@@ -114,9 +114,12 @@ import {
 	getTaskFileChanges,
 	postFileChanges,
 } from "../checkpoints"
+import { isCheckpointBaselinePending, readFileChangesForPrompt } from "../checkpoints/promptFileChanges"
+import { startElapsedStatus } from "./elapsedStatus"
 import { processUserContentMentions } from "../mentions/processUserContentMentions"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { summarizeConversation, MIN_CONDENSE_THRESHOLD, MAX_CONDENSE_THRESHOLD } from "../condense"
+import * as stages from "../condense/stages"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
 import { restoreTodoListForTask, setTodoListForTask } from "../tools/updateTodoListTool"
 import { AutoApprovalHandler } from "./AutoApprovalHandler"
@@ -257,6 +260,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	private askResponseImages?: string[]
 	private activeAskTs?: number
 	public lastMessageTs?: number
+
+	// Serializes `saveClineMessages` so overlapping saves within one task never
+	// race on the same ui_messages.json lock. Only one save is ever queued
+	// behind the running one; it always writes the latest `clineMessages`.
+	private saveClineMessagesChain: Promise<void> = Promise.resolve()
+	private saveClineMessagesQueued = false
 
 	// Tool Use
 	consecutiveMistakeCount: number = 0
@@ -741,13 +750,57 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		await this.updateClineMessage(apiReqMessage)
 	}
 
-	private async saveClineMessages() {
-		try {
-			await saveTaskMessages({
-				messages: this.clineMessages,
-				taskId: this.taskId,
-				globalStoragePath: this.globalStoragePath,
+	/** Drop the status line of the latest request row (after a failed first chunk). */
+	private async clearApiRequestProgressStatus() {
+		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
+		const apiReqMessage = this.clineMessages[lastApiReqIndex]
+		if (!apiReqMessage?.progressStatus) {
+			return
+		}
+		apiReqMessage.progressStatus = undefined
+		await this.updateClineMessage(apiReqMessage)
+	}
+
+	private saveClineMessages(): Promise<void> {
+		// Coalesce: if a save is already queued behind the in-flight one, it will
+		// persist the latest `clineMessages` anyway, so just share its promise.
+		if (this.saveClineMessagesQueued) {
+			return this.saveClineMessagesChain
+		}
+
+		this.saveClineMessagesQueued = true
+		this.saveClineMessagesChain = this.saveClineMessagesChain
+			// A failed save must never block the ones queued after it.
+			.catch(() => {})
+			.then(async () => {
+				this.saveClineMessagesQueued = false
+				await this.persistClineMessages()
 			})
+
+		return this.saveClineMessagesChain
+	}
+
+	private async persistClineMessages(isRetry = false): Promise<void> {
+		try {
+			try {
+				await saveTaskMessages({
+					messages: this.clineMessages,
+					taskId: this.taskId,
+					globalStoragePath: this.globalStoragePath,
+				})
+			} catch (writeError) {
+				// Don't lose the write: if nothing newer is queued, retry once
+				// after a short pause (transient lock contention, AV scanners).
+				if (!isRetry && !this.saveClineMessagesQueued) {
+					console.error(
+						`[Task#saveClineMessages] task ${this.taskId}.${this.instanceId} write failed, retrying once:`,
+						writeError,
+					)
+					await new Promise<void>((resolve) => setTimeout(resolve, 250))
+					return this.persistClineMessages(true)
+				}
+				throw writeError
+			}
 
 			const { historyItem, tokenUsage } = await taskMetadata({
 				messages: this.clineMessages,
@@ -768,7 +821,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			await this.providerRef.deref()?.updateTaskHistory(historyItem)
 		} catch (error) {
-			console.error("Failed to save Roo messages:", error)
+			console.error(`Failed to save Roo messages for task ${this.taskId}.${this.instanceId}:`, error)
+			this.providerRef
+				.deref()
+				?.log?.(
+					`[Task#saveClineMessages] task ${this.taskId}.${this.instanceId} failed to save messages: ${error}`,
+				)
 		}
 	}
 
@@ -820,6 +878,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// state.
 					askTs = Date.now()
 					this.lastMessageTs = askTs
+					// The complete version of this ask will reuse this ts, so a
+					// response correlated on it must already be accepted.
+					this.activeAskTs = askTs
 					await this.addToClineMessages({ ts: askTs, type: "ask", ask: type, text, partial, isProtected })
 					throw new Error("Current ask promise was ignored (#2)")
 				}
@@ -844,6 +905,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// never altered after first setting it.
 					askTs = lastMessage.ts
 					this.lastMessageTs = askTs
+					// Must be set BEFORE any await: the webview may answer (auto-
+					// approve) as soon as it sees the row, and the response is
+					// correlated on `activeAskTs`.
+					this.activeAskTs = askTs
 					lastMessage.text = text
 					lastMessage.partial = false
 					lastMessage.progressStatus = progressStatus
@@ -857,6 +922,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					this.askResponseImages = undefined
 					askTs = Date.now()
 					this.lastMessageTs = askTs
+					// Must be set BEFORE any await (see above).
+					this.activeAskTs = askTs
 					await this.addToClineMessages({ ts: askTs, type: "ask", ask: type, text, isProtected })
 				}
 			}
@@ -867,11 +934,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.askResponseImages = undefined
 			askTs = Date.now()
 			this.lastMessageTs = askTs
+			// Must be set BEFORE any await: `addToClineMessages` posts state to
+			// the webview, which can answer synchronously (auto-approve) with
+			// this ts; `handleWebviewAskResponse` would otherwise drop it and
+			// the `pWaitFor` below would never resolve (dead Approve/Reject).
+			this.activeAskTs = askTs
 			await this.addToClineMessages({ ts: askTs, type: "ask", ask: type, text, isProtected })
 		}
 
 		// Detect if the task will enter an idle state.
-		this.activeAskTs = askTs
 		const isReady = this.askResponse !== undefined || this.lastMessageTs !== askTs
 
 		if (!partial && !isReady && isBlockingAsk(type)) {
@@ -921,10 +992,24 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	}
 
 	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[], messageTs?: number) {
-		if (messageTs !== undefined) {
-			if (this.activeAskTs !== messageTs) {
-				return
-			}
+		if (messageTs !== undefined && this.activeAskTs !== messageTs) {
+			// Only the ask that is actually awaiting an answer may be answered.
+			// `activeAskTs` is set before the row is posted and cleared as soon
+			// as the ask resolves, so this rejects both stale responses for an
+			// older ask and a second click after a real response already landed
+			// (the row stays last until the tool emits something). Never silent:
+			// a dropped response used to look like dead Approve/Reject buttons.
+			const lastMessage = this.clineMessages.at(-1)
+			this.providerRef
+				.deref()
+				?.log?.(
+					`[Task#handleWebviewAskResponse] Dropping ask response "${askResponse}" for ts ${messageTs}: active ask is ${this.activeAskTs ?? "none"}, last message is ${lastMessage?.type ?? "none"}@${lastMessage?.ts ?? "none"} (task ${this.taskId}.${this.instanceId})`,
+				)
+			// A late or duplicate answer for an ask that was already resolved is
+			// still acknowledged: nothing will ever accept an answer for that ts
+			// again, so the webview must not re-arm its buttons for it.
+			this.acknowledgeAskResponse(messageTs)
+			return
 		}
 
 		// If user provides feedback after completion, mark task active again.
@@ -935,6 +1020,22 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.askResponse = askResponse
 		this.askResponseText = text
 		this.askResponseImages = images
+		this.acknowledgeAskResponse(messageTs ?? this.activeAskTs)
+	}
+
+	/**
+	 * Tell the webview the answer for an ask row landed. The webview's ask
+	 * recovery (re-enabling Approve/Reject when a response seems lost) only
+	 * runs when no acknowledgement arrived for that row.
+	 */
+	private acknowledgeAskResponse(messageTs: number | undefined) {
+		if (messageTs === undefined) {
+			return
+		}
+		this.providerRef
+			.deref()
+			?.postMessageToWebview({ type: "askResponseReceived", messageTs })
+			.catch(() => {})
 	}
 
 	async handleTerminalOperation(terminalOperation: "continue" | "abort") {
@@ -1005,17 +1106,23 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			return false // Condensing failed
 		}
 
+		// Nothing changed (too few messages, or a reduction below the hysteresis):
+		// no row. A blank condense_context row would make the token scanners
+		// treat the next count as system-prompt-free and hide a real overflow.
+		if (messages === this.apiConversationHistory && !summary) {
+			return false
+		}
+
 		// Check if context size actually decreased (or at least didn't increase)
 		if (newContextTokens >= prevContextTokens) {
 			const increase = newContextTokens - prevContextTokens
 			const increasePercent = ((increase / prevContextTokens) * 100).toFixed(1)
 
-			console.log(
-				`[condenseContext] Skipping summarization - context size increased:\n` +
-					`  Before: ${prevContextTokens} tokens\n` +
-					`  After: ${newContextTokens} tokens\n` +
-					`  Increase: ${increase} tokens (${increasePercent}%)`,
-			)
+			this.providerRef
+				.deref()
+				?.log(
+					`[condenseContext] context size did not decrease: before=${prevContextTokens} after=${newContextTokens} (+${increase}, ${increasePercent}%)`,
+				)
 
 			// this.say(
 			// 	"condense_context_error",
@@ -2097,6 +2204,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			}),
 		)
 
+		this.turnStartedAt = Date.now()
 		await this.updateApiRequestProgressStatus("Preparing request...", "sync")
 
 		const {
@@ -2119,11 +2227,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			maxReadFileLine,
 		})
 
+		// Both prompt sections below report the same list, and each read runs git.
+		// Scoped to this call, so a checkpoint saved during tool execution can't
+		// leave a stale list for the next turn.
+		let turnFileChanges: ReturnType<typeof readFileChangesForPrompt> | undefined
+		const readTurnFileChanges = () => (turnFileChanges ??= readFileChangesForPrompt(this))
+
 		await this.updateApiRequestProgressStatus("Collecting environment details...", "server")
 		const environmentDetails = await getEnvironmentDetails(
 			this,
 			provider?.contextProxy.globalStorageUri,
 			includeFileDetails,
+			readTurnFileChanges,
 		)
 
 		const hasTodoList = Array.isArray(this.todoList) && this.todoList.length > 0
@@ -2135,7 +2250,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			experiments: state?.experiments,
 			taskId: this.taskId,
 			planningFilePath: this.planningFilePath,
-			fileChanges: await this.getFileChanges(),
+			fileChanges: await readTurnFileChanges(),
 		})
 
 		// Add pre-task details FIRST for higher priority, then parsed content, then environment details
@@ -2284,6 +2399,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 						continue
 					}
 
+					if (chunk.type === "text" || chunk.type === "reasoning") {
+						await this.finishModelWaitStatus("Receiving response...")
+					}
+
 					switch (chunk.type) {
 						case "reasoning":
 							reasoningMessage += chunk.text
@@ -2392,6 +2511,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				}
 			} finally {
 				this.isStreaming = false
+				await this.finishModelWaitStatus()
 			}
 
 			if (inputTokens > 0 || outputTokens > 0 || cacheWriteTokens > 0 || cacheReadTokens > 0) {
@@ -2492,6 +2612,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				// }
 
 				await pWaitFor(() => this.userMessageContentReady)
+
+				// Every tool has now been presented, so nothing will send the
+				// complete version of a still-partial ask row (e.g. a tool that
+				// streamed its ask and then bailed on a missing param). Left
+				// alone, that row keeps the webview in "streaming" forever once
+				// the loop ends, with no buttons to recover. Finalize it here;
+				// no later ask can reuse its ts, so this cannot duplicate a row.
+				const trailingPartialAsk = this.clineMessages.at(-1)
+				if (trailingPartialAsk?.type === "ask" && trailingPartialAsk.partial) {
+					trailingPartialAsk.partial = false
+					await this.saveClineMessages()
+					await this.updateClineMessage(trailingPartialAsk)
+				}
 
 				// If the model did not tool use, then we need to tell it to
 				// either use a tool or attempt_completion.
@@ -2768,7 +2901,30 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const systemPrompt = await this.getSystemPrompt()
 		const { contextTokens } = this.getTokenUsage()
 
-		if (contextTokens) {
+		// Condense decision.
+		// A provider "context too long" rejection on the previous attempt must condense
+		// even when the computed percentage (or a defaulted window) says otherwise.
+		const overflow = stages.findUnhandledContextOverflow(this, this.clineMessages)
+
+		// A second overflow right after a condense that freed (almost) nothing
+		// would loop forever behind the auto-retry backoff. Stop and say so; the
+		// user can retry, start a new task, or pick a larger model.
+		if (overflow && this.overflowCondenseFreedLittle) {
+			this.overflowCondenseFreedLittle = false
+			const message =
+				"The context is still too large for this model after condensing it. " +
+				"Start a new task, or switch to a model with a larger context window and retry."
+			await this.say("condense_context_error", message, undefined, false, undefined, undefined, {
+				isNonInteractive: true,
+			})
+			const { response } = await this.ask("api_req_failed", message)
+			if (response !== "yesButtonClicked") {
+				throw new Error("API request failed")
+			}
+			await this.say("api_req_retried")
+		}
+
+		if (contextTokens || overflow) {
 			const resolvedModel = await this.getResolvedModel(this.api)
 			const modelInfo = resolvedModel.info
 
@@ -2780,15 +2936,10 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			const contextWindow = modelInfo.contextWindow
 
-			// Count system prompt tokens and add to contextTokens for accurate threshold checking
+			// Usage numbers from the API already include the system prompt; only a count
+			// taken right after a condense (messages only) needs it added.
 			const systemPromptTokens = await this.api.countTokens([{ type: "text", text: systemPrompt }])
-			const totalTokensWithSystemPrompt = contextTokens + systemPromptTokens
-
-			// Check if automatic condensing should trigger based on context threshold
-			const effectiveMaxTokens = maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS
-			const boundedEffectiveMaxTokens = Math.max(0, Math.min(effectiveMaxTokens, Math.max(0, contextWindow - 1)))
-			const availableTokens = Math.max(1, contextWindow - boundedEffectiveMaxTokens)
-			const contextPercentUsed = (totalTokensWithSystemPrompt / availableTokens) * 100
+			const systemPromptIncluded = stages.contextTokensIncludeSystemPrompt(this.clineMessages)
 
 			// Get profile-specific threshold or fall back to global default
 			const currentProfileId =
@@ -2801,39 +2952,95 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					: autoCondenseContextPercent
 			const clampedThreshold = Math.max(MIN_CONDENSE_THRESHOLD, Math.min(threshold, MAX_CONDENSE_THRESHOLD))
 
-			console.log(
-				`[Task] Auto-condense check: contextPercentUsed=${contextPercentUsed.toFixed(1)}%, threshold=${clampedThreshold}%`,
+			const plan = stages.planCondense({
+				contextTokens,
+				systemPromptTokens,
+				systemPromptIncluded,
+				contextWindow,
+				maxTokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
+				defaulted: stages.isDefaultedModelInfo(modelInfo),
+				thresholdPercent: clampedThreshold,
+				messageCount: this.apiConversationHistory.length,
+				overflow: !!overflow,
+			})
+			const { availableTokens, totalTokens: totalTokensWithSystemPrompt } = plan
+
+			const provider = this.providerRef.deref()
+			provider?.log(
+				`[Task] Auto-condense check: model=${resolvedModel.id} window=${contextWindow} ` +
+					`contextPercentUsed=${plan.percentUsed.toFixed(1)}%, threshold=${clampedThreshold}%, ` +
+					`reduce=${plan.shouldReduce}, summarize=${plan.shouldSummarize} (${plan.reason})`,
 			)
+			if (overflow) {
+				provider?.log(`[Task] Provider rejected the last request as too long (ts ${overflow.ts})`)
+			}
 
-			// Minimum messages needed for condensing to be worthwhile
-			// Changed: Since we now summarize everything (not keeping first/last), we only need 3+ messages
-			const MIN_MESSAGES_FOR_CONDENSING = 3 // Need at least 3 messages to make summarization worthwhile
+			if (plan.shouldReduce) {
+				// Stage 0-1: byte-stable tombstones for stale/old tool output, no model
+				// call. Computed without touching the history and persisted only when
+				// the freed amount clears the hysteresis: every rewrite is a prompt-cache
+				// miss on the whole history, so a few tombstones a turn are left alone
+				// until enough has accumulated (or a summary rewrites the history anyway).
+				const reduced = stages.reduceConversation(this.apiConversationHistory)
+				let tokensNow = totalTokensWithSystemPrompt
 
-			// If threshold exceeded AND we have enough messages, trigger automatic condensing
-			if (
-				contextPercentUsed >= clampedThreshold &&
-				this.apiConversationHistory.length >= MIN_MESSAGES_FOR_CONDENSING
-			) {
-				console.log(
-					`[Task] Threshold exceeded with ${this.apiConversationHistory.length} messages, triggering automatic condenseContext()`,
-				)
-				await this.condenseContext(true) // true = automatic trigger
+				if (stages.shouldApplyReduction(reduced, totalTokensWithSystemPrompt)) {
+					await this.overwriteApiConversationHistory(reduced.messages)
+					tokensNow = Math.max(0, totalTokensWithSystemPrompt - reduced.freedTokensEstimate)
+					const newContextTokens = Math.max(0, tokensNow - systemPromptTokens)
+					await this.say(
+						"condense_context",
+						undefined /* text */,
+						undefined /* images */,
+						false /* partial */,
+						undefined /* checkpoint */,
+						undefined /* progressStatus */,
+						{ isNonInteractive: true } /* options */,
+						{
+							summary: stages.describeReduction(reduced),
+							cost: 0,
+							newContextTokens,
+							prevContextTokens: Math.max(0, totalTokensWithSystemPrompt - systemPromptTokens),
+						},
+					)
+					provider?.log(
+						`[Task] Staged reduction elided ${reduced.elidedBlocks} blocks (~${reduced.freedTokensEstimate} tokens); ` +
+							`estimated ${tokensNow} tokens (${((tokensNow / availableTokens) * 100).toFixed(1)}%)`,
+					)
+				} else if (reduced.changed) {
+					provider?.log(
+						`[Task] Staged reduction would free ~${reduced.freedTokensEstimate} tokens, below the ` +
+							`${stages.reductionHysteresisTokens(totalTokensWithSystemPrompt)} hysteresis; history kept for the prompt cache`,
+					)
+				}
 
-				// After condensing, recalculate token usage to verify it worked
-				const { contextTokens: newContextTokens } = this.getTokenUsage()
-				const systemPromptTokensAfter = await this.api.countTokens([{ type: "text", text: systemPrompt }])
-				const totalTokensAfterCondense = newContextTokens + systemPromptTokensAfter
-				const contextPercentAfterCondense = (totalTokensAfterCondense / availableTokens) * 100
+				const stillOver = (tokensNow / availableTokens) * 100 >= clampedThreshold
+				if (plan.shouldSummarize && (stillOver || !!overflow)) {
+					await this.updateApiRequestProgressStatus("Condensing context...", "sync")
+					await this.condenseContext(true) // true = automatic trigger
+					if (overflow) {
+						stages.markContextOverflowHandled(this, overflow.ts)
+					}
 
-				console.log(
-					`[Task] After condensing: contextPercentUsed=${contextPercentAfterCondense.toFixed(1)}%, ` +
-						`tokens reduced from ${totalTokensWithSystemPrompt} to ${totalTokensAfterCondense}`,
-				)
-			} else if (contextPercentUsed >= clampedThreshold) {
-				console.log(
-					`[Task] Threshold exceeded but only ${this.apiConversationHistory.length} messages ` +
-						`(need at least ${MIN_MESSAGES_FOR_CONDENSING}), skipping automatic condensing`,
-				)
+					// After condensing, recalculate token usage to verify it worked
+					const { contextTokens: newContextTokens } = this.getTokenUsage()
+					const totalTokensAfterCondense = newContextTokens + systemPromptTokens
+					const contextPercentAfterCondense = (totalTokensAfterCondense / availableTokens) * 100
+					const freed = totalTokensWithSystemPrompt - totalTokensAfterCondense
+					// Remembered for the next overflow: a condense that freed under 10%
+					// cannot be the answer to the same rejection twice.
+					this.overflowCondenseFreedLittle =
+						!!overflow && freed < totalTokensWithSystemPrompt * stages.REDUCTION_MIN_FREED_FRACTION
+
+					provider?.log(
+						`[Task] After condensing: contextPercentUsed=${contextPercentAfterCondense.toFixed(1)}%, ` +
+							`tokens reduced from ${totalTokensWithSystemPrompt} to ${totalTokensAfterCondense}`,
+					)
+				} else if (plan.shouldSummarize) {
+					provider?.log(`[Task] Staged reduction brought usage below ${clampedThreshold}%; summary skipped`)
+				}
+			} else if (plan.percentUsed >= clampedThreshold) {
+				provider?.log(`[Task] Threshold exceeded but not condensing: ${plan.reason}`)
 			}
 		}
 
@@ -2881,20 +3088,43 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			taskId: this.taskId,
 		}
 
+		const requestStartedAt = Date.now()
+		this.providerRef
+			.deref()
+			?.log(
+				`[timing] task=${this.taskId} pre-send=${
+					this.turnStartedAt === undefined ? "n/a" : `${requestStartedAt - this.turnStartedAt}ms`
+				} checkpointInit=${this.describeCheckpointInit()}`,
+			)
+		this.turnStartedAt = undefined // A retry re-enters here without a new turn.
+
 		const stream = this.api.createMessage(systemPrompt, cleanConversationHistory, metadata)
 		const iterator = stream[Symbol.asyncIterator]()
 
 		try {
 			// Awaiting first chunk to see if it will throw an error.
 			this.isWaitingForFirstChunk = true
+			this.startModelWaitStatus()
 			const firstChunk = await iterator.next()
 			this.isWaitingForFirstChunk = false
-			await this.updateApiRequestProgressStatus("Receiving response...", "sync")
+			this.providerRef
+				.deref()
+				?.log(
+					`[timing] task=${this.taskId} first-byte=${Date.now() - requestStartedAt}ms chunk=${firstChunk.value?.type ?? "none"}`,
+				)
+			// A usage chunk or hidden reasoning isn't anything the user can see yet,
+			// so the elapsed status keeps running until the stream loop gets one.
+			if (firstChunk.value?.type === "text" || firstChunk.value?.type === "reasoning") {
+				await this.finishModelWaitStatus("Receiving response...")
+			}
 			yield firstChunk.value
 			// Don't reset on success - stay on fallback for 3 minutes
 			// Only the timeout check and 429 errors trigger model switches
 		} catch (error) {
 			this.isWaitingForFirstChunk = false
+			// No next status: the "Thinking (Ns)..." text must not outlive the request.
+			await this.finishModelWaitStatus()
+			await this.clearApiRequestProgressStatus()
 
 			// A model the provider no longer serves means our list is stale, so
 			// refresh it: the replacement may already be published. The user is
@@ -3089,6 +3319,109 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	public async getFileChanges() {
 		return getTaskFileChanges(this)
+	}
+
+	/** Set once the shadow repo's first snapshot completes. */
+	public checkpointInitDurationMs?: number
+	private turnStartedAt?: number
+	private stopModelWaitStatus?: () => void
+	/** The last overflow-triggered condense freed under 10%: a repeat is an error, not a retry. */
+	private overflowCondenseFreedLittle = false
+
+	/** Start checkpoint init without waiting for it. No-op if already running or done. */
+	public startCheckpointInit() {
+		getCheckpointService(this).catch(() => {})
+	}
+
+	/**
+	 * Hold a workspace-changing tool until the shadow repo's first snapshot is
+	 * done, saying so in the status line. Returns early if the task is aborted.
+	 *
+	 * Waits on this instance's own init promise (undefined means checkpoints
+	 * were disabled: proceed), never on a flag another instance of the same
+	 * task id might be the one to clear. A snapshot that takes longer than
+	 * CHECKPOINT_BASELINE_TIMEOUT_MS (a hung `git add` on a huge workspace)
+	 * turns checkpoints off for this task and says so instead of holding the
+	 * tool forever.
+	 */
+	public async waitForCheckpointBaseline(): Promise<void> {
+		if (!isCheckpointBaselinePending(this)) {
+			return
+		}
+
+		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
+		const previousStatus = this.clineMessages[lastApiReqIndex]?.progressStatus
+
+		let settled = false
+		const init = getCheckpointService(this)
+			.catch(() => undefined)
+			.finally(() => {
+				settled = true
+			})
+		await this.updateApiRequestProgressStatus("Snapshotting workspace for checkpoints...", "sync")
+
+		const deadline = Date.now() + Task.CHECKPOINT_BASELINE_TIMEOUT_MS
+		while (!settled && !this.abort && isCheckpointBaselinePending(this)) {
+			if (Date.now() >= deadline) {
+				this.enableCheckpoints = false
+				this.providerRef
+					.deref()
+					?.log(
+						`[Task#waitForCheckpointBaseline] baseline not taken after ${Task.CHECKPOINT_BASELINE_TIMEOUT_MS}ms; checkpoints disabled for task ${this.taskId}.${this.instanceId}`,
+					)
+				await this.say(
+					"error",
+					"Checkpoints are off for this task: snapshotting the workspace did not finish in 5 minutes. Edits continue without checkpoints or the file-changes panel.",
+					undefined,
+					false,
+					undefined,
+					undefined,
+					{ isNonInteractive: true },
+				)
+				break
+			}
+			await delay(200)
+		}
+		void init
+
+		await this.updateApiRequestProgressStatus(
+			previousStatus?.text ?? "Receiving response...",
+			previousStatus?.icon ?? "sync",
+		)
+	}
+
+	public static CHECKPOINT_BASELINE_TIMEOUT_MS = 5 * 60_000
+
+	private describeCheckpointInit(): string {
+		if (this.checkpointInitDurationMs !== undefined) {
+			return `${this.checkpointInitDurationMs}ms`
+		}
+
+		return isCheckpointBaselinePending(this) ? "pending" : "disabled"
+	}
+
+	/** Show elapsed time while the model is working but nothing visible has arrived. */
+	private startModelWaitStatus() {
+		this.stopModelWaitStatus?.()
+		this.stopModelWaitStatus = startElapsedStatus({
+			// The status row appends its own animated dots to the text.
+			render: (seconds) => `Thinking (${seconds}s)...`,
+			update: (text) => this.updateApiRequestProgressStatus(text, "sync"),
+			shouldStop: () => this.abort,
+		})
+	}
+
+	private async finishModelWaitStatus(nextStatus?: string) {
+		if (!this.stopModelWaitStatus) {
+			return
+		}
+
+		this.stopModelWaitStatus()
+		this.stopModelWaitStatus = undefined
+
+		if (nextStatus) {
+			await this.updateApiRequestProgressStatus(nextStatus, "sync")
+		}
 	}
 
 	// Metrics

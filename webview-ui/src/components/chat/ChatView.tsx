@@ -174,6 +174,11 @@ const InstructionsGroupRow: React.FC<InstructionsGroupRowProps> = ({ messages, i
 	)
 }
 
+// How long an answered ask may sit unchanged (same row still last, not partial,
+// not streaming) before we assume the extension never received the response
+// and hand the controls back to the user.
+export const ASK_RECOVERY_DELAY_MS = 10000
+
 const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewProps> = (
 	{ isHidden, onSwitchTab },
 	ref,
@@ -324,12 +329,72 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		[currentTaskItem?.id],
 	)
 
+	// Safety net so Approve/Reject can never stay dead: after we post a response
+	// for an ask row, if that same row is still the last message after
+	// ASK_RECOVERY_DELAY_MS (not partial, not streaming) and the extension never
+	// acknowledged the response (`askResponseReceived` for that ts), it most
+	// likely never received it, so re-enable the controls. The ack is the
+	// explicit signal: an approved tool can run for a long time with the ask row
+	// still last, and re-arming Approve then would only drop a click server-side
+	// and lose typed text. A duplicate click is dropped on the extension side
+	// when the ask was already answered, so this cannot double-approve.
+	const latestMessagesRef = useRef<ClineMessage[]>(messages)
+	const isStreamingRef = useRef(false)
+	const askRecoveryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const acknowledgedAskTsRef = useRef<Set<number>>(new Set())
+
+	useEffect(() => {
+		latestMessagesRef.current = messages
+	}, [messages])
+
+	const clearAskRecovery = useCallback(() => {
+		if (askRecoveryTimeoutRef.current) {
+			clearTimeout(askRecoveryTimeoutRef.current)
+			askRecoveryTimeoutRef.current = null
+		}
+	}, [])
+
+	const scheduleAskRecovery = useCallback(
+		(askTs: number | undefined, askType: ClineAsk) => {
+			clearAskRecovery()
+			if (askTs === undefined) {
+				return
+			}
+			askRecoveryTimeoutRef.current = setTimeout(() => {
+				askRecoveryTimeoutRef.current = null
+				if (!isMountedRef.current) {
+					return
+				}
+				if (acknowledgedAskTsRef.current.has(askTs)) {
+					return
+				}
+				const last = latestMessagesRef.current.at(-1)
+				const isSameAskStillPending =
+					!!last &&
+					last.type === "ask" &&
+					last.ts === askTs &&
+					last.partial !== true &&
+					!isStreamingRef.current
+				if (!isSameAskStillPending) {
+					return
+				}
+				// Don't auto-respond again; the user decides from here.
+				userRespondedRef.current = true
+				setClineAsk(askType)
+				setEnableButtons(true)
+				setSendingDisabled(false)
+			}, ASK_RECOVERY_DELAY_MS)
+		},
+		[clearAskRecovery],
+	)
+
 	useEffect(() => {
 		isMountedRef.current = true
 		return () => {
 			isMountedRef.current = false
+			clearAskRecovery()
 		}
-	}, [])
+	}, [clearAskRecovery])
 
 	const isProfileDisabled = useMemo(
 		() => !!apiConfiguration && !ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList),
@@ -589,12 +654,13 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		}
 		// Reset user response flag for new task
 		userRespondedRef.current = false
+		clearAskRecovery()
 
 		// Clear message queue when starting a new task
 		setMessageQueue([])
 		// Clear retry counts
 		retryCountRef.current.clear()
-	}, [task?.ts])
+	}, [task?.ts, clearAskRecovery])
 
 	useEffect(() => {
 		if (isHidden) {
@@ -873,6 +939,10 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const startNewTask = useCallback(() => vscode.postMessage({ type: "clearTask" }), [])
 
+	useEffect(() => {
+		isStreamingRef.current = isStreaming
+	}, [isStreaming])
+
 	// This logic depends on the useEffect[messages] above to set clineAsk,
 	// after which buttons are shown and we then send an askResponse to the
 	// extension.
@@ -900,6 +970,11 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					} else {
 						postAskResponse({ askResponse: "yesButtonClicked" })
 					}
+					if (clineAsk === "resume_task") {
+						// A resumed task has nothing else in flight: if the resume
+						// response is lost, nothing would ever re-enable the UI.
+						scheduleAskRecovery(currentAskTsRef.current, clineAsk)
+					}
 					break
 				case "completion_result":
 				case "resume_completed_task":
@@ -915,7 +990,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			setClineAsk(undefined)
 			setEnableButtons(false)
 		},
-		[clineAsk, startNewTask, postAskResponse],
+		[clineAsk, startNewTask, postAskResponse, scheduleAskRecovery],
 	)
 
 	const handleSecondaryButtonClick = useCallback(
@@ -974,6 +1049,16 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			const message: ExtensionMessage = e.data
 
 			switch (message.type) {
+				case "askResponseReceived":
+					if (typeof message.messageTs === "number") {
+						const acked = acknowledgedAskTsRef.current
+						// Timestamps are unique per row; keep the set small.
+						if (acked.size > 200) {
+							acked.clear()
+						}
+						acked.add(message.messageTs)
+					}
+					break
 				case "action":
 					switch (message.action!) {
 						case "didBecomeVisible":
@@ -1924,6 +2009,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					// Auto-reject denied commands immediately if no prefix found
 					postAskResponse({ askResponse: "noButtonClicked" })
 				}
+				scheduleAskRecovery(lastMessage.ts, lastMessage.ask)
 
 				setSendingDisabled(true)
 				setClineAsk(undefined)
@@ -1944,6 +2030,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				}
 
 				postAskResponse({ askResponse: "yesButtonClicked" })
+				scheduleAskRecovery(lastMessage.ts, lastMessage.ask)
 
 				setSendingDisabled(true)
 				setClineAsk(undefined)
@@ -1978,6 +2065,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		lastMessage,
 		writeDelayMs,
 		isWriteToolAction,
+		scheduleAskRecovery,
 
 		handleSuggestionClickInRow,
 		isAllowedCommand,
@@ -2240,6 +2328,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 											}>
 											<VSCodeButton
 												appearance="primary"
+												data-testid="chat-primary-button"
 												disabled={!enableButtons}
 												className={secondaryButtonText ? "flex-1 mr-[6px]" : "flex-[2] mr-0"}
 												onClick={() => handlePrimaryButtonClick(inputValue, selectedImages)}>

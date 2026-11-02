@@ -304,6 +304,15 @@
 	position: relative;
 	padding: 0 24px 40px;
 }
+/* The hero is positioned and follows .agents-arc in the DOM, so the logo already paints above the arc. */
+.agents-hero-logo {
+	display: block;
+	flex: none;
+	width: 72px;
+	height: 72px;
+	object-fit: contain;
+	margin-bottom: 14px;
+}
 .agents-eyebrow {
 	margin-bottom: 8px;
 	font-size: 12px;
@@ -645,9 +654,24 @@
 	.agents-flagshape {
 		display: none;
 	}
+	.agents-hero-logo {
+		width: 56px;
+		height: 56px;
+	}
 }
 @media (max-width: 520px) {
 	.agents-rail {
+		display: none;
+	}
+}
+@media (max-height: 640px) {
+	.agents-hero-logo {
+		width: 56px;
+		height: 56px;
+	}
+}
+@media (max-height: 500px) {
+	.agents-hero-logo {
 		display: none;
 	}
 }
@@ -656,11 +680,11 @@
 	flex: none;
 	display: flex;
 	justify-content: flex-end;
-	padding: 12px 16px;
+	padding: 4px 12px;
 }
 .agents-partner img {
 	display: block;
-	width: 84px;
+	width: 56px;
 	height: auto;
 }
 

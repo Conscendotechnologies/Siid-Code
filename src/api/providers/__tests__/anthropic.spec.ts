@@ -1,9 +1,20 @@
 // npx vitest run src/api/providers/__tests__/anthropic.spec.ts
 
-import { AnthropicHandler } from "../anthropic"
+import { AnthropicHandler, FAILED_FETCH_BACKOFF_MS } from "../anthropic"
 import { ApiHandlerOptions } from "../../../shared/api"
+import { isDefaultedModelInfo } from "../fetchers/anthropic"
 
 const mockCreate = vitest.fn()
+
+// The model list cache is replaced so tests control what the handler sees.
+const modelCache = vitest.hoisted(() => ({
+	getModels: vitest.fn(),
+	getModelsFromCache: vitest.fn(),
+	getLastGoodAnthropicModels: vitest.fn(),
+	ensureAnthropicLastGoodSeeded: vitest.fn(),
+}))
+
+vitest.mock("../fetchers/modelCache", () => modelCache)
 
 vitest.mock("@anthropic-ai/sdk", () => {
 	const mockAnthropicConstructor = vitest.fn().mockImplementation(() => ({
@@ -268,13 +279,118 @@ describe("AnthropicHandler", () => {
 })
 
 describe("AnthropicHandler dynamic model ids", () => {
-	it("accepts an id outside the bundled table with conservative defaults", () => {
+	const live = {
+		"claude-opus-5-5": {
+			contextWindow: 1_000_000,
+			maxTokens: 128_000,
+			supportsImages: true,
+			supportsPromptCache: true,
+			supportsReasoningBudget: false,
+		},
+	}
+
+	beforeEach(() => {
+		vitest.clearAllMocks()
+		modelCache.getModels.mockResolvedValue({})
+		modelCache.getModelsFromCache.mockReturnValue(undefined)
+		modelCache.getLastGoodAnthropicModels.mockReturnValue(undefined)
+		modelCache.ensureAnthropicLastGoodSeeded.mockResolvedValue(undefined)
+		AnthropicHandler.resetFailedFetchBackoff()
+	})
+
+	afterEach(() => {
+		vitest.useRealTimers()
+	})
+
+	it("accepts an id outside the bundled table with conservative, tagged defaults", () => {
 		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-future-9" })
 		const model = handler.getModel()
 		expect(model.id).toBe("claude-future-9")
 		expect(model.info.inputPrice).toBeUndefined()
 		expect(model.info.supportsPromptCache).toBe(true)
 		expect(model.reasoning).toBeUndefined()
+		expect(isDefaultedModelInfo(model.info)).toBe(true)
+		expect(isDefaultedModelInfo(new AnthropicHandler({ apiKey: "k" }).getModel().info)).toBe(false)
+	})
+
+	it("fetchModel waits for the live list so the context window is real before any arithmetic", async () => {
+		let cached: any
+		modelCache.getModels.mockImplementation(async () => {
+			await new Promise((r) => setTimeout(r, 10))
+			cached = live
+			return live
+		})
+		modelCache.getModelsFromCache.mockImplementation(() => cached)
+
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+		expect(handler.getModel().info.contextWindow).toBe(200_000) // synchronous view before the fetch
+		const model = await handler.fetchModel()
+		expect(model.info.contextWindow).toBe(1_000_000)
+		expect(model.info.maxTokens).toBe(128_000)
+		expect(isDefaultedModelInfo(model.info)).toBe(false)
+		expect(modelCache.getModels).toHaveBeenCalledTimes(1)
+	})
+
+	it("fetchModel uses the last-good list after the memory TTL lapsed without waiting for the refresh", async () => {
+		modelCache.getModels.mockReturnValue(new Promise(() => {})) // refresh never completes
+		modelCache.getLastGoodAnthropicModels.mockReturnValue(live)
+
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+		const model = await handler.fetchModel()
+		expect(model.info.contextWindow).toBe(1_000_000)
+		expect(isDefaultedModelInfo(model.info)).toBe(false)
+	})
+
+	it("fetchModel bounds the wait and returns tagged defaults when the list never arrives", async () => {
+		vitest.useFakeTimers()
+		modelCache.getModels.mockReturnValue(new Promise(() => {}))
+
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+		const pending = handler.fetchModel()
+		await vitest.advanceTimersByTimeAsync(5_000)
+		const model = await pending
+		expect(model.info.contextWindow).toBe(200_000)
+		expect(isDefaultedModelInfo(model.info)).toBe(true)
+	})
+
+	it("fetchModel backs off for a minute after a refresh fails or times out", async () => {
+		vitest.useFakeTimers()
+		AnthropicHandler.resetFailedFetchBackoff()
+		modelCache.getModels.mockReturnValue(new Promise(() => {})) // offline: never answers
+
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+		const first = handler.fetchModel()
+		await vitest.advanceTimersByTimeAsync(5_000)
+		expect(isDefaultedModelInfo((await first).info)).toBe(true)
+		expect(modelCache.getModels).toHaveBeenCalledTimes(1)
+
+		// The next requests inside the backoff window neither fetch nor wait.
+		const startedAt = Date.now()
+		expect(isDefaultedModelInfo((await handler.fetchModel()).info)).toBe(true)
+		const other = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-opus-5-5" })
+		expect(isDefaultedModelInfo((await other.fetchModel()).info)).toBe(true)
+		expect(Date.now() - startedAt).toBe(0)
+		expect(modelCache.getModels).toHaveBeenCalledTimes(1)
+
+		// A rejected fetch backs off the same way.
+		AnthropicHandler.resetFailedFetchBackoff()
+		modelCache.getModels.mockRejectedValue(new Error("ENOTFOUND"))
+		await handler.fetchModel()
+		await handler.fetchModel()
+		expect(modelCache.getModels).toHaveBeenCalledTimes(2)
+
+		// After the window a refresh is tried again.
+		await vitest.advanceTimersByTimeAsync(FAILED_FETCH_BACKOFF_MS)
+		await handler.fetchModel()
+		expect(modelCache.getModels).toHaveBeenCalledTimes(3)
+		AnthropicHandler.resetFailedFetchBackoff()
+	})
+
+	it("fetchModel does not fetch for bundled ids", async () => {
+		const handler = new AnthropicHandler({ apiKey: "k", apiModelId: "claude-3-haiku-20240307" })
+		const model = await handler.fetchModel()
+		expect(model.info.inputPrice).toBe(0.25)
+		expect(modelCache.getModels).not.toHaveBeenCalled()
 	})
 
 	it("still resolves bundled ids and the default", () => {

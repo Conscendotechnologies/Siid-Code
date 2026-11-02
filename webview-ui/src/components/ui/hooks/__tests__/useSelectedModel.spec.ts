@@ -345,6 +345,81 @@ describe("useSelectedModel", () => {
 
 			expect(result.current.isError).toBe(true)
 		})
+
+		// The picker names this id, so the anthropic default must not stand in for it.
+		it.each([
+			["loading", { isLoading: true, isError: false }],
+			["failed", { isLoading: false, isError: true }],
+		])("keeps the configured id while the lists have %s", (_name, status) => {
+			mockUseRouterModels.mockReturnValue({ data: undefined, ...status } as any)
+			mockUseOpenRouterModelProviders.mockReturnValue({ data: {}, isLoading: false, isError: false } as any)
+
+			const wrapper = createWrapper()
+			const { result } = renderHook(
+				() => useSelectedModel({ apiProvider: "anthropic", apiModelId: "claude-opus-5-5" } as ProviderSettings),
+				{ wrapper },
+			)
+
+			expect(result.current.id).toBe("claude-opus-5-5")
+			expect(result.current.info).toBeUndefined()
+		})
+	})
+
+	describe("isInfoDefaulted", () => {
+		const resolve = (config: Partial<ProviderSettings>, anthropic?: Record<string, ModelInfo>) => {
+			mockUseRouterModels.mockReturnValue({
+				data: { openrouter: {}, requesty: {}, glama: {}, unbound: {}, litellm: {}, anthropic },
+				isLoading: false,
+				isError: false,
+			} as any)
+			mockUseOpenRouterModelProviders.mockReturnValue({ data: {}, isLoading: false, isError: false } as any)
+
+			const wrapper = createWrapper()
+			return renderHook(() => useSelectedModel(config as ProviderSettings), { wrapper }).result.current
+		}
+
+		it("is false for an anthropic id in the live list", () => {
+			const info = { contextWindow: 1_000_000, supportsPromptCache: true } as ModelInfo
+			const result = resolve(
+				{ apiProvider: "anthropic", apiModelId: "claude-opus-5-5" },
+				{ "claude-opus-5-5": info },
+			)
+			expect(result.info).toEqual(info)
+			expect(result.isInfoDefaulted).toBe(false)
+		})
+
+		it("is true for a live anthropic entry the extension tagged as defaulted", () => {
+			const info = { contextWindow: 200_000, supportsPromptCache: true, modelInfoDefaulted: true } as ModelInfo
+			const result = resolve(
+				{ apiProvider: "anthropic", apiModelId: "claude-opus-5-5" },
+				{ "claude-opus-5-5": info },
+			)
+			expect(result.info).toEqual(info)
+			expect(result.isInfoDefaulted).toBe(true)
+		})
+
+		it("is false for an anthropic id neither list knows, which has no info at all", () => {
+			const result = resolve({ apiProvider: "anthropic", apiModelId: "claude-unknown" }, {})
+			expect(result.info).toBeUndefined()
+			expect(result.isInfoDefaulted).toBe(false)
+		})
+
+		it.each<[string, Partial<ProviderSettings>]>([
+			["bedrock custom ARN", { apiProvider: "bedrock", apiModelId: "custom-arn" }],
+			["huggingface", { apiProvider: "huggingface", huggingFaceModelId: "org/model" }],
+			["openai without custom info", { apiProvider: "openai", openAiModelId: "gpt-x" }],
+			["claude-code off the table", { apiProvider: "claude-code", apiModelId: "claude-unknown" }],
+		])("is true for %s", (_name, config) => {
+			const result = resolve(config)
+			expect(result.info).toBeDefined()
+			expect(result.isInfoDefaulted).toBe(true)
+		})
+
+		it("is false for openai with the user's own model info", () => {
+			const openAiCustomModelInfo = { contextWindow: 64_000, supportsPromptCache: false } as ModelInfo
+			const result = resolve({ apiProvider: "openai", openAiModelId: "gpt-x", openAiCustomModelInfo })
+			expect(result.isInfoDefaulted).toBe(false)
+		})
 	})
 
 	describe("default behavior", () => {

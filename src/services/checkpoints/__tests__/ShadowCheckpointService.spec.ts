@@ -77,6 +77,63 @@ describe.each([[RepoPerTaskCheckpointService, "RepoPerTaskCheckpointService"]])(
 			await fs.rm(tmpDir, { recursive: true, force: true })
 		})
 
+		describe(`${klass.name} git queue`, () => {
+			it("never runs git add concurrently, whichever operations overlap", async () => {
+				const git = (service as any).git as SimpleGit
+				const realAdd = git.add.bind(git)
+				let inFlight = 0
+				let maxInFlight = 0
+
+				vitest.spyOn(git, "add").mockImplementation(((files: string | string[]) => {
+					inFlight++
+					maxInFlight = Math.max(maxInFlight, inFlight)
+
+					return (async () => {
+						try {
+							// Hold the slot so any overlap would be seen.
+							await new Promise((resolve) => setTimeout(resolve, 20))
+							return await realAdd(files)
+						} finally {
+							inFlight--
+						}
+					})()
+				}) as any)
+
+				await fs.writeFile(testFile, "Queued change")
+
+				const [summaryA, summaryB, saved, diff] = await Promise.all([
+					service.getFileChangeSummary(),
+					service.getFileChangeSummary(),
+					service.saveCheckpoint("queued"),
+					service.getDiff({}),
+				])
+
+				expect(maxInFlight).toBe(1)
+				expect(git.add).toHaveBeenCalledTimes(4)
+				expect(summaryA).toEqual(summaryB)
+				expect(summaryA.map((file) => file.path)).toEqual(["test.txt"])
+				expect(saved?.commit).toBeTruthy()
+				expect(diff.map((change) => change.paths.relative)).toEqual(["test.txt"])
+			})
+
+			it("starts queued work in call order", async () => {
+				const order: string[] = []
+				const first = service.getFileChangeSummary().then(() => order.push("summary"))
+				const second = service.saveCheckpoint("ordered", { allowEmpty: true }).then(() => order.push("save"))
+
+				await Promise.all([first, second])
+
+				expect(order).toEqual(["summary", "save"])
+			})
+
+			it("keeps working after a queued operation fails", async () => {
+				service.on("error", () => {})
+
+				await expect(service.restoreCheckpoint("not-a-real-commit")).rejects.toThrow()
+				await expect(service.getFileChangeSummary()).resolves.toEqual([])
+			})
+		})
+
 		describe(`${klass.name}#getDiff`, () => {
 			it("returns the correct diff between commits", async () => {
 				await fs.writeFile(testFile, "Ahoy, world!")

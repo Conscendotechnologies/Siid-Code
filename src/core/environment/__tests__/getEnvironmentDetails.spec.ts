@@ -140,6 +140,72 @@ describe("getEnvironmentDetails", () => {
 		vi.mocked(delay).mockResolvedValue(undefined)
 	})
 
+	describe("file changes", () => {
+		const neverResolves = () => new Promise<never>(() => {})
+
+		it("does not wait for checkpoint init on turn one, and keeps init moving", async () => {
+			const getFileChanges = vi.fn(neverResolves)
+			const startCheckpointInit = vi.fn()
+			const pendingCline = {
+				...mockCline,
+				enableCheckpoints: true,
+				checkpointService: undefined,
+				checkpointServiceInitializing: false,
+				getFileChanges,
+				startCheckpointInit,
+			} as unknown as Task
+
+			const result = await getEnvironmentDetails(pendingCline)
+
+			expect(result).toContain("<environment_details>")
+			expect(result).not.toContain("# Files Changed This Task")
+			expect(getFileChanges).not.toHaveBeenCalled()
+			expect(startCheckpointInit).toHaveBeenCalledTimes(1)
+		})
+
+		it("does not wait while an assigned service is still initializing", async () => {
+			const getFileChanges = vi.fn(neverResolves)
+			const pendingCline = {
+				...mockCline,
+				enableCheckpoints: true,
+				checkpointService: {},
+				checkpointServiceInitializing: true,
+				getFileChanges,
+				startCheckpointInit: vi.fn(),
+			} as unknown as Task
+
+			await getEnvironmentDetails(pendingCline)
+
+			expect(getFileChanges).not.toHaveBeenCalled()
+		})
+
+		it("reads the list once the baseline exists", async () => {
+			const readyCline = {
+				...mockCline,
+				enableCheckpoints: true,
+				checkpointService: {},
+				checkpointServiceInitializing: false,
+				getFileChanges: vi
+					.fn()
+					.mockResolvedValue([{ path: "a.cls", status: "modified", additions: 2, deletions: 1 }]),
+			} as unknown as Task
+
+			const result = await getEnvironmentDetails(readyCline)
+
+			expect(result).toContain("- a.cls (modified, +2/-1)")
+		})
+
+		it("uses the caller's reader instead of computing its own", async () => {
+			const read = vi.fn().mockResolvedValue([{ path: "b.cls", status: "created", additions: 3, deletions: 0 }])
+
+			const result = await getEnvironmentDetails(mockCline as Task, undefined, false, read)
+
+			expect(read).toHaveBeenCalledTimes(1)
+			expect(mockCline.getFileChanges).not.toHaveBeenCalled()
+			expect(result).toContain("- b.cls (created, +3/-0)")
+		})
+	})
+
 	it("should return basic environment details", async () => {
 		const result = await getEnvironmentDetails(mockCline as Task)
 

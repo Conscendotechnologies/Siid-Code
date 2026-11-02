@@ -2,6 +2,14 @@
 
 import { ANTHROPIC_DEFAULT_MAX_TOKENS } from "@siid-code/types"
 import { MIN_CONDENSE_THRESHOLD, MAX_CONDENSE_THRESHOLD } from "../../condense"
+import {
+	planCondense,
+	contextTokensIncludeSystemPrompt,
+	findUnhandledContextOverflow,
+	markContextOverflowHandled,
+	isContextOverflowMessage,
+	REDUCTION_SOFT_CAP_TOKENS,
+} from "../../condense/stages"
 
 /**
  * Test suite for the auto-condense threshold calculation logic
@@ -11,18 +19,25 @@ import { MIN_CONDENSE_THRESHOLD, MAX_CONDENSE_THRESHOLD } from "../../condense"
  */
 describe("Auto-Condense Threshold Logic", () => {
 	/**
-	 * Helper function to calculate context percentage
-	 * Mirrors the logic in Task.ts
+	 * Context percentage as Task.attemptApiRequest computes it, via the real
+	 * planCondense() (totalTokens already includes the system prompt here).
 	 */
 	const calculateContextPercentage = (
 		totalTokens: number,
 		contextWindow: number,
 		maxTokens?: number | null,
-	): number => {
-		const effectiveMaxTokens = maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS
-		const availableTokens = contextWindow - effectiveMaxTokens
-		return (totalTokens / availableTokens) * 100
-	}
+	): number =>
+		planCondense({
+			contextTokens: totalTokens,
+			systemPromptTokens: 0,
+			systemPromptIncluded: true,
+			contextWindow,
+			maxTokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
+			defaulted: false,
+			thresholdPercent: 80,
+			messageCount: 10,
+			overflow: false,
+		}).percentUsed
 
 	/**
 	 * Helper function to determine the effective threshold
@@ -43,8 +58,10 @@ describe("Auto-Condense Threshold Logic", () => {
 		it("should calculate context percentage correctly with default max tokens", () => {
 			const contextWindow = 200000
 			const totalTokens = 100000
-			// availableTokens = 200000 - 8192 (ANTHROPIC_DEFAULT_MAX_TOKENS) = 191808
-			// percentage = (100000 / 191808) * 100 ≈ 52.13%
+			// With no model maxTokens the fallback is ANTHROPIC_DEFAULT_MAX_TOKENS (8192), so
+			// availableTokens = 200000 - 8192 = 191808 and percentage = 100000 / 191808 ≈ 52.13%.
+			// Real Anthropic ids never hit this fallback: the live list (or the bundled
+			// table) supplies maxTokens, and defaulted info is excluded from auto-condense.
 			const percentage = calculateContextPercentage(totalTokens, contextWindow, null)
 			expect(percentage).toBeCloseTo(52.13, 1)
 		})
@@ -340,6 +357,142 @@ describe("Auto-Condense Threshold Logic", () => {
 			const thresholdD = getEffectiveThreshold(autoCondenseContextPercent, profileThresholds, "profile-d")
 			expect(thresholdD).toBe(80)
 			expect(percentage >= thresholdD).toBe(false)
+		})
+	})
+
+	describe("Regression: wrong window after the model-list TTL lapsed", () => {
+		// Reproduced numbers: 140,562 context tokens (API usage, system prompt included)
+		// on claude-opus-5-5 with autoCondensePercent 100 (clamped to 80).
+		const contextTokens = 140_562
+		const systemPromptTokens = 30_600
+		const base = {
+			contextTokens,
+			systemPromptTokens,
+			systemPromptIncluded: true,
+			thresholdPercent: MAX_CONDENSE_THRESHOLD,
+			messageCount: 60,
+			overflow: false,
+		}
+
+		it("does not condense with the real 1M / 128k limits", () => {
+			const plan = planCondense({ ...base, contextWindow: 1_000_000, maxTokens: 128_000, defaulted: false })
+			expect(plan.availableTokens).toBe(872_000)
+			expect(plan.percentUsed).toBeCloseTo(16.1, 1)
+			expect(plan.shouldReduce).toBe(false)
+			expect(plan.shouldSummarize).toBe(false)
+		})
+
+		it("would have condensed on the 200k / 8k defaults (the bug), but defaulted info is now excluded", () => {
+			const wrong = planCondense({ ...base, contextWindow: 200_000, maxTokens: 8_192, defaulted: false })
+			expect(wrong.percentUsed).toBeGreaterThan(70) // the arithmetic that fired before
+			const guarded = planCondense({ ...base, contextWindow: 200_000, maxTokens: 8_192, defaulted: true })
+			expect(guarded.shouldReduce).toBe(false)
+			expect(guarded.shouldSummarize).toBe(false)
+			expect(guarded.reason).toMatch(/defaulted/)
+		})
+
+		it("a real provider overflow error still condenses, even with defaulted info", () => {
+			const plan = planCondense({
+				...base,
+				contextWindow: 200_000,
+				maxTokens: 8_192,
+				defaulted: true,
+				overflow: true,
+			})
+			expect(plan.shouldReduce).toBe(true)
+			expect(plan.shouldSummarize).toBe(true)
+			expect(plan.reason).toMatch(/overflow/)
+		})
+
+		it("does not double count the system prompt when usage numbers already include it", () => {
+			const included = planCondense({ ...base, contextWindow: 1_000_000, maxTokens: 128_000, defaulted: false })
+			const afterCondense = planCondense({
+				...base,
+				systemPromptIncluded: false,
+				contextWindow: 1_000_000,
+				maxTokens: 128_000,
+				defaulted: false,
+			})
+			expect(included.totalTokens).toBe(contextTokens)
+			expect(afterCondense.totalTokens).toBe(contextTokens + systemPromptTokens)
+		})
+
+		it("applies the absolute soft cap for staged reduction below the percent threshold", () => {
+			const plan = planCondense({
+				...base,
+				contextTokens: REDUCTION_SOFT_CAP_TOKENS + 10,
+				contextWindow: 1_000_000,
+				maxTokens: 128_000,
+				defaulted: false,
+			})
+			expect(plan.percentUsed).toBeLessThan(MAX_CONDENSE_THRESHOLD)
+			expect(plan.shouldReduce).toBe(true)
+			expect(plan.shouldSummarize).toBe(false)
+		})
+
+		it("summarises at the user's percentage (upper bound)", () => {
+			const plan = planCondense({
+				...base,
+				contextTokens: 700_000,
+				contextWindow: 1_000_000,
+				maxTokens: 128_000,
+				defaulted: false,
+			})
+			expect(plan.shouldReduce).toBe(true)
+			expect(plan.shouldSummarize).toBe(true)
+		})
+	})
+
+	describe("Overflow detection and token-source helpers", () => {
+		const say = (say: string, text: string, ts: number, extra: any = {}) =>
+			({ type: "say", say, text, ts, ...extra }) as any
+
+		it("recognises provider overflow messages", () => {
+			expect(isContextOverflowMessage("prompt is too long: 213482 tokens > 200000 maximum")).toBe(true)
+			expect(isContextOverflowMessage("input length and `max_tokens` exceed context limit: 199000 + 8192")).toBe(
+				true,
+			)
+			expect(isContextOverflowMessage("This model's maximum context length is 128000 tokens")).toBe(true)
+			// Gemini / Vertex wording
+			expect(
+				isContextOverflowMessage(
+					"The input token count (1200000) exceeds the maximum number of tokens allowed (1048576).",
+				),
+			).toBe(true)
+			expect(isContextOverflowMessage("Rate limit exceeded")).toBe(false)
+			expect(isContextOverflowMessage(undefined)).toBe(false)
+		})
+
+		it("finds an unhandled overflow once, and not after a condense", () => {
+			const task = {}
+			const messages = [
+				say("api_req_started", JSON.stringify({ tokensIn: 100 }), 1),
+				say(
+					"api_req_retry_delayed",
+					"prompt is too long: 213482 tokens > 200000 maximum\n\nRetry attempt 1",
+					2,
+				),
+			]
+			expect(findUnhandledContextOverflow(task, messages)?.ts).toBe(2)
+			markContextOverflowHandled(task, 2)
+			expect(findUnhandledContextOverflow(task, messages)).toBeUndefined()
+
+			const other = {}
+			expect(findUnhandledContextOverflow(other, messages)?.ts).toBe(2)
+			messages.push(say("condense_context", "", 3, { contextCondense: { newContextTokens: 5000 } }))
+			expect(findUnhandledContextOverflow(other, messages)).toBeUndefined()
+		})
+
+		it("reports whether the latest context count already includes the system prompt", () => {
+			expect(
+				contextTokensIncludeSystemPrompt([say("api_req_started", JSON.stringify({ tokensIn: 10 }), 1)]),
+			).toBe(true)
+			expect(
+				contextTokensIncludeSystemPrompt([
+					say("api_req_started", JSON.stringify({ tokensIn: 10 }), 1),
+					say("condense_context", "", 2, { contextCondense: { newContextTokens: 5000 } }),
+				]),
+			).toBe(false)
 		})
 	})
 

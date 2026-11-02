@@ -23,20 +23,81 @@ const memoryCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 5 * 60 })
 
 // Last successful Anthropic list per credential hash. Never expires, so synchronous readers
 // (AnthropicHandler.getModel, called by Task for context-window math) keep real model info
-// after the 5 minute memory TTL lapses, until a refresh replaces it.
+// after the 5 minute memory TTL lapses, until a refresh replaces it. Seeded once per process
+// from `anthropic_models.json`, so an extension restart does not revert to defaults either.
 const lastGoodAnthropic = new Map<string, ModelRecord>()
 
+// A list read from a legacy (flat, unkeyed) `anthropic_models.json`: usable for any credentials.
+let legacyDiskAnthropic: ModelRecord | undefined
+
+// In-flight Anthropic fetches per credential hash, so concurrent callers share one request.
+const inFlightAnthropic = new Map<string, Promise<ModelRecord>>()
+
+let anthropicSeedPromise: Promise<void> | undefined
+
 export function getLastGoodAnthropicModels(cacheKey: string): ModelRecord | undefined {
-	return lastGoodAnthropic.get(cacheKey)
+	return lastGoodAnthropic.get(cacheKey) ?? legacyDiskAnthropic
 }
 
-async function writeModels(router: RouterName | "anthropic", data: ModelRecord) {
+/** Format of `anthropic_models.json`: one list per credential hash (the raw key never appears). */
+type AnthropicModelsFile = { format: 2; lists: Record<string, ModelRecord> }
+
+function isAnthropicModelsFile(data: unknown): data is AnthropicModelsFile {
+	return (
+		!!data &&
+		typeof data === "object" &&
+		(data as AnthropicModelsFile).format === 2 &&
+		typeof (data as AnthropicModelsFile).lists === "object"
+	)
+}
+
+/**
+ * Seed the last-good map from disk once per process. Safe to call repeatedly
+ * and from synchronous-ish paths: it never throws and the result is memoised.
+ */
+export function ensureAnthropicLastGoodSeeded(): Promise<void> {
+	if (!anthropicSeedPromise) {
+		anthropicSeedPromise = (async () => {
+			try {
+				const data = await readModels("anthropic")
+				if (!data) return
+				if (isAnthropicModelsFile(data)) {
+					for (const [key, list] of Object.entries(data.lists)) {
+						if (list && typeof list === "object" && !lastGoodAnthropic.has(key)) {
+							lastGoodAnthropic.set(key, list)
+						}
+					}
+				} else if (typeof data === "object" && Object.keys(data).length > 0) {
+					legacyDiskAnthropic = data as ModelRecord
+				}
+			} catch (error) {
+				console.warn(
+					"[getModels] Could not seed Anthropic model list from disk:",
+					describeAnthropicError(error),
+				)
+			}
+		})()
+	}
+	return anthropicSeedPromise
+}
+
+/** Test hook: forget everything the Anthropic last-good state remembers. */
+export function resetAnthropicLastGoodForTests() {
+	lastGoodAnthropic.clear()
+	legacyDiskAnthropic = undefined
+	inFlightAnthropic.clear()
+	anthropicSeedPromise = undefined
+}
+
+async function writeModels(router: RouterName | "anthropic", data: ModelRecord | AnthropicModelsFile) {
 	const filename = `${router}_models.json`
 	const cacheDir = await getCacheDirectoryPath(ContextProxy.instance.globalStorageUri.fsPath)
 	await safeWriteJson(path.join(cacheDir, filename), data)
 }
 
-async function readModels(router: RouterName): Promise<ModelRecord | undefined> {
+async function readModels(router: RouterName): Promise<ModelRecord | undefined>
+async function readModels(router: "anthropic"): Promise<ModelRecord | AnthropicModelsFile | undefined>
+async function readModels(router: RouterName | "anthropic"): Promise<ModelRecord | AnthropicModelsFile | undefined> {
 	const filename = `${router}_models.json`
 	const cacheDir = await getCacheDirectoryPath(ContextProxy.instance.globalStorageUri.fsPath)
 	const filePath = path.join(cacheDir, filename)
@@ -140,20 +201,34 @@ async function getAnthropicModelsWithFallback(
 		return getAnthropicStaticModels()
 	}
 
-	try {
-		const models = await getAnthropicModels(options)
-		memoryCache.set(cacheKey, models)
-		lastGoodAnthropic.set(cacheKey, models)
-		await writeModels("anthropic", models).catch((err) =>
-			console.error("[getModels] Error writing anthropic models to file cache:", describeAnthropicError(err)),
-		)
-		return models
-	} catch (error) {
-		console.warn(
-			`[getModels] Anthropic model list unavailable, using bundled list: ${describeAnthropicError(error)}`,
-		)
-		return lastGoodAnthropic.get(cacheKey) ?? getAnthropicStaticModels()
+	const inFlight = inFlightAnthropic.get(cacheKey)
+	if (inFlight) {
+		return inFlight
 	}
+
+	const request = (async () => {
+		await ensureAnthropicLastGoodSeeded()
+		try {
+			const models = await getAnthropicModels(options)
+			memoryCache.set(cacheKey, models)
+			lastGoodAnthropic.set(cacheKey, models)
+			const file: AnthropicModelsFile = { format: 2, lists: Object.fromEntries(lastGoodAnthropic) }
+			await writeModels("anthropic", file).catch((err) =>
+				console.error("[getModels] Error writing anthropic models to file cache:", describeAnthropicError(err)),
+			)
+			return models
+		} catch (error) {
+			console.warn(
+				`[getModels] Anthropic model list unavailable, using bundled list: ${describeAnthropicError(error)}`,
+			)
+			return getLastGoodAnthropicModels(cacheKey) ?? getAnthropicStaticModels()
+		} finally {
+			inFlightAnthropic.delete(cacheKey)
+		}
+	})()
+
+	inFlightAnthropic.set(cacheKey, request)
+	return request
 }
 
 /**

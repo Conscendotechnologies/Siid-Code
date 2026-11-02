@@ -18,6 +18,10 @@ import { processUserContentMentions } from "../../mentions/processUserContentMen
 import { MultiSearchReplaceDiffStrategy } from "../../diff/strategies/multi-search-replace"
 import { MultiFileSearchReplaceDiffStrategy } from "../../diff/strategies/multi-file-search-replace"
 import { EXPERIMENT_IDS } from "../../../shared/experiments"
+import { saveTaskMessages } from "../../task-persistence"
+import pWaitFor from "p-wait-for"
+import { getEnvironmentDetails } from "../../environment/getEnvironmentDetails"
+import { getPreTaskDetails } from "../getPreTaskDetails"
 
 // Mock delay before any imports that might use it
 vi.mock("delay", () => ({
@@ -170,7 +174,19 @@ vi.mock("../../environment/getEnvironmentDetails", () => ({
 	getEnvironmentDetails: vi.fn().mockResolvedValue(""),
 }))
 
+vi.mock("../getPreTaskDetails", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../getPreTaskDetails")>()
+	return { ...actual, getPreTaskDetails: vi.fn(actual.getPreTaskDetails) }
+})
+
 vi.mock("../../ignore/RooIgnoreController")
+
+// Keep the real persistence module but make `saveTaskMessages` controllable so
+// the ask-correlation tests can delay / observe saves.
+vi.mock("../../task-persistence", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../../task-persistence")>()
+	return { ...actual, saveTaskMessages: vi.fn().mockResolvedValue(undefined) }
+})
 
 // Mock storagePathManager to prevent dynamic import issues.
 vi.mock("../../../utils/storage", () => ({
@@ -1043,6 +1059,7 @@ describe("Cline", () => {
 						apiConfiguration: mockApiConfig,
 					}),
 					say: vi.fn(),
+					log: vi.fn(),
 					postStateToWebview: vi.fn().mockResolvedValue(undefined),
 					postMessageToWebview: vi.fn().mockResolvedValue(undefined),
 					updateTaskHistory: vi.fn().mockResolvedValue(undefined),
@@ -1476,6 +1493,146 @@ describe("Cline", () => {
 			})
 		})
 
+		describe("turn start: file changes, status and timing", () => {
+			const changes = [{ path: "a.cls", status: "modified", additions: 1, deletions: 0 }] as any
+
+			const makeTask = () => {
+				mockProvider.log = vi.fn()
+				const task = new Task({
+					provider: mockProvider,
+					apiConfiguration: mockApiConfig,
+					task: "test task",
+					startTask: false,
+				})
+
+				// The stream loop stops here instead of continuing to the next turn.
+				task.abandoned = true
+				return task
+			}
+
+			const statusSpy = (task: Task) => vi.spyOn(task as any, "updateApiRequestProgressStatus")
+			const statuses = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(([text]) => text)
+
+			it("computes file changes once per turn and gives both prompt sections the result", async () => {
+				const task = makeTask()
+				task.enableCheckpoints = true
+				task.checkpointService = {} as any
+				task.checkpointServiceInitializing = false
+				const getFileChanges = vi.spyOn(task, "getFileChanges").mockResolvedValue(changes)
+
+				vi.mocked(getEnvironmentDetails).mockImplementationOnce(async (_task, _uri, _details, read) => {
+					expect(await read!()).toEqual(changes)
+					return ""
+				})
+				// eslint-disable-next-line require-yield -- the mock only has to reject
+				vi.spyOn(task, "attemptApiRequest").mockImplementation(async function* () {
+					throw new Error("stop")
+				})
+
+				await task.recursivelyMakeClineRequests([{ type: "text", text: "go" }]).catch(() => {})
+
+				expect(getFileChanges).toHaveBeenCalledTimes(1)
+				expect(vi.mocked(getPreTaskDetails).mock.lastCall?.[1]?.fileChanges).toEqual(changes)
+			})
+
+			it("builds the first prompt while the baseline is pending", async () => {
+				const task = makeTask()
+				task.enableCheckpoints = true
+				task.checkpointService = undefined
+				const getFileChanges = vi.spyOn(task, "getFileChanges")
+				const startInit = vi.spyOn(task, "startCheckpointInit").mockImplementation(() => {})
+
+				vi.mocked(getEnvironmentDetails).mockImplementationOnce(async (_task, _uri, _details, read) => {
+					await read!()
+					return ""
+				})
+				// eslint-disable-next-line require-yield -- the mock only has to reject
+				vi.spyOn(task, "attemptApiRequest").mockImplementation(async function* () {
+					throw new Error("stop")
+				})
+
+				await task.recursivelyMakeClineRequests([{ type: "text", text: "go" }]).catch(() => {})
+
+				expect(getFileChanges).not.toHaveBeenCalled()
+				expect(startInit).toHaveBeenCalled()
+				expect(vi.mocked(getPreTaskDetails).mock.lastCall?.[1]?.fileChanges).toEqual([])
+			})
+
+			it("moves from thinking to receiving only when visible content arrives, and logs timing", async () => {
+				const task = makeTask()
+				task.enableCheckpoints = false
+				const spy = statusSpy(task)
+				let statusesAtUsage: unknown[] = []
+
+				vi.spyOn(task.api, "createMessage").mockImplementation(() => {
+					return (async function* () {
+						yield { type: "usage", inputTokens: 1, outputTokens: 1 }
+						statusesAtUsage = statuses(spy)
+						yield { type: "text", text: "hello" }
+					})() as any
+				})
+
+				vi.spyOn(task, "getSystemPrompt").mockResolvedValue("system prompt")
+				vi.spyOn(task.diffViewProvider, "reset").mockResolvedValue(undefined)
+
+				await task.recursivelyMakeClineRequests([{ type: "text", text: "go" }])
+
+				expect(statusesAtUsage).toContain("Thinking (0s)...")
+				expect(statusesAtUsage).not.toContain("Receiving response...")
+
+				const seen = statuses(spy)
+				const order = [
+					"Collecting environment details...",
+					"Sending request to model...",
+					"Thinking (0s)...",
+					"Receiving response...",
+				].map((text) => seen.indexOf(text))
+				expect(order).not.toContain(-1)
+				expect(order).toEqual([...order].sort((a, b) => a - b))
+
+				const logs = mockProvider.log.mock.calls.map(([line]: [string]) => line)
+				expect(logs.some((l: string) => /\[timing\].*pre-send=\d+ms checkpointInit=disabled/.test(l))).toBe(
+					true,
+				)
+				expect(logs.some((l: string) => /\[timing\].*first-byte=\d+ms chunk=usage/.test(l))).toBe(true)
+			})
+
+			it("reports the snapshot wait and restores the previous status", async () => {
+				const task = makeTask()
+				task.enableCheckpoints = true
+				task.checkpointService = undefined
+				vi.spyOn(task, "startCheckpointInit").mockImplementation(() => {})
+				task.clineMessages = [
+					{
+						ts: Date.now(),
+						type: "say",
+						say: "api_req_started",
+						text: "{}",
+						progressStatus: { text: "Receiving response...", icon: "sync" },
+					},
+				]
+				const spy = statusSpy(task)
+
+				await task.waitForCheckpointBaseline()
+
+				// The gate waits on this instance's own init promise (resolved by the
+				// checkpoints mock here), not on a polled flag.
+				expect(statuses(spy)).toEqual(["Snapshotting workspace for checkpoints...", "Receiving response..."])
+			})
+
+			it("shows no snapshot status when the baseline already exists", async () => {
+				const task = makeTask()
+				task.enableCheckpoints = true
+				task.checkpointService = {} as any
+				task.checkpointServiceInitializing = false
+				const spy = statusSpy(task)
+
+				await task.waitForCheckpointBaseline()
+
+				expect(spy).not.toHaveBeenCalled()
+			})
+		})
+
 		describe("getApiProtocol", () => {
 			it("should determine API protocol based on provider and model", async () => {
 				// Test with Anthropic provider
@@ -1569,6 +1726,126 @@ describe("Cline", () => {
 				})
 				expect(noModelTask.apiConfiguration.apiProvider).toBe("openai")
 			})
+		})
+	})
+
+	describe("ask response correlation", () => {
+		const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+		const withTimeout = <T>(promise: Promise<T>, ms: number) =>
+			Promise.race([promise, sleep(ms).then(() => "TIMED_OUT" as const)])
+
+		const createTask = () =>
+			new Task({
+				provider: mockProvider,
+				apiConfiguration: mockApiConfig,
+				task: "ask correlation",
+				startTask: false,
+			})
+
+		beforeEach(() => {
+			vi.mocked(saveTaskMessages).mockReset()
+			vi.mocked(saveTaskMessages).mockResolvedValue(undefined)
+			// This file mocks p-wait-for to resolve immediately; these tests need
+			// the real "wait until the condition holds" semantics.
+			vi.mocked(pWaitFor).mockImplementation((async (
+				condition: () => boolean | Promise<boolean>,
+				options?: any,
+			) => {
+				const interval = options?.interval ?? 20
+				while (!(await condition())) {
+					await sleep(interval)
+				}
+			}) as any)
+		})
+
+		afterEach(() => {
+			vi.mocked(pWaitFor).mockImplementation((async () => Promise.resolve()) as any)
+		})
+
+		it("resolves when the webview auto-approves synchronously from postStateToWebview while the save is slow", async () => {
+			const task = createTask()
+			// Simulate a slow (lock-contended) disk write.
+			vi.mocked(saveTaskMessages).mockImplementation(() => sleep(50))
+			// Simulate the webview auto-approve effect: it answers as soon as the
+			// state containing the ask row is posted, correlating on the row ts.
+			mockProvider.postStateToWebview = vi.fn().mockImplementation(async () => {
+				const lastMsg = task.clineMessages.at(-1)
+				if (lastMsg?.type === "ask") {
+					task.handleWebviewAskResponse("yesButtonClicked", undefined, undefined, lastMsg.ts)
+				}
+			})
+
+			const result = await withTimeout(
+				task.ask("tool", JSON.stringify({ tool: "readFile", path: "x" }), false),
+				1500,
+			)
+
+			expect(result).not.toBe("TIMED_OUT")
+			expect((result as any).response).toBe("yesButtonClicked")
+		})
+
+		it("resolves when the response arrives after the ask row was persisted", async () => {
+			const task = createTask()
+			mockProvider.postStateToWebview = vi.fn().mockResolvedValue(undefined)
+
+			const askPromise = task.ask("tool", JSON.stringify({ tool: "readFile", path: "x" }), false)
+			await sleep(150)
+			const lastMsg = task.clineMessages.at(-1)!
+			expect(lastMsg.type).toBe("ask")
+			task.handleWebviewAskResponse("yesButtonClicked", "ok", undefined, lastMsg.ts)
+
+			const result = await withTimeout(askPromise, 1500)
+			expect(result).not.toBe("TIMED_OUT")
+			expect((result as any).response).toBe("yesButtonClicked")
+			expect((result as any).text).toBe("ok")
+		})
+
+		it("drops a stale response for an older ask, logs it, and still accepts the current one", async () => {
+			const task = createTask()
+			mockProvider.postStateToWebview = vi.fn().mockResolvedValue(undefined)
+			const logSpy = vi.spyOn(mockProvider, "log").mockImplementation(() => {})
+
+			const askPromise = task.ask("tool", JSON.stringify({ tool: "readFile", path: "x" }), false)
+			await sleep(50)
+			const lastMsg = task.clineMessages.at(-1)!
+
+			// Stale: a ts that belongs to neither the active ask nor the last row.
+			task.handleWebviewAskResponse("noButtonClicked", undefined, undefined, lastMsg.ts - 1000)
+			expect(await withTimeout(askPromise, 250)).toBe("TIMED_OUT")
+			expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Dropping ask response"))
+
+			task.handleWebviewAskResponse("yesButtonClicked", undefined, undefined, lastMsg.ts)
+			const result = await withTimeout(askPromise, 1500)
+			expect(result).not.toBe("TIMED_OUT")
+			expect((result as any).response).toBe("yesButtonClicked")
+			logSpy.mockRestore()
+		})
+
+		it("serializes overlapping saves and writes the latest messages last", async () => {
+			const task = createTask()
+			let inFlight = 0
+			let maxInFlight = 0
+			const written: number[] = []
+			vi.mocked(saveTaskMessages).mockImplementation(async ({ messages }: any) => {
+				inFlight++
+				maxInFlight = Math.max(maxInFlight, inFlight)
+				await sleep(30)
+				written.push(messages.length)
+				inFlight--
+			})
+
+			task.clineMessages.push({ ts: 1, type: "say", say: "text", text: "a" } as any)
+			const p1 = (task as any).saveClineMessages()
+			task.clineMessages.push({ ts: 2, type: "say", say: "text", text: "b" } as any)
+			const p2 = (task as any).saveClineMessages()
+			task.clineMessages.push({ ts: 3, type: "say", say: "text", text: "c" } as any)
+			const p3 = (task as any).saveClineMessages()
+			await Promise.all([p1, p2, p3])
+
+			expect(maxInFlight).toBe(1)
+			// First write starts immediately; the following two coalesce into one.
+			expect(written.length).toBeLessThanOrEqual(2)
+			expect(written.at(-1)).toBe(3)
 		})
 	})
 })

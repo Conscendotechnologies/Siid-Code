@@ -11,6 +11,7 @@ import { AgentsRightPane } from "./AgentsRightPane"
 import { AgentsFlag } from "./AgentsFlag"
 import { agentsThemeVars } from "./agentsTheme"
 import { AGENTS_PORTAL_ID, isTaskRunning } from "./agentsFormat"
+import siidLogo from "./assets/siid-logo.png?inline"
 import "./agents.css"
 
 type AgentsTab = "settings" | "history" | "mcp" | "modes" | "chat"
@@ -104,6 +105,7 @@ export const AgentsView = ({ renderChat, onSwitchTab, hidden }: AgentsViewProps)
 				{!hasTask && <AgentsFlag className="agents-flagshape" />}
 				{!hasTask && (
 					<div className="agents-hero" data-testid="agents-hero">
+						<img className="agents-hero-logo" src={siidLogo} alt="SIID" />
 						<div className="agents-eyebrow">{t("agents:tagline")}</div>
 						<h1>{t("agents:heroTitle")}</h1>
 						<AgentsComposer />

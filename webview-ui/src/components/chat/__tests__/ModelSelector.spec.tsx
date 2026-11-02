@@ -29,7 +29,11 @@ vi.mock("@/components/ui", () => ({
 			{children}
 		</div>
 	),
-	PopoverTrigger: ({ children, disabled }: any) => <div data-disabled={disabled}>{children}</div>,
+	PopoverTrigger: ({ children, disabled, "data-testid": testId }: any) => (
+		<div data-disabled={disabled} data-testid={testId}>
+			{children}
+		</div>
+	),
 	PopoverContent: ({ children }: any) => <div>{children}</div>,
 	StandardTooltip: ({ children }: any) => <>{children}</>,
 }))
@@ -102,21 +106,66 @@ describe("ModelSelector", () => {
 	})
 
 	describe("volatile provider catalogue", () => {
-		// Removing a model must not blank the trigger: the user keeps their
-		// stored id and needs a visible prompt to choose again.
-		test("still renders when the stored model is no longer in the list", () => {
+		// The stored id is what requests use, so it is named rather than replaced
+		// by a prompt that implies no model is set.
+		test("names a stored model that is not in the list by its id", () => {
+			const onChange = vi.fn()
+			renderSelector({ value: "claude-opus-5-5", onChange })
+
+			const trigger = screen.getByTestId("model-selector-trigger")
+			expect(trigger).toHaveTextContent("claude-opus-5-5")
+			expect(trigger).not.toHaveTextContent("chat:modelSelector.selectModel")
+			expect(onChange).not.toHaveBeenCalled()
+		})
+
+		test("compacts a vendor path on the trigger and keeps the full id as its title", () => {
 			renderSelector({ value: "vendor/removed-model" })
-			// Prompts for a new pick rather than showing a bare id, and does not
-			// silently switch the user to another model.
-			expect(screen.getAllByText("chat:modelSelector.selectModel").length).toBeGreaterThan(0)
-			expect(screen.queryByText("vendor/removed-model")).toBeNull()
+
+			const label = screen.getByText("removed-model")
+			expect(label.closest("[data-testid='model-selector-trigger']")).not.toBeNull()
+			expect(label).toHaveAttribute("title", "vendor/removed-model")
+		})
+
+		test("does not put a title on a model the list can name", () => {
+			renderSelector({ value: PAID.modelId })
+			const trigger = screen.getByTestId("model-selector-trigger")
+			expect(trigger.querySelector("[title]")).toBeNull()
+		})
+
+		test("prompts only when there is truly no model", () => {
+			renderSelector({ value: "" })
+			expect(screen.getByTestId("model-selector-trigger")).toHaveTextContent("chat:modelSelector.selectModel")
+		})
+
+		test("the dropdown keeps the mode's list and picking from it still works", () => {
+			const onChange = vi.fn()
+			renderSelector({ value: "claude-opus-5-5", onChange })
+
+			expect(screen.getAllByText("Paid Model").length).toBeGreaterThan(0)
+			expect(screen.getAllByText("claude-opus-5-5")).toHaveLength(1)
+
+			fireEvent.click(screen.getByText("Paid Model"))
+			expect(onChange).toHaveBeenCalledWith(PAID.modelId)
 		})
 
 		// A model that moved from free to paid drops out of the free-only list,
-		// so the selector must not crash on a now-missing selection.
-		test("handles a stored model that has been re-tiered out of the list", () => {
+		// but it stays in use, so the trigger keeps its name.
+		test("keeps the name of a stored model filtered out by useFreeModels", () => {
 			renderSelector({ value: PAID.modelId, useFreeModels: true })
+
+			expect(screen.getByTestId("model-selector-trigger")).toHaveTextContent("Paid Model")
 			expect(screen.getAllByText("Free Model (Free)").length).toBeGreaterThan(0)
+			expect(screen.getAllByText("Paid Model")).toHaveLength(1)
+		})
+
+		test("names an off-list stored model under useFreeModels and developerMode alike", () => {
+			const first = renderSelector({ value: "claude-opus-5-5", useFreeModels: true })
+			expect(screen.getByTestId("model-selector-trigger")).toHaveTextContent("claude-opus-5-5")
+			first.unmount()
+
+			renderSelector({ value: "claude-opus-5-5", useFreeModels: true, developerMode: true })
+			expect(screen.getByTestId("model-selector-trigger")).toHaveTextContent("claude-opus-5-5")
+			expect(screen.getAllByText("Paid Model").length).toBeGreaterThan(0)
 		})
 
 		test("renders nothing when the mode has no models at all", () => {

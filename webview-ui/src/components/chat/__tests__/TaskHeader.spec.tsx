@@ -46,7 +46,72 @@ vi.mock("@src/context/ExtensionStateContext", () => ({
 	}),
 }))
 
+// Same shape the real hook has before its model lists arrive, unless a test sets otherwise.
+const { selectedModel } = vi.hoisted(() => ({
+	selectedModel: { current: { id: "claude-3-opus-20240229", info: undefined, isLoading: true } as any },
+}))
+vi.mock("@/components/ui/hooks/useSelectedModel", () => ({ useSelectedModel: () => selectedModel.current }))
+
 describe("TaskHeader", () => {
+	const loadingModel = selectedModel.current
+
+	afterEach(() => {
+		selectedModel.current = loadingModel
+	})
+
+	describe("cost when the price is unknown", () => {
+		const unpriced = { contextWindow: 1_000_000, supportsPromptCache: true }
+
+		it("shows a dash with a tooltip label instead of a cost, collapsed and expanded", () => {
+			selectedModel.current = { id: "claude-opus-5-5", info: unpriced, isLoading: false }
+			renderTaskHeader({ totalCost: 0 })
+
+			expect(screen.getByTestId("task-cost-unavailable")).toHaveTextContent("—")
+			expect(screen.getByTestId("task-cost-unavailable")).toHaveAttribute(
+				"aria-label",
+				"chat:task.priceUnavailable",
+			)
+			expect(screen.queryByText(/\$/)).not.toBeInTheDocument()
+
+			fireEvent.click(screen.getByText("Test task"))
+			expect(screen.getByTestId("task-cost-unavailable")).toBeInTheDocument()
+			expect(screen.getByText("chat:task.apiCost")).toBeInTheDocument()
+		})
+
+		it("treats a model with no info at all as unpriced once loading has finished", () => {
+			selectedModel.current = { id: "claude-opus-5-5", info: undefined, isLoading: false }
+			renderTaskHeader({ totalCost: 0 })
+			expect(screen.getByTestId("task-cost-unavailable")).toBeInTheDocument()
+		})
+
+		it("keeps the numeric cost when one has been recorded", () => {
+			selectedModel.current = { id: "claude-opus-5-5", info: unpriced, isLoading: false }
+			renderTaskHeader({ totalCost: 0.05 })
+			expect(screen.getByText("$0.05")).toBeInTheDocument()
+			expect(screen.queryByTestId("task-cost-unavailable")).not.toBeInTheDocument()
+		})
+
+		it("shows no dash for a model whose price is known to be 0", () => {
+			selectedModel.current = {
+				id: "free-model",
+				info: { ...unpriced, inputPrice: 0, outputPrice: 0 },
+				isLoading: false,
+			}
+			renderTaskHeader({ totalCost: 0 })
+			expect(screen.queryByTestId("task-cost-unavailable")).not.toBeInTheDocument()
+		})
+
+		it("shows no dash while loading or before any tokens are used", () => {
+			const { unmount } = renderTaskHeader({ totalCost: 0 })
+			expect(screen.queryByTestId("task-cost-unavailable")).not.toBeInTheDocument()
+			unmount()
+
+			selectedModel.current = { id: "claude-opus-5-5", info: unpriced, isLoading: false }
+			renderTaskHeader({ totalCost: 0, tokensIn: 0, tokensOut: 0 })
+			expect(screen.queryByTestId("task-cost-unavailable")).not.toBeInTheDocument()
+		})
+	})
+
 	const defaultProps: TaskHeaderProps = {
 		task: { type: "say", ts: Date.now(), text: "Test task", images: [] },
 		tokensIn: 100,

@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { ArrowUp, ChevronLeft, ChevronRight, Folder, Monitor, Plus } from "lucide-react"
 
 import { getAllModes } from "@roo/modes"
-import { getModelsForMode } from "@roo/mode-models"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
@@ -21,18 +20,10 @@ const AGENTS_IMAGE_TS = -1
 
 export const AgentsComposer = () => {
 	const { t } = useAppTranslation()
-	const {
-		apiConfiguration,
-		mode,
-		customModes,
-		autoApprovalEnabled,
-		cwd,
-		useFreeModels,
-		developerMode,
-		modeModelListVersion,
-	} = useExtensionState()
+	const { apiConfiguration, mode, customModes, autoApprovalEnabled, cwd, useFreeModels, developerMode } =
+		useExtensionState()
 	const selectedModel = useSelectedModel(apiConfiguration)
-	const { info, isLoading } = selectedModel
+	const { info, isLoading, isInfoDefaulted } = selectedModel
 	// Same value the sidebar's ModelSelector receives (ChatTextArea).
 	const modelId = selectedModel.id || ""
 	const portalContainer = useRooPortal(AGENTS_PORTAL_ID)
@@ -47,19 +38,10 @@ export const AgentsComposer = () => {
 	const currentMode = modes.find((m) => m.slug === mode)
 	const modeName = currentMode?.name ?? mode
 
-	// The detail describes the model the picker names. When the stored model is not offered the
-	// picker says "Select a model", so no detail is shown then, nor while model info is loading.
-	const modelListed = useMemo(
-		() =>
-			getModelsForMode(mode).some(
-				(m) => m.modelId === modelId && (developerMode || useFreeModels !== true || m.tier === "Free"),
-			),
-		// modeModelListVersion signals that the shared list was replaced.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[mode, modelId, useFreeModels, developerMode, modeModelListVersion],
-	)
+	// The detail describes the model the picker names, listed in the mode or not. Nothing is shown
+	// while info is loading, or when the figure would be a placeholder rather than the model's own.
 	const detail =
-		!isLoading && info && modelListed
+		!isLoading && info && !isInfoDefaulted
 			? buildModelDetail({
 					reasoningEffort: info.supportsReasoningEffort ? apiConfiguration?.reasoningEffort : undefined,
 					reasoningEnabled: apiConfiguration?.enableReasoningEffort,
