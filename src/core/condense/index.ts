@@ -2,18 +2,53 @@ import Anthropic from "@anthropic-ai/sdk"
 
 import { TelemetryService } from "@siid-code/telemetry"
 
-import { t } from "../../i18n"
 import { ApiHandler } from "../../api"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
+import {
+	ELIDED_MARKER,
+	FIRST_MESSAGE_BUDGET_FRACTION,
+	boundFirstMessage,
+	describeReduction,
+	estimateMessageTokens,
+	reduceConversation,
+	selectTailStart,
+	shouldApplyReduction,
+	tailTokenBudget,
+	VERBATIM_TAIL_MIN_MESSAGES,
+} from "./stages"
+import { buildWorkingSet } from "./workingSet"
 
-export const N_MESSAGES_TO_KEEP = 0 // Changed: Now we don't keep any messages, only the summary
+export {
+	reduceConversation,
+	selectTailStart,
+	tailTokenBudget,
+	planCondense,
+	REDUCTION_SOFT_CAP_TOKENS,
+	VERBATIM_TAIL_MIN_MESSAGES,
+	STAGE1_PROTECTED_MESSAGES,
+} from "./stages"
+export { buildWorkingSet, collectWorkingSet, formatWorkingSet } from "./workingSet"
+
+/** Minimum number of trailing messages kept verbatim after a summary. */
+export const N_MESSAGES_TO_KEEP = VERBATIM_TAIL_MIN_MESSAGES
 export const MIN_CONDENSE_THRESHOLD = 5 // Minimum percentage of context window to trigger condensing
 export const MAX_CONDENSE_THRESHOLD = 80 // Maximum percentage of context window to trigger condensing
-const CONTINUATION_PROMPT = "Please continue from where we left off based on the summary above."
+export const CONTINUATION_PROMPT = "Please continue from where we left off based on the summary above."
+const CONTINUATION_PROMPT_WITH_TAIL = `${CONTINUATION_PROMPT} The messages after this one are the verbatim most recent part of the conversation; a tool output shown as ${ELIDED_MARKER}: ...] can be fetched again with the tool named in it.`
 const MAX_SUMMARY_ATTEMPTS = 2
+const MIN_MESSAGES_FOR_SUMMARY = 3
+
+// Summary size scales with what is being summarised: ~5% of the summarised
+// tokens, so 2,000 tokens at a 40k body up to 6,000 at 120k+; smaller bodies
+// (rare for an automatic condense) scale down to the floor.
+const SUMMARY_TARGET_MIN_TOKENS = 500
+const SUMMARY_TARGET_MAX_TOKENS = 6_000
+const SUMMARY_TARGET_FRACTION = 0.05
 const MIN_SUMMARY_CHARS_ABSOLUTE = 350
-const MIN_SUMMARY_CHARS_MAX = 2000
+const MIN_SUMMARY_CHARS_MAX = 8_000
+// Never demand more than this share of the body's own characters.
+const MIN_SUMMARY_BODY_FRACTION = 0.25
 
 const SUMMARY_RETRY_PROMPT_SUFFIX = `\
 CRITICAL RETRY INSTRUCTION:
@@ -56,10 +91,24 @@ function isToolLikeSummaryOutput(summaryText: string): boolean {
 	return false
 }
 
-function getMinimumSummaryChars(prevContextTokens: number, messageCount: number): number {
-	const tokenBasedMinimum = Math.floor(prevContextTokens * 0.012) // ~1.2% of previous context
+/** Target summary length in tokens for a body of `bodyTokens`. */
+export function getSummaryTargetTokens(bodyTokens: number): number {
+	const scaled = Math.round(bodyTokens * SUMMARY_TARGET_FRACTION)
+	return Math.max(SUMMARY_TARGET_MIN_TOKENS, Math.min(SUMMARY_TARGET_MAX_TOKENS, scaled))
+}
+
+/**
+ * Minimum acceptable summary length in characters: roughly 35% of the target
+ * (at ~4 chars/token), never below the absolute floor, scaled by message count.
+ */
+export function getMinimumSummaryChars(bodyTokens: number, messageCount: number): number {
+	const targetBasedMinimum = Math.round(getSummaryTargetTokens(bodyTokens) * 1.4)
+	const bodyCap = Math.round(bodyTokens * 3.5 * MIN_SUMMARY_BODY_FRACTION)
 	const messageBasedMinimum = messageCount * 40
-	return Math.min(MIN_SUMMARY_CHARS_MAX, Math.max(MIN_SUMMARY_CHARS_ABSOLUTE, tokenBasedMinimum, messageBasedMinimum))
+	return Math.min(
+		MIN_SUMMARY_CHARS_MAX,
+		Math.max(MIN_SUMMARY_CHARS_ABSOLUTE, messageBasedMinimum, Math.min(targetBasedMinimum, bodyCap)),
+	)
 }
 
 function isSummaryTooShort(summaryText: string, minSummaryChars: number): boolean {
@@ -135,7 +184,9 @@ ABSOLUTE OUTPUT RULES:
 - Do NOT ask questions or offer options.
 - Any violation renders this output invalid.
 
-OUTPUT LENGTH: 500–2000 tokens. Lean toward 800–1200 for typical sessions. Use more only if many files or errors require it.
+OUTPUT LENGTH: __LENGTH__
+
+WHAT THE AGENT WILL STILL HAVE: the original task message, the most recent messages verbatim, and a generated working set listing files read or edited (with line ranges and content hashes) and the current todo list. Do not repeat the working set; spend your words on reasoning, decisions, and anything only the older messages knew. Tool outputs shown as "[elided: ...]" were removed on purpose; mention what they established, not that they were elided. If the transcript starts with an earlier "[Context Summary]", merge it with the newer messages into one summary, keeping every still-relevant fact.
 
 ---
 
@@ -145,27 +196,41 @@ Write the summary using exactly these 7 section headers in order:
 Summarize the overall arc of the session in 2–4 sentences: what the user wanted, what approach was taken, and where things stand now.
 
 2. Current Work:
-Describe the most recent task in detail. Include: what was attempted, what succeeded, what is in-progress or blocked, and the exact state of any code being written or modified.
+Describe the most recent task in detail. Include: what was attempted, what succeeded, what is in-progress or blocked, and the exact state of any code being written or modified. If an edit is pending, partially applied, or was planned but not yet made, give it exactly: the file path, the exact text to find, and the exact replacement text, verbatim, so the agent can apply it without re-reading.
 
 3. Key Technical Concepts:
 List the languages, frameworks, libraries, APIs, design patterns, and architectural constraints active in this session. Be specific (e.g., "TypeScript with strict null checks", "React 18 concurrent mode", "REST API on port 3001").
 
 4. Relevant Files and Code:
-For each file touched: its path, what changed, and why. If a function or class was modified, name it. Keep this grounded — paths and symbol names only, no large code blocks.
+For each file touched: its path, what changed, and why. Name the functions or classes involved. Include short exact code fragments (a few lines) wherever the agent would otherwise have to re-read the file to continue: signatures it must call, the lines around a pending edit, an identifier it must reuse.
 
 5. Errors and Fixes:
-For each error or failure encountered: the error message or symptom, the diagnosed root cause, the fix applied, and whether it is resolved or still open.
+For each error or failure encountered: the error message or symptom, the diagnosed root cause, the fix applied, and whether it is resolved or still open. Keep exact identifiers (deploy ids, record ids, test names, error codes).
 
 6. User Messages (Chronological):
-List every user request in order, one per line, concise but complete. Preserve intent, not just surface phrasing.
+List every user request in order, one per line, concise but complete. Preserve intent, not just surface phrasing. Any constraint the user stated (do not do X, only touch Y) must appear here word for word.
 
 7. Pending Tasks and Next Steps:
-List the exact next actions the agent should take when resuming. Quote the user's most recent instruction verbatim at the end of this section as: "Latest user intent: [quote here]"
+List the exact next actions the agent should take when resuming, in order, including the reasoning behind the chosen approach so it is not re-derived. Quote the user's most recent instruction verbatim at the end of this section as: "Latest user intent: [quote here]"
 
 ---
 
 Output only the 7 sections above. No preamble, no sign-off.
 `
+
+function buildSummaryPrompt(
+	customCondensingPrompt: string | undefined,
+	targetTokens: number,
+): {
+	prompt: string
+	custom: boolean
+} {
+	const length = `about ${targetTokens} tokens (${Math.round(targetTokens * 0.6)}–${Math.round(targetTokens * 1.4)}). Use the upper end when many files, errors or pending edits need exact details.`
+	if (customCondensingPrompt && customCondensingPrompt.trim().length > 0) {
+		return { prompt: `${customCondensingPrompt.trim()}\n\nOUTPUT LENGTH: ${length}`, custom: true }
+	}
+	return { prompt: SUMMARY_PROMPT.replace("__LENGTH__", length), custom: false }
+}
 
 export type SummarizeResponse = {
 	messages: ApiMessage[] // The messages after summarization
@@ -175,22 +240,26 @@ export type SummarizeResponse = {
 	error?: string // Populated iff the operation fails: error message shown to the user on failure (see Task.ts)
 }
 
+function isContinuationMessage(message: ApiMessage): boolean {
+	if (message.role !== "user") return false
+	if (typeof message.content === "string") return message.content.startsWith(CONTINUATION_PROMPT)
+	const text = message.content.find((c) => c.type === "text") as Anthropic.Messages.TextBlockParam | undefined
+	return !!text && text.text.startsWith(CONTINUATION_PROMPT)
+}
+
 /**
- * Summarizes the conversation messages using an LLM call
+ * Condenses the conversation: staged reduction first (byte-stable tombstones
+ * for old tool output), then an LLM summary of the older part of the history
+ * while the original task message and a verbatim recent tail are kept.
+ *
+ * Result layout: [first user message, summary (assistant, isSummary),
+ * continuation (user), ...verbatim tail]. The summary message also carries a
+ * generated working set (files read/edited with ranges and hashes, current
+ * todo, latest user instruction verbatim).
  *
  * @param {ApiMessage[]} messages - The conversation messages
- * @param {ApiHandler} apiHandler - The API handler to use for token counting.
- * @param {string} systemPrompt - The system prompt for API requests, which should be considered in the context token count
- * @param {string} taskId - The task ID for the conversation, used for telemetry
- * @param {boolean} isAutomaticTrigger - Whether the summarization is triggered automatically
- * @returns {SummarizeResponse} - The result of the summarization operation (see above)
- */
-/**
- * Summarizes the conversation messages using an LLM call
- *
- * @param {ApiMessage[]} messages - The conversation messages
- * @param {ApiHandler} apiHandler - The API handler to use for token counting (fallback if condensingApiHandler not provided)
- * @param {string} systemPrompt - The system prompt for API requests (fallback if customCondensingPrompt not provided)
+ * @param {ApiHandler} apiHandler - The main API handler: its model decides the tail budget and counts tokens (fallback if condensingApiHandler not provided)
+ * @param {string} systemPrompt - The system prompt for API requests (kept for signature compatibility; the summary uses its own prompt)
  * @param {string} taskId - The task ID for the conversation, used for telemetry
  * @param {number} prevContextTokens - The number of tokens currently in the context, used to ensure we don't grow the context
  * @param {boolean} isAutomaticTrigger - Whether the summarization is triggered automatically
@@ -198,27 +267,6 @@ export type SummarizeResponse = {
  * @param {ApiHandler} condensingApiHandler - Optional specific API handler to use for condensing
  * @returns {SummarizeResponse} - The result of the summarization operation (see above)
  */
-// Tools whose results should be replaced with a short status message
-const TOOLS_TO_TRIM_RESULTS: string[] = [
-	"list_files",
-	"search_files",
-	"codebase_search",
-	"retrieve_sf_metadata",
-	"execute_command",
-	"read_file",
-	"sf_deploy_metadata",
-	"update_todo_list",
-	"write_to_file",
-	"apply_diff",
-]
-
-// Tools whose results should NOT be touched
-// const TOOLS_TO_KEEP_RESULTS: string[] = [
-// 	"fetch_instructions",
-// 	"switch_mode",
-// 	"new_task",
-// ]
-
 export async function summarizeConversation(
 	messages: ApiMessage[],
 	apiHandler: ApiHandler,
@@ -229,79 +277,80 @@ export async function summarizeConversation(
 	customCondensingPrompt?: string,
 	condensingApiHandler?: ApiHandler,
 ): Promise<SummarizeResponse> {
+	void systemPrompt
 	const startTime = Date.now()
 	console.log(
-		`[summarizeConversation] Starting full summarization. taskId: ${taskId}, messageCount: ${messages.length}, isAutomatic: ${isAutomaticTrigger}`,
+		`[summarizeConversation] Starting. taskId: ${taskId}, messageCount: ${messages.length}, isAutomatic: ${isAutomaticTrigger}`,
 	)
 
 	try {
 		// Use condensing handler if provided, otherwise use main handler
 		const handler = condensingApiHandler ?? apiHandler
-		const prompt = SUMMARY_PROMPT
 
-		// If we have too few messages, no need to summarize
-		const MIN_MESSAGES_FOR_SUMMARY = 3 // Need at least 3 messages to make summarization worthwhile
+		// Stage 0-1 first. Idempotent: a history reduced earlier comes back unchanged.
+		const reduced = reduceConversation(messages)
+		const working = reduced.messages
 
-		// Find the most recent summary message (if any)
-		let lastSummaryIndex = -1
-		let existingSummary: ApiMessage | undefined
-		for (let i = messages.length - 1; i >= 0; i--) {
-			if (messages[i].isSummary) {
-				lastSummaryIndex = i
-				existingSummary = messages[i]
-				break
+		// When no summary is written, the reduction alone is persisted only when
+		// it clears the hysteresis: a rewrite is a full prompt-cache miss, so a
+		// few tombstones a turn are not worth it. Unchanged input comes back as
+		// the same array with an empty summary so the caller writes no row.
+		// newContextTokens counts the messages only (no system prompt), the same
+		// as the summary path below.
+		const reductionOnly = async (): Promise<SummarizeResponse> => {
+			if (!shouldApplyReduction(reduced, prevContextTokens)) {
+				return { messages, cost: 0, summary: "", newContextTokens: prevContextTokens }
 			}
-		}
-
-		// Determine which messages to summarize
-		let messagesToSummarize: ApiMessage[]
-
-		if (lastSummaryIndex >= 0 && existingSummary) {
-			// We have a previous summary - summarize that summary + NEW messages after it,
-			// then replace both with a single merged summary.
-			const messagesAfterSummary = messages.slice(lastSummaryIndex + 1)
-
-			// Filter out the continuation prompt if it exists
-			const newMessages = messagesAfterSummary.filter((m) => {
-				if (m.role === "user" && Array.isArray(m.content)) {
-					const text = m.content.find((c) => c.type === "text") as
-						| Anthropic.Messages.TextBlockParam
-						| undefined
-					return text?.text !== CONTINUATION_PROMPT
-				}
-				return true
-			})
-
-			console.log(
-				`[summarizeConversation] Found existing summary at index ${lastSummaryIndex}, ` +
-					`${newMessages.length} new messages after it`,
+			const blocks = working.flatMap((message) =>
+				typeof message.content === "string"
+					? [{ text: message.content, type: "text" as const }]
+					: message.content,
 			)
-
-			if (newMessages.length < MIN_MESSAGES_FOR_SUMMARY) {
-				console.log(
-					`[summarizeConversation] Too few new messages (${newMessages.length}), skipping summarization`,
-				)
-				return { messages, cost: 0, summary: "", newContextTokens: prevContextTokens }
+			return {
+				messages: working,
+				cost: 0,
+				summary: describeReduction(reduced),
+				newContextTokens: await handler.countTokens(blocks),
 			}
-
-			messagesToSummarize = [existingSummary, ...newMessages]
-		} else {
-			// No previous summary - summarize all messages
-			if (messages.length < MIN_MESSAGES_FOR_SUMMARY) {
-				console.log(`[summarizeConversation] Too few messages (${messages.length}), skipping summarization`)
-				return { messages, cost: 0, summary: "", newContextTokens: prevContextTokens }
-			}
-
-			messagesToSummarize = messages
 		}
+
+		if (working.length < MIN_MESSAGES_FOR_SUMMARY) {
+			return reductionOnly()
+		}
+
+		// Layout: the first user message stays; everything up to the tail is summarised.
+		const keepFirst = working[0].role === "user" && !working[0].isSummary
+		const bodyStart = keepFirst ? 1 : 0
+		const contextWindow = apiHandler.getModel().info.contextWindow
+		const tailStart = selectTailStart(working, contextWindow, bodyStart)
+		const tail = working.slice(tailStart)
+
+		// A first message larger than its share of the tail + summary budget is
+		// cut to head + tail (with a note) and summarised with the body, so it
+		// cannot keep the context above the threshold forever.
+		const firstMessageBudget = Math.round(
+			(tailTokenBudget(contextWindow) + SUMMARY_TARGET_MAX_TOKENS) * FIRST_MESSAGE_BUDGET_FRACTION,
+		)
+		const first = keepFirst ? boundFirstMessage(working[0], firstMessageBudget) : undefined
+		const body = working.slice(first?.bounded ? 0 : bodyStart, tailStart).filter((m) => !isContinuationMessage(m))
+		const existingSummaryCount = body.filter((m) => m.isSummary).length
+
+		if (body.length - existingSummaryCount < MIN_MESSAGES_FOR_SUMMARY) {
+			return reductionOnly()
+		}
+
+		const bodyTokens = body.reduce((sum, m) => sum + estimateMessageTokens(m), 0)
+		const targetTokens = getSummaryTargetTokens(bodyTokens)
+		const minSummaryChars = getMinimumSummaryChars(bodyTokens, body.length)
+		const { prompt, custom } = buildSummaryPrompt(customCondensingPrompt, targetTokens)
 
 		console.log(
-			`[summarizeConversation] Summarizing ${messagesToSummarize.length} messages ` +
-				`(hasExistingSummary: ${lastSummaryIndex >= 0})`,
+			`[summarizeConversation] Summarizing ${body.length} messages (~${bodyTokens} tokens, hasExistingSummary: ${existingSummaryCount > 0}), ` +
+				`keeping first=${keepFirst}${first?.bounded ? " (bounded to head+tail)" : ""}, tail=${tail.length} messages, target=${targetTokens} tokens, customPrompt=${custom}`,
 		)
 
 		// Remove images from messages to save tokens
-		const cleanedMessages = maybeRemoveImageBlocks(messagesToSummarize, handler)
+		const cleanedMessages = maybeRemoveImageBlocks(body, handler)
 		const transcript = buildConversationTranscript(cleanedMessages)
 		const summarizeTranscriptMessage: Anthropic.Messages.MessageParam = {
 			role: "user",
@@ -316,8 +365,7 @@ export async function summarizeConversation(
 			],
 		}
 
-		// Make LLM call to summarize all messages
-		// Collect summary text and usage metrics (supports a single retry on invalid tool-like output)
+		// Collect summary text and usage metrics (supports a single retry on invalid output)
 		let summaryText = ""
 		let inputTokens = 0
 		let outputTokens = 0
@@ -325,7 +373,6 @@ export async function summarizeConversation(
 		let cacheReadTokens = 0
 		let totalCost = 0
 		let retryValidationError: string | undefined
-		const minSummaryChars = getMinimumSummaryChars(prevContextTokens, messagesToSummarize.length)
 
 		for (let attempt = 1; attempt <= MAX_SUMMARY_ATTEMPTS; attempt++) {
 			const retrySuffix =
@@ -370,7 +417,6 @@ export async function summarizeConversation(
 			cacheReadTokens += attemptCacheReadTokens
 			totalCost += attemptTotalCost ?? 0
 
-			console.log([`[summarizeConversation] Received summary chunk (attempt ${attempt}):`, attemptSummaryText])
 			console.log(
 				`[summarizeConversation] Summary attempt ${attempt} complete. Length: ${attemptSummaryText.length} chars, tokens: in=${attemptInputTokens}, out=${attemptOutputTokens}`,
 			)
@@ -387,11 +433,13 @@ export async function summarizeConversation(
 				continue
 			}
 
-			const missingSections = getMissingSummarySections(attemptSummaryText)
-			if (missingSections.length > 0) {
-				retryValidationError = `Summary missing required sections: ${missingSections.join(", ")}`
-				console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
-				continue
+			if (!custom) {
+				const missingSections = getMissingSummarySections(attemptSummaryText)
+				if (missingSections.length > 0) {
+					retryValidationError = `Summary missing required sections: ${missingSections.join(", ")}`
+					console.warn(`[summarizeConversation] ${retryValidationError} (attempt ${attempt})`)
+					continue
+				}
 			}
 
 			summaryText = attemptSummaryText
@@ -421,7 +469,6 @@ export async function summarizeConversation(
 		}
 
 		// Calculate cost
-		// Import at top of file: import { calculateApiCostAnthropic } from "../../shared/cost"
 		const { calculateApiCostAnthropic } = await import("../../shared/cost")
 		const fallbackCost = calculateApiCostAnthropic(
 			handler.getModel().info,
@@ -432,32 +479,31 @@ export async function summarizeConversation(
 		)
 		const cost = totalCost > 0 ? totalCost : fallbackCost
 
-		// Create summary message (marked for collapsed view)
+		// Working set from the whole (reduced) history: real data, not recall.
+		const workingSet = buildWorkingSet(working)
+
 		const newSummaryMessage: ApiMessage = {
 			role: "assistant",
 			content: [
 				{
 					type: "text",
-					text: `[Context Summary]\n\n${summaryText}`,
+					text: `[Context Summary]\n\n${summaryText.trim()}\n\n${workingSet}`,
 				},
 			],
 			isSummary: true, // Mark as summary for UI to show in collapsed view
 		}
 
-		// Create user continuation message
 		const continuationMessage: ApiMessage = {
 			role: "user",
-			content: [
-				{
-					type: "text",
-					text: CONTINUATION_PROMPT,
-				},
-			],
+			content: [{ type: "text", text: CONTINUATION_PROMPT_WITH_TAIL }],
 		}
 
-		// Always keep a single merged summary + continuation prompt.
-		// If an existing summary was present, it was included in messagesToSummarize above.
-		const condensedMessages: ApiMessage[] = [newSummaryMessage, continuationMessage]
+		const condensedMessages: ApiMessage[] = [
+			...(first ? [first.message] : []),
+			newSummaryMessage,
+			continuationMessage,
+			...tail,
+		]
 
 		// Count new token usage
 		const contextBlocks = condensedMessages.flatMap((message) =>
@@ -467,7 +513,7 @@ export async function summarizeConversation(
 
 		const duration = Date.now() - startTime
 		const reduction = prevContextTokens - newContextTokens
-		const reductionPercent = ((reduction / prevContextTokens) * 100).toFixed(1)
+		const reductionPercent = prevContextTokens > 0 ? ((reduction / prevContextTokens) * 100).toFixed(1) : "n/a"
 
 		console.log(
 			`[summarizeConversation] Success! Duration: ${duration}ms, ` +

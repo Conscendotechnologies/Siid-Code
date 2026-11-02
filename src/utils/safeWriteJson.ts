@@ -43,11 +43,14 @@ async function safeWriteJson(filePath: string, data: any): Promise<void> {
 			stale: 5000, // Reduced from 10s to 5s
 			update: 2000, // Reduced from 5s to 2s
 			realpath: false,
+			// Wait out transient lock contention (overlapping saves, Windows AV
+			// scanners holding the lock dir) without a long UI stall: worst case
+			// is roughly 50 + 100 + 200 + 400 + 400 ms ~= 1.2 s before giving up.
 			retries: {
-				retries: 2, // Reduced from 3 to 2 retries for speed
+				retries: 5,
 				factor: 2,
-				minTimeout: 25, // Reduced from 50ms to 25ms
-				maxTimeout: 250, // Reduced from 500ms to 250ms
+				minTimeout: 50,
+				maxTimeout: 400,
 			},
 			onCompromised: (err) => {
 				console.error(`Lock at ${absoluteFilePath} was compromised:`, err)

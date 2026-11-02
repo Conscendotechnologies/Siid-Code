@@ -54,6 +54,39 @@ import { useRouterModels } from "./useRouterModels"
 import { useOpenRouterModelProviders } from "./useOpenRouterModelProviders"
 import { useLmStudioModels } from "./useLmStudioModels"
 
+const EMPTY_ROUTER_MODELS: RouterModels = {
+	openrouter: {},
+	requesty: {},
+	glama: {},
+	unbound: {},
+	litellm: {},
+	ollama: {},
+	lmstudio: {},
+}
+
+/**
+ * The branches of getSelectedModel that return made-up figures so a request can still be sized,
+ * rather than figures that describe this model. Fit for that, not for showing to the user.
+ * The live anthropic list marks its own defaulted entries with `modelInfoDefaulted`, set by
+ * mergeAnthropicModels in src/api/providers/fetchers/anthropic.ts.
+ */
+function hasPlaceholderInfo(provider: ProviderName, apiConfiguration: ProviderSettings, id: string): boolean {
+	switch (provider) {
+		case "huggingface":
+			return true
+		case "bedrock":
+			return id === "custom-arn"
+		case "openai":
+			return !apiConfiguration.openAiCustomModelInfo
+		case "vscode-lm":
+			return !((apiConfiguration.vsCodeLmModelSelector?.family ?? vscodeLlmDefaultModelId) in vscodeLlmModels)
+		case "claude-code":
+			return !(id in claudeCodeModels)
+		default:
+			return false
+	}
+}
+
 export const useSelectedModel = (apiConfiguration?: ProviderSettings) => {
 	const provider = apiConfiguration?.apiProvider || "anthropic"
 	const openRouterModelId = provider === "openrouter" ? apiConfiguration?.openRouterModelId : undefined
@@ -63,11 +96,13 @@ export const useSelectedModel = (apiConfiguration?: ProviderSettings) => {
 	const openRouterModelProviders = useOpenRouterModelProviders(openRouterModelId)
 	const lmStudioModels = useLmStudioModels(lmStudioModelId)
 
-	const { id, info } =
-		apiConfiguration &&
-		(typeof lmStudioModelId === "undefined" || typeof lmStudioModels.data !== "undefined") &&
-		typeof routerModels.data !== "undefined" &&
-		typeof openRouterModelProviders.data !== "undefined"
+	// While the lists load (or if they fail) info is unknown, but the id is not: it must
+	// stay the configured one, since the model picker names whatever id it is given.
+	const { id, info } = !apiConfiguration
+		? { id: anthropicDefaultModelId, info: undefined }
+		: (typeof lmStudioModelId === "undefined" || typeof lmStudioModels.data !== "undefined") &&
+			  typeof routerModels.data !== "undefined" &&
+			  typeof openRouterModelProviders.data !== "undefined"
 			? getSelectedModel({
 					provider,
 					apiConfiguration,
@@ -75,12 +110,26 @@ export const useSelectedModel = (apiConfiguration?: ProviderSettings) => {
 					openRouterModelProviders: openRouterModelProviders.data,
 					lmStudioModels: lmStudioModels.data,
 				})
-			: { id: anthropicDefaultModelId, info: undefined }
+			: {
+					id: getSelectedModel({
+						provider,
+						apiConfiguration,
+						routerModels: EMPTY_ROUTER_MODELS,
+						openRouterModelProviders: {},
+						lmStudioModels: undefined,
+					}).id,
+					info: undefined,
+				}
 
 	return {
 		provider,
 		id,
 		info,
+		isInfoDefaulted:
+			!!info &&
+			!!apiConfiguration &&
+			((info as { modelInfoDefaulted?: boolean }).modelInfoDefaulted === true ||
+				hasPlaceholderInfo(provider, apiConfiguration, id)),
 		isLoading:
 			routerModels.isLoading ||
 			openRouterModelProviders.isLoading ||

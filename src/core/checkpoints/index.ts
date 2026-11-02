@@ -20,14 +20,21 @@ import { CheckpointServiceOptions, RepoPerTaskCheckpointService } from "../../se
 import { getDeploymentStatuses } from "../../services/file-changes/deploymentStatus"
 
 /**
- * In-flight initializations, keyed by task.
+ * In-flight initializations, keyed by task instance.
  *
  * `cline.checkpointService` is only assigned after initShadowGit resolves, so
  * without this every concurrent caller starts its own `git init` on the same
  * directory. They collide ("could not lock config file"), and each failure
  * disables checkpoints for the whole task.
+ *
+ * Keyed by instance, not task id: a task reopened from history while its
+ * previous instance is still snapshotting must get its own service (the old
+ * promise only ever assigns the old instance's `checkpointService`, so the new
+ * one would wait forever). The old init is still awaited first so the two
+ * never run `git init` on the same shadow directory at once.
  */
-const initializing = new Map<string, Promise<RepoPerTaskCheckpointService | undefined>>()
+const initializing = new WeakMap<Task, Promise<RepoPerTaskCheckpointService | undefined>>()
+const initializingByTaskId = new Map<string, Promise<unknown>>()
 
 export async function getCheckpointService(
 	cline: Task,
@@ -42,15 +49,24 @@ export async function getCheckpointService(
 		return cline.checkpointService
 	}
 
-	const pending = initializing.get(cline.taskId)
+	const pending = initializing.get(cline)
 
 	if (pending) {
 		return pending
 	}
 
-	const promise = initCheckpointService(cline, options).finally(() => initializing.delete(cline.taskId))
+	const prior = initializingByTaskId.get(cline.taskId)
+	const promise = (prior ? prior.catch(() => undefined) : Promise.resolve())
+		.then(() => initCheckpointService(cline, options))
+		.finally(() => {
+			initializing.delete(cline)
+			if (initializingByTaskId.get(cline.taskId) === promise) {
+				initializingByTaskId.delete(cline.taskId)
+			}
+		})
 
-	initializing.set(cline.taskId, promise)
+	initializing.set(cline, promise)
+	initializingByTaskId.set(cline.taskId, promise)
 
 	return promise
 }
@@ -146,6 +162,8 @@ async function checkGitInstallation(
 	log: (message: string) => void,
 	provider: any,
 ) {
+	const initStartedAt = Date.now()
+
 	try {
 		const gitInstalled = await checkGitInstalled()
 
@@ -169,7 +187,8 @@ async function checkGitInstallation(
 
 		// Git is installed, proceed with initialization
 		service.on("initialize", () => {
-			log("[Task#getCheckpointService] service initialized")
+			cline.checkpointInitDurationMs = Date.now() - initStartedAt
+			log(`[Task#getCheckpointService] service initialized in ${cline.checkpointInitDurationMs}ms`)
 			cline.checkpointServiceInitializing = false
 		})
 

@@ -20,6 +20,7 @@ import { arePathsEqual } from "../../utils/path"
 import { formatResponse } from "../prompts/responses"
 
 import { Task } from "../task/Task"
+import { readFileChangesForPrompt, type PromptFileChange } from "../checkpoints/promptFileChanges"
 import { formatReminderSection } from "./reminder"
 
 export async function getEnvironmentDetails(
@@ -28,6 +29,9 @@ export async function getEnvironmentDetails(
 	// (cline, globalStorageUri:Uri) or (cline, globalStorageUri:Uri, includeFileDetails:boolean)
 	maybeGlobalStorageOrInclude?: vscode.Uri | boolean,
 	includeFileDetails: boolean = false,
+	// A function rather than a value so the read still happens after terminals
+	// cool down below, while callers can share one computation per turn.
+	readFileChanges: () => Promise<PromptFileChange[]> = () => readFileChangesForPrompt(cline),
 ) {
 	// Normalize parameters
 	let globalStorageUri: vscode.Uri | undefined
@@ -202,7 +206,7 @@ export async function getEnvironmentDetails(
 	}
 
 	// Add files created/modified in this task section
-	const taskFileChanges = await cline.getFileChanges()
+	const taskFileChanges = await readFileChanges()
 
 	if (taskFileChanges.length > 0) {
 		details += "\n\n# Files Changed This Task\nFiles you have created or modified during this task:"

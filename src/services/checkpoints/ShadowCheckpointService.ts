@@ -26,6 +26,24 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 	protected readonly log: (message: string) => void
 	protected shadowGitConfigWorktree?: string
 
+	// Tail of the git queue. Never rejects, so one failure can't stall later work.
+	private gitQueue: Promise<unknown> = Promise.resolve()
+
+	/**
+	 * Run git work that touches the index one operation at a time.
+	 *
+	 * Callers resume together from the shared init promise, and concurrent
+	 * `git add`s collide on index.lock. stageAll swallows that failure, so the
+	 * result would be a silently incomplete checkpoint or file list.
+	 *
+	 * Not re-entrant: queued work must call the private implementations.
+	 */
+	private enqueueGit<T>(operation: () => Promise<T>): Promise<T> {
+		const result = this.gitQueue.then(operation)
+		this.gitQueue = result.catch(() => {})
+		return result
+	}
+
 	public get baseHash() {
 		return this._baseHash
 	}
@@ -232,6 +250,13 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 		message: string,
 		options?: { allowEmpty?: boolean },
 	): Promise<CheckpointResult | undefined> {
+		return this.enqueueGit(() => this.saveCheckpointNow(message, options))
+	}
+
+	private async saveCheckpointNow(
+		message: string,
+		options?: { allowEmpty?: boolean },
+	): Promise<CheckpointResult | undefined> {
 		try {
 			this.log(
 				`[${this.constructor.name}#saveCheckpoint] starting checkpoint save (allowEmpty: ${options?.allowEmpty ?? false})`,
@@ -272,6 +297,10 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 	}
 
 	public async restoreCheckpoint(commitHash: string) {
+		return this.enqueueGit(() => this.restoreCheckpointNow(commitHash))
+	}
+
+	private async restoreCheckpointNow(commitHash: string) {
 		try {
 			this.log(`[${this.constructor.name}#restoreCheckpoint] starting checkpoint restore`)
 
@@ -322,7 +351,11 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 		}
 	}
 
-	public async getDiff({ from, to }: { from?: string; to?: string }): Promise<CheckpointDiff[]> {
+	public async getDiff(range: { from?: string; to?: string }): Promise<CheckpointDiff[]> {
+		return this.enqueueGit(() => this.getDiffNow(range))
+	}
+
+	private async getDiffNow({ from, to }: { from?: string; to?: string }): Promise<CheckpointDiff[]> {
 		if (!this.git) {
 			throw new Error("Shadow git repo not initialized")
 		}
@@ -368,6 +401,10 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 	 * included - git cannot attribute a change to its author.
 	 */
 	public async getFileChangeSummary(from?: string): Promise<FileChangeSummary[]> {
+		return this.enqueueGit(() => this.getFileChangeSummaryNow(from))
+	}
+
+	private async getFileChangeSummaryNow(from?: string): Promise<FileChangeSummary[]> {
 		if (!this.git) {
 			throw new Error("Shadow git repo not initialized")
 		}
@@ -443,6 +480,10 @@ export abstract class ShadowCheckpointService extends EventEmitter {
 	 * `git checkout` errors on an unknown path, so handle that case directly.
 	 */
 	public async revertFile(commitHash: string, relPath: string): Promise<void> {
+		return this.enqueueGit(() => this.revertFileNow(commitHash, relPath))
+	}
+
+	private async revertFileNow(commitHash: string, relPath: string): Promise<void> {
 		if (!this.git) {
 			throw new Error("Shadow git repo not initialized")
 		}

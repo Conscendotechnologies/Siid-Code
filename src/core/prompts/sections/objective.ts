@@ -133,6 +133,8 @@ export function getObjectiveSection(
 	- If creating/modifying **role** → Read the role creation instruction file
 	- And so on for each component type
 
+	**Schema Lookup:** Before referencing an object or field, check local \`objects/<Obj>/fields/<Field>.field-meta.xml\` first with read_file or search_files, then use \`siid_forge\` describeObject or retrieve_sf_metadata for org truth and standard fields. Treat "not found locally" as unknown, not absent: never assume a field doesn't exist, and never invent field types.
+
 ${pmdRulesGuidance}
 
 	**Within <thinking> tags, you must:**

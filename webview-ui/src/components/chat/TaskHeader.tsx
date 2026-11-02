@@ -49,8 +49,23 @@ const TaskHeader = ({
 }: TaskHeaderProps) => {
 	const { t } = useTranslation()
 	const { apiConfiguration, currentTaskItem, taskStartTime, taskElapsedTime, developerMode } = useExtensionState()
-	const { id: modelId, info: model } = useSelectedModel(apiConfiguration)
+	const { id: modelId, info: model, isLoading: isModelLoading } = useSelectedModel(apiConfiguration)
 	const [isTaskExpanded, setIsTaskExpanded] = useState(false)
+	// With no price the extension computes a cost of 0, which is unknown rather than free. A cost
+	// above 0 is still shown: part of the task ran on a model that does have a price.
+	const isCostUnavailable =
+		!totalCost &&
+		!isModelLoading &&
+		model?.inputPrice === undefined &&
+		model?.outputPrice === undefined &&
+		(tokensIn > 0 || tokensOut > 0)
+	const costUnavailable = (
+		<StandardTooltip content={t("chat:task.priceUnavailable")}>
+			<span data-testid="task-cost-unavailable" aria-label={t("chat:task.priceUnavailable")}>
+				—
+			</span>
+		</StandardTooltip>
+	)
 	// Live timer while running, frozen elapsed time when stopped
 	const elapsed = useTaskTimer(taskStartTime, taskElapsedTime)
 
@@ -192,6 +207,7 @@ const TaskHeader = ({
 							</span>
 						</StandardTooltip>
 						{!!totalCost && developerMode && <span>${totalCost.toFixed(2)}</span>}
+						{isCostUnavailable && developerMode && costUnavailable}
 					</div>
 				)}
 				{/* Expanded state: Show task text and images */}
@@ -282,13 +298,13 @@ const TaskHeader = ({
 											</tr>
 										)}
 
-									{!!totalCost && developerMode && (
+									{(!!totalCost || isCostUnavailable) && developerMode && (
 										<tr>
 											<th className="font-bold text-left align-top w-1 whitespace-nowrap pl-1 pr-3 h-[24px]">
 												{t("chat:task.apiCost")}
 											</th>
 											<td className="align-top">
-												<span>${totalCost?.toFixed(2)}</span>
+												{totalCost ? <span>${totalCost.toFixed(2)}</span> : costUnavailable}
 											</td>
 										</tr>
 									)}

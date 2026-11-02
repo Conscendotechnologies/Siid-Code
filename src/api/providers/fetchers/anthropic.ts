@@ -108,6 +108,25 @@ export async function fetchAnthropicApiModels({
 const positiveNumber = (n: unknown): number | undefined => (typeof n === "number" && n > 0 ? n : undefined)
 
 /**
+ * Marker for model info whose context window did not come from the API list
+ * or the bundled table but from the conservative defaults above. Consumers
+ * (Task's auto-condense check) must not trust such a window for arithmetic:
+ * a 1M model tagged with a 200k default would be condensed at 20% real usage.
+ */
+export const MODEL_INFO_DEFAULTED_KEY = "modelInfoDefaulted" as const
+
+export type TaggedModelInfo = ModelInfo & { [MODEL_INFO_DEFAULTED_KEY]?: true }
+
+export function isDefaultedModelInfo(info: ModelInfo | undefined | null): boolean {
+	return !!info && (info as TaggedModelInfo)[MODEL_INFO_DEFAULTED_KEY] === true
+}
+
+/** Conservative, tagged defaults for an id that is listed nowhere. */
+export function defaultedModelInfo(id: string): TaggedModelInfo {
+	return mergeAnthropicModels([{ id }])[id] as TaggedModelInfo
+}
+
+/**
  * Merge the API list with the bundled table. The API decides which models
  * exist and wins for limits and capabilities; the table only supplies pricing
  * and metadata for ids it knows. Unknown ids get conservative defaults and no
@@ -136,7 +155,7 @@ export function mergeAnthropicModels(apiModels: AnthropicApiModel[]): ModelRecor
 		const thinkingSupported = caps?.thinking?.supported
 		const imageInput = caps?.image_input?.supported
 
-		const info: ModelInfo = {
+		const info: TaggedModelInfo = {
 			// Conservative defaults for ids the table does not know.
 			maxTokens: ANTHROPIC_DEFAULT_MAX_TOKENS,
 			contextWindow: DEFAULT_CONTEXT_WINDOW,
@@ -147,6 +166,8 @@ export function mergeAnthropicModels(apiModels: AnthropicApiModel[]): ModelRecor
 
 		const contextWindow = positiveNumber(m.max_input_tokens)
 		if (contextWindow) info.contextWindow = contextWindow
+		// Neither the table nor the API said how big the window is: tag it.
+		if (!base && !contextWindow) info[MODEL_INFO_DEFAULTED_KEY] = true
 		const maxTokens = positiveNumber(m.max_tokens)
 		if (maxTokens) info.maxTokens = maxTokens
 		if (typeof imageInput === "boolean") info.supportsImages = imageInput

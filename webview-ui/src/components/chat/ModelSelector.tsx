@@ -21,6 +21,9 @@ interface ModelSelectorProps {
 	portalId?: string // Element id the popover renders into
 }
 
+/** "anthropic/claude-opus-5-5" -> "claude-opus-5-5". The trigger is narrow, so the vendor path goes. */
+const compactModelId = (id: string) => id.split("/").filter(Boolean).pop() ?? id
+
 export const ModelSelector = ({
 	value,
 	mode,
@@ -50,8 +53,8 @@ export const ModelSelector = ({
 		return tier.charAt(0).toUpperCase() + tier.slice(1)
 	}, [])
 
-	// Get available models for the current mode with filtering
-	const availableModels = React.useMemo(() => {
+	// Every model of the current mode, before the free-tier filter
+	const modeModels = React.useMemo(() => {
 		// List order is already priority order
 		const allModels = getModelsForMode(mode)
 
@@ -62,28 +65,32 @@ export const ModelSelector = ({
 		const recommended = getRecommendedModelForMode(mode)
 		const withSuffix = (name: string) =>
 			name.endsWith(")") ? `${name.slice(0, -1)}, Recommended)` : `${name} (Recommended)`
-		const labelled = recommended
+		return recommended
 			? allModels.map((model) =>
 					model.modelId === recommended ? { ...model, displayName: withSuffix(model.displayName) } : model,
 				)
 			: allModels
+		// modeModelListVersion is the signal that the shared list was replaced.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [mode, modeModelListVersion])
 
+	// The models the dropdown offers
+	const availableModels = React.useMemo(() => {
 		// Developer mode shows all models
 		if (developerMode) {
-			return labelled
+			return modeModels
 		}
 
 		// Show only free tier models when useFreeModels is enabled,
 		// otherwise show everything (free and paid)
-		return useFreeModels === true ? labelled.filter((model) => model.tier === "Free") : labelled
-		// modeModelListVersion is the signal that the shared list was replaced.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [mode, useFreeModels, developerMode, modeModelListVersion])
+		return useFreeModels === true ? modeModels.filter((model) => model.tier === "Free") : modeModels
+	}, [modeModels, useFreeModels, developerMode])
 
-	// Find the selected model info
+	// Looked up before the free-tier filter: a paid model hidden from the dropdown
+	// is still the model in use, so it keeps its proper name on the trigger.
 	const selectedModel = React.useMemo(() => {
-		return availableModels.find((model) => model.modelId === value)
-	}, [availableModels, value])
+		return modeModels.find((model) => model.modelId === value)
+	}, [modeModels, value])
 
 	const handleSelect = React.useCallback(
 		(modelId: string) => {
@@ -98,10 +105,12 @@ export const ModelSelector = ({
 		return null
 	}
 
-	// A stored model that is no longer offered (delisted by the provider, or
-	// filtered out) has no entry to name. Prompt for a new one rather than
-	// showing a bare id, and never switch on the user's behalf.
-	const displayName = selectedModel?.displayName || t("chat:modelSelector.selectModel")
+	// The mode list only knows OpenRouter ids, so a stored model outside it (another
+	// provider's id, or one since delisted) is still what requests use. Name it by
+	// its id, and keep the prompt for when there is truly no model. Never switch on
+	// the user's behalf.
+	const displayName =
+		selectedModel?.displayName || (value ? compactModelId(value) : t("chat:modelSelector.selectModel"))
 
 	const triggerContent = (
 		<PopoverTrigger
@@ -123,7 +132,9 @@ export const ModelSelector = ({
 					open && "rotate-180",
 				)}
 			/>
-			<span className="truncate max-w-[200px]">{displayName}</span>
+			<span className="truncate max-w-[200px]" title={!selectedModel && value ? value : undefined}>
+				{displayName}
+			</span>
 		</PopoverTrigger>
 	)
 

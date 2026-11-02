@@ -37,6 +37,30 @@ import { Task } from "../task/Task"
 
 /** Tools that write to disk, and so change the task's file-change list. */
 const FILE_WRITING_TOOLS = new Set<ToolName>(["write_to_file", "apply_diff", "insert_content", "search_and_replace"])
+
+/** Tools that can change the workspace by other means than the edit tools above. */
+const INDIRECT_WORKSPACE_TOOLS = new Set<ToolName>([
+	"execute_command",
+	"retrieve_sf_metadata",
+	"siid_forge",
+	"use_mcp_tool",
+	"new_task",
+])
+
+/**
+ * Whether a tool must wait for the shadow repo's first snapshot, now that the
+ * first request no longer waits for it. A change landing mid-snapshot could be
+ * absorbed into the baseline, which would drop it from the task's file-change
+ * list and make "restore" keep it.
+ *
+ * Edit tools wait on their first partial block because that is where they save
+ * their checkpoint. The others only wait once complete, so their row still
+ * renders while streaming.
+ */
+export function shouldWaitForCheckpointBaseline(toolName: ToolName, partial: boolean): boolean {
+	return FILE_WRITING_TOOLS.has(toolName) || (!partial && INDIRECT_WORKSPACE_TOOLS.has(toolName))
+}
+
 import { codebaseSearchTool } from "../tools/codebaseSearchTool"
 import { experiments, EXPERIMENT_IDS } from "../../shared/experiments"
 import { applyDiffToolLegacy } from "../tools/applyDiffTool"
@@ -433,6 +457,15 @@ export async function presentAssistantMessage(cline: Task) {
 					partial: block.partial,
 					params: block.params,
 				})
+			}
+
+			if (shouldWaitForCheckpointBaseline(block.name as ToolName, !!block.partial)) {
+				await cline.waitForCheckpointBaseline()
+
+				// Cancelling during the wait must not let the tool run afterwards.
+				if (cline.abort) {
+					break
+				}
 			}
 
 			switch (block.name) {

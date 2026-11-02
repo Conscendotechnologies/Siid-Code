@@ -1,5 +1,5 @@
 import React from "react"
-import { render, screen, fireEvent, act } from "@testing-library/react"
+import { render, screen, fireEvent, act, within } from "@testing-library/react"
 
 import en from "../../../i18n/locales/en/agents.json"
 import AgentsView from "../AgentsView"
@@ -74,6 +74,15 @@ describe("AgentsView", () => {
 		expect(screen.queryByTestId("agents-hero")).toBeNull()
 	})
 
+	it("shows the SIID logo on the hero only, not when a task is active", () => {
+		const { unmount } = renderView()
+		expect(within(screen.getByTestId("agents-hero")).getByAltText("SIID")).toBeInTheDocument()
+		unmount()
+		state.clineMessages = [{ ts: 1 }]
+		renderView()
+		expect(screen.queryByAltText("SIID")).toBeNull()
+	})
+
 	it("resumes a session, searches and filters", () => {
 		renderView()
 		fireEvent.click(screen.getAllByTestId("agents-session")[0])
@@ -113,16 +122,16 @@ describe("AgentsView", () => {
 		renderView()
 		expect(screen.getByTestId("model-selector-trigger")).toHaveTextContent("Claude Test")
 		expect(screen.queryByTestId("agents-provider-chip")).toBeNull()
-		selected = { ...selected, id: "claude-sonnet-4-20250514" }
+		selected = { ...selected, id: "claude-opus-5-5" }
 		state = baseState()
 		const { unmount } = renderView()
-		expect(screen.getAllByTestId("model-selector-trigger").pop()).toHaveTextContent(
-			"chat:modelSelector.selectModel",
-		)
+		const trigger = screen.getAllByTestId("model-selector-trigger").pop()
+		expect(trigger).toHaveTextContent("claude-opus-5-5")
+		expect(trigger).not.toHaveTextContent("chat:modelSelector.selectModel")
 		unmount()
 	})
 
-	it("shows model detail only for a listed, loaded model with info", () => {
+	it("shows model detail for any loaded model whose info is its own", () => {
 		const { unmount } = renderView()
 		expect(screen.getByTestId("agents-model-detail")).toHaveTextContent("Medium · Context 1M")
 		unmount()
@@ -135,7 +144,17 @@ describe("AgentsView", () => {
 		const r3 = renderView()
 		expect(screen.queryByTestId("agents-model-detail")).toBeNull()
 		r3.unmount()
-		selected = { ...selected, isLoading: false, id: "unlisted" }
+		// Off the mode's list, as provider anthropic's ids always are: the detail stays.
+		selected = { ...selected, isLoading: false, id: "claude-opus-5-5" }
+		const r4 = renderView()
+		expect(screen.getByTestId("agents-model-detail")).toHaveTextContent("Context 1M")
+		r4.unmount()
+		// No info, or a placeholder figure: nothing rather than a wrong number.
+		selected = { ...selected, info: undefined }
+		const r5 = renderView()
+		expect(screen.queryByTestId("agents-model-detail")).toBeNull()
+		r5.unmount()
+		selected = { ...selected, info: { contextWindow: 128_000 }, isInfoDefaulted: true }
 		renderView()
 		expect(screen.queryByTestId("agents-model-detail")).toBeNull()
 	})
