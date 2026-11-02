@@ -664,7 +664,13 @@
 		display: none;
 	}
 }
-@media (max-height: 620px) {
+@media (max-height: 640px) {
+	.agents-hero-logo {
+		width: 56px;
+		height: 56px;
+	}
+}
+@media (max-height: 500px) {
 	.agents-hero-logo {
 		display: none;
 	}
