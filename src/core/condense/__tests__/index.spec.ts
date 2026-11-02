@@ -422,6 +422,7 @@ describe("summarizeConversation", () => {
 		const result = await summarizeConversation(history, handler, "sys", taskId, 900_000)
 		expect(handler.createMessage).not.toHaveBeenCalled()
 		expect(result.summary).toMatch(/^Elided \d+ older tool outputs/)
+		expect(result.reductionOnly).toBe(true)
 		expect(text(result.messages[2], 1)).toContain(ELIDED_MARKER)
 		// newContextTokens is the count of the messages (no system prompt), the
 		// same semantics as the summary path and the Task reduction path.

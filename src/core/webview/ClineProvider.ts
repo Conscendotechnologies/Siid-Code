@@ -97,6 +97,9 @@ import { isAuthenticated } from "../../utils/firebaseHelper"
  * https://github.com/KumarVariable/vscode-extension-sidebar-html/blob/master/src/customSidebarViewProvider.ts
  */
 
+const TASK_HISTORY_READ_ATTEMPTS = 4
+const TASK_HISTORY_READ_RETRY_MS = 100
+
 export class ClineProvider
 	extends EventEmitter<TaskProviderEvents>
 	implements vscode.WebviewViewProvider, TelemetryPropertiesProvider, TaskProviderLike
@@ -1407,7 +1410,6 @@ export class ClineProvider
 			return
 		}
 
-		const { historyItem } = await this.getTaskWithId(cline.taskId)
 		const elapsedBeforeAbort = cline.getTaskDuration()
 		// Preserve parent and root task information for history item.
 		const rootTask = cline.rootTask
@@ -1588,17 +1590,32 @@ export class ClineProvider
 			const taskDirPath = await getTaskDirectoryPath(globalStoragePath, id)
 			const apiConversationHistoryFilePath = path.join(taskDirPath, GlobalFileNames.apiConversationHistory)
 			const uiMessagesFilePath = path.join(taskDirPath, GlobalFileNames.uiMessages)
-			const fileExists = await fileExistsAtPath(apiConversationHistoryFilePath)
 
-			if (fileExists) {
-				const apiConversationHistory = JSON.parse(await fs.readFile(apiConversationHistoryFilePath, "utf8"))
+			// A save replaces this file, so a look can land in the moment it is absent
+			// (seen on Windows). Look again before treating the task as gone below.
+			for (let attempt = 1; attempt <= TASK_HISTORY_READ_ATTEMPTS; attempt++) {
+				try {
+					if (await fileExistsAtPath(apiConversationHistoryFilePath)) {
+						const apiConversationHistory = JSON.parse(
+							await fs.readFile(apiConversationHistoryFilePath, "utf8"),
+						)
 
-				return {
-					historyItem,
-					taskDirPath,
-					apiConversationHistoryFilePath,
-					uiMessagesFilePath,
-					apiConversationHistory,
+						return {
+							historyItem,
+							taskDirPath,
+							apiConversationHistoryFilePath,
+							uiMessagesFilePath,
+							apiConversationHistory,
+						}
+					}
+				} catch (error) {
+					if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+						throw error
+					}
+				}
+
+				if (attempt < TASK_HISTORY_READ_ATTEMPTS) {
+					await delay(TASK_HISTORY_READ_RETRY_MS)
 				}
 			}
 		}

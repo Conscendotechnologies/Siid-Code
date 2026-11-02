@@ -726,6 +726,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				(message: ClineMessage) => message.say === "api_req_started",
 			)
 
+			// The stream ended but the task is still working (a tool waiting for the
+			// checkpoint baseline), so offer Cancel rather than the last ask's buttons.
+			if (lastApiReqStarted?.progressStatus?.blocking) {
+				return true
+			}
+
 			if (
 				lastApiReqStarted &&
 				lastApiReqStarted.text !== null &&
@@ -742,6 +748,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 		return false
 	}, [isCondensing, modifiedMessages, clineAsk, enableButtons, primaryButtonText])
+
+	// A cancel belongs to one run of one task. If it never lands, "Cancelling..."
+	// must not outlive that run and disable Cancel for everything after it.
+	useEffect(() => {
+		setDidClickCancel(false)
+	}, [task?.ts])
+
+	useEffect(() => {
+		if (!isStreaming) {
+			setDidClickCancel(false)
+		}
+	}, [isStreaming])
 
 	const markFollowUpAsAnswered = useCallback(() => {
 		const lastFollowUpMessage = messagesRef.current.findLast((msg: ClineMessage) => msg.ask === "followup")

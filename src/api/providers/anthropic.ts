@@ -37,6 +37,20 @@ const FETCH_MODEL_WAIT_MS = 5_000
 export const FAILED_FETCH_BACKOFF_MS = 60_000
 const failedFetchAt = new Map<string, number>()
 
+/**
+ * Newer models answer 400 to sampling parameters, while leaving one out is safe
+ * on every model (the API default applies). So it is only sent when something
+ * says the model takes it: the info itself, the bundled table, or a live list
+ * stating manual thinking budgets, which only the older models that also accept
+ * sampling have. Defaulted ids and list entries without capabilities say nothing.
+ */
+function acceptsTemperature(id: string, info: ModelInfo): boolean {
+	if (info.supportedParameters) {
+		return info.supportedParameters.includes("temperature")
+	}
+	return Object.prototype.hasOwnProperty.call(anthropicModels, id) || info.supportsReasoningBudget === true
+}
+
 export class AnthropicHandler extends BaseProvider implements SingleCompletionHandler {
 	private options: ApiHandlerOptions
 	private client: Anthropic
@@ -343,8 +357,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 			settings: this.options,
 		})
 
-		// Newer models reject sampling parameters outright.
-		if (info.supportedParameters && !info.supportedParameters.includes("temperature")) {
+		if (!acceptsTemperature(id, info)) {
 			params.temperature = undefined
 		}
 
@@ -361,6 +374,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 	}
 
 	async completePrompt(prompt: string) {
+		await this.ensureModelListLoaded()
 		let { id: model, temperature } = this.getModel()
 
 		const message = await this.client.messages.create({

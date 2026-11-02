@@ -588,3 +588,35 @@ export function findUnhandledContextOverflow(
 export function markContextOverflowHandled(task: object, ts: number) {
 	handledOverflows.set(task, ts)
 }
+
+/**
+ * Backoff for failed automatic summaries. Every attempt sends the whole
+ * transcript (more than once when validation fails), so a failure must not
+ * simply repeat next turn. After a failure the next automatic summary needs
+ * this much more context than the failed one had; after
+ * AUTO_SUMMARY_MAX_FAILURES in a row there are no more until a manual condense
+ * or a successful summary resets the count. Only the summary call is held back:
+ * staged reduction and the provider-overflow path do not consult this.
+ */
+export const AUTO_SUMMARY_RETRY_GROWTH_FRACTION = 0.1
+export const AUTO_SUMMARY_MAX_FAILURES = 2
+
+const autoSummaryFailures = new WeakMap<object, { count: number; tokens: number }>()
+
+export function isAutoSummaryAllowed(task: object, totalTokens: number): boolean {
+	const failures = autoSummaryFailures.get(task)
+	if (!failures) return true
+	if (failures.count >= AUTO_SUMMARY_MAX_FAILURES) return false
+	return totalTokens >= failures.tokens * (1 + AUTO_SUMMARY_RETRY_GROWTH_FRACTION)
+}
+
+/** Returns true when this failure is the one that pauses automatic summaries. */
+export function recordAutoSummaryFailure(task: object, totalTokens: number): boolean {
+	const count = (autoSummaryFailures.get(task)?.count ?? 0) + 1
+	autoSummaryFailures.set(task, { count, tokens: totalTokens })
+	return count === AUTO_SUMMARY_MAX_FAILURES
+}
+
+export function resetAutoSummaryFailures(task: object) {
+	autoSummaryFailures.delete(task)
+}

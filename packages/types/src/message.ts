@@ -141,6 +141,12 @@ export type ClineSay = z.infer<typeof clineSaySchema>
 export const toolProgressStatusSchema = z.object({
 	icon: z.string().optional(),
 	text: z.string().optional(),
+	/**
+	 * The task is working but has nothing to show or ask: keep Cancel available
+	 * even though the request already reported its cost. Only true while a live
+	 * Task instance is waiting; resuming from history drops it.
+	 */
+	blocking: z.boolean().optional(),
 })
 
 export type ToolProgressStatus = z.infer<typeof toolProgressStatusSchema>
